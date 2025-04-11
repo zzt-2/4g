@@ -1,0 +1,69 @@
+/* 浅红色系列 */
+.bg-red-50 {
+  background-color: #ffebee;
+}
+
+.bg-red-100 {
+  background-color: #ffcdd2;
+}
+
+.bg-red-200 {
+  background-color: #ef9a9a;
+}
+
+/* 中红色系列 */
+.bg-red-300 {
+  background-color: #e57373;
+}
+
+.bg-red-400 {
+  background-color: #ef5350;
+}
+
+.bg-red-500 {
+  background-color: #f44336;
+}
+
+/* 深红色系列 */
+.bg-red-600 {
+  background-color: #e53935;
+}
+
+.bg-red-700 {
+  background-color: #d32f2f;
+}
+
+.bg-red-800 {
+  background-color: #c62828;
+}
+
+.bg-red-900 {
+  background-color: #b71c1c;
+}
+
+/* 红色渐变 */
+.bg-red-gradient-1 {
+  background: linear-gradient(to right, #ef5350, #c62828);
+}
+
+.bg-red-gradient-2 {
+  background: linear-gradient(45deg, #f44336, #b71c1c);
+}
+
+/* 特殊红色 */
+.bg-crimson {
+  background-color: #dc143c;
+}
+
+.bg-burgundy {
+  background-color: #800020;
+}
+
+/* 带透明度的红色 */
+.bg-red-alpha-30 {
+  background-color: rgba(244, 67, 54, 0.3);
+}
+
+.bg-red-alpha-50 {
+  background-color: rgba(244, 67, 54, 0.5);
+}

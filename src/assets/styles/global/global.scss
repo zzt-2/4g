@@ -1,0 +1,41 @@
+/* 确保根元素和 body 占满整个视口 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 主布局样式 */
+.main-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 标题栏固定高度 */
+.titlebar {
+  flex: 0 0 32px;
+}
+
+/* 内容区域自适应剩余空间 */
+.page-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* 确保路由视图内容填满容器 */
+.q-page {
+  min-height: 0 !important;
+  padding: 0;
+  flex: 1;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}

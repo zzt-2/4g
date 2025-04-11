@@ -1,102 +1,64 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
-      <q-toolbar>
-        <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          @click="toggleLeftDrawer"
-        />
-
-        <q-toolbar-title>
-          Quasar App
-        </q-toolbar-title>
-
-        <div>Quasar v{{ $q.version }}</div>
-      </q-toolbar>
+  <q-layout view="hHh lpR fFf" class="bg-[#0f172a] h-screen flex flex-col">
+    <!-- 头部固定高度 -->
+    <q-header class="bg-[#1e293b] shadow-sm h-[48px] items-center">
+      <HeaderBar />
     </q-header>
 
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-    >
-      <q-list>
-        <q-item-label
-          header
-        >
-          Essential Links
-        </q-item-label>
+    <!-- 内容区域使用flex布局 -->
+    <div class="flex items-end flex-grow h-[calc(100vh-28px)]">
+      <!-- 侧边栏固定宽度 -->
+      <q-drawer
+        v-model="leftDrawerOpen"
+        :width="240"
+        :breakpoint="500"
+        dark
+        persistent
+        show-if-above
+        class="bg-[#1e293b] text-[#e2e8f0] shadow-none border-r-0 h-full"
+      >
+        <SidePanel />
+      </q-drawer>
 
-        <EssentialLink
-          v-for="link in linksList"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
-    </q-drawer>
+      <!-- 主内容区域 -->
+      <q-page-container class="flex-grow h-full overflow-auto">
+        <div class="text-[#e2e8f0] h-full">
+          <router-view />
+        </div>
+      </q-page-container>
+    </div>
 
-    <q-page-container>
-      <router-view />
-    </q-page-container>
+    <!-- 底部状态栏 -->
+    <div class="bg-[#1e293b] border-t border-[#0f172a] h-[28px] z-10">
+      <StatusBar />
+    </div>
   </q-layout>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
+import { ref, provide } from 'vue';
+import HeaderBar from '../components/layout/HeaderBar.vue';
+import SidePanel from '../components/layout/SidePanel.vue';
+import StatusBar from '../components/common/StatusBar.vue';
 
-const linksList: EssentialLinkProps[] = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev'
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework'
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev'
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev'
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev'
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev'
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev'
-  }
-];
+const leftDrawerOpen = ref(true);
 
-const leftDrawerOpen = ref(false);
-
-function toggleLeftDrawer () {
+const toggleDrawer = () => {
   leftDrawerOpen.value = !leftDrawerOpen.value;
-}
+};
+
+provide('toggleDrawer', toggleDrawer);
 </script>
+
+<style>
+/* 确保没有不必要的边距和边框 */
+.q-layout,
+.q-page-container {
+  padding: 0;
+}
+
+.q-drawer__content {
+  box-shadow: none !important;
+  border-right: none !important;
+}
+</style>

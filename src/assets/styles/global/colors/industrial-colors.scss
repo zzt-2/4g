@@ -1,0 +1,101 @@
+/* 工业主题颜色 - 背景色 */
+.bg-industrial-primary {
+  background-color: #0a1929; /* 主背景色: 深蓝黑色 */
+}
+
+.bg-industrial-secondary {
+  background-color: #0f2744; /* 次背景色: 深蓝色 */
+}
+
+.bg-industrial-panel {
+  background-color: #12233f; /* 面板背景: 稍亮蓝色 */
+}
+
+.bg-industrial-highlight {
+  background-color: #1e3a6a; /* 高亮背景: 亮蓝色 */
+}
+
+/* 工业主题颜色 - 边框色 */
+.border-industrial {
+  border-color: #1a3663; /* 边框颜色: 蓝灰色 */
+}
+
+/* 工业主题颜色 - 文本色 */
+.text-industrial-primary {
+  color: #e2e8f0; /* 主文本色: 浅灰白色 */
+}
+
+.text-industrial-secondary {
+  color: #94a3b8; /* 次文本色: 灰蓝色 */
+}
+
+.text-industrial-accent {
+  color: #93c5fd; /* 强调文本: 亮蓝色 */
+}
+
+.text-industrial-id {
+  color: #ffcb6b; /* ID标识色: 黄色 */
+}
+
+/* 工业主题颜色 - 按钮色 */
+.btn-industrial-primary {
+  background-color: #3b82f6; /* 主要操作按钮: 蓝色 */
+  color: #ffffff;
+}
+
+.btn-industrial-secondary {
+  background-color: #475569; /* 次要操作按钮: 灰色 */
+  color: #ffffff;
+}
+
+.btn-industrial-danger {
+  background-color: #ef4444; /* 危险操作按钮: 红色 */
+  color: #ffffff;
+}
+
+/* 工业主题颜色 - 状态色 */
+.status-processing {
+  background-color: #2c435e; /* 处理中背景 */
+  color: #64b5f6; /* 处理中文本: 蓝色 */
+}
+
+.status-completed {
+  background-color: #26413a; /* 已完成背景 */
+  color: #66bb6a; /* 已完成文本: 绿色 */
+}
+
+.status-error {
+  background-color: #4e2b2b; /* 错误背景 */
+  color: #ef5350; /* 错误文本: 红色 */
+}
+
+.status-pending {
+  background-color: #4a4032; /* 待处理背景 */
+  color: #ffb74d; /* 待处理文本: 橙色 */
+}
+
+.status-timeout {
+  background-color: #48392f; /* 超时背景 */
+  color: #ff9800; /* 超时文本: 深橙色 */
+}
+
+.status-warning {
+  background-color: #4d4027; /* 警告背景 */
+  color: #ffd54f; /* 警告文本: 黄色 */
+}
+
+/* 组合状态标签类 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* 工业主题渐变背景 */
+.bg-industrial-gradient {
+  background: linear-gradient(135deg, #0a1929, #1e3a6a);
+}

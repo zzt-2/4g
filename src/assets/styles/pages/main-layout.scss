@@ -1,0 +1,27 @@
+.home-page {
+  padding: 20px;
+
+  .notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+
+    .search-bar {
+      flex: 1;
+      max-width: 400px;
+    }
+  }
+
+  .notes-container {
+    height: calc(100% - 70px);
+    overflow-y: auto;
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 16px;
+    }
+  }
+}

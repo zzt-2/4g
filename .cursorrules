@@ -1,0 +1,310 @@
+## 项目简介
+
+这是一个基于 Vue 3 的 RS485 上位机应用，使用 Vue 3 + TypeScript + Quasar + UnoCSS 开发，
+使用 Composition API，并结合 VueUse 提供的组合式函数。该应用主要用于工业场景下的串口通信管理、数据监控与设备控制。
+
+## 技术栈
+- **前端框架**: Vue 3 + TypeScript
+- **构建工具**: Vite
+- **UI 框架**: Quasar (基于 Vue 3)
+- **状态管理**: Pinia + VueUse
+- **样式方案**: UnoCSS (原子化 CSS)
+- **图表库**: ECharts (适合工业监控)
+- **串口通信**: SerialPort (Electron 集成)
+- **数据存储**: 轻量级 SQLite + 文件系统
+
+## 设计风格
+- **整体风格**: 深色工业风格主题，减轻长时间操作的视觉疲劳
+- **布局特点**: 表格式布局，清晰展示大量设备数据
+- **功能区划**: 操作区、数据展示区、状态区明确分离
+- **色彩方案**: 高对比度，重要数据和状态信息使用高对比色彩
+- **简洁实用**: 减少装饰性元素，突出功能性
+- 使用 UnoCSS 来做额外的样式编写，非必要不要使用 SCSS
+
+## 工业风格界面规范
+
+### 色彩规范
+- **主背景色**: #0a1929 (深蓝黑色)
+- **次背景色**: #0f2744 (深蓝色)
+- **面板背景**: #12233f (稍亮蓝色)
+- **边框颜色**: #1a3663 (蓝灰色)
+- **高亮背景**: #1e3a6a (亮蓝色)
+- **主文本色**: #e2e8f0 (浅灰白色)
+- **次文本色**: #94a3b8 (灰蓝色)
+- **强调文本**: #93c5fd (亮蓝色)
+- **ID标识色**: #ffcb6b (黄色)
+- **操作按钮**:
+  - 主要操作: #3b82f6 (蓝色)
+  - 次要操作: #475569 (灰色)
+  - 危险操作: #ef4444 (红色)
+
+### 状态颜色
+- **处理中**: #64b5f6 (蓝色)，背景 #2c435e
+- **已完成**: #66bb6a (绿色)，背景 #26413a
+- **错误**: #ef5350 (红色)，背景 #4e2b2b
+- **待处理**: #ffb74d (橙色)，背景 #4a4032
+- **超时**: #ff9800 (深橙色)，背景 #48392f
+- **警告**: #ffd54f (黄色)，背景 #4d4027
+
+### CSS类参考
+使用以下预定义的CSS类来保持设计一致性：
+
+#### 背景色类
+- `.bg-industrial-primary` - 主背景色 (#0a1929)
+- `.bg-industrial-secondary` - 次背景色 (#0f2744)
+- `.bg-industrial-panel` - 面板背景 (#12233f)
+- `.bg-industrial-highlight` - 高亮背景 (#1e3a6a)
+- `.bg-industrial-gradient` - 工业主题渐变背景
+
+#### 文本颜色类
+- `.text-industrial-primary` - 主文本色 (#e2e8f0)
+- `.text-industrial-secondary` - 次文本色 (#94a3b8)
+- `.text-industrial-accent` - 强调文本 (#93c5fd)
+- `.text-industrial-id` - ID标识色 (#ffcb6b)
+
+#### 边框颜色类
+- `.border-industrial` - 边框颜色 (#1a3663)
+
+#### 按钮颜色类
+- `.btn-industrial-primary` - 主要操作按钮 (#3b82f6)
+- `.btn-industrial-secondary` - 次要操作按钮 (#475569)
+- `.btn-industrial-danger` - 危险操作按钮 (#ef4444)
+
+#### 状态颜色类
+- `.status-processing` - 处理中状态
+- `.status-completed` - 已完成状态
+- `.status-error` - 错误状态
+- `.status-pending` - 待处理状态
+- `.status-timeout` - 超时状态
+- `.status-warning` - 警告状态
+- `.status-badge` - 通用状态标签类，与状态颜色类一起使用
+
+#### UnoCSS常用组合
+```html
+<!-- 工业主题面板 -->
+<div class="bg-industrial-panel border border-industrial rounded p-4">
+  <h3 class="text-industrial-primary text-lg font-medium mb-2">面板标题</h3>
+  <p class="text-industrial-secondary text-sm">面板内容</p>
+</div>
+
+<!-- 工业主题按钮 -->
+<button class="btn-industrial-primary px-4 py-2 rounded text-sm">
+  主要按钮
+</button>
+
+<!-- 工业主题状态标签 -->
+<span class="status-badge status-completed">已完成</span>
+```
+
+### 布局规范
+- **表格式布局**: 使用表格展示大量数据，易于扫描和对比
+- **左侧导航**: 垂直导航菜单，深色背景
+- **顶部操作区**: 固定在顶部，包含主要操作按钮
+- **右侧详情面板**: 选中项的详细信息展示
+- **状态栏**: 底部或顶部的状态信息展示区
+
+### 组件规范
+- **表格组件**: 表头固定，深色背景，边框明显，高对比度行样式
+- **按钮组件**: 简洁扁平，明确的视觉反馈，重要按钮使用强调色
+- **输入组件**: 深色背景，轻微描边，高对比度文本
+- **弹出面板**: 半透明深色背景，边框分明，内容区域层次清晰
+- **状态标识**: 使用颜色和图标结合表示状态，形成直观视觉编码
+
+### 字体规范
+- **主体文字**: 12-14px，清晰易读
+- **标题文字**: 14-16px，粗体
+- **数据文字**: 使用等宽字体，便于数据对齐
+- **状态文字**: 通常使用全大写或小型大写字母，增强识别性
+
+### 交互规范
+- **响应迅速**: 操作反馈及时，避免用户疑惑
+- **状态清晰**: 任何操作的状态变化都需明确显示
+- **批量操作**: 支持多选和批量处理，提高效率
+- **键盘友好**: 支持键盘快捷键，减少鼠标操作
+- **过滤搜索**: 提供强大的过滤和搜索功能，快速定位数据
+
+## 开发规范
+
+### 项目结构
+- 使用组件化开发，不要使用全局变量，如果有必要可以使用 inject 和 provide
+- 使用 Composition API，不要使用 Vue 2 的选项式 API
+- 使用 Pinia 管理状态，不要使用 Vuex，使用 Composition API 形式的 Pinia
+- 使用 VueUse，不要使用 Vue 2 的工具函数
+
+目录结构遵循 DevPlan.md 中的规划：
+```
+src/
+├── assets/                      # 静态资源
+│   ├── icons/                   # 图标文件
+│   └── styles/                  # 全局样式
+│
+├── components/                  # 公共组件
+│   ├── common/                  # 通用组件
+│   │   ├── BaseTable.vue        # 基础表格组件
+│   │   ├── StatusBar.vue        # 状态栏组件
+│   │   ├── NavMenu.vue          # 导航菜单
+│   │   └── Dialog.vue           # 对话框组件
+│   │
+│   ├── frames/                  # 数据帧相关组件
+│   │   ├── FrameList.vue        # 帧列表组件
+│   │   ├── FrameEditor.vue      # 帧编辑器
+│   │   ├── FrameTable.vue       # 帧数据表格组件
+│   │   ├── FrameStatusBadge.vue # 帧状态标识组件
+│   │   ├── FrameOperations.vue  # 帧操作栏组件
+│   │   ├── FrameFilterPanel.vue # 帧过滤面板
+│   │   ├── FrameDetailPanel.vue # 帧详情面板
+│   │   ├── FrameCategory.vue    # 帧分类组件
+│   │   └── ConfigItem.vue       # 配置项组件
+│   │
+│   ├── serial/                  # 串口相关组件
+│   │   ├── PortSelector.vue     # 端口选择器
+│   │   ├── DataMonitor.vue      # 数据监视器
+│   │   └── CommandPanel.vue     # 命令面板
+│   │
+│   └── layout/                  # 布局组件
+│       ├── MainLayout.vue       # 主布局组件
+│       ├── HeaderBar.vue        # 页面顶栏
+│       └── SidePanel.vue        # 侧边面板
+│
+├── composables/                 # 可组合函数
+│   ├── useTableOperations.ts    # 表格操作逻辑
+│   ├── useSerialPort.ts         # 串口操作逻辑
+│   ├── useFrameEditor.ts        # 帧编辑逻辑
+│   └── useTheme.ts              # 主题切换逻辑
+│
+├── electron/                    # Electron 相关
+│   ├── preload/                 # 预加载脚本
+│   │   ├── index.ts             # 预加载入口
+│   │   └── api/                 # API 定义
+│   ├── main/                    # 主进程代码
+│   │   ├── index.ts             # 主进程入口
+│   │   ├── serial/              # 串口模块
+│   └── ipc/                     # IPC 通信
+│
+├── pages/                       # 页面
+│   ├── home/                    # 首页
+│   ├── serial/                  # 串口监控页面
+│   ├── frames/                  # 帧配置页面
+│   └── settings/                # 设置页面
+│
+├── stores/                      # 状态管理
+│   ├── serial.ts                # 串口状态
+│   ├── frames.ts                # 帧配置状态
+│   ├── settings.ts              # 应用设置
+│   └── index.ts                 # Store 入口
+│
+├── types/                       # 类型定义
+│   ├── frames.ts                # 帧相关类型
+│   ├── serial.ts                # 串口相关类型
+│   └── common.ts                # 通用类型
+│
+├── utils/                       # 工具函数
+│   ├── serialHelpers.ts         # 串口辅助函数
+│   ├── formatters.ts            # 数据格式化
+│   ├── validators.ts            # 数据验证
+│   └── idGenerator.ts           # ID生成器
+│
+├── App.vue                      # 应用入口组件
+└── main.ts                      # 应用入口文件
+```
+
+### 命名规范
+- 使用小写短横线命名法命名目录（例如：components/auth-wizard）
+- 组件使用 PascalCase 命名
+- 函数优先使用命名导出
+- 变量使用具有描述性的名称，配合辅助动词（例如：isLoading, hasError）
+
+### 组件规范
+- 使用 `<script setup lang="ts">` 语法
+- 组件名使用 PascalCase 命名
+- 使用 vue 3.5 的语法
+
+- 使用 `defineProps` 定义组件 Props
+示例：
+```ts
+const props = defineProps<{
+  name: string
+  age: number
+  isStudent: boolean
+}>()
+```
+
+- 使用 `defineEmits` 定义组件 Emits
+示例：
+```ts
+const emit = defineEmits<{
+  'save': [data: SomeType]
+  'handleExpand': []
+  'handleCollapse': [paramA: string, paramB: number]
+}>()
+```
+
+- 使用 `defineExpose` 定义组件 Expose 暴露给父组件的属性
+示例：
+```ts
+defineExpose({
+  someVariable,
+  someFunction
+})
+```
+
+- 使用 `defineModels` 定义组件 Model
+示例：
+```ts
+// 基础版本，直接对应组件的 v-model="xxxxx"，变量名称可以自定义
+const modelValue = defineModel<string>({ required: true })
+
+// 复杂版本，可以自定义变量名称，并且可以指定类型
+// 对应到组件是 v-model:checked="xxxxx"
+const checked = defineModel<boolean>('checked', { required: true })
+```
+
+- 大量变量在组件之间传递，可以使用 v-bind 绑定
+示例：
+```vue
+<SomeComponent v-bind="{ someVariable, someFunction }" />
+```
+
+如果变量和 Props 同名，可以不需要写两次，可以简化
+例如：
+```vue
+<SomeComponent :name="name" :color="color" />
+```
+可以简写为：
+```vue
+<SomeComponent :name :color />
+```
+
+### API 使用规范
+API 不需要去创建工具类，直接这样使用:
+```ts
+import { ipcRenderer } from 'electron'
+
+// 串口相关API例子
+export const listSerialPorts = () => 
+  ipcRenderer.invoke('serial:list')
+
+export const connectPort = (portName: string, options: SerialPortOptions) =>
+  ipcRenderer.invoke('serial:connect', portName, options)
+
+export const disconnectPort = () =>
+  ipcRenderer.invoke('serial:disconnect')
+
+export const sendData = (data: Uint8Array | string, isHex: boolean) =>
+  ipcRenderer.invoke('serial:send', data, isHex)
+
+// 帧定义相关API例子
+export const saveFrameTemplate = (template: FrameTemplate) =>
+  ipcRenderer.invoke('frames:save', template)
+
+export const getFrameTemplates = () =>
+  ipcRenderer.invoke('frames:list')
+
+export const deleteFrameTemplate = (id: string) =>
+  ipcRenderer.invoke('frames:delete', id)
+```
+
+### 文件组织
+- 每个文件应当只包含相关内容，如导出的组件、子组件、辅助函数、静态内容和类型
+- 避免在单个文件中混合不相关的功能
+- 遵循 DRY 原则，避免代码重复，优先使用迭代和模块化 
