@@ -3,6 +3,8 @@
  * 在渲染进程中访问主进程API的安全方式
  */
 
+import { deepClone } from './frames/frameUtils';
+
 // 从window对象获取预加载脚本中注入的electron API
 export const electronAPI = window.electron || {
   // 提供默认实现，防止开发环境中没有electron时报错
@@ -52,7 +54,7 @@ export const electronAPI = window.electron || {
 export const framesAPI = {
   save: (frame: unknown) => {
     if (window.electron?.frames?.save) {
-      return window.electron.frames.save(frame);
+      return window.electron.frames.save(deepClone(frame));
     }
     return Promise.reject(new Error('Electron frames API 不可用'));
   },
@@ -74,7 +76,7 @@ export const framesAPI = {
   // 新增方法 - 批量保存所有帧
   saveAll: (frames: unknown[]) => {
     if (window.electron?.frames?.saveAll) {
-      return window.electron.frames.saveAll(frames);
+      return window.electron.frames.saveAll(deepClone(frames));
     }
     return Promise.reject(new Error('Electron frames API(saveAll) 不可用'));
   },

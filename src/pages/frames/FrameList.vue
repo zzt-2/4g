@@ -44,7 +44,7 @@
 
         <div class="flex-1 overflow-auto pr-3">
           <div
-            v-if="isLoading"
+            v-if="templateStore.isLoading"
             class="flex flex-col items-center justify-center h-full p-10 text-[#94a3b8]"
           >
             <q-spinner color="primary" size="40px" />
@@ -63,7 +63,7 @@
           <template v-else>
             <FrameTable
               :frames="mappedFrames"
-              :is-loading="isLoading"
+              :is-loading="templateStore.isLoading"
               @frame-selected="selectFrame"
               @action="handleFrameAction"
             />
@@ -71,7 +71,7 @@
         </div>
       </div>
 
-      <div class="w-[400px] border-l border-[#1a3663] overflow-hidden bg-[#12233f]">
+      <div class="w-[30vw] border-l border-[#1a3663] overflow-hidden bg-[#12233f]">
         <FrameDetailPanel v-if="selectedFrameData" :frame="selectedFrameData" />
         <div v-else class="flex items-center justify-center h-full text-[#94a3b8]">
           选择一个帧查看详情
@@ -86,24 +86,18 @@ import { onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFrameTemplates } from '../../composables/frames/useFrameTemplates';
-import { useFrameFilters } from '../../composables/frames/useFrameFilters';
 import FrameFilterPanel from '../../components/frames/FrameList/FrameFilterPanel.vue';
 import FrameTable from '../../components/frames/FrameList/FrameTable.vue';
 import FrameDetailPanel from '../../components/frames/FrameList/FrameDetailPanel.vue';
-import type { FrameField } from '../../../old/frames';
-
-// 帧参数接口
-interface FrameParam {
-  name: string;
-  type: string;
-  value: string | number | boolean;
-}
+import type { FrameField, FrameParam } from '../../types/frames';
+import { useFrameFilterStore, useFrameTemplateStore } from 'src/stores/framesStore';
+import { applyAllFilters } from 'src/utils/frames/frameUtils';
+import { storeToRefs } from 'pinia';
 
 // 详情帧接口
 interface DetailFrame {
   id: string;
   name: string;
-  status?: 'processing' | 'completed' | 'error' | 'pending'; // 设为可选，符合我们的重构要求
   timestamp: number;
   params: FrameParam[];
   rawData?: string;
@@ -113,7 +107,6 @@ interface DetailFrame {
 interface FilterValues {
   frameId: string;
   name: string;
-  status: string | null;
   paramCount: number | null;
   startTime: string;
   endTime: string;
@@ -125,22 +118,29 @@ const router = useRouter();
 
 // 使用 Composables
 const templateComposable = useFrameTemplates();
-const filterComposable = useFrameFilters();
+const filterStore = useFrameFilterStore();
+const templateStore = useFrameTemplateStore();
+
+const { error } = storeToRefs(templateStore);
 
 // 获取状态
-const isLoading = computed(() => templateComposable.isLoading.value);
-const error = computed(() => templateComposable.error.value);
-const filteredFrames = computed(() => templateComposable.filteredFrames.value);
-const selectedFrame = computed(() => templateComposable.selectedFrame.value);
+const filteredFrames = computed(() => {
+  return applyAllFilters(
+    templateStore.frames,
+    filterStore.filters,
+    filterStore.searchQuery,
+    filterStore.sortOrder,
+  );
+});
 const searchQuery = computed({
-  get: () => filterComposable.searchQuery.value,
-  set: (val) => filterComposable.setSearchQuery(val),
+  get: () => filterStore.searchQuery,
+  set: (val) => filterStore.setSearchQuery(val),
 });
 const showFilterPanel = computed({
-  get: () => filterComposable.showFilterPanel.value,
+  get: () => filterStore.showFilterPanel,
   set: (val) => {
     if (!val) {
-      filterComposable.toggleFilterPanel();
+      filterStore.toggleFilterPanel();
     }
   },
 });
@@ -170,12 +170,13 @@ const mappedFrames = computed(() => {
 
 // 选中的帧详情
 const selectedFrameData = computed<DetailFrame | undefined>(() => {
-  if (!selectedFrame.value) return undefined;
+  if (!templateStore.selectedFrame) return undefined;
 
   // 将字段数据转换为参数格式
-  const params = selectedFrame.value.fields.map((field: FrameField) => ({
+  const params = templateStore.selectedFrame.fields.map((field: FrameField) => ({
+    id: field.id,
     name: field.name,
-    type: field.type,
+    dataType: field.dataType,
     value: field.defaultValue || '未设置',
   }));
 
@@ -202,9 +203,9 @@ const selectedFrameData = computed<DetailFrame | undefined>(() => {
 
   // 返回帧的详细信息
   return {
-    id: selectedFrame.value.id,
-    name: selectedFrame.value.name,
-    timestamp: selectedFrame.value.timestamp,
+    id: templateStore.selectedFrame.id,
+    name: templateStore.selectedFrame.name,
+    timestamp: templateStore.selectedFrame.timestamp,
     params,
     rawData: generateRawData(),
   };
@@ -212,11 +213,11 @@ const selectedFrameData = computed<DetailFrame | undefined>(() => {
 
 // 方法
 function handleSearch(value: string) {
-  filterComposable.setSearchQuery(value);
+  filterStore.setSearchQuery(value);
 }
 
 function clearSearch() {
-  filterComposable.setSearchQuery('');
+  filterStore.setSearchQuery('');
 }
 
 // 处理 FilterPanel 传来的过滤条件
@@ -225,20 +226,18 @@ function handleFilter(filterValues: FilterValues) {
   const options = {
     protocol: '',
     deviceType: '',
-    // 将 null 转为 undefined
-    status: filterValues.status === null ? undefined : filterValues.status,
   };
 
-  filterComposable.setFilters(options);
+  filterStore.setFilters(options);
 
   // 如果有名称搜索，也应用到搜索查询
   if (filterValues.name) {
-    filterComposable.setSearchQuery(filterValues.name);
+    filterStore.setSearchQuery(filterValues.name);
   }
 }
 
 function toggleFilterPanel() {
-  filterComposable.toggleFilterPanel();
+  filterStore.toggleFilterPanel();
 }
 
 function refreshData() {
@@ -255,7 +254,7 @@ function editFrame(frameId: string) {
 
 // 选择帧
 function selectFrame(frameId: string) {
-  templateComposable.selectFrame(frameId);
+  templateStore.setSelectedFrameId(frameId);
 }
 
 function handleFrameAction(action: string, frameId: string) {
@@ -270,7 +269,7 @@ function handleFrameAction(action: string, frameId: string) {
       deleteFrame(frameId);
       break;
     case 'favorite':
-      toggleFavoriteState(frameId);
+      templateStore.toggleFavorite(frameId);
       break;
     default:
       console.warn(`未知操作: ${action}`);
@@ -315,10 +314,6 @@ async function deleteFrame(frameId: string) {
     });
     console.error(error);
   }
-}
-
-function toggleFavoriteState(frameId: string) {
-  templateComposable.toggleFavorite(frameId);
 }
 
 // 页面加载时初始化

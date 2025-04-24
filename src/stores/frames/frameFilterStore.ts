@@ -34,7 +34,7 @@ export const useFrameFilterStore = defineStore('frameFilter', () => {
 
   function resetFilters() {
     searchQuery.value = '';
-    filters.value = { ...FILTER_OPTIONS };
+    filters.value = { ...DEFAULT_FILTER_OPTIONS };
   }
 
   return {

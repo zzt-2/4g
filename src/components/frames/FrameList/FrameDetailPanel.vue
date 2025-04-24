@@ -28,19 +28,88 @@
 
       <q-separator color="grey-8" />
 
-      <!-- 使用DataTable组件显示参数列表 -->
+      <!-- 使用QTable组件显示参数列表 -->
       <div class="px-4 py-3 text-sm font-medium bg-[#1a3663] flex items-center">
         <q-icon name="tune" size="18px" class="mr-2" />
         参数列表
       </div>
+      <q-separator color="grey-8" />
 
-      <div class="flex-1 max-h-[570px]">
-        <DataTable
-          :columns="paramColumns"
-          :data="formattedParams"
-          rowHeight="36px"
-          emptyText="没有参数信息"
-        />
+      <div class="flex-1 h-full overflow-hidden">
+        <q-table
+          v-if="formattedParams.length > 0"
+          :rows="formattedParams"
+          :columns="qColumns"
+          row-key="name"
+          virtual-scroll
+          :virtual-scroll-slice-size="10"
+          :rows-per-page-options="[0]"
+          hide-pagination
+          flat
+          dark
+          dense
+          class="max-h-[568px] overflow-auto"
+          style="height: calc(100vh - 280px)"
+        >
+          <!-- 自定义表头样式 -->
+          <template v-slot:header="props">
+            <q-tr
+              :props="props"
+              class="bg-[#1a3663] border-b border-[#334155] font-bold h-10 whitespace-nowrap"
+            >
+              <q-th
+                v-for="col in props.cols"
+                :key="col.name"
+                :props="props"
+                :class="[col.align, 'text-xs px-2']"
+                :style="{
+                  width: col.width,
+                  minWidth: col.width,
+                  maxWidth: col.maxWidth,
+                }"
+              >
+                {{ col.label }}
+              </q-th>
+            </q-tr>
+          </template>
+
+          <!-- 自定义行样式 -->
+          <template v-slot:body="props">
+            <q-tr
+              :props="props"
+              :class="[
+                props.rowIndex % 2 === 1 ? 'bg-[#0f2744]' : '',
+                'border-b border-[#1a3663] h-10',
+              ]"
+            >
+              <q-td
+                v-for="col in props.cols"
+                :key="col.name"
+                :props="props"
+                :class="[col.align, 'text-xs px-2']"
+                :style="{
+                  width: col.width,
+                  minWidth: col.width,
+                  maxWidth: col.maxWidth,
+                }"
+              >
+                <div
+                  class="overflow-hidden text-ellipsis"
+                  :class="{ 'whitespace-nowrap': col.name !== 'value' }"
+                >
+                  {{ props.row[col.field] }}
+                </div>
+              </q-td>
+            </q-tr>
+          </template>
+        </q-table>
+        <!-- 空数据状态 -->
+        <template v-else>
+          <div class="flex flex-col items-center justify-center p-10 text-industrial-secondary">
+            <q-icon name="settings" size="48px" color="grey-7" />
+            <div class="mt-4">没有参数信息</div>
+          </div>
+        </template>
       </div>
     </template>
 
@@ -56,7 +125,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import DataTable from '../../common/DataTable.vue';
 import { formatDate } from '../../../utils/frames/frameUtils';
 import type { FrameParam } from '../../../types/frames/index';
 
@@ -64,11 +132,11 @@ import type { FrameParam } from '../../../types/frames/index';
 interface DetailFrameWithParams {
   id: string;
   name: string;
-  status: string;
   timestamp: number;
   params: FrameParam[];
-  category?: string;
-  categoryName?: string;
+  direction?: string;
+  protocol?: string;
+  frameType?: string;
   fieldCount?: number;
   totalBytes?: number;
 }
@@ -82,16 +150,39 @@ defineEmits<{
   close: [];
 }>();
 
-// 参数表格列定义
-const paramColumns = [
-  { field: 'name', title: '参数名称', width: '140px' },
-  { field: 'type', title: '类型', width: '100px', align: 'center' as const },
-  { field: 'value', title: '值', minWidth: '120px' },
+// 参数表格列定义 - 使用QTable列格式，限制宽度
+const qColumns = [
+  {
+    name: 'name',
+    label: '参数名称',
+    field: 'name',
+    width: '160px',
+    maxWidth: '160px',
+    align: 'left' as const,
+    sortable: true,
+  },
+  {
+    name: 'type',
+    label: '类型',
+    field: 'type',
+    width: '90px',
+    maxWidth: '90px',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'value',
+    label: '值',
+    width: '100%',
+    field: 'value',
+    align: 'left' as const,
+    sortable: true,
+  },
 ];
 
 // 格式化时间戳，使用工具函数
 const formatTime = (timestamp: number): string => {
-  return formatDate(timestamp, 'HH:mm:ss.SSS');
+  return formatDate(timestamp);
 };
 
 // 获取类型名称，使用配置文件的类型选项
@@ -122,11 +213,11 @@ const getTypeName = (type: string): string => {
 };
 
 const formatParamValue = (param: FrameParam): string => {
-  if (param.type === 'hex') {
+  if (param.dataType === 'hex') {
     return `0x${param.value.toString().toUpperCase()}`;
-  } else if (param.type === 'boolean') {
+  } else if (param.dataType === 'boolean') {
     return param.value ? '是' : '否';
-  } else if (param.type === 'bitmap') {
+  } else if (param.dataType === 'bitmap') {
     const value = parseInt(param.value as string, 10);
     return value.toString(2).padStart(8, '0');
   }
@@ -137,9 +228,48 @@ const formattedParams = computed(() => {
   return (
     props.frame?.params?.map((param) => ({
       name: param.name,
-      type: getTypeName(param.type),
+      type: getTypeName(param.dataType),
       value: formatParamValue(param),
     })) || []
   );
 });
 </script>
+
+<style lang="scss" scoped>
+// 确保表格充满容器和内容区域可滚动
+:deep(.q-table) {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  table-layout: fixed;
+}
+
+:deep(.q-table__container) {
+  height: 100%;
+}
+
+:deep(.q-table__middle) {
+  flex: 1;
+  overflow: auto !important;
+}
+
+:deep(.q-table tbody tr) {
+  height: 36px;
+}
+
+:deep(.q-table__grid-content),
+:deep(.q-virtual-scroll) {
+  height: 100%;
+  overflow: auto !important;
+}
+
+:deep(.q-table__top),
+:deep(.q-table__bottom) {
+  flex: 0 0 auto;
+}
+
+:deep(td) {
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+</style>

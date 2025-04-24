@@ -15,14 +15,14 @@ export interface Category {
 // 过滤选项
 export interface FilterOptions {
   protocol: string;
-  deviceType: string;
+  frameType: string;
+  direction: string;
   dateRange?: [Date | null, Date | null] | undefined;
-  status?: string | undefined;
 }
 
 // 过滤值
 export interface FilterValues {
   protocol: string[];
-  deviceType: string[];
-  status: string[];
+  frameType: string[];
+  direction: string[];
 }

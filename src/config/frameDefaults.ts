@@ -2,41 +2,7 @@
  * 帧模块全局默认值和常量配置
  */
 
-import type { Category, FrameOptions, FilterOptions, FieldType } from '../types/frames';
-
-/**
- * 分类ID常量
- */
-export const CATEGORY_IDS = {
-  ALL: 'all',
-  RECENT: 'recent',
-  FAVORITES: 'favorites',
-  SENSORS: 'sensors',
-  CONTROLS: 'controls',
-} as const;
-
-/**
- * 系统预设分类
- * 这些分类不允许被删除
- */
-export const SYSTEM_CATEGORIES = [
-  CATEGORY_IDS.ALL,
-  CATEGORY_IDS.RECENT,
-  CATEGORY_IDS.FAVORITES,
-  CATEGORY_IDS.SENSORS,
-  CATEGORY_IDS.CONTROLS,
-] as const;
-
-/**
- * 预设分类配置
- */
-export const DEFAULT_CATEGORIES: Category[] = [
-  { id: CATEGORY_IDS.ALL, name: '全部帧', count: 0, icon: 'category', color: 'blue' },
-  { id: CATEGORY_IDS.RECENT, name: '最近使用', count: 0, icon: 'history', color: 'teal' },
-  { id: CATEGORY_IDS.FAVORITES, name: '收藏', count: 0, icon: 'star', color: 'amber' },
-  { id: CATEGORY_IDS.SENSORS, name: '传感器', count: 0, icon: 'sensors', color: 'green' },
-  { id: CATEGORY_IDS.CONTROLS, name: '控制器', count: 0, icon: 'tune', color: 'red' },
-] as const;
+import type { FrameOptions, FilterOptions, IdentifierRule, ValidationParam } from '../types/frames';
 
 /**
  * 排序选项常量
@@ -58,13 +24,27 @@ export const PROTOCOL_OPTIONS = [
 ] as const;
 
 /**
- * 设备类型选项
+ * 帧方向选项
  * 用于UI下拉选择
  */
-export const DEVICE_TYPE_OPTIONS = [
-  { label: '传感器', value: 'sensor' },
-  { label: '控制器', value: 'controller' },
-  { label: 'PLC', value: 'plc' },
+export const FRAME_DIRECTION_OPTIONS = [
+  { label: '发送', value: 'send' },
+  { label: '接收', value: 'receive' },
+] as const;
+
+/**
+ * 帧类型选项
+ * 用于UI下拉选择
+ */
+export const FRAME_TYPE_OPTIONS = [
+  { label: '命令帧', value: 'command', direction: 'send' },
+  { label: '查询帧', value: 'query', direction: 'send' },
+  { label: '控制帧', value: 'control', direction: 'send' },
+  { label: '响应帧', value: 'response', direction: 'receive' },
+  { label: '状态帧', value: 'status', direction: 'receive' },
+  { label: '事件帧', value: 'event', direction: 'receive' },
+  { label: '数据帧', value: 'data', direction: 'receive' },
+  { label: '自定义', value: 'custom', direction: ['send', 'receive'] },
 ] as const;
 
 /**
@@ -108,38 +88,18 @@ export const UI_LABELS = {
  * 每种类型的特性配置
  */
 export const FIELD_TYPE_CONFIGS = {
-  bit: { needsLength: false, fixedLength: 1, needsOptions: false, needsBits: true },
-  uint8: { needsLength: false, fixedLength: 1, needsOptions: false, needsBits: false },
-  uint16: { needsLength: false, fixedLength: 2, needsOptions: false, needsBits: false },
-  uint32: { needsLength: false, fixedLength: 4, needsOptions: false, needsBits: false },
-  int8: { needsLength: false, fixedLength: 1, needsOptions: false, needsBits: false },
-  int16: { needsLength: false, fixedLength: 2, needsOptions: false, needsBits: false },
-  int32: { needsLength: false, fixedLength: 4, needsOptions: false, needsBits: false },
-  float: { needsLength: false, fixedLength: 4, needsOptions: false, needsBits: false },
-  bytes: { needsLength: true, fixedLength: null, needsOptions: false, needsBits: false },
-  string: { needsLength: true, fixedLength: null, needsOptions: false, needsBits: false },
+  bit: { needsLength: false, fixedLength: 1, needsBits: true },
+  uint8: { needsLength: false, fixedLength: 1, needsBits: false },
+  uint16: { needsLength: false, fixedLength: 2, needsBits: false },
+  uint32: { needsLength: false, fixedLength: 4, needsBits: false },
+  int8: { needsLength: false, fixedLength: 1, needsBits: false },
+  int16: { needsLength: false, fixedLength: 2, needsBits: false },
+  int32: { needsLength: false, fixedLength: 4, needsBits: false },
+  float: { needsLength: false, fixedLength: 4, needsBits: false },
+  bytes: { needsLength: true, fixedLength: null, needsBits: false },
+  string: { needsLength: true, fixedLength: null, needsBits: false },
   // 默认配置，用于未知类型
-  default: { needsLength: false, fixedLength: null, needsOptions: false, needsBits: false },
-};
-
-/**
- * 字段类型长度映射
- * 用于在更改类型时自动设置长度
- */
-export const FIELD_TYPE_LENGTH_MAP: Record<
-  FieldType,
-  { variableLength: boolean; defaultLength: number }
-> = {
-  bit: { variableLength: false, defaultLength: 1 },
-  uint8: { variableLength: false, defaultLength: 1 },
-  uint16: { variableLength: false, defaultLength: 2 },
-  uint32: { variableLength: false, defaultLength: 4 },
-  int8: { variableLength: false, defaultLength: 1 },
-  int16: { variableLength: false, defaultLength: 2 },
-  int32: { variableLength: false, defaultLength: 4 },
-  float: { variableLength: false, defaultLength: 4 },
-  bytes: { variableLength: true, defaultLength: 1 },
-  string: { variableLength: true, defaultLength: 1 },
+  default: { needsLength: false, fixedLength: null, needsBits: false },
 };
 
 /**
@@ -156,9 +116,31 @@ export const DEFAULT_FRAME_OPTIONS: FrameOptions = {
  */
 export const DEFAULT_FILTER_OPTIONS: FilterOptions = {
   protocol: '',
-  deviceType: '',
+  frameType: '',
+  direction: '',
   dateRange: undefined,
-  status: undefined,
+};
+
+/**
+ * 默认识别规则
+ */
+export const DEFAULT_IDENTIFIER_RULES: IdentifierRule = {
+  startBit: 0,
+  endBit: 7,
+  operator: 'eq',
+  value: '0x00',
+  format: 'hex',
+  logicOperator: 'and',
+};
+
+/**
+ * 默认校验设置
+ */
+export const DEFAULT_VALID_OPTION: ValidationParam = {
+  isChecksum: false,
+  startFieldIndex: '0',
+  endFieldIndex: '0',
+  checksumMethod: 'crc16', // 默认使用CRC-16
 };
 
 /**
@@ -174,4 +156,52 @@ export const RECENT_FRAMES_LIMIT = 10;
 /**
  * 枚举类型的默认选项
  */
-export const DEFAULT_ENUM_OPTIONS = ['选项1', '选项2'] as const;
+export const DEFAULT_ENUM_OPTIONS = [
+  { value: '0', label: '选项 0' },
+  { value: '1', label: '选项 1' },
+  { value: '2', label: '选项 2' },
+] as const;
+
+/**
+ * 单选按钮的默认选项
+ */
+export const DEFAULT_RADIO_OPTIONS = [
+  { value: '0', label: '选项 A', isDefault: true },
+  { value: '1', label: '选项 B', isDefault: false },
+] as const;
+
+/**
+ * 下拉菜单的默认选项
+ */
+export const DEFAULT_SELECT_OPTIONS = [
+  { value: '0', label: '选项 1', isDefault: true },
+  { value: '1', label: '选项 2', isDefault: false },
+  { value: '2', label: '选项 3', isDefault: false },
+] as const;
+
+/**
+ * 输入类型配置
+ */
+export const INPUT_TYPE_CONFIG = {
+  input: {
+    needsOptions: false,
+    maxOptions: 0,
+    minOptions: 0,
+    hasDefaultOption: false,
+    description: '普通输入框，适用于简单数值或文本输入',
+  },
+  select: {
+    needsOptions: true,
+    maxOptions: 20, // 设置最大选项数量限制
+    minOptions: 2, // 最少需要2个选项
+    hasDefaultOption: true,
+    description: '下拉选择框，适用于预定义的多选项',
+  },
+  radio: {
+    needsOptions: true,
+    maxOptions: 10, // 设置最大选项数量限制
+    minOptions: 2, // 最少需要2个选项
+    hasDefaultOption: true,
+    description: '单选按钮组，适用于需要明确显示所有选项的场景',
+  },
+} as const;

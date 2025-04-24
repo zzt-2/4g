@@ -17,7 +17,7 @@ export class WindowManager {
       transparent: false,
       resizable: true, // 允许调整大小
       movable: true, // 允许移动窗口
-      minWidth: 400, // 最小宽度
+      minWidth: 800, // 最小宽度
       minHeight: 600, // 最小高度
       show: false, // 先隐藏窗口
       webPreferences: {

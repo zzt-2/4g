@@ -7,7 +7,7 @@
         {{ isNewFrame ? '创建帧配置' : '编辑帧配置' }}
       </h1>
       <div class="ml-3 px-2 py-0.5 rounded bg-[#1e3a6a] text-[#93c5fd] text-xs">
-        {{ protocol }} | {{ deviceType }}
+        {{ protocol }} | {{ frameDirection }} | {{ frameType }}
       </div>
     </div>
 
@@ -34,12 +34,17 @@
 </template>
 
 <script setup lang="ts">
-import { type ProtocolType, type DeviceType } from '../../../types/frames/index';
+import {
+  type ProtocolType,
+  type FrameDirection,
+  type FrameType,
+} from '../../../types/frames/index';
 
 defineProps<{
   isNewFrame: boolean;
   protocol: ProtocolType;
-  deviceType: DeviceType;
+  frameDirection: FrameDirection;
+  frameType: FrameType;
   hasChanges: boolean;
   isFrameValid: boolean;
 }>();

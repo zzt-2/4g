@@ -1,171 +1,375 @@
 <template>
-  <div v-if="showEditor" class="flex-grow p-2 overflow-y-auto">
-    <h3 class="text-[10px] font-medium text-[#93c5fd] uppercase mb-1">
-      {{ isNewField ? '添加字段' : '编辑字段' }}
-    </h3>
-
-    <div class="space-y-2">
-      <div>
-        <label for="fieldName" class="block text-[9px] text-[#94a3b8]">字段名称</label>
-        <input
-          type="text"
-          id="fieldName"
-          v-model="currentField.name"
-          placeholder="输入字段名称"
-          class="w-full bg-[#0a1929] border border-[#1a3663] rounded py-0.5 px-2 text-[#e2e8f0] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-        />
-      </div>
-
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label for="fieldType" class="block text-[9px] text-[#94a3b8]">数据类型</label>
-          <select
-            id="fieldType"
-            v-model="currentField.type"
-            class="w-full bg-[#0a1929] border border-[#1a3663] rounded py-0.5 px-2 text-[#e2e8f0] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-          >
-            <option v-for="option in FIELD_TYPE_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
-
-        <div v-if="currentField.type && ['bytes', 'string'].includes(currentField.type)">
-          <label for="fieldLength" class="block text-[9px] text-[#94a3b8]">字节长度</label>
-          <input
-            type="number"
-            id="fieldLength"
-            v-model.number="currentField.length"
-            min="1"
-            placeholder="字段长度(字节)"
-            class="w-full bg-[#0a1929] border border-[#1a3663] rounded py-0.5 px-2 text-[#e2e8f0] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
+  <q-card class="w-full h-full bg-card border-primary p-4">
+    <div class="flex h-full w-full">
+      <!-- 左侧基础信息和设置 -->
+      <div class="w-3/5 h-full pr-4 overflow-auto">
+        <div class="flex flex-col space-y-4">
+          <!-- 字段名称 -->
+          <q-input
+            v-model="fieldStore.tempField.name"
+            label="字段名称"
+            dense
+            outlined
+            class="input-bg w-full"
+            placeholder="输入字段名称"
+            hide-bottom-space
           />
-        </div>
 
-        <div v-if="currentField.type === 'bit'">
-          <label for="fieldBits" class="block text-[9px] text-[#94a3b8]">比特数</label>
-          <input
-            type="number"
-            id="fieldBits"
-            v-model.number="currentField.bits"
-            min="1"
-            max="32"
-            placeholder="比特数量"
-            class="w-full bg-[#0a1929] border border-[#1a3663] rounded py-0.5 px-2 text-[#e2e8f0] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-          />
-        </div>
-      </div>
-
-      <!-- 默认值和校验字段组合一行 -->
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <div class="flex items-center justify-between">
-            <label for="fieldDefaultValue" class="text-[9px] text-[#94a3b8]">默认值</label>
-            <label class="flex items-center text-[9px] text-[#94a3b8]">
-              <input
-                type="checkbox"
-                v-model="currentField.hasDefaultValue"
-                class="mr-0.5 h-3 w-3 accent-[#3b82f6]"
+          <!-- 数据类型、比特数/长度、输入类型、默认值放在一起 -->
+          <div class="flex space-x-4 h-[92px]">
+            <!-- 第一列：数据类型和比特数/长度 -->
+            <div class="flex flex-col space-y-4 w-45%">
+              <!-- 数据类型 -->
+              <q-select
+                v-model="fieldStore.tempField.dataType"
+                :options="FIELD_TYPE_OPTIONS"
+                label="数据类型"
+                dense
+                outlined
+                class="input-bg"
+                map-options
+                emit-value
+                hide-bottom-space
               />
-              <span>启用</span>
-            </label>
-          </div>
-          <input
-            type="text"
-            id="fieldDefaultValue"
-            v-model="currentField.defaultValue"
-            placeholder="默认值"
-            :disabled="!currentField.hasDefaultValue"
-            class="w-full bg-[#0a1929] border border-[#1a3663] rounded py-0.5 px-2 text-[#e2e8f0] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors disabled:opacity-50"
-          />
-          <div class="text-[8px] text-[#64748b] mt-0.5">可使用十六进制(0x前缀)或十进制</div>
-        </div>
 
-        <div>
-          <!-- 校验字段选项 -->
-          <div class="flex items-center justify-between">
-            <label class="text-[9px] text-[#94a3b8]">{{ UI_LABELS.CHECKSUM }}</label>
-            <label class="relative inline-block w-7 h-3.5">
-              <input
-                type="checkbox"
-                v-model="currentField.isChecksum"
-                class="opacity-0 w-0 h-0 absolute"
+              <!-- 长度或比特数区域 -->
+              <q-input
+                v-if="
+                  fieldStore.tempField.dataType &&
+                  ['bytes', 'string'].includes(fieldStore.tempField.dataType)
+                "
+                v-model.number="fieldStore.tempField.length"
+                type="number"
+                label="字节长度"
+                dense
+                outlined
+                class="input-bg"
+                min="1"
+                placeholder="字段长度(字节)"
+                hide-bottom-space
               />
-              <span
-                class="absolute cursor-pointer inset-0 bg-[#334155] rounded-full transition-all duration-300 before:content-[''] before:absolute before:h-2.5 before:w-2.5 before:left-0.5 before:bottom-0.5 before:bg-white before:rounded-full before:transition-all before:duration-300"
-                :class="{ 'bg-[#3b82f6] before:translate-x-3.5': currentField.isChecksum }"
-              ></span>
-            </label>
+              <q-input
+                v-else-if="fieldStore.tempField.dataType === 'bit'"
+                v-model.number="fieldStore.tempField.bits"
+                type="number"
+                label="比特数"
+                dense
+                outlined
+                class="input-bg"
+                min="1"
+                max="32"
+                placeholder="比特数量"
+                hide-bottom-space
+              />
+            </div>
+
+            <q-space></q-space>
+
+            <!-- 第二列：输入类型和默认值 -->
+            <div class="flex flex-col space-y-4 w-45%">
+              <!-- 输入类型 -->
+              <q-select
+                v-model="fieldStore.tempField.inputType"
+                label="输入类型"
+                :options="inputTypeOptions"
+                dense
+                outlined
+                class="input-bg"
+                map-options
+                emit-value
+                @change="fieldStore.updateTempField('inputType')"
+                hide-bottom-space
+              >
+                <template v-slot:hint>
+                  <span class="text-secondary-color text-xs op-75">输入控件类型</span>
+                </template>
+              </q-select>
+
+              <!-- 默认值 -->
+              <q-input
+                v-if="fieldStore.tempField.inputType === 'input'"
+                v-model="fieldStore.tempField.defaultValue"
+                label="默认值"
+                dense
+                outlined
+                class="input-bg"
+                placeholder="默认值"
+                hide-bottom-space
+              >
+                <template v-slot:hint>
+                  <span class="text-secondary-color text-xs op-75"
+                    >可使用十六进制(0x前缀)或十进制</span
+                  >
+                </template>
+              </q-input>
+            </div>
           </div>
-          <div class="text-[8px] text-[#64748b] mt-3.5">标记为校验字段时将自动计算校验值</div>
+
+          <!-- 字段描述 -->
+          <q-input
+            v-model="fieldStore.tempField.description"
+            type="textarea"
+            label="字段描述"
+            dense
+            outlined
+            class="input-bg w-full"
+            placeholder="输入字段描述"
+            rows="16"
+            hide-bottom-space
+          />
+
+          <!-- 校验和字段设置 -->
+          <q-card bordered flat class="bg-panel p-3">
+            <div class="flex justify-between items-center mb-2">
+              <div class="text-xs text-secondary-color">{{ UI_LABELS.CHECKSUM }}</div>
+              <div>
+                <q-toggle
+                  v-model="fieldStore.tempField.validOption!.isChecksum"
+                  dense
+                  color="grey-7"
+                  checked-icon="check"
+                  unchecked-icon="clear"
+                />
+              </div>
+            </div>
+
+            <div
+              v-if="fieldStore.tempField.validOption && fieldStore.tempField.validOption.isChecksum"
+              class="space-y-3"
+            >
+              <q-select
+                v-model="fieldStore.tempField.validOption.checksumMethod"
+                :options="checksumMethodOptions"
+                label="校验和计算方法"
+                dense
+                outlined
+                class="input-bg w-full"
+                map-options
+                emit-value
+                hide-bottom-space
+              >
+                <template v-slot:hint>
+                  <span class="text-secondary-color text-xs op-75">
+                    选择校验和计算方法（将在后续版本实现）
+                  </span>
+                </template>
+              </q-select>
+
+              <div class="flex space-x-4">
+                <q-input
+                  v-model="fieldStore.tempField.validOption.startFieldIndex"
+                  type="number"
+                  label="起始字段索引"
+                  dense
+                  outlined
+                  class="input-bg w-40%"
+                  min="0"
+                  hide-bottom-space
+                />
+                <q-input
+                  v-model="fieldStore.tempField.validOption.endFieldIndex"
+                  type="number"
+                  label="结束字段索引"
+                  dense
+                  outlined
+                  class="input-bg w-40%"
+                  min="0"
+                  hide-bottom-space
+                />
+              </div>
+            </div>
+            <div v-else class="text-xs op-75 text-secondary-color mt-1">
+              标记为校验字段时将自动计算校验值
+            </div>
+          </q-card>
         </div>
       </div>
 
-      <!-- 字段描述 -->
-      <div>
-        <label for="fieldDescription" class="block text-[9px] text-[#94a3b8]">字段描述</label>
-        <textarea
-          id="fieldDescription"
-          :value="currentField.description ?? ''"
-          @input="(e) => (currentField.description = (e.target as HTMLTextAreaElement).value)"
-          placeholder="输入字段描述"
-          rows="1"
-          class="w-full bg-[#0a1929] border border-[#1a3663] rounded py-0.5 px-2 text-[#e2e8f0] text-xs focus:outline-none focus:border-[#3b82f6] resize-none transition-colors"
-        ></textarea>
-      </div>
+      <!-- 右侧选项列表 -->
+      <div class="w-2/5 pl-4">
+        <q-card
+          v-if="
+            fieldStore.tempField.inputType &&
+            ['select', 'radio'].includes(fieldStore.tempField.inputType)
+          "
+          bordered
+          flat
+          class="bg-panel w-full h-full flex flex-col"
+        >
+          <q-card-section class="p-3 flex-none">
+            <div class="flex justify-between items-center mb-2">
+              <div class="text-xs text-secondary-color">选项列表</div>
+              <q-btn
+                dense
+                flat
+                color="primary"
+                icon="add"
+                size="xs"
+                @click="addOption"
+                label="添加选项"
+                class="text-xs op-75"
+              />
+            </div>
+          </q-card-section>
 
-      <!-- 操作按钮 -->
-      <div class="flex justify-end space-x-2 pt-1">
-        <button
-          class="px-2 py-0.5 bg-transparent border border-[#64748b] text-[#e2e8f0] rounded text-[10px] hover:bg-[#1e3a6a] transition-colors"
-          @click="handleCancel"
-        >
-          取消
-        </button>
-        <button
-          class="px-2 py-0.5 bg-[#3b82f6] text-white rounded text-[10px] hover:bg-[#2563eb] transition-colors"
-          @click="handleSave"
-        >
-          保存
-        </button>
+          <q-card-section class="p-3 max-h-[60vh] flex-grow overflow-hidden">
+            <div class="h-full w-full overflow-auto px-1">
+              <div
+                v-for="(option, index) in fieldStore.tempField.options"
+                :key="index"
+                class="flex gap-2 items-center mb-2"
+              >
+                <q-input
+                  v-model="option.value"
+                  dense
+                  outlined
+                  class="input-bg flex-1"
+                  placeholder="值"
+                  hide-bottom-space
+                />
+                <q-input
+                  v-model="option.label"
+                  dense
+                  outlined
+                  class="input-bg flex-1"
+                  placeholder="标签"
+                  hide-bottom-space
+                />
+                <q-checkbox
+                  v-model="option.isDefault"
+                  dense
+                  color="grey-7"
+                  @update:model-value="updateDefaultOption(index)"
+                  class="mx-1"
+                />
+                <q-btn
+                  flat
+                  round
+                  color="negative"
+                  icon="delete"
+                  size="xs"
+                  dense
+                  @click="removeOption(index)"
+                />
+              </div>
+              <div
+                v-if="!fieldStore.tempField.options || fieldStore.tempField.options.length === 0"
+                class="text-center text-secondary-color text-xs op-75 py-4"
+              >
+                暂无选项
+              </div>
+            </div>
+          </q-card-section>
+
+          <q-card-section class="p-3 border-t border-gray-700">
+            <div class="text-xs op-75 text-secondary-color">
+              <div>设置字段可选值，值用于数据处理，标签用于显示</div>
+              <div v-if="fieldStore.tempField.inputType === 'select'">
+                下拉菜单需要至少 {{ INPUT_TYPE_CONFIG.select.minOptions }} 个选项
+              </div>
+              <div v-if="fieldStore.tempField.inputType === 'radio'">
+                单选按钮需要至少 {{ INPUT_TYPE_CONFIG.radio.minOptions }} 个选项
+              </div>
+              <div>勾选框表示默认选项，只能有一个默认选项</div>
+            </div>
+          </q-card-section>
+        </q-card>
       </div>
     </div>
-  </div>
-
-  <div
-    v-else
-    class="flex-grow h-full flex items-center justify-center text-[#64748b] text-xs bg-[#0a1929]"
-  >
-    从左侧列表中选择一个字段开始编辑
-  </div>
+  </q-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useFrameFields } from '../../../composables/frames/useFrameFields';
 import { useFrameFieldsStore } from '../../../stores/frames/frameFieldsStore';
-import { FIELD_TYPE_OPTIONS, UI_LABELS } from '../../../config/frameDefaults';
+import { FIELD_TYPE_OPTIONS, UI_LABELS, INPUT_TYPE_CONFIG } from '../../../config/frameDefaults';
+import { useNotification } from 'src/composables/frames/useNotification';
 
 // 获取store和composable
 const fieldStore = useFrameFieldsStore();
-const fieldsComposable = useFrameFields();
+const { notifyError } = useNotification();
 
-// 控制编辑器显示的逻辑 - 从store获取状态
-const showEditor = computed(() => fieldStore.isEditingField);
+// 将选项数据提取到TS变量中，方便后续移到配置文件
+const inputTypeOptions = [
+  { label: '输入框', value: 'input' },
+  { label: '下拉框', value: 'select' },
+  { label: '单选框', value: 'radio' },
+];
 
-// 判断是新增字段还是编辑现有字段
-const isNewField = computed(() => fieldStore.editingFieldIndex === null);
+const checksumMethodOptions = [
+  { label: 'CRC-16', value: 'crc16' },
+  { label: 'CRC-32', value: 'crc32' },
+  { label: '异或校验 (XOR-8)', value: 'xor8' },
+  { label: '和校验 (SUM-8)', value: 'sum8' },
+  { label: '自定义', value: 'custom' },
+];
 
-// 当前编辑的字段数据
-const currentField = computed(() => fieldStore.tempField);
-
-// 处理保存 - 通过composable调用以获取通知功能
-const handleSave = () => {
-  fieldsComposable.saveField();
+// 简化的选项操作方法，直接使用store中的方法
+const addOption = () => {
+  // 直接使用store的addEnumOption方法添加新选项
+  fieldStore.addEnumOption({
+    value: '',
+    label: '',
+    isDefault:
+      fieldStore.tempField.options?.length === 0 ||
+      !fieldStore.tempField.options?.some((opt) => opt.isDefault),
+  });
 };
 
-// 处理取消 - 通过composable调用
-const handleCancel = () => {
-  fieldsComposable.cancelEditField();
+// 精简后的移除选项方法
+const removeOption = (index: number) => {
+  if (!fieldStore.tempField.options) return;
+
+  // 获取当前输入类型的配置并检查是否达到最小选项数限制
+  const inputType = fieldStore.tempField.inputType;
+  if (!inputType) return;
+
+  const config = INPUT_TYPE_CONFIG[inputType as keyof typeof INPUT_TYPE_CONFIG];
+  if (fieldStore.tempField.options.length <= config.minOptions) {
+    notifyError(
+      `${inputType === 'select' ? '下拉框' : '单选框'}至少需要 ${config.minOptions} 个选项`,
+    );
+    return;
+  }
+
+  // 检查是否删除的是默认选项
+  const isRemovingDefault = fieldStore.tempField.options[index]?.isDefault;
+
+  // 使用store方法删除选项
+  fieldStore.removeEnumOption(index);
+
+  // 如果删除的是默认选项，确保仍然有一个默认选项
+  if (isRemovingDefault && fieldStore.tempField.options.length > 0) {
+    fieldStore.tempField.options[0]!.isDefault = true;
+  }
+};
+
+// 精简后的更新默认选项方法
+const updateDefaultOption = (selectedIndex: number) => {
+  if (!fieldStore.tempField.options || selectedIndex < 0) return;
+
+  const currentOption = fieldStore.tempField.options[selectedIndex];
+  if (!currentOption) return;
+
+  // 如果取消了默认选项，确保有其他默认选项
+  if (!currentOption.isDefault) {
+    const hasAnyDefault = fieldStore.tempField.options.some(
+      (opt, idx) => idx !== selectedIndex && opt.isDefault,
+    );
+
+    if (!hasAnyDefault) {
+      // 如果没有其他默认值，强制将当前选项设为默认
+      currentOption.isDefault = true;
+      return;
+    }
+  } else {
+    // 如果设置了默认选项，取消其他选项的默认状态
+    fieldStore.tempField.options.forEach((opt, idx) => {
+      if (idx !== selectedIndex) {
+        opt.isDefault = false;
+      }
+    });
+  }
 };
 </script>
+
+<style scoped></style>

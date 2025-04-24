@@ -1,38 +1,55 @@
 <template>
-  <div class="h-full w-full flex flex-col gap-3">
+  <div class="h-full w-full flex flex-col gap-4">
     <!-- 基本信息 -->
-    <q-card class="flex flex-col flex-grow bg-[#12233f] border border-[#1a3663]">
+    <q-card class="flex flex-col flex-grow">
       <q-card-section class="q-py-sm q-pb-xs">
-        <div class="text-xs font-medium text-[#93c5fd] uppercase pb-1 border-b border-[#1a3663]">
-          基本信息
-        </div>
+        <div class="card-title">基本信息</div>
       </q-card-section>
 
       <q-card-section v-if="!isFrameLoaded" class="text-center">
-        <div class="text-gray-400 text-xs">
+        <div class="text-secondary-color">
           <q-spinner size="xs" class="mr-1" color="primary" />
           加载帧数据中...
         </div>
       </q-card-section>
 
       <q-card-section v-else class="q-pt-none flex flex-col flex-grow">
-        <div class="flex flex-col gap-3 flex-grow">
+        <div class="flex flex-col flex-grow">
+          <!-- 帧名称 -->
           <q-input
-            v-model="localFrame.name"
+            v-model="frameEditorStore.editorFrame.name"
             label="名称"
             dense
             dark
             outlined
             placeholder="输入帧配置名称"
-            class="text-xs"
-            bg-color="#0a1929"
             :rules="[(val) => !!val || '名称不能为空']"
-            @update:model-value="handleChange"
           />
 
-          <div class="grid grid-cols-2 gap-2">
+          <!-- 帧ID -->
+          <q-input
+            v-model="frameEditorStore.editorFrame.id"
+            label="帧ID"
+            dense
+            dark
+            outlined
+            placeholder="输入帧ID"
+            :rules="[(val) => !!val || '帧ID不能为空']"
+          />
+
+          <div class="flex flex-col space-y-4">
             <q-select
-              v-model="localFrame.protocol"
+              v-model="frameEditorStore.editorFrame.direction"
+              :options="FRAME_DIRECTION_OPTIONS"
+              label="帧方向"
+              dense
+              dark
+              outlined
+              emit-value
+              map-options
+            />
+            <q-select
+              v-model="frameEditorStore.editorFrame.protocol"
               :options="PROTOCOL_OPTIONS"
               label="协议类型"
               dense
@@ -40,200 +57,189 @@
               outlined
               emit-value
               map-options
-              class="text-xs"
-              bg-color="#0a1929"
-              @update:model-value="handleChange"
             />
 
             <q-select
-              v-model="localFrame.deviceType"
-              :options="DEVICE_TYPE_OPTIONS"
-              label="设备类型"
+              v-model="frameEditorStore.editorFrame.frameType"
+              :options="frameTypeOptions"
+              label="帧类型"
               dense
               dark
               outlined
               emit-value
               map-options
-              class="text-xs"
-              bg-color="#0a1929"
-              @update:model-value="handleChange"
+            />
+
+            <!-- 描述 -->
+            <q-input
+              v-model="frameEditorStore.editorFrame.description"
+              type="textarea"
+              label="描述"
+              dense
+              outlined
+              autogrow
+              class="input-bg flex-grow"
+              style="max-height: 28vh; overflow-y: auto"
+              placeholder="输入帧配置描述"
+              hide-bottom-space
             />
           </div>
-
-          <q-input
-            v-model="localFrame.description"
-            type="textarea"
-            label="描述"
-            dense
-            dark
-            outlined
-            placeholder="输入帧配置描述"
-            class="text-xs flex-grow h-[100px]"
-            bg-color="#0a1929"
-            autogrow
-            @update:model-value="handleChange"
-          />
         </div>
       </q-card-section>
     </q-card>
 
-    <!-- 选项 -->
-    <q-card class="bg-[#12233f] border border-[#1a3663] h-140px">
+    <!-- 接收帧识别规则按钮 (仅当帧方向为接收时显示) -->
+    <q-card v-if="frameEditorStore.editorFrame.direction === 'receive'">
       <q-card-section class="q-py-sm q-pb-xs">
-        <div class="text-xs font-medium text-[#93c5fd] uppercase pb-1 border-b border-[#1a3663]">
-          选项
+        <div class="flex justify-between items-center">
+          <div class="font-medium text-accent-color uppercase">
+            帧识别规则
+            <q-badge color="orange" text-color="black" class="ml-2">开发中</q-badge>
+          </div>
+          <q-btn
+            color="primary"
+            label="编辑规则"
+            icon="edit"
+            dense
+            @click="showRulesDialog = true"
+          />
         </div>
       </q-card-section>
 
+      <q-card-section class="q-pt-none">
+        <div
+          v-if="
+            !frameEditorStore.editorFrame.identifierRules ||
+            frameEditorStore.editorFrame.identifierRules.length === 0
+          "
+          class="text-center py-4"
+        >
+          <div class="text-secondary-color">未设置识别规则，将无法识别此类型的接收帧</div>
+        </div>
+        <div v-else class="text-primary-color">
+          已配置 {{ frameEditorStore.editorFrame.identifierRules.length }} 条识别规则
+        </div>
+      </q-card-section>
+    </q-card>
+
+    <!-- 选项
+    <q-card>
+      <q-card-section class="q-py-sm q-pb-xs">
+        <div class="card-title">选项</div>
+      </q-card-section>
+
       <q-card-section v-if="!hasOptions" class="text-center">
-        <div class="text-gray-400 text-xs">
+        <div class="text-secondary-color">
           <q-spinner size="xs" class="mr-1" color="primary" />
           加载选项数据中...
         </div>
       </q-card-section>
-      <!-- 
+
       <q-card-section v-else class="q-pt-none">
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center">
-              <span class="text-xs text-[#e2e8f0]">自动计算校验</span>
+              <span class="text-primary-color">自动计算校验</span>
               <q-tooltip>自动计算CRC或校验和字段</q-tooltip>
             </div>
             <q-toggle
-              v-model="localFrame.options.autoChecksum"
+              v-model="frameEditorStore.editorFrame.options.autoChecksum"
               dense
               color="primary"
-              @update:model-value="handleChange"
             />
           </div>
 
           <div class="flex items-center justify-between">
             <div class="flex items-center">
-              <span class="text-xs text-[#e2e8f0]">大端字节序</span>
+              <span class="text-primary-color">大端字节序</span>
               <q-tooltip>使用大端(高位在前)存储多字节数据</q-tooltip>
             </div>
             <q-toggle
-              v-model="localFrame.options.bigEndian"
+              v-model="frameEditorStore.editorFrame.options.bigEndian"
               dense
               color="primary"
-              @update:model-value="handleChange"
             />
           </div>
 
           <div class="flex items-center justify-between">
             <div class="flex items-center">
-              <span class="text-xs text-[#e2e8f0]">包含长度字段</span>
+              <span class="text-primary-color">包含长度字段</span>
               <q-tooltip>自动添加数据长度字段</q-tooltip>
             </div>
             <q-toggle
-              v-model="localFrame.options.includeLengthField"
+              v-model="frameEditorStore.editorFrame.options.includeLengthField"
               dense
               color="primary"
-              @update:model-value="handleChange"
             />
           </div>
+
         </div>
-      </q-card-section> -->
+      </q-card-section>
     </q-card>
+-->
+    <!-- 帧识别规则对话框 -->
+    <q-dialog v-model="showRulesDialog" persistent maximized>
+      <q-card class="bg-darker">
+        <q-card-section class="flex justify-between items-center">
+          <div class="text-h6 text-primary-color">帧识别规则</div>
+          <q-btn flat round dense icon="close" @click="closeRulesDialog" />
+        </q-card-section>
+
+        <q-separator dark />
+
+        <q-card-section class="q-pa-md overflow-auto">
+          <FrameIdentifierRules @save="saveIdentifierRules" @cancel="closeRulesDialog" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from 'vue';
-import { useFrameEditor } from '../../../composables/frames/useFrameEditor';
+import { computed, ref } from 'vue';
+import {
+  FRAME_TYPE_OPTIONS,
+  PROTOCOL_OPTIONS,
+  FRAME_DIRECTION_OPTIONS,
+} from '../../../config/frameDefaults';
+import { useFrameEditorStore } from '../../../stores/frames/frameEditorStore';
+import FrameIdentifierRules from './FrameIdentifierRules.vue';
 import { useQuasar } from 'quasar';
-import { createEmptyFrame } from '../../../types/frames/factories';
-import { PROTOCOL_OPTIONS, DEVICE_TYPE_OPTIONS } from '../../../config/frameDefaults';
-
-// Quasar 通知
-const $q = useQuasar();
 
 // 使用组合式函数
-const { currentFrame, updateFrameInfo } = useFrameEditor();
+const frameEditorStore = useFrameEditorStore();
+const showRulesDialog = ref(false);
+const $q = useQuasar();
 
-// 创建本地响应式副本，使用类型推断
-const localFrame = ref(createEmptyFrame());
+// 保存帧识别规则
+const saveIdentifierRules = () => {
+  // 关闭对话框
+  showRulesDialog.value = false;
+  // 这里可以添加保存后的其他逻辑，例如提示保存成功等
+  $q.notify({
+    message: '帧识别规则保存成功',
+    color: 'positive',
+  });
+};
+
+// 关闭规则对话框
+const closeRulesDialog = () => {
+  showRulesDialog.value = false;
+};
+
+// 根据选择的方向显示不同的帧类型选项
+const frameTypeOptions = computed(() =>
+  FRAME_TYPE_OPTIONS.filter(
+    (option) => option.direction === frameEditorStore.editorFrame?.direction,
+  ),
+);
 
 // 状态检查
 const isFrameLoaded = computed(() => {
-  return !!localFrame.value && !!localFrame.value.id;
+  return !!frameEditorStore.editorFrame;
 });
 
-const hasOptions = computed(() => {
-  return !!localFrame.value && !!localFrame.value.options;
-});
-
-// 从 currentFrame 中获取初始数据
-onMounted(() => {
-  try {
-    // 从 useFrameEditor 中获取数据
-    if (currentFrame.value) {
-      localFrame.value = JSON.parse(JSON.stringify(currentFrame.value));
-    } else {
-      // 如果编辑器数据为空，确保本地对象有默认值
-      initDefaultFrame();
-    }
-  } catch (error) {
-    console.error('初始化帧数据失败:', error);
-    $q.notify({
-      color: 'negative',
-      message: '初始化帧数据失败',
-      icon: 'warning',
-    });
-    initDefaultFrame();
-  }
-});
-
-// 初始化默认帧数据
-const initDefaultFrame = () => {
-  localFrame.value = createEmptyFrame();
-};
-
-// 监听 currentFrame 的变化
-watch(
-  currentFrame,
-  (newFrame) => {
-    if (newFrame && JSON.stringify(localFrame.value) !== JSON.stringify(newFrame)) {
-      try {
-        localFrame.value = JSON.parse(JSON.stringify(newFrame));
-      } catch (error) {
-        console.error('更新帧数据失败:', error);
-        $q.notify({
-          color: 'warning',
-          message: '更新帧数据失败',
-          icon: 'warning',
-        });
-      }
-    }
-  },
-  { deep: true },
-);
-
-// 处理变更，通知 composable
-const handleChange = () => {
-  if (!localFrame.value) return;
-
-  try {
-    // 确保选项对象存在
-    if (!localFrame.value.options) {
-      localFrame.value.options = {
-        autoChecksum: true,
-        bigEndian: true,
-        includeLengthField: false,
-      };
-    }
-
-    // 调用 useFrameEditor 的 updateFrameInfo 方法
-    // 使用类型断言解决类型兼容性问题
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateFrameInfo(localFrame.value as any);
-  } catch (error) {
-    console.error('更新数据失败:', error);
-    $q.notify({
-      color: 'negative',
-      message: '更新数据失败',
-      icon: 'warning',
-    });
-  }
-};
+// const hasOptions = computed(() => {
+//   return !!frameEditorStore.editorFrame?.options;
+// });
 </script>

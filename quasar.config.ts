@@ -125,6 +125,7 @@ export default defineConfig((/* ctx */) => {
       // Quasar plugins
       plugins: [
         'Notify', // 确保 Notify 插件在这里
+        'Dialog',
         // ...其他插件
       ],
     },

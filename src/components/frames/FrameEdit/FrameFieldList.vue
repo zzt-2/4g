@@ -4,7 +4,9 @@
       <div class="flex items-center">
         <h3 class="text-xs font-medium text-[#e2e8f0] uppercase mr-2 pl-2">字段列表</h3>
         <div class="text-[9px] text-[#94a3b8]">
-          {{ fields.length }}项/总长度: {{ totalBits }}b ({{ Math.ceil(totalBits / 8) }}B)
+          {{ fieldStore.fields.length }}项/总长度: {{ totalBits }}b ({{
+            Math.ceil(totalBits / 8)
+          }}B)
         </div>
       </div>
     </div>
@@ -13,11 +15,11 @@
     <div
       class="flex-grow min-h-0 border border-[#3b82f6]/30 rounded-md bg-[#0f172a]/50 overflow-auto"
     >
-      <template v-if="fields.length > 0">
+      <template v-if="fieldStore.fields.length > 0">
         <!-- 字段列表 -->
         <TransitionGroup name="field-list" tag="div" class="p-1.5">
           <div
-            v-for="(field, index) in fields"
+            v-for="(field, index) in fieldStore.fields"
             :key="field.id"
             class="flex items-center mb-1 bg-[#0f172a]/70 rounded-md border border-[#1e3a8a]/30 h-8 cursor-pointer select-none transition-colors duration-200 hover:border-[#3b82f6]/50"
             :class="{ 'border-[#3b82f6] bg-[#1e3a8a]/30': selectedFieldIndex === index }"
@@ -34,13 +36,13 @@
                 <span
                   class="text-[8px] text-[#94a3b8] bg-[#1e3a6a] px-0.5 rounded mr-1 flex-shrink-0"
                 >
-                  {{ getFieldShortType(field.type) }}
+                  {{ getFieldShortType(field.dataType) }}
                 </span>
                 <span class="text-[8px] text-[#94a3b8] flex-shrink-0">
                   {{ getFieldBitsText(field) }}
                 </span>
                 <span
-                  v-if="field.isChecksum"
+                  v-if="field.validOption && field.validOption.isChecksum"
                   class="text-[8px] text-amber-300 ml-1 bg-amber-900 px-0.5 rounded flex-shrink-0"
                 >
                   {{ UI_LABELS.CHECKSUM }}
@@ -92,33 +94,39 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useFrameFields } from '../../../composables/frames/useFrameFields';
-import { useFrameEditor } from '../../../composables/frames/useFrameEditor';
 import { useFrameFieldsStore } from '../../../stores/frames/frameFieldsStore';
+import { useFrameEditorStore } from '../../../stores/frames/frameEditorStore';
 import { getFieldShortType, getFieldBitsText } from '../../../utils/frames/frameUtils';
 import { UI_LABELS } from '../../../config/frameDefaults';
 import { useNotification } from '../../../composables/frames/useNotification';
+import { storeToRefs } from 'pinia';
 
 const { notifySuccess, notifyError } = useNotification();
 const fieldStore = useFrameFieldsStore();
-const fieldComposable = useFrameFields();
-const editorComposable = useFrameEditor();
+const editorStore = useFrameEditorStore();
 
 // 计算属性 - 直接从store获取状态
-const fields = computed(() => fieldStore.fields);
-const totalBits = computed(() => fieldStore.totalBits);
-const selectedFieldIndex = computed(() => fieldStore.selectedFieldIndex);
+const { fields, totalBits, selectedFieldIndex } = storeToRefs(fieldStore);
 
-// 开始编辑字段 - 使用 composable 方法以获取通知功能
+// 定义emit事件
+const emit = defineEmits<{
+  'edit-field': [index: number | null];
+}>();
+
+// 开始编辑字段 - 触发事件而不是直接调用store方法
 function startEditField(index: number | null) {
-  fieldComposable.startEditField(index);
+  // 设置选中索引仍由field store处理
+  fieldStore.setSelectedFieldIndex(index !== null ? index : null);
+  // 触发编辑事件，让父组件处理编辑逻辑
+  emit('edit-field', index);
 }
 
 function handleDuplicate(index: number) {
   try {
-    const newIndex = editorComposable.duplicateField(index);
+    const newIndex = fieldStore.duplicateField(index);
     if (newIndex !== null) {
+      // 更新编辑器中的帧对象
+      editorStore.updateEditorFrame({ fields: fieldStore.fields });
       notifySuccess(`字段复制成功`);
     }
   } catch (error) {
@@ -132,7 +140,12 @@ function removeFieldDirect(index: number) {
     const field = fields.value[index];
     if (!field) return;
 
-    editorComposable.removeField(index);
+    const success = fieldStore.removeField(index);
+    if (success) {
+      // 更新编辑器中的帧对象
+      editorStore.updateEditorFrame({ fields: fieldStore.fields });
+      editorStore.setHasChanges(true);
+    }
   } catch (error) {
     notifyError(`字段删除失败: ${error instanceof Error ? error.message : String(error)}`);
   }

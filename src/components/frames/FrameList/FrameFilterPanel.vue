@@ -36,25 +36,6 @@
       </div>
 
       <div class="filter-item">
-        <div class="filter-label">状态:</div>
-        <q-select
-          v-model="localFilters.status"
-          :options="STATUS_OPTIONS"
-          dense
-          dark
-          outlined
-          emit-value
-          map-options
-          option-label="label"
-          option-value="value"
-          placeholder="选择状态"
-          class="filter-input"
-          @update:model-value="applyLocalFilters"
-          clearable
-        />
-      </div>
-
-      <div class="filter-item">
         <div class="filter-label">参数数:</div>
         <q-select
           v-model="localFilters.paramCount"
@@ -107,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { useFrameFilterStore } from 'src/stores/framesStore';
 import { reactive } from 'vue';
 // 目前没有直接使用useFrameFilters，暂时注释掉
 // import { useFrameFilters } from '../../../composables/frames/useFrameFilters';
@@ -116,18 +98,11 @@ import { reactive } from 'vue';
 // 暂时不使用frameFilters，如果需要全局过滤可以重新添加
 // const frameFilters = useFrameFilters();
 
-// 状态选项常量
-const STATUS_OPTIONS = [
-  { label: '处理中', value: 'processing' },
-  { label: '完成', value: 'completed' },
-  { label: '错误', value: 'error' },
-  { label: '待处理', value: 'pending' },
-];
+const frameFilterStore = useFrameFilterStore();
 
 interface LocalFilterValues {
   frameId: string;
   name: string;
-  status: string | null; // 使用字符串而不是FrameStatus类型，避免类型错误
   paramCount: number | null;
   startTime: string;
   endTime: string;
@@ -158,7 +133,6 @@ const paramCountOptions = [
 const localFilters = reactive<LocalFilterValues>({
   frameId: '',
   name: '',
-  status: null,
   paramCount: null,
   startTime: '',
   endTime: '',
@@ -174,7 +148,6 @@ const applyLocalFilters = () => {
 const resetLocalFilters = () => {
   localFilters.frameId = '';
   localFilters.name = '';
-  localFilters.status = null;
   localFilters.paramCount = null;
   localFilters.startTime = '';
   localFilters.endTime = '';

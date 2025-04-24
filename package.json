@@ -19,6 +19,7 @@
     "@quasar/extras": "^1.16.4",
     "@vueuse/core": "^13.1.0",
     "pinia": "^3.0.1",
+    "protodef": "^1.19.0",
     "quasar": "^2.16.0",
     "unocss": "66.1.0-beta.8",
     "uuid": "^11.1.0",

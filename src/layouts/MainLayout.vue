@@ -10,11 +10,11 @@
       <!-- 侧边栏固定宽度 -->
       <q-drawer
         v-model="leftDrawerOpen"
-        :width="240"
         :breakpoint="500"
         dark
         persistent
         show-if-above
+        :width="drawerWidth"
         class="bg-[#1e293b] text-[#e2e8f0] shadow-none border-r-0 h-full"
       >
         <SidePanel />
@@ -36,12 +36,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, provide } from 'vue';
+import { ref, provide, onMounted, onUnmounted } from 'vue';
 import HeaderBar from '../components/layout/HeaderBar.vue';
 import SidePanel from '../components/layout/SidePanel.vue';
 import StatusBar from '../components/common/StatusBar.vue';
 
 const leftDrawerOpen = ref(true);
+const drawerWidth = ref(250); // 默认宽度，单位是像素
+
+// 计算抽屉宽度为视窗宽度的百分比
+onMounted(() => {
+  const updateWidth = () => {
+    drawerWidth.value = Math.round(window.innerWidth * 0.15); // 15% 的视窗宽度
+  };
+
+  updateWidth();
+  window.addEventListener('resize', updateWidth);
+
+  // 清理监听器
+  onUnmounted(() => {
+    window.removeEventListener('resize', updateWidth);
+  });
+});
 
 const toggleDrawer = () => {
   leftDrawerOpen.value = !leftDrawerOpen.value;

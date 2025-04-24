@@ -2,7 +2,7 @@
  * 帧结构相关类型定义
  */
 
-import type { ProtocolType, DeviceType, FrameStatus } from './basic';
+import type { ProtocolType, FrameType, FrameDirection } from './basic';
 import type { FrameField } from './fields';
 
 // 帧选项
@@ -12,28 +12,25 @@ export interface FrameOptions {
   includeLengthField: boolean;
 }
 
-// 帧模板
-export interface FrameTemplate {
-  id: string;
-  name: string;
-  description: string;
-  protocol: ProtocolType;
-  deviceType: DeviceType;
-  fields: FrameField[];
-  createdAt?: Date;
-  updatedAt?: Date;
-  isFavorite?: boolean;
+export interface IdentifierRule {
+  startBit: number;
+  endBit: number;
+  operator: string;
+  value: string;
+  format: string;
+  logicOperator: 'and' | 'or';
 }
 
 // 完整帧定义(包含状态和时间戳)
 export interface Frame {
   id: string;
+  lastId: string;
   name: string;
   description: string;
+  direction: FrameDirection;
   protocol: ProtocolType;
-  deviceType: DeviceType;
+  frameType: FrameType;
   fields: FrameField[];
-  status: FrameStatus;
   paramCount?: number;
   value?: number | string;
   timestamp: number;
@@ -42,12 +39,5 @@ export interface Frame {
   usageCount?: number;
   isFavorite?: boolean;
   options: FrameOptions;
-}
-
-// 详细帧，用于显示详情
-export interface DetailFrame extends Frame {
-  category?: string;
-  categoryName?: string;
-  fieldCount: number;
-  totalBytes: number;
+  identifierRules: Array<IdentifierRule>;
 }

@@ -12,15 +12,53 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-// 工业主题颜色变量
+// =========================================
+// 工业主题颜色系统
+// =========================================
+
+// 主要颜色
 $primary: #3b82f6; // 主要操作按钮色
 $secondary: #475569; // 次要操作按钮色
 $accent: #93c5fd; // 强调文本色
 
+// 背景颜色
 $dark: #0f2744; // 次背景色
 $dark-page: #0a1929; // 主背景色
+$card-bg: #12233f; // 卡片背景色
+$input-bg: #0a1929; // 输入框背景色
+$panel-bg: #1a2e4c; // 面板背景色
+$hover-bg: #1e3a5f; // 悬停背景色
 
-$positive: #66bb6a; // 完成状态
-$negative: #ef4444; // 错误状态
-$info: #64b5f6; // 处理中状态
-$warning: #ffb74d; // 待处理状态
+// 边框颜色
+$border-primary: #1a3663; // 主要边框色
+$border-secondary: #2a4374; // 次要边框色
+$border-light: #3b5998; // 浅色边框
+$border-highlight: #3b82f6; // 高亮边框色
+
+// 文本颜色
+$text-primary: #e2e8f0; // 主要文本色
+$text-secondary: #94a3b8; // 次要文本色
+$text-accent: #93c5fd; // 强调文本色
+$text-disabled: #64748b; // 禁用文本色
+$text-hint: #cbd5e1; // 提示文本色
+
+// 功能色
+$positive: #66bb6a; // 完成/成功状态
+$negative: #ef4444; // 错误/失败状态
+$info: #64b5f6; // 通知/处理中状态
+$warning: #ffb74d; // 警告/待处理状态
+
+// 数据可视化颜色
+$data-1: #3b82f6; // 数据序列1
+$data-2: #10b981; // 数据序列2
+$data-3: #f59e0b; // 数据序列3
+$data-4: #8b5cf6; // 数据序列4
+$data-5: #ec4899; // 数据序列5
+$data-6: #06b6d4; // 数据序列6
+
+// 设备状态颜色
+$device-online: #22c55e; // 设备在线
+$device-offline: #94a3b8; // 设备离线
+$device-error: #ef4444; // 设备错误
+$device-warning: #f59e0b; // 设备警告
+$device-busy: #3b82f6; // 设备忙

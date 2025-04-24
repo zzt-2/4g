@@ -1,5 +1,5 @@
 import { ipcRenderer } from 'electron';
-import { deepClone } from '../../../src/utils/frames/frameUtils';
+
 /**
  * 帧配置API
  * 提供渲染进程与主进程通信的桥接
@@ -9,7 +9,7 @@ export const framesAPI = {
    * 保存帧配置
    * @param frame 帧配置对象
    */
-  save: (frame: unknown) => ipcRenderer.invoke('frames:save', deepClone(frame)),
+  save: (frame: unknown) => ipcRenderer.invoke('frames:save', frame),
 
   /**
    * 获取所有帧配置
@@ -26,7 +26,7 @@ export const framesAPI = {
    * 批量保存所有帧
    * @param frames 所有帧配置
    */
-  saveAll: (frames: unknown[]) => ipcRenderer.invoke('frames:saveAll', deepClone(frames)),
+  saveAll: (frames: unknown[]) => ipcRenderer.invoke('frames:saveAll', frames),
 
   /**
    * 导出帧到文件

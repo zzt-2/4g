@@ -1,13 +1,7 @@
 /**
  * 帧相关工具函数
  */
-import type {
-  FrameField,
-  Frame,
-  FilterOptions,
-  FieldType,
-  DetailFrame,
-} from '../../types/frames/index';
+import type { FrameField, Frame, FilterOptions, FieldType } from '../../types/frames/index';
 import { FIELD_TYPE_CONFIGS } from '../../config/frameDefaults';
 
 /**
@@ -42,24 +36,6 @@ export function deepClone<T>(obj: T): T {
 
   // 原始类型直接返回
   return obj;
-}
-
-/**
- * 安全的分组函数，避免原型污染
- * @param items 要分组的项目数组
- * @param keyFn 生成分组键的函数
- * @returns 分组后的对象
- */
-export function safeGroupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]> {
-  const result: Record<string, T[]> = Object.create(null);
-  items.forEach((item) => {
-    const key = keyFn(item);
-    if (!result[key]) {
-      result[key] = [];
-    }
-    result[key].push(item);
-  });
-  return result;
 }
 
 /**
@@ -107,7 +83,7 @@ export function getFieldTypeConfig(type: string | undefined) {
  * @returns 字段位宽
  */
 export function getFieldBitWidth(field: FrameField): number {
-  switch (field.type) {
+  switch (field.dataType) {
     case 'uint8':
     case 'int8':
       return 8;
@@ -158,7 +134,7 @@ export function getFieldShortType(type: FieldType): string {
       return 'BIT';
     default:
       // 使用类型断言确保TypeScript知道这里不会是never类型
-      return (type as string).substring(0, 3).toUpperCase();
+      return '未定义';
   }
 }
 
@@ -181,15 +157,12 @@ export function getFieldBitsText(field: FrameField): string {
  * @param value 字段值
  * @returns 十六进制预览字符串
  */
-export function getFieldHexPreview(
-  field: FrameField,
-  value: string | number | null = null,
-): string {
-  const useValue = value !== null ? value : field.hasDefaultValue ? field.defaultValue : null;
+export function getFieldHexPreview(field: FrameField): string {
+  const useValue = field.defaultValue;
 
   if (useValue === null) {
     // 返回类型对应的占位符
-    switch (field.type) {
+    switch (field.dataType) {
       case 'uint8':
       case 'int8':
         return 'XX';
@@ -213,7 +186,7 @@ export function getFieldHexPreview(
 
   // 根据不同类型处理值
   try {
-    switch (field.type) {
+    switch (field.dataType) {
       case 'uint8':
       case 'int8': {
         const num = Number(useValue);
@@ -236,7 +209,7 @@ export function getFieldHexPreview(
         const num = Number(useValue);
         return num
           .toString(16)
-          .padStart(Math.ceil(field?.bits / 4), '0')
+          .padStart(Math.ceil((field?.bits || 0) / 4), '0')
           .toUpperCase();
       }
       case 'bytes': {
@@ -284,12 +257,12 @@ export function validateField(field: Partial<FrameField>): { valid: boolean; err
   }
 
   // 类型验证
-  if (!field.type) {
+  if (!field.dataType) {
     errors.push('字段类型不能为空');
   }
 
   // 长度验证
-  const typeConfig = getFieldTypeConfig(field.type);
+  const typeConfig = getFieldTypeConfig(field.dataType);
   if (typeConfig.needsLength) {
     if (!field.length || field.length <= 0) {
       errors.push('字段长度必须大于0');
@@ -301,16 +274,6 @@ export function validateField(field: Partial<FrameField>): { valid: boolean; err
     if (!field.bits || field.bits <= 0) {
       errors.push('位宽必须大于0');
     }
-  }
-
-  // 选项验证
-  if (typeConfig.needsOptions && field.options?.length === 0) {
-    errors.push('选项列表不能为空');
-  }
-
-  // 默认值验证
-  if (field.hasDefaultValue && field.defaultValue === undefined) {
-    errors.push('启用默认值时，必须提供默认值');
   }
 
   return {
@@ -373,8 +336,8 @@ export function validateFrame(frame: Frame): { valid: boolean; errors: string[] 
     errors.push('协议类型不能为空');
   }
 
-  if (!frame.deviceType) {
-    errors.push('设备类型不能为空');
+  if (!frame.frameType) {
+    errors.push('帧类型不能为空');
   }
 
   // 字段验证
@@ -390,30 +353,11 @@ export function validateFrame(frame: Frame): { valid: boolean; errors: string[] 
 }
 
 /**
- * 按协议分组帧
- * @param frames 帧数组
- * @returns 分组结果
- */
-export function framesByProtocol(frames: Frame[]): Record<string, Frame[]> {
-  return safeGroupBy(frames, (frame) => frame.protocol);
-}
-
-/**
- * 按设备类型分组帧
- * @param frames 帧数组
- * @returns 分组结果
- */
-export function framesByDeviceType(frames: Frame[]): Record<string, Frame[]> {
-  return safeGroupBy(frames, (frame) => frame.deviceType);
-}
-
-/**
  * 应用所有过滤器
  * @param frames 原始帧数组
  * @param filters 过滤条件
  * @param searchQuery 搜索关键词
  * @param sortOrder 排序方式
- * @param categoryId 分类ID
  * @returns 过滤后的帧数组
  */
 export function applyAllFilters(
@@ -421,13 +365,9 @@ export function applyAllFilters(
   filters: FilterOptions,
   searchQuery: string = '',
   sortOrder: string = 'name',
-  categoryId: string = 'all',
 ): Frame[] {
-  // 按分类过滤
-  let result = filterFramesByCategory(frames, categoryId);
-
   // 应用过滤选项
-  result = applyFilters(result, filters);
+  let result = applyFilters(frames, filters);
 
   // 按关键词搜索
   if (searchQuery) {
@@ -438,34 +378,6 @@ export function applyAllFilters(
   result = sortFrames(result, sortOrder);
 
   return result;
-}
-
-/**
- * 按分类过滤帧
- * @param frames 帧数组
- * @param categoryId 分类ID
- * @returns 过滤后的帧数组
- */
-function filterFramesByCategory(frames: Frame[], categoryId: string): Frame[] {
-  // 如果是特殊分类
-  switch (categoryId) {
-    case 'all':
-      return frames;
-    case 'recent':
-      // 按时间戳排序，取最近的10个
-      return [...frames].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 10);
-    case 'favorites':
-      return frames.filter((frame) => frame.isFavorite);
-    case 'sensors':
-      return frames.filter((frame) => frame.deviceType === 'sensor');
-    case 'controls':
-      return frames.filter(
-        (frame) => frame.deviceType === 'controller' || frame.deviceType === 'plc',
-      );
-    default:
-      // 其他分类由外部处理
-      return frames;
-  }
 }
 
 /**
@@ -498,13 +410,13 @@ function applyFilters(frames: Frame[], filters: FilterOptions): Frame[] {
       return false;
     }
 
-    // 设备类型过滤
-    if (filters.deviceType && frame.deviceType !== filters.deviceType) {
+    // 帧类型过滤
+    if (filters.frameType && frame.frameType !== filters.frameType) {
       return false;
     }
 
-    // 状态过滤
-    if (filters.status && frame.status !== filters.status) {
+    // 方向过滤
+    if (filters.direction && frame.direction !== filters.direction) {
       return false;
     }
 
@@ -558,17 +470,4 @@ function sortFrames(frames: Frame[], sortOrder: string): Frame[] {
         return 0;
     }
   });
-}
-
-/**
- * 创建DetailFrame对象
- * @param frame 原始帧
- * @returns DetailFrame对象
- */
-export function createDetailFrame(frame: Frame): DetailFrame {
-  return {
-    ...frame,
-    fieldCount: frame.fields.length,
-    totalBytes: frame.fields.reduce((sum, field) => sum + field.length, 0),
-  };
 }

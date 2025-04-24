@@ -1,26 +1,21 @@
 /**
  * 帧编辑器Composable
  *
- * 处理帧编辑相关的业务逻辑，连接编辑器Store和字段Store，提供编辑初始化、保存等功能
+ * 处理帧编辑相关的复杂业务逻辑，主要负责跨Store协调操作，如初始化编辑器、保存帧等功能
  */
-import { computed, ref, watch } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   useFrameEditorStore,
   useFrameFieldsStore,
   useFrameTemplateStore,
 } from '../../stores/framesStore';
-import type { Frame, FrameField } from '../../types/frames';
-import {
-  validateFrame as validateFrameUtil,
-  getFieldBitWidth,
-  getFieldShortType,
-  getFieldBitsText,
-} from '../../utils/frames/frameUtils';
+import type { Frame } from '../../types/frames';
+import { validateFrame as validateFrameUtil } from '../../utils/frames/frameUtils';
 
 /**
  * 帧编辑器组合式函数
- * 提供帧编辑初始化、保存等功能
+ * 提供帧编辑初始化、保存等跨Store协调功能
  */
 export function useFrameEditor() {
   // 获取相关的Store
@@ -32,20 +27,6 @@ export function useFrameEditor() {
   // 本地状态
   const isSubmitting = ref(false);
   const validationErrors = ref<string[]>([]);
-  const localHasChanges = ref(false);
-
-  // 编辑器状态
-  const currentFrame = computed(() => editorStore.editorFrame);
-  const isNewFrame = computed(() => editorStore.editMode === 'create');
-  const hasChanges = computed(() => editorStore.hasChanges || localHasChanges.value);
-  const isValid = computed(() => editorStore.isValid && validationErrors.value.length === 0);
-  const editMode = computed(() => editorStore.editMode);
-
-  // 字段相关计算属性
-  const fields = computed(() => currentFrame.value?.fields || []);
-  const selectedField = computed(() => fieldStore.selectedField);
-  const fieldCount = computed(() => fieldStore.fieldCount);
-  const totalBits = computed(() => fieldStore.totalBits);
 
   /**
    * 初始化编辑器
@@ -55,7 +36,7 @@ export function useFrameEditor() {
     // 重置编辑器状态
     editorStore.resetEditor();
     validationErrors.value = [];
-    localHasChanges.value = false;
+    editorStore.setHasChanges(false);
     isSubmitting.value = false;
 
     if (frameId) {
@@ -63,6 +44,7 @@ export function useFrameEditor() {
       const frame = templateStore.frames.find((f) => f.id === frameId);
       if (frame) {
         editorStore.setEditorFrame(frame);
+        editorStore.editorFrame.lastId = frame.id;
         editorStore.setEditMode('edit');
         fieldStore.setFields(frame.fields);
       } else {
@@ -79,163 +61,64 @@ export function useFrameEditor() {
   }
 
   /**
-   * 更新帧基本信息
-   * @param updates 更新内容
-   */
-  function updateFrameInfo(updates: Partial<Frame>) {
-    if (!currentFrame.value) return;
-
-    editorStore.updateEditorFrame(updates);
-    localHasChanges.value = true;
-  }
-
-  /**
-   * 添加新字段
-   * @param fieldData 字段数据
-   */
-  function addField(fieldData: Partial<FrameField> = {}) {
-    if (!currentFrame.value) return;
-
-    const newFieldId = fieldStore.addField(fieldData);
-
-    // 更新编辑器中的帧对象
-    const updatedFields = [...fields.value, fieldStore.fields.find((f) => f.id === newFieldId)!];
-    editorStore.updateEditorFrame({ fields: updatedFields });
-    localHasChanges.value = true;
-
-    return newFieldId;
-  }
-
-  /**
-   * 更新字段
-   * @param index 字段索引
-   * @param updates 更新内容
-   */
-  function updateField(index: number, updates: Partial<FrameField>) {
-    if (!currentFrame.value) return false;
-
-    const success = fieldStore.updateField(index, updates);
-    if (success) {
-      // 更新编辑器中的帧对象
-      editorStore.updateEditorFrame({ fields: fieldStore.fields });
-      localHasChanges.value = true;
-    }
-
-    return success;
-  }
-
-  /**
-   * 删除字段
-   * @param index 字段索引
-   */
-  function removeField(index: number) {
-    if (!currentFrame.value) return false;
-
-    const success = fieldStore.removeField(index);
-    if (success) {
-      // 更新编辑器中的帧对象
-      editorStore.updateEditorFrame({ fields: fieldStore.fields });
-      localHasChanges.value = true;
-    }
-
-    return success;
-  }
-
-  /**
-   * 复制字段
-   * @param index 字段索引
-   */
-  function duplicateField(index: number) {
-    if (!currentFrame.value) return null;
-
-    const newIndex = fieldStore.duplicateField(index);
-    if (newIndex !== null) {
-      // 更新编辑器中的帧对象
-      editorStore.updateEditorFrame({ fields: fieldStore.fields });
-      localHasChanges.value = true;
-    }
-
-    return newIndex;
-  }
-
-  /**
-   * 移动字段
-   * @param fromIndex 源索引
-   * @param toIndex 目标索引
-   */
-  function moveField(fromIndex: number, toIndex: number) {
-    if (!currentFrame.value) return false;
-
-    const success = fieldStore.moveField(fromIndex, toIndex);
-    if (success) {
-      // 更新编辑器中的帧对象
-      editorStore.updateEditorFrame({ fields: fieldStore.fields });
-      localHasChanges.value = true;
-    }
-
-    return success;
-  }
-
-  /**
-   * 选择字段
-   * @param index 字段索引
-   */
-  function selectField(index: number | null) {
-    fieldStore.setSelectedFieldIndex(index);
-  }
-
-  /**
    * 验证当前帧
    */
-  function validateFrame(): boolean {
-    if (!currentFrame.value) {
+  function validateFrame(): { valid: boolean; errors: string[] } {
+    if (!editorStore.editorFrame) {
       validationErrors.value = ['无有效帧数据'];
-      return false;
+      return { valid: false, errors: ['无有效帧数据'] };
     }
 
     // 使用工具函数进行验证
-    const validationResult = validateFrameUtil(currentFrame.value);
+    const validationResult = validateFrameUtil(editorStore.editorFrame);
     validationErrors.value = validationResult.errors;
 
-    return validationResult.valid;
+    return validationResult;
   }
 
   /**
    * 保存当前帧
    */
-  async function saveFrame(): Promise<Frame | null> {
-    if (!currentFrame.value) return null;
+  async function saveFrame(): Promise<Frame | { valid: boolean; errors: string[] }> {
+    if (!editorStore.editorFrame) return { valid: false, errors: ['无有效帧数据'] };
+    if (
+      templateStore.frames.find((f) => f.id === editorStore.editorFrame.id) &&
+      editorStore.editorFrame.lastId !== editorStore.editorFrame.id
+    )
+      return { valid: false, errors: ['已存在该帧Id'] };
+
+    const validationResult = validateFrame();
 
     // 验证帧
-    if (!validateFrame()) {
-      return null;
+    if (!validationResult.valid) {
+      return { valid: false, errors: validationResult.errors };
     }
 
     isSubmitting.value = true;
 
     try {
-      let savedFrame: Frame;
-      const frameToSave: Frame = { ...currentFrame.value, fields: fieldStore.fields };
+      const frameToSave: Frame = { ...editorStore.editorFrame, fields: fieldStore.fields };
 
       // 更新时间戳
       frameToSave.timestamp = Date.now();
 
-      if (isNewFrame.value) {
+      if (editorStore.editMode === 'create') {
         // 创建新帧
-        savedFrame = await templateStore.createFrame(frameToSave);
+        await templateStore.createFrame(frameToSave);
       } else {
         // 更新现有帧
-        savedFrame = await templateStore.updateFrame(frameToSave);
+        await templateStore.updateFrame(frameToSave);
+        if (editorStore.editorFrame.lastId !== editorStore.editorFrame.id)
+          templateStore.deleteFrame(editorStore.editorFrame.lastId);
       }
 
       // 重置状态
       editorStore.setHasChanges(false);
-      localHasChanges.value = false;
 
-      return savedFrame;
+      return { valid: true, errors: [] };
     } catch (error) {
       editorStore.setError(error instanceof Error ? error.message : '保存帧时发生错误');
-      return null;
+      return { valid: false, errors: ['保存帧时发生错误'] };
     } finally {
       isSubmitting.value = false;
     }
@@ -260,7 +143,6 @@ export function useFrameEditor() {
     editorStore.resetEditor();
     fieldStore.resetFieldsState();
     validationErrors.value = [];
-    localHasChanges.value = false;
   }
 
   /**
@@ -271,46 +153,17 @@ export function useFrameEditor() {
     router.push({ name: 'frames-list' });
   }
 
-  // 监听字段变化
-  watch(fieldStore.fields, () => {
-    if (currentFrame.value) {
-      // 确保编辑器中的帧对象和字段保持同步
-      editorStore.updateEditorFrame({ fields: fieldStore.fields });
-    }
-  });
-
   return {
-    // 状态
-    currentFrame,
-    isNewFrame,
-    hasChanges,
-    isValid,
-    editMode,
-    fields,
-    selectedField,
-    fieldCount,
-    totalBits,
+    // 本地状态
     isSubmitting,
     validationErrors,
 
-    // 方法
+    // 复杂业务逻辑方法
     initEditor,
-    updateFrameInfo,
-    addField,
-    updateField,
-    removeField,
-    duplicateField,
-    moveField,
-    selectField,
     validateFrame,
     saveFrame,
     saveAndReturn,
     resetEditor,
     cancelAndReturn,
-
-    // 辅助方法
-    getFieldBitWidth,
-    getFieldShortType,
-    getFieldBitsText,
   };
 }

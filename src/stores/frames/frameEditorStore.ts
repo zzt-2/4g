@@ -4,17 +4,32 @@
  * 负责管理帧编辑状态、维护编辑中的帧数据、处理变更标记
  */
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Frame } from '../../types/frames';
 import { deepClone } from '../../utils/frames/frameUtils';
 import { createEmptyFrame } from '../../types/frames/factories';
 
 export const useFrameEditorStore = defineStore('frameEditor', () => {
   // 核心状态
-  const editorFrame = ref<Frame | null>(null);
+  const editorFrame = ref<Frame>(createEmptyFrame());
   const hasChanges = ref(false);
-  const editMode = ref<'create' | 'edit'>('edit');
+  const editMode = ref<'create' | 'edit'>('create');
   const error = ref<string | null>(null);
+  const initialFrameState = ref<string>('');
+
+  // 深度监听editorFrame的变化
+  watch(
+    () => editorFrame.value,
+    (newValue) => {
+      if (initialFrameState.value) {
+        // 将当前状态转换为字符串进行比较
+        const currentState = JSON.stringify(newValue);
+        // 只有当初始状态不为空且与当前状态不同时，才标记为有变更
+        hasChanges.value = initialFrameState.value !== currentState;
+      }
+    },
+    { deep: true }, // 开启深度监听
+  );
 
   // 计算属性
   const isValid = computed(() => {
@@ -27,7 +42,9 @@ export const useFrameEditorStore = defineStore('frameEditor', () => {
   // 方法
   function setEditorFrame(frame: Frame | null) {
     // 创建深拷贝，避免直接修改store外部的对象
-    editorFrame.value = frame ? deepClone(frame) : null;
+    editorFrame.value = frame ? deepClone(frame) : createEmptyFrame();
+    // 保存初始状态的副本用于比较
+    initialFrameState.value = JSON.stringify(editorFrame.value);
     hasChanges.value = false;
   }
 
@@ -44,13 +61,14 @@ export const useFrameEditorStore = defineStore('frameEditor', () => {
   }
 
   function initNewFrame() {
-    const newFrame = createEmptyFrame();
-    setEditorFrame(newFrame);
+    setEditorFrame(null);
     editMode.value = 'create';
   }
 
   function resetEditor() {
-    editorFrame.value = null;
+    editorFrame.value = createEmptyFrame();
+    // 重置初始状态
+    initialFrameState.value = JSON.stringify(editorFrame.value);
     hasChanges.value = false;
     error.value = null;
   }
