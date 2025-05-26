@@ -3,7 +3,7 @@
  */
 import { nanoid } from 'nanoid';
 import type { Frame, FrameField } from './index';
-import { DEFAULT_FRAME_OPTIONS } from '../../config/frameDefaults';
+import { DEFAULT_FRAME_OPTIONS, DEFAULT_VALID_OPTION } from '../../config/frameDefaults';
 
 /**
  * 创建空字段
@@ -16,14 +16,10 @@ export function createEmptyField(): FrameField {
     dataType: 'uint8',
     length: 1,
     description: '',
-    validOption: {
-      isChecksum: false,
-      startFieldIndex: '0',
-      endFieldIndex: '0',
-      checksumMethod: 'crc16',
-    },
+    validOption: { ...DEFAULT_VALID_OPTION },
     defaultValue: '0', // 默认值，基于类型
     inputType: 'input', // 默认输入类型
+    configurable: true, // 默认可配置
     options: [],
   };
 }

@@ -20,7 +20,7 @@
     <template v-slot:header="props">
       <q-tr
         :props="props"
-        class="bg-[#1a3663] border-b border-[#334155] font-bold h-10 whitespace-nowrap"
+        class="bg-[#1a3663] border-b border-[#334155] font-bold h-10 whitespace-nowrap sticky-header"
       >
         <q-th
           v-for="col in props.cols"

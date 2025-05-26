@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Frame } from '../../types/frames';
-import { framesAPI } from '../../utils/electronApi';
+import { dataStorageAPI } from '../../utils/electronApi';
 import { deepClone } from '../../utils/frames/frameUtils';
 import { createEmptyFrame } from '../../types/frames/factories';
 
@@ -27,7 +27,7 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
     try {
       isLoading.value = true;
       error.value = null;
-      const data = await framesAPI.list();
+      const data = await dataStorageAPI.framesConfig.list();
       frames.value = data;
       return data;
     } catch (err) {
@@ -54,7 +54,7 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
         updatedAt: new Date(),
       };
 
-      await framesAPI.save(newFrame);
+      await dataStorageAPI.framesConfig.save(newFrame);
       frames.value.push(newFrame);
       return newFrame;
     } catch (err) {
@@ -76,7 +76,7 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
         updatedAt: new Date(),
       };
 
-      await framesAPI.save(updatedFrame);
+      await dataStorageAPI.framesConfig.save(updatedFrame);
 
       // 更新本地数据
       const index = frames.value.findIndex((f) => f.id === frame.id);
@@ -99,7 +99,7 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
       isLoading.value = true;
       error.value = null;
 
-      await framesAPI.delete(id);
+      await dataStorageAPI.framesConfig.delete(id);
 
       // 更新本地数据
       frames.value = frames.value.filter((frame) => frame.id !== id);

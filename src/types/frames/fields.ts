@@ -18,6 +18,7 @@ export interface FrameField {
   validOption?: ValidationParam;
   defaultValue?: string;
   inputType: FieldInputType; // 控制字段输入类型
+  configurable: boolean; // 是否可在发送用例中配置
   // 可选配置参数，用于下拉框或单选框
   options?: {
     value: string; // 实际值

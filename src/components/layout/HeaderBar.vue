@@ -12,28 +12,6 @@
 
       <q-space />
 
-      <div class="flex mr-4" style="-webkit-app-region: no-drag">
-        <q-btn
-          flat
-          dense
-          no-caps
-          class="text-[#94a3b8] hover:bg-[#334155] hover:text-white transition-colors duration-200 ml-3"
-        >
-          <q-icon name="settings" size="18px" class="mr-1" />
-          <span class="text-[13px]">设置</span>
-        </q-btn>
-
-        <q-btn
-          flat
-          dense
-          no-caps
-          class="text-[#94a3b8] hover:bg-[#334155] hover:text-white transition-colors duration-200 ml-3"
-        >
-          <q-icon name="help_outline" size="18px" class="mr-1" />
-          <span class="text-[13px]">帮助</span>
-        </q-btn>
-      </div>
-
       <!-- 窗口操作按钮 -->
       <div class="flex items-center" style="-webkit-app-region: no-drag">
         <q-btn

@@ -69,7 +69,13 @@ export default defineConfig((/* ctx */) => {
         viteConf.plugins?.push(UnoCSS(unoConfig));
         viteConf.build = viteConf.build || {};
         viteConf.build.rollupOptions = {
-          // external: ["axios", "vue"],
+          external: [
+            'electron',
+            'serialport',
+            '@serialport/bindings-cpp',
+            '@serialport/parser-readline',
+            '@serialport/stream',
+          ],
           // output: {
           //   format: "commonjs",
           // },
@@ -79,10 +85,14 @@ export default defineConfig((/* ctx */) => {
           //   format: "es", // 使用 ES 模块格式
           // },
 
-          external: ['electron'],
+          // external: ["electron"],
           // output: {
           //   format: "commonjs", // 改用 commonjs 格式
           // },
+        };
+        // 添加这个关键配置
+        viteConf.build.commonjsOptions = {
+          ignoreDynamicRequires: true,
         };
       },
       // viteVuePluginOptions: {},
@@ -218,14 +228,9 @@ export default defineConfig((/* ctx */) => {
       bundler: 'builder', // 'packager' or 'builder'
 
       packager: {
-        // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
-        // OS X / Mac App Store
-        // appBundleId: '',
-        // appCategoryType: '',
-        // osxSign: '',
-        // protocol: 'myapp://path',
-        // Windows only
-        // win32metadata: { ... }
+        // 其他配置...
+        asar: false, // 关键修改，不使用asar打包
+        extraResource: ['node_modules/serialport', 'node_modules/@serialport'],
       },
 
       builder: {

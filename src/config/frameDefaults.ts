@@ -52,7 +52,6 @@ export const FRAME_TYPE_OPTIONS = [
  * 用于UI下拉选择
  */
 export const FIELD_TYPE_OPTIONS = [
-  { label: '比特', value: 'bit' },
   { label: '无符号8位整数 (1字节)', value: 'uint8' },
   { label: '有符号8位整数 (1字节)', value: 'int8' },
   { label: '无符号16位整数 (2字节)', value: 'uint16' },
@@ -61,7 +60,6 @@ export const FIELD_TYPE_OPTIONS = [
   { label: '有符号32位整数 (4字节)', value: 'int32' },
   { label: '32位浮点数 (4字节)', value: 'float' },
   { label: '字节数组', value: 'bytes' },
-  { label: '字符串', value: 'string' },
 ] as const;
 
 /**
@@ -88,7 +86,6 @@ export const UI_LABELS = {
  * 每种类型的特性配置
  */
 export const FIELD_TYPE_CONFIGS = {
-  bit: { needsLength: false, fixedLength: 1, needsBits: true },
   uint8: { needsLength: false, fixedLength: 1, needsBits: false },
   uint16: { needsLength: false, fixedLength: 2, needsBits: false },
   uint32: { needsLength: false, fixedLength: 4, needsBits: false },
@@ -140,7 +137,7 @@ export const DEFAULT_VALID_OPTION: ValidationParam = {
   isChecksum: false,
   startFieldIndex: '0',
   endFieldIndex: '0',
-  checksumMethod: 'crc16', // 默认使用CRC-16
+  checksumMethod: 'sum8', // 默认使用CRC-16
 };
 
 /**
@@ -205,3 +202,22 @@ export const INPUT_TYPE_CONFIG = {
     description: '单选按钮组，适用于需要明确显示所有选项的场景',
   },
 } as const;
+
+/**
+ * 输入类型选项
+ */
+export const INPUT_TYPE_OPTIONS = [
+  { label: '输入框', value: 'input' },
+  { label: '下拉框', value: 'select' },
+  { label: '单选框', value: 'radio' },
+];
+
+/**
+ * 校验方法选项
+ */
+export const CHECKSUM_METHOD_OPTIONS = [
+  { label: 'CRC-16', value: 'crc16' },
+  { label: 'CRC-32', value: 'crc32' },
+  { label: '异或校验 (XOR-8)', value: 'xor8' },
+  { label: '和校验 (SUM-8)', value: 'sum8' },
+];

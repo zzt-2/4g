@@ -27,7 +27,7 @@
           >
             <!-- 字段内容区域 -->
             <div
-              class="flex-grow max-w-[200px] w-[calc(100%-50px)] h-[32px] overflow-hidden flex flex-col justify-center py-0.5 px-1.5"
+              class="flex-grow max-w-[250px] w-[calc(100%-50px)] h-[32px] overflow-hidden flex flex-col justify-center py-0.5 px-1.5"
             >
               <div class="font-medium text-[10px] text-[#e2e8f0] truncate w-full">
                 {{ field.name || '未命名字段' }}
@@ -116,7 +116,7 @@ const emit = defineEmits<{
 // 开始编辑字段 - 触发事件而不是直接调用store方法
 function startEditField(index: number | null) {
   // 设置选中索引仍由field store处理
-  fieldStore.setSelectedFieldIndex(index !== null ? index : null);
+  fieldStore.setSelectedFieldIndex(index);
   // 触发编辑事件，让父组件处理编辑逻辑
   emit('edit-field', index);
 }

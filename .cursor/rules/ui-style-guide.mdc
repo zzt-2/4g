@@ -1,0 +1,190 @@
+---
+description: 
+globs: *.vue
+alwaysApply: false
+---
+# 工业风格 UI 设计指南
+
+## CSS 类命名规范
+
+### 背景色类
+- `.bg-industrial-primary` - 主背景色
+- `.bg-industrial-secondary` - 次背景色
+- `.bg-industrial-panel` - 面板背景
+- `.bg-industrial-highlight` - 高亮背景
+- `.bg-industrial-table-header` - 表头背景
+- `.bg-industrial-gradient` - 工业主题渐变背景
+
+### 文本颜色类
+- `.text-industrial-primary` - 主文本色
+- `.text-industrial-secondary` - 次文本色
+- `.text-industrial-tertiary` - 第三文本色
+- `.text-industrial-disabled` - 禁用文本色
+- `.text-industrial-accent` - 强调文本
+- `.text-industrial-id` - ID标识色
+
+### 边框颜色类
+- `.border-industrial` - 边框颜色
+- `.border-industrial-primary` - 主边框颜色
+- `.border-industrial-secondary` - 次边框颜色
+
+### 按钮颜色类
+- `.btn-industrial-primary` - 主要操作按钮
+- `.btn-industrial-secondary` - 次要操作按钮
+- `.btn-industrial-danger` - 危险操作按钮
+
+### 状态颜色类
+- `.status-processing` - 处理中状态
+- `.status-completed` - 已完成状态
+- `.status-error` - 错误状态
+- `.status-pending` - 待处理状态
+- `.status-timeout` - 超时状态
+- `.status-warning` - 警告状态
+- `.status-badge` - 通用状态标签类
+
+### 交互效果类
+- `.hover\:bg-industrial-highlight:hover` - 悬停背景效果
+- `.hover\:text-industrial-primary:hover` - 悬停文本效果
+- `.focus\:border-industrial-accent:focus` - 聚焦边框效果
+
+## 样式使用原则
+
+### 颜色使用规范
+- **优先使用预定义CSS类**: 必须优先使用上述预定义的工业主题CSS类来设置颜色，禁止在HTML中直接使用RGB或十六进制颜色值
+- **避免内联样式**: 禁止使用行内style属性或在Vue组件中单独创建重复的颜色定义
+- **UnoCSS补充**: 对于没有预定义的样式需求，可以使用UnoCSS的原子类，但颜色方面应尽量使用预定义的工业主题类
+- **避免硬编码颜色**: 不要使用`style="color: #123456"`或`:style="{color: '#123456'}"`这样的写法
+- **避免使用`:class="{ 'bg-[#123456]': condition }"`**: 应使用预定义的CSS类代替内联的颜色值
+- **禁止使用div.bg-[#123456]等直接引用hex颜色的写法**: 应该使用统一的工业主题类
+
+### 颜色值对照表（从直接使用hex值迁移到使用预定义的CSS类）
+
+| 直接使用的hex值 | 对应的工业主题CSS类 |
+|---------------|-------------------|
+| bg-[#0f2744]  | bg-industrial-secondary |
+| bg-[#0d1117]  | bg-industrial-panel |
+| bg-[#1a1e2e]  | bg-industrial-secondary |
+| bg-[#131725]  | bg-industrial-primary |
+| bg-[#232b3f]  | bg-industrial-highlight |
+| bg-[#111827]  | bg-industrial-table-header |
+| bg-[#1e3a6a]  | hover:bg-industrial-highlight |
+| border-[#2A2F45] | border-industrial |
+| border-[#1E293B] | border-industrial-secondary |
+| text-[#ffffff] | text-industrial-primary |
+| text-[#94a3b8] | text-industrial-secondary |
+| text-[#64748b] | text-industrial-tertiary |
+| text-[#475569] | text-industrial-disabled |
+| text-[#60a5fa] | text-industrial-accent |
+| bg-[#3b82f6] | btn-industrial-primary |
+| bg-[#475569] | btn-industrial-secondary |
+| bg-[#ef4444] | btn-industrial-danger |
+
+### 正确示例
+```html
+<!-- 正确: 使用预定义的CSS类 -->
+<div class="bg-industrial-panel text-industrial-primary"></div>
+
+<!-- 正确: 使用预定义的CSS类配合UnoCSS -->
+<div class="bg-industrial-panel text-industrial-primary p-4 rounded-md"></div>
+```
+
+### 错误示例
+```html
+<!-- 错误: 直接使用RGB或十六进制颜色值 -->
+<div class="bg-[#0d1117] text-[#ffffff]"></div>
+
+<!-- 错误: 使用行内style属性 -->
+<div style="background-color: #0d1117; color: white;"></div>
+
+<!-- 错误: 在Vue组件中单独创建重复的颜色定义 -->
+<div :style="{ backgroundColor: '#0d1117', color: 'white' }"></div>
+```
+
+### 迁移指南
+
+在迁移现有代码时，请按照以下步骤进行：
+
+1. **识别直接使用的hex颜色值**:
+   ```html
+   <div class="bg-[#0d1117] text-[#ffffff]"></div>
+   ```
+
+2. **查找对应的预定义CSS类**:
+   使用上面的"颜色值对照表"查找对应的工业主题CSS类。
+
+3. **替换为预定义CSS类**:
+   ```html
+   <div class="bg-industrial-panel text-industrial-primary"></div>
+   ```
+
+4. **如果找不到完全匹配的预定义颜色**:
+   - 选择最接近的预定义颜色
+   - 如有必要，向设计团队提出添加新的预定义颜色的请求
+
+5. **应用其他非颜色相关的样式**:
+   可以继续使用UnoCSS来应用其他样式，如边距、圆角等。
+
+## 样式使用示例
+
+### 工业主题面板
+```html
+<div class="bg-industrial-panel border border-industrial rounded p-4">
+  <h3 class="text-industrial-primary text-lg font-medium mb-2">面板标题</h3>
+  <p class="text-industrial-secondary text-sm">面板内容</p>
+</div>
+```
+
+### 工业主题按钮
+```html
+<button class="btn-industrial-primary px-4 py-2 rounded text-sm">
+  主要按钮
+</button>
+```
+
+### 工业主题状态标签
+```html
+<span class="status-badge status-completed">已完成</span>
+```
+
+### 工业主题输入框
+```html
+<input 
+  type="text" 
+  class="bg-industrial-secondary border border-industrial text-industrial-primary p-2 rounded focus:border-industrial-accent focus:outline-none"
+  placeholder="请输入..."
+/>
+```
+
+## 布局规范
+
+- **表格式布局**: 使用表格展示大量数据，易于扫描和对比
+- **左侧导航**: 垂直导航菜单，深色背景
+- **顶部操作区**: 固定在顶部，包含主要操作按钮
+- **右侧详情面板**: 选中项的详细信息展示
+- **状态栏**: 底部或顶部的状态信息展示区
+
+## 组件样式规范
+
+- **表格组件**: 表头固定，深色背景，边框明显，高对比度行样式
+- **按钮组件**: 简洁扁平，明确的视觉反馈，重要按钮使用强调色
+- **输入组件**: 深色背景，轻微描边，高对比度文本
+- **弹出面板**: 半透明深色背景，边框分明，内容区域层次清晰
+- **状态标识**: 使用颜色和图标结合表示状态，形成直观视觉编码
+
+## 字体规范
+
+- **主体文字**: 12-14px，清晰易读
+- **标题文字**: 14-16px，粗体
+- **数据文字**: 使用等宽字体，便于数据对齐
+- **状态文字**: 通常使用全大写或小型大写字母，增强识别性
+
+## 设计原则
+
+- **整体风格**: 深色工业风格主题，减轻长时间操作的视觉疲劳
+- **布局特点**: 表格式布局，清晰展示大量设备数据
+- **功能区划**: 操作区、数据展示区、状态区明确分离
+- **色彩方案**: 高对比度，重要数据和状态信息使用高对比色彩
+- **简洁实用**: 减少装饰性元素，突出功能性
+- **样式一致性**: 使用预定义的CSS类和UnoCSS，保持界面风格统一，禁止使用直接RGB值或在组件中定义重复样式
+- 使用 UnoCSS 来做额外的样式编写，非必要不要使用 SCSS
+

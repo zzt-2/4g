@@ -1,36 +1,57 @@
 /* 工业主题颜色 - 背景色 */
 .bg-industrial-primary {
-  background-color: #0a1929; /* 主背景色: 深蓝黑色 */
+  background-color: #131725; /* 主背景色: 深蓝黑色 */
 }
 
 .bg-industrial-secondary {
-  background-color: #0f2744; /* 次背景色: 深蓝色 */
+  background-color: #1a1e2e; /* 次背景色: 深蓝色 */
 }
 
 .bg-industrial-panel {
-  background-color: #12233f; /* 面板背景: 稍亮蓝色 */
+  background-color: #0d1117; /* 面板背景: 深色蓝黑 */
 }
 
 .bg-industrial-highlight {
-  background-color: #1e3a6a; /* 高亮背景: 亮蓝色 */
+  background-color: #232b3f; /* 高亮背景: 用于悬停状态 */
 }
 
 /* 工业主题颜色 - 边框色 */
 .border-industrial {
-  border-color: #1a3663; /* 边框颜色: 蓝灰色 */
+  border-color: #2a2f45; /* 边框颜色: 蓝灰色 (兼容旧版本) */
+}
+
+.border-industrial-primary {
+  border-color: #2a2f45; /* 主边框颜色: 蓝灰色 */
+}
+
+.border-industrial-secondary {
+  border-color: #1e293b; /* 次边框颜色: 深蓝灰色 */
+}
+
+/* 工业主题颜色 - 聚焦边框 */
+.focus\:border-industrial-accent:focus {
+  border-color: #60a5fa; /* 聚焦时的边框颜色: 蓝色 */
 }
 
 /* 工业主题颜色 - 文本色 */
 .text-industrial-primary {
-  color: #e2e8f0; /* 主文本色: 浅灰白色 */
+  color: #ffffff; /* 主文本色: 白色 */
 }
 
 .text-industrial-secondary {
-  color: #94a3b8; /* 次文本色: 灰蓝色 */
+  color: #94a3b8; /* 次文本色: 蓝灰色 (text-blue-grey-5) */
+}
+
+.text-industrial-tertiary {
+  color: #64748b; /* 第三文本色: 灰蓝色 (text-blue-grey-4) */
+}
+
+.text-industrial-disabled {
+  color: #475569; /* 禁用文本色: 深灰色 (text-blue-grey-6) */
 }
 
 .text-industrial-accent {
-  color: #93c5fd; /* 强调文本: 亮蓝色 */
+  color: #60a5fa; /* 强调文本: 蓝色 (text-blue-400) */
 }
 
 .text-industrial-id {
@@ -84,6 +105,11 @@
   color: #ffd54f; /* 警告文本: 黄色 */
 }
 
+/* 表格表头背景 */
+.bg-industrial-table-header {
+  background-color: #111827; /* 表头背景色 */
+}
+
 /* 组合状态标签类 */
 .status-badge {
   display: inline-flex;
@@ -95,7 +121,16 @@
   font-weight: 500;
 }
 
+/* 悬停效果 */
+.hover\:bg-industrial-highlight:hover {
+  background-color: #232b3f; /* 悬停时的背景颜色 */
+}
+
+.hover\:text-industrial-primary:hover {
+  color: #ffffff; /* 悬停时的文本颜色 */
+}
+
 /* 工业主题渐变背景 */
 .bg-industrial-gradient {
-  background: linear-gradient(135deg, #0a1929, #1e3a6a);
+  background: linear-gradient(135deg, #131725, #232b3f);
 }

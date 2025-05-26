@@ -1,0 +1,189 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import type { SendFrameInstance, SendInstanceField } from '../../../types/frames/sendInstances';
+import {
+  formatHexWithSpaces,
+  getFullHexString,
+  getFieldHexValue,
+} from '../../../utils/frames/hexCovertUtils';
+
+// 定义属性
+const props = defineProps<{
+  instance: SendFrameInstance | null;
+}>();
+
+// 筛选出可配置字段
+const configurableFields = computed(() => {
+  if (!props.instance) return [];
+  return props.instance.fields.filter((field) => field.configurable);
+});
+
+// 完整帧十六进制
+const fullHexString = computed(() => {
+  if (!props.instance) return '';
+  const hexValues = getFullHexString(props.instance.fields);
+  return formatHexWithSpaces(hexValues);
+});
+
+// 格式化可配置字段
+const formattedConfigurableFields = computed(() => {
+  if (!configurableFields.value.length) return [];
+
+  return configurableFields.value.map((field: SendInstanceField) => {
+    return {
+      ...field,
+      hexValue: getFieldHexValue(field),
+    };
+  });
+});
+
+// 格式化日期
+const formatDate = (date: Date | undefined | null) => {
+  if (!date) return '-';
+  return new Date(date).toLocaleString();
+};
+</script>
+
+<template>
+  <div class="flex flex-col h-full w-full">
+    <!-- 实例信息头部 -->
+    <div class="flex flex-col p-3 border-b border-solid border-[#2A2F45]" v-if="instance">
+      <h5 class="m-0 text-white font-medium text-base">
+        {{ instance.label }}
+      </h5>
+
+      <!-- 创建和更新时间 -->
+      <div class="mt-2 flex flex-col gap-2 text-xs">
+        <div class="text-blue-grey-5">
+          <span class="text-blue-grey-4">创建时间: </span>
+          {{ formatDate(instance.createdAt) }}
+        </div>
+        <div class="text-blue-grey-5">
+          <span class="text-blue-grey-4">更新时间: </span>
+          {{ formatDate(instance.updatedAt) }}
+        </div>
+      </div>
+
+      <!-- 备注 -->
+      <div class="text-blue-grey-4 text-xs mt-2" v-if="instance.description">
+        <span class="text-blue-grey-5">备注: </span>
+        {{ instance.description }}
+      </div>
+
+      <!-- 完整帧十六进制显示 -->
+      <div class="mt-3 bg-[#0d1117] rounded-md p-2 border border-[#1E293B]" v-if="fullHexString">
+        <div class="text-xs text-blue-grey-4 mb-1">完整帧十六进制:</div>
+        <div class="font-mono text-blue-400 text-sm break-all select-all">
+          {{ fullHexString }}
+        </div>
+      </div>
+    </div>
+
+    <!-- 帧数据主体 - 只显示可配置字段 -->
+    <div class="flex-1 overflow-y-auto p-3" v-if="instance">
+      <!-- 可配置字段数量为0时的提示 -->
+      <div
+        v-if="configurableFields.length === 0"
+        class="flex items-center justify-center p-4 text-blue-grey-4 bg-[#1a1e2e] rounded-lg"
+      >
+        <q-icon name="info" color="info" size="sm" class="mr-2" />
+        <span class="text-sm">该帧实例没有可配置字段</span>
+      </div>
+
+      <!-- 帧数据预览表格 - 只显示可配置字段 -->
+      <div v-else class="bg-[#1a1e2e] rounded-lg shadow-md border border-[#2A2F45]">
+        <q-table
+          flat
+          dense
+          :rows="formattedConfigurableFields"
+          :columns="[
+            {
+              name: 'label',
+              label: '字段',
+              field: 'label',
+              align: 'left',
+              style: 'width: 30%',
+            },
+            {
+              name: 'hex',
+              label: '十六进制值',
+              field: 'hexValue',
+              align: 'left',
+              style: 'width: 70%',
+            },
+          ]"
+          row-key="id"
+          hide-pagination
+          :rows-per-page-options="[0]"
+          dark
+          class="shadow-sm"
+          virtual-scroll
+          :virtual-scroll-slice-size="10"
+          :virtual-scroll-sticky-size-start="48"
+          :virtual-scroll-sticky-size-end="0"
+        >
+          <template v-slot:body="props">
+            <q-tr :props="props" class="hover:bg-[#232b3f] transition-colors">
+              <q-td key="label" :props="props" class="text-left">
+                <div class="flex items-center">
+                  <div class="truncate max-w-full" :title="props.row.label">
+                    {{ props.row.label }}
+                  </div>
+                </div>
+              </q-td>
+              <q-td key="hex" :props="props" class="text-right">
+                <span
+                  v-if="props.row.hexValue"
+                  class="font-mono text-blue-400 truncate max-w-full inline-block"
+                  :title="props.row.hexValue"
+                >
+                  {{ props.row.hexValue }}
+                </span>
+                <span v-else class="text-blue-grey-6">-</span>
+              </q-td>
+            </q-tr>
+          </template>
+        </q-table>
+      </div>
+    </div>
+
+    <!-- 空状态提示 -->
+    <div class="flex-1 flex flex-col items-center justify-center p-8 bg-[#131725]" v-if="!instance">
+      <q-icon name="visibility" color="blue-grey-7" size="3rem" class="opacity-70" />
+      <div class="text-blue-grey-4 mt-4 text-center">请选择帧实例以查看预览</div>
+    </div>
+  </div>
+</template>
+
+<style>
+/* 使用UnoCSS，移除SCSS样式 */
+.q-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.q-table th,
+.q-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.q-table th.text-left,
+.q-table td.text-left {
+  padding-left: 8px;
+}
+
+.q-table th.text-right,
+.q-table td.text-right {
+  padding-right: 8px;
+}
+
+/* 粘性表头样式 */
+.q-table thead tr th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #111827 !important;
+}
+</style>

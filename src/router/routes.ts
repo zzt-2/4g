@@ -7,12 +7,8 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', component: () => import('../pages/home/HomePage.vue') },
       {
-        path: '/serial/monitor',
-        component: () => import('../pages/serial/Monitor.vue'),
-      },
-      {
-        path: '/serial/control',
-        component: () => import('../pages/serial/Control.vue'),
+        path: '/serial/config',
+        component: () => import('../pages/SerialConfigPage.vue'),
       },
       {
         path: '/frames/list',
@@ -21,6 +17,10 @@ const routes: RouteRecordRaw[] = [
       {
         path: '/frames/editor',
         component: () => import('../pages/frames/FrameEditor.vue'),
+      },
+      {
+        path: '/frames/send',
+        component: () => import('../pages/FrameSendPage.vue'),
       },
       {
         path: '/settings',

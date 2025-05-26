@@ -78,6 +78,12 @@ const quickAccessCards = ref([
     icon: 'edit',
     path: '/frames/editor',
   },
+  {
+    title: '帧发送',
+    description: '配置和发送数据帧实例',
+    icon: 'send',
+    path: '/frames/send',
+  },
 ]);
 
 // 系统状态 (将来会从store获取)

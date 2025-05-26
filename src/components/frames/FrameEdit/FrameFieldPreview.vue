@@ -20,7 +20,7 @@
           <div
             v-for="(column, colIndex) in fieldColumns"
             :key="colIndex"
-            class="flex flex-col max-w-[200px]"
+            class="flex flex-col max-w-[250px]"
           >
             <!-- 每列中的字段项 -->
             <div

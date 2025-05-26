@@ -30,9 +30,10 @@
                 map-options
                 emit-value
                 hide-bottom-space
+                @update:model-value="fieldStore.updateTempField('dataType')"
               />
 
-              <!-- 长度或比特数区域 -->
+              <!-- 长度 -->
               <q-input
                 v-if="
                   fieldStore.tempField.dataType &&
@@ -48,19 +49,6 @@
                 placeholder="字段长度(字节)"
                 hide-bottom-space
               />
-              <q-input
-                v-else-if="fieldStore.tempField.dataType === 'bit'"
-                v-model.number="fieldStore.tempField.bits"
-                type="number"
-                label="比特数"
-                dense
-                outlined
-                class="input-bg"
-                min="1"
-                max="32"
-                placeholder="比特数量"
-                hide-bottom-space
-              />
             </div>
 
             <q-space></q-space>
@@ -71,13 +59,13 @@
               <q-select
                 v-model="fieldStore.tempField.inputType"
                 label="输入类型"
-                :options="inputTypeOptions"
+                :options="INPUT_TYPE_OPTIONS"
                 dense
                 outlined
                 class="input-bg"
                 map-options
                 emit-value
-                @change="fieldStore.updateTempField('inputType')"
+                @update:model-value="fieldStore.updateTempField('inputType')"
                 hide-bottom-space
               >
                 <template v-slot:hint>
@@ -96,13 +84,22 @@
                 placeholder="默认值"
                 hide-bottom-space
               >
-                <template v-slot:hint>
-                  <span class="text-secondary-color text-xs op-75"
-                    >可使用十六进制(0x前缀)或十进制</span
-                  >
-                </template>
+                <q-tooltip> 可使用十六进制(0x前缀)或十进制 </q-tooltip>
               </q-input>
             </div>
+          </div>
+
+          <!-- 可配置选项 -->
+          <div class="flex items-center mb-4 text-secondary-color">
+            <q-checkbox
+              v-model="fieldStore.tempField.configurable"
+              label="可在发送用例中配置"
+              color="grey-7"
+              dense
+            />
+            <q-tooltip>
+              设置该字段是否可在发送用例中进行配置，不可配置的字段将使用默认值
+            </q-tooltip>
           </div>
 
           <!-- 字段描述 -->
@@ -139,7 +136,7 @@
             >
               <q-select
                 v-model="fieldStore.tempField.validOption.checksumMethod"
-                :options="checksumMethodOptions"
+                :options="CHECKSUM_METHOD_OPTIONS"
                 label="校验和计算方法"
                 dense
                 outlined
@@ -281,27 +278,18 @@
 
 <script setup lang="ts">
 import { useFrameFieldsStore } from '../../../stores/frames/frameFieldsStore';
-import { FIELD_TYPE_OPTIONS, UI_LABELS, INPUT_TYPE_CONFIG } from '../../../config/frameDefaults';
+import {
+  FIELD_TYPE_OPTIONS,
+  UI_LABELS,
+  INPUT_TYPE_CONFIG,
+  CHECKSUM_METHOD_OPTIONS,
+  INPUT_TYPE_OPTIONS,
+} from '../../../config/frameDefaults';
 import { useNotification } from 'src/composables/frames/useNotification';
 
 // 获取store和composable
 const fieldStore = useFrameFieldsStore();
 const { notifyError } = useNotification();
-
-// 将选项数据提取到TS变量中，方便后续移到配置文件
-const inputTypeOptions = [
-  { label: '输入框', value: 'input' },
-  { label: '下拉框', value: 'select' },
-  { label: '单选框', value: 'radio' },
-];
-
-const checksumMethodOptions = [
-  { label: 'CRC-16', value: 'crc16' },
-  { label: 'CRC-32', value: 'crc32' },
-  { label: '异或校验 (XOR-8)', value: 'xor8' },
-  { label: '和校验 (SUM-8)', value: 'sum8' },
-  { label: '自定义', value: 'custom' },
-];
 
 // 简化的选项操作方法，直接使用store中的方法
 const addOption = () => {

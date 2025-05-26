@@ -1,0 +1,48 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 技术栈概览
+
+## 基础框架
+- **前端框架**: Vue 3 + TypeScript
+- **桌面框架**: Electron
+- **构建工具**: Vite
+- **UI 框架**: Quasar (基于 Vue 3)
+
+## 状态管理和组合函数
+- **状态管理**: Pinia (Vue 3官方推荐的状态管理)
+- **组合函数**: VueUse (Vue 3组合式API实用工具集)
+
+## 样式方案
+- **主要样式**: UnoCSS (原子化CSS)
+- **辅助样式**: Quasar提供的组件样式
+- **主题**: 自定义深色工业风格主题
+
+## 数据可视化
+- **图表库**: ECharts (适合工业监控场景的图表库)
+
+## 硬件通信
+- **串口通信**: SerialPort (通过Electron集成)
+- **协议实现**: RS485协议
+
+## 数据存储
+- **本地存储**: 轻量级SQLite
+- **配置存储**: 文件系统
+
+## 开发规范
+- **组件API**: 使用Vue 3.5的`<script setup>`语法
+- **代码风格**: 使用ESLint和Prettier保持一致性
+- **类型检查**: TypeScript类型系统提供安全保障
+
+## 关键依赖
+- `vue`: ^3.5.0
+- `quasar`: ^2.12.0
+- `electron`: ^27.0.0
+- `pinia`: ^2.1.0
+- `vueuse`: ^10.0.0
+- `unocss`: ^0.55.0
+- `echarts`: ^5.4.0
+- `serialport`: ^11.0.0
+

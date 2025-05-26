@@ -15,7 +15,11 @@
         persistent
         show-if-above
         :width="drawerWidth"
-        class="bg-[#1e293b] text-[#e2e8f0] shadow-none border-r-0 h-full"
+        :mini="miniState"
+        @mouseover="miniState = false"
+        @mouseout="miniState = true"
+        mini-to-overlay
+        class="bg-[#1e293b] text-[#e2e8f0] shadow-none border-r-0 h-full overflow-hidden"
       >
         <SidePanel />
       </q-drawer>
@@ -27,11 +31,6 @@
         </div>
       </q-page-container>
     </div>
-
-    <!-- 底部状态栏 -->
-    <div class="bg-[#1e293b] border-t border-[#0f172a] h-[28px] z-10">
-      <StatusBar />
-    </div>
   </q-layout>
 </template>
 
@@ -39,10 +38,10 @@
 import { ref, provide, onMounted, onUnmounted } from 'vue';
 import HeaderBar from '../components/layout/HeaderBar.vue';
 import SidePanel from '../components/layout/SidePanel.vue';
-import StatusBar from '../components/common/StatusBar.vue';
 
 const leftDrawerOpen = ref(true);
 const drawerWidth = ref(250); // 默认宽度，单位是像素
+const miniState = ref(true); // 默认为mini模式
 
 // 计算抽屉宽度为视窗宽度的百分比
 onMounted(() => {
@@ -76,5 +75,19 @@ provide('toggleDrawer', toggleDrawer);
 .q-drawer__content {
   box-shadow: none !important;
   border-right: none !important;
+}
+
+/* mini状态下的drawer样式 */
+.q-drawer--mini {
+  width: 60px !important;
+}
+
+.q-drawer--mini .q-item__label {
+  display: none;
+}
+
+/* 鼠标悬停时的过渡效果 */
+.q-drawer {
+  transition: all 0.3s;
 }
 </style>

@@ -4,6 +4,17 @@
  */
 
 import { deepClone } from './frames/frameUtils';
+import type { SerialPortOptions, SerialStatus } from '../types/serial/serial';
+import { DATA_PATH_MAP } from '../config/configDefaults';
+
+// 简单实现获取路径的最后一部分（basename）
+function getBasename(fullPath: string): string {
+  // 处理不同操作系统的路径分隔符
+  const normalized = fullPath.replace(/\\/g, '/');
+  // 取最后一段作为basename
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || fullPath;
+}
 
 // 从window对象获取预加载脚本中注入的electron API
 export const electronAPI = window.electron || {
@@ -18,19 +29,31 @@ export const electronAPI = window.electron || {
     popup: () => console.warn('Electron API不可用: menu.popup'),
   },
   serial: {
-    list: () => Promise.resolve([]),
-    connect: () => Promise.resolve(false),
-    disconnect: () => Promise.resolve(false),
-    send: () => Promise.resolve(false),
+    listPorts: () => Promise.resolve([]),
+    open: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    close: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    closeAll: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    write: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    sendData: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    read: () => Promise.resolve({ portPath: '', data: new Uint8Array(), size: 0 }),
+    onData: () => () => {}, // 返回一个取消监听的函数
+    offData: () => {},
+    onDataSent: () => () => {}, // 返回一个取消监听的函数
+    offDataSent: () => {},
+    onStatusChange: () => () => {}, // 返回一个取消监听的函数
+    onAllStatusChange: () => () => {}, // 返回一个取消监听的函数
+    getStatus: () => Promise.resolve({ isOpen: false, error: 'Electron API不可用' }),
+    getAllStatus: () => Promise.resolve({}),
+    setOptions: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    clearBuffer: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
   },
-  frames: {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    save: (_frame: unknown) => Promise.reject(new Error('Electron API 不可用')),
-    list: () => Promise.resolve([]),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    delete: (_id: string) => Promise.reject(new Error('Electron API 不可用')),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onUpdate: (_callback: unknown) => () => {}, // 返回一个取消监听的函数
+  files: {
+    listWithMetadata: () => Promise.resolve([]),
+    getFullPath: () => Promise.resolve(''),
+    ensureDirectory: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    saveJsonToFile: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    loadJsonFromFile: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
+    deleteFile: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
   },
   bookmark: {
     getAll: () => Promise.resolve([]),
@@ -48,52 +71,314 @@ export const electronAPI = window.electron || {
     enable: () => Promise.resolve(),
     disable: () => Promise.resolve(),
   },
+  dataStorage: {
+    // 为每个存储类型创建模拟API
+    ...Object.fromEntries(
+      Object.keys(DATA_PATH_MAP).map((key) => [
+        key,
+        {
+          list: () => Promise.resolve([]),
+          save: () => Promise.reject(new Error('Electron API 不可用')),
+          delete: () => Promise.reject(new Error('Electron API 不可用')),
+          saveAll: () => Promise.reject(new Error('Electron API 不可用')),
+          export: () => Promise.reject(new Error('Electron API 不可用')),
+          import: () => Promise.reject(new Error('Electron API 不可用')),
+        },
+      ]),
+    ),
+  },
 };
 
-// 暴露帧相关IPC方法供存储使用
-export const framesAPI = {
-  save: (frame: unknown) => {
-    if (window.electron?.frames?.save) {
-      return window.electron.frames.save(deepClone(frame));
-    }
-    return Promise.reject(new Error('Electron frames API 不可用'));
-  },
-
-  list: () => {
-    if (window.electron?.frames?.list) {
-      return window.electron.frames.list();
+// 导出文件操作API
+export const filesAPI = {
+  // 列出目录中的文件
+  listWithMetadata: (dirPath: string) => {
+    if (window.electron?.files?.listWithMetadata) {
+      return window.electron.files.listWithMetadata(dirPath);
     }
     return Promise.resolve([]);
   },
 
-  delete: (id: string) => {
-    if (window.electron?.frames?.delete) {
-      return window.electron.frames.delete(id);
+  // 获取完整文件路径
+  getFullPath: (directory: string, filename: string) => {
+    if (window.electron?.files?.getFullPath) {
+      return window.electron.files.getFullPath(directory, filename);
     }
-    return Promise.reject(new Error('Electron frames API 不可用'));
+    return Promise.resolve('');
   },
 
-  // 新增方法 - 批量保存所有帧
-  saveAll: (frames: unknown[]) => {
-    if (window.electron?.frames?.saveAll) {
-      return window.electron.frames.saveAll(deepClone(frames));
+  // 确保目录存在
+  ensureDirectory: (dirPath: string) => {
+    if (window.electron?.files?.ensureDirectory) {
+      return window.electron.files.ensureDirectory(dirPath);
     }
-    return Promise.reject(new Error('Electron frames API(saveAll) 不可用'));
+    return Promise.resolve({
+      success: false,
+      message: 'Electron files API(ensureDirectory) 不可用',
+    });
   },
 
-  // 新增方法 - 导出帧到文件
-  export: (frames: unknown[], filePath: string) => {
-    if (window.electron?.frames?.export) {
-      return window.electron.frames.export(frames, filePath);
+  // 保存JSON数据到文件
+  saveJsonToFile: (filePath: string, data: any) => {
+    if (window.electron?.files?.saveJsonToFile) {
+      return window.electron.files.saveJsonToFile(filePath, deepClone(data));
     }
-    return Promise.reject(new Error('Electron frames API(export) 不可用'));
+    return Promise.resolve({
+      success: false,
+      message: 'Electron files API(saveJsonToFile) 不可用',
+    });
   },
 
-  // 新增方法 - 从文件导入帧
-  import: (filePath: string) => {
-    if (window.electron?.frames?.import) {
-      return window.electron.frames.import(filePath);
+  // 从文件加载JSON数据
+  loadJsonFromFile: (filePath: string) => {
+    if (window.electron?.files?.loadJsonFromFile) {
+      return window.electron.files.loadJsonFromFile(filePath);
     }
-    return Promise.reject(new Error('Electron frames API(import) 不可用'));
+    return Promise.resolve({
+      success: false,
+      message: 'Electron files API(loadJsonFromFile) 不可用',
+    });
+  },
+
+  // 删除文件
+  deleteFile: (filePath: string) => {
+    if (window.electron?.files?.deleteFile) {
+      return window.electron.files.deleteFile(filePath);
+    }
+    return Promise.resolve({
+      success: false,
+      message: 'Electron files API(deleteFile) 不可用',
+    });
+  },
+};
+
+// 导出串口API封装
+export const serialAPI = {
+  // 列出所有可用串口
+  listPorts: (forceRefresh = false) => {
+    if (window.electron?.serial?.listPorts) {
+      return window.electron.serial.listPorts(forceRefresh);
+    }
+    return Promise.resolve([]);
+  },
+
+  // 打开串口连接
+  open: (portPath: string, options?: SerialPortOptions) => {
+    if (window.electron?.serial?.open) {
+      return window.electron.serial.open(deepClone(portPath), deepClone(options));
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(open) 不可用' });
+  },
+
+  // 关闭串口连接
+  close: (portPath: string) => {
+    if (window.electron?.serial?.close) {
+      return window.electron.serial.close(portPath);
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(close) 不可用' });
+  },
+
+  // 关闭所有串口连接
+  closeAll: () => {
+    if (window.electron?.serial?.closeAll) {
+      return window.electron.serial.closeAll();
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(closeAll) 不可用' });
+  },
+
+  // 写入数据到串口
+  write: (portPath: string, data: Buffer | Uint8Array | string, isHex = false) => {
+    if (window.electron?.serial?.write) {
+      return window.electron.serial.write(portPath, data, isHex);
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(write) 不可用' });
+  },
+
+  // 发送帧数据
+  sendData: (portPath: string, data: Uint8Array) => {
+    if (window.electron?.serial?.sendData) {
+      return window.electron.serial.sendData(portPath, data);
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(sendData) 不可用' });
+  },
+
+  // 从串口读取数据
+  read: (portPath: string) => {
+    if (window.electron?.serial?.read) {
+      return window.electron.serial.read(portPath);
+    }
+    return Promise.resolve({ portPath, data: new Uint8Array(), size: 0 });
+  },
+
+  // 监听串口数据
+  onData: (callback: (data: { portPath: string; data: Buffer; size: number }) => void) => {
+    if (window.electron?.serial?.onData) {
+      return window.electron.serial.onData(callback);
+    }
+    return () => {}; // 返回空的清理函数
+  },
+
+  // 监听串口发送的数据
+  onDataSent: (callback: (data: { portPath: string; data: Buffer; size: number }) => void) => {
+    if (window.electron?.serial?.onDataSent) {
+      return window.electron.serial.onDataSent(callback);
+    }
+    return () => {}; // 返回空的清理函数
+  },
+
+  // 移除串口数据监听
+  offData: (callback: (data: { portPath: string; data: Buffer; size: number }) => void) => {
+    if (window.electron?.serial?.offData) {
+      window.electron.serial.offData(callback);
+    }
+  },
+
+  // 移除串口发送的数据监听
+  offDataSent: (callback: (data: { portPath: string; data: Buffer; size: number }) => void) => {
+    if (window.electron?.serial?.offDataSent) {
+      window.electron.serial.offDataSent(callback);
+    }
+  },
+
+  // 监听串口状态变化
+  onStatusChange: (callback: (data: { portPath: string; status: SerialStatus }) => void) => {
+    if (window.electron?.serial?.onStatusChange) {
+      return window.electron.serial.onStatusChange(callback);
+    }
+    return () => {}; // 返回空的清理函数
+  },
+
+  // 监听所有串口状态变化
+  onAllStatusChange: (callback: (statusMap: Record<string, SerialStatus>) => void) => {
+    if (window.electron?.serial?.onAllStatusChange) {
+      return window.electron.serial.onAllStatusChange(callback);
+    }
+    return () => {}; // 返回空的清理函数
+  },
+
+  // 获取当前串口状态
+  getStatus: (portPath: string) => {
+    if (window.electron?.serial?.getStatus) {
+      return window.electron.serial.getStatus(portPath);
+    }
+    return Promise.resolve({ isOpen: false, error: 'Electron serial API(getStatus) 不可用' });
+  },
+
+  // 获取所有串口状态
+  getAllStatus: () => {
+    if (window.electron?.serial?.getAllStatus) {
+      return window.electron.serial.getAllStatus();
+    }
+    return Promise.resolve({});
+  },
+
+  // 设置串口参数
+  setOptions: (portPath: string, options: SerialPortOptions) => {
+    if (window.electron?.serial?.setOptions) {
+      return window.electron.serial.setOptions(portPath, deepClone(options));
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(setOptions) 不可用' });
+  },
+
+  // 清除串口缓冲区
+  clearBuffer: (portPath: string) => {
+    if (window.electron?.serial?.clearBuffer) {
+      return window.electron.serial.clearBuffer(portPath);
+    }
+    return Promise.resolve({ success: false, message: 'Electron serial API(clearBuffer) 不可用' });
+  },
+};
+
+// 导出数据存储API
+type DataType = keyof typeof DATA_PATH_MAP;
+
+// 创建类型安全的数据存储API
+export const dataStorageAPI = {} as {
+  [K in DataType]: {
+    list: () => Promise<any[]>;
+    save: (item: any) => Promise<{ success: boolean; message?: string }>;
+    delete: (id: string) => Promise<{ success: boolean; message?: string }>;
+    saveAll: (items: any[]) => Promise<{ success: boolean; message?: string }>;
+    export: (
+      items: any[],
+      filePath?: string,
+    ) => Promise<{ success: boolean; filePath?: string; message?: string }>;
+    import: (filePath?: string) => Promise<{ success: boolean; data?: any[]; message?: string }>;
+  };
+};
+
+// 为每个数据类型添加API方法
+Object.entries(DATA_PATH_MAP).forEach(([key, _]) => {
+  const typedKey = key as DataType;
+  const fileName = getBasename(key);
+
+  dataStorageAPI[typedKey] = {
+    // 获取数据列表
+    list: () => {
+      const api = window.electron?.dataStorage?.[typedKey];
+      return api ? api.list() : Promise.resolve([]);
+    },
+
+    // 保存单个数据项
+    save: (item: any) => {
+      const api = window.electron?.dataStorage?.[typedKey];
+      return api
+        ? api.save(deepClone(item))
+        : Promise.reject(new Error(`Electron dataStorage API(${fileName}:save) 不可用`));
+    },
+
+    // 删除数据项
+    delete: (id: string) => {
+      const api = window.electron?.dataStorage?.[typedKey];
+      return api
+        ? api.delete(id)
+        : Promise.reject(new Error(`Electron dataStorage API(${fileName}:delete) 不可用`));
+    },
+
+    // 保存所有数据
+    saveAll: (items: any[]) => {
+      const api = window.electron?.dataStorage?.[typedKey];
+      return api
+        ? api.saveAll(deepClone(items))
+        : Promise.reject(new Error(`Electron dataStorage API(${fileName}:saveAll) 不可用`));
+    },
+
+    // 导出数据到文件
+    export: (items: any[], filePath?: string) => {
+      const api = window.electron?.dataStorage?.[typedKey];
+      return api
+        ? api.export(deepClone(items), filePath)
+        : Promise.reject(new Error(`Electron dataStorage API(${fileName}:export) 不可用`));
+    },
+
+    // 从文件导入数据
+    import: (filePath?: string) => {
+      const api = window.electron?.dataStorage?.[typedKey];
+      return api
+        ? api.import(filePath)
+        : Promise.reject(new Error(`Electron dataStorage API(${fileName}:import) 不可用`));
+    },
+  };
+});
+
+// 导出路径API
+export const pathAPI = {
+  getDataPath: () => {
+    if (window.electron?.path?.getDataPath) {
+      return window.electron.path.getDataPath();
+    }
+    return Promise.resolve('');
+  },
+  resolve: (...pathSegments: string[]) => {
+    if (window.electron?.path?.resolve) {
+      return window.electron.path.resolve(...pathSegments);
+    }
+    return Promise.resolve('');
+  },
+  isPackaged: () => {
+    if (window.electron?.path?.isPackaged) {
+      return window.electron.path.isPackaged();
+    }
+    return Promise.resolve(false);
   },
 };

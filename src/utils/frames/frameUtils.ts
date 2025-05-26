@@ -96,12 +96,8 @@ export function getFieldBitWidth(field: FrameField): number {
       return 32;
     case 'bytes':
       return field.length * 8;
-    case 'string':
-      return field.length * 8;
-    case 'bit':
-      return field.bits || 1;
     default:
-      return field.bits || field.length * 8;
+      return field.length * 8;
   }
 }
 
@@ -126,12 +122,8 @@ export function getFieldShortType(type: FieldType): string {
       return 'I32';
     case 'float':
       return 'FLT';
-    case 'string':
-      return 'STR';
     case 'bytes':
       return 'HEX';
-    case 'bit':
-      return 'BIT';
     default:
       // 使用类型断言确保TypeScript知道这里不会是never类型
       return '未定义';
@@ -173,11 +165,7 @@ export function getFieldHexPreview(field: FrameField): string {
       case 'int32':
       case 'float':
         return 'XX XX XX XX';
-      case 'bit':
-        return field.bits === 1 ? 'X' : 'XX';
       case 'bytes':
-        return Array(field.length).fill('XX').join(' ');
-      case 'string':
         return Array(field.length).fill('XX').join(' ');
       default:
         return 'XX'.repeat(field.length);
@@ -205,13 +193,6 @@ export function getFieldHexPreview(field: FrameField): string {
         const hex = num.toString(16).padStart(8, '0').toUpperCase();
         return `${hex.substring(0, 2)} ${hex.substring(2, 4)} ${hex.substring(4, 6)} ${hex.substring(6, 8)}`;
       }
-      case 'bit': {
-        const num = Number(useValue);
-        return num
-          .toString(16)
-          .padStart(Math.ceil((field?.bits || 0) / 4), '0')
-          .toUpperCase();
-      }
       case 'bytes': {
         if (typeof useValue === 'string') {
           // 假设bytes是十六进制字符串
@@ -219,16 +200,6 @@ export function getFieldHexPreview(field: FrameField): string {
           const bytes = [];
           for (let i = 0; i < hex.length; i += 2) {
             bytes.push(hex.substring(i, i + 2));
-          }
-          return bytes.join(' ').toUpperCase();
-        }
-        return 'XX'.repeat(field.length);
-      }
-      case 'string': {
-        if (typeof useValue === 'string') {
-          const bytes = [];
-          for (let i = 0; i < useValue.length; i++) {
-            bytes.push(useValue.charCodeAt(i).toString(16).padStart(2, '0'));
           }
           return bytes.join(' ').toUpperCase();
         }
@@ -266,13 +237,6 @@ export function validateField(field: Partial<FrameField>): { valid: boolean; err
   if (typeConfig.needsLength) {
     if (!field.length || field.length <= 0) {
       errors.push('字段长度必须大于0');
-    }
-  }
-
-  // 位宽验证
-  if (typeConfig.needsBits) {
-    if (!field.bits || field.bits <= 0) {
-      errors.push('位宽必须大于0');
     }
   }
 

@@ -1,6 +1,8 @@
 <template>
-  <div class="flex flex-col h-full bg-[#0a1929] text-[#e2e8f0]">
-    <div class="flex justify-between items-center p-3 bg-[#12233f] border-b border-[#1a3663]">
+  <div class="flex flex-col h-full bg-industrial-primary text-industrial-primary">
+    <div
+      class="flex justify-between items-center p-3 bg-industrial-panel border-b border-industrial"
+    >
       <div class="flex-1 max-w-[400px]">
         <q-input
           v-model="searchQuery"
@@ -8,7 +10,7 @@
           dense
           dark
           outlined
-          class="bg-[#0a1929]"
+          class="bg-industrial-primary"
           @input="handleSearch"
         >
           <template v-slot:prepend>
@@ -22,11 +24,29 @@
       <div class="flex gap-2">
         <q-btn icon="add" color="primary" label="新建帧" @click="createNewFrame()" />
         <q-btn
+          icon="file_upload"
+          color="secondary"
+          flat
+          @click="handleImport"
+          :loading="isImporting"
+        >
+          <q-tooltip>导入配置</q-tooltip>
+        </q-btn>
+        <q-btn
+          icon="file_download"
+          color="secondary"
+          flat
+          @click="handleExport"
+          :loading="isExporting"
+        >
+          <q-tooltip>导出配置</q-tooltip>
+        </q-btn>
+        <q-btn
           icon="filter_list"
           color="secondary"
           flat
           @click="toggleFilterPanel"
-          :class="{ 'bg-[#1e3a8a] bg-opacity-30': showFilterPanel }"
+          :class="{ 'bg-industrial-highlight bg-opacity-30': showFilterPanel }"
         >
           <q-tooltip>过滤</q-tooltip>
         </q-btn>
@@ -38,14 +58,14 @@
 
     <div class="flex flex-1 overflow-hidden h-full pt-3">
       <div class="flex-1 flex flex-col overflow-hidden">
-        <div v-if="showFilterPanel" class="p-3 bg-[#12233f] border-b border-[#1a3663]">
+        <div v-if="showFilterPanel" class="p-3 bg-industrial-panel border-b border-industrial">
           <FrameFilterPanel @filter="handleFilter" @close="toggleFilterPanel" closable />
         </div>
 
         <div class="flex-1 overflow-auto pr-3">
           <div
             v-if="templateStore.isLoading"
-            class="flex flex-col items-center justify-center h-full p-10 text-[#94a3b8]"
+            class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary"
           >
             <q-spinner color="primary" size="40px" />
             <div class="mt-4 mb-4">加载中...</div>
@@ -53,7 +73,7 @@
 
           <div
             v-else-if="!filteredFrames.length"
-            class="flex flex-col items-center justify-center h-full p-10 text-[#94a3b8]"
+            class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary"
           >
             <q-icon name="inventory_2" size="48px" color="grey-7" />
             <div class="mt-4 mb-4">没有找到帧配置</div>
@@ -71,9 +91,9 @@
         </div>
       </div>
 
-      <div class="w-[30vw] border-l border-[#1a3663] overflow-hidden bg-[#12233f]">
+      <div class="w-[30vw] border-l border-industrial overflow-hidden bg-industrial-panel">
         <FrameDetailPanel v-if="selectedFrameData" :frame="selectedFrameData" />
-        <div v-else class="flex items-center justify-center h-full text-[#94a3b8]">
+        <div v-else class="flex items-center justify-center h-full text-industrial-secondary">
           选择一个帧查看详情
         </div>
       </div>
@@ -82,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed, watch } from 'vue';
+import { onMounted, computed, watch, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFrameTemplates } from '../../composables/frames/useFrameTemplates';
@@ -93,6 +113,8 @@ import type { FrameField, FrameParam } from '../../types/frames';
 import { useFrameFilterStore, useFrameTemplateStore } from 'src/stores/framesStore';
 import { applyAllFilters } from 'src/utils/frames/frameUtils';
 import { storeToRefs } from 'pinia';
+import { fileDialogManager } from '../../utils/common/fileDialogManager';
+import { dataStorageAPI, pathAPI } from '../../utils/electronApi';
 
 // 详情帧接口
 interface DetailFrame {
@@ -115,6 +137,10 @@ interface FilterValues {
 // 使用 Quasar 实例
 const $q = useQuasar();
 const router = useRouter();
+
+// 导入/导出状态
+const isExporting = ref(false);
+const isImporting = ref(false);
 
 // 使用 Composables
 const templateComposable = useFrameTemplates();
@@ -313,6 +339,83 @@ async function deleteFrame(frameId: string) {
       icon: 'error',
     });
     console.error(error);
+  }
+}
+
+// 导出帧配置
+async function handleExport() {
+  isExporting.value = true;
+  try {
+    // 准备要导出的数据
+    const framesData = templateStore.frames;
+
+    // 使用fileDialogManager打开导出对话框
+    const result = await fileDialogManager.exportFile(
+      '导出帧配置',
+      `${pathAPI.getDataPath()}/data/frames/configs`, // 存储目录
+      framesData, // 直接传递数据对象
+    );
+
+    if (result.success) {
+      $q.notify({
+        color: 'positive',
+        message: '帧配置导出成功',
+        icon: 'file_download',
+      });
+    } else if (!result.canceled) {
+      $q.notify({
+        color: 'negative',
+        message: `导出失败: ${result.error || '未知错误'}`,
+        icon: 'error',
+      });
+    }
+  } catch (error) {
+    $q.notify({
+      color: 'negative',
+      message: `导出失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      icon: 'error',
+    });
+  } finally {
+    isExporting.value = false;
+  }
+}
+
+// 导入帧配置
+async function handleImport() {
+  isImporting.value = true;
+  try {
+    // 使用fileDialogManager打开导入对话框
+    const result = await fileDialogManager.importFile(
+      '导入帧配置',
+      `${pathAPI.getDataPath()}/data/frames/configs`, // 从指定目录加载
+    );
+
+    if (!result.canceled && result.fileData) {
+      // 验证导入的数据
+      if (!Array.isArray(result.fileData)) {
+        throw new Error('导入的数据格式不正确');
+      }
+
+      // 使用API批量保存数据
+      await dataStorageAPI.framesConfig.saveAll(result.fileData);
+
+      // 刷新数据以显示导入的帧
+      await templateComposable.loadFrames();
+
+      $q.notify({
+        color: 'positive',
+        message: '帧配置导入成功',
+        icon: 'file_upload',
+      });
+    }
+  } catch (error) {
+    $q.notify({
+      color: 'negative',
+      message: `导入失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      icon: 'error',
+    });
+  } finally {
+    isImporting.value = false;
   }
 }
 
