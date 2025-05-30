@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useSerialStore } from '../../../stores/serialStore';
-import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
-import { useConnectionTargets } from '../../../composables/useConnectionTargets';
-import { useSendTaskManager } from '../../../composables/frames/sendFrame/useSendTaskManager';
-import { useTaskConfigManager } from '../../../composables/frames/sendFrame/useTaskConfigManager';
-import type { StrategyConfig } from '../../../types/frames/sendInstances';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
+import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
+import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
+import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
+import { useTaskConfigManager } from '../../../../composables/frames/sendFrame/useTaskConfigManager';
+import type { StrategyConfig } from '../../../../types/frames/sendInstances';
 
 // 获取store实例
-const serialStore = useSerialStore();
 const sendFrameInstancesStore = useSendFrameInstancesStore();
+const sendTasksStore = useSendTasksStore();
 
 // 使用连接目标管理composable - 使用专用的存储键
-const { availableTargets, selectedTargetId, refreshTargets, parseTargetPath } =
+const { availableTargets, selectedTargetId, refreshTargets } =
   useConnectionTargets('timed-send-targets');
 
 // 使用任务管理器
-const { createTimedSingleTask, startTask, isProcessing, processingError } = useSendTaskManager();
+const { createTimedSingleTask, startTask, stopTask, isProcessing, processingError } =
+  useSendTaskManager();
 
 // 使用任务配置管理器
 const { saveConfigToUserFile, loadConfigFromUserFile } = useTaskConfigManager();
@@ -55,8 +56,74 @@ const currentInstance = computed(() => {
   return sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId) || null;
 });
 
+// 监听当前任务状态
+const currentTask = computed(() => {
+  if (!currentTaskId.value) return null;
+  return sendTasksStore.getTaskById(currentTaskId.value);
+});
+
+// 监听任务状态变化，同步本地状态
+watch(
+  currentTask,
+  (task) => {
+    if (!task) {
+      isSending.value = false;
+      progress.value = 0;
+      currentCount.value = 0;
+      return;
+    }
+
+    // 根据任务状态更新本地状态
+    switch (task.status) {
+      case 'running':
+        isSending.value = true;
+        break;
+      case 'completed':
+      case 'error':
+      case 'idle':
+        isSending.value = false;
+        break;
+    }
+
+    // 更新进度信息
+    if (task.progress) {
+      currentCount.value = task.progress.currentCount || 0;
+      progress.value = task.progress.percentage || 0;
+    }
+  },
+  { immediate: true, deep: true },
+);
+
+// 添加任务继续确认对话框的状态
+const showTaskDialog = ref(false);
+
 // 关闭对话框
 function handleClose() {
+  // 如果有正在运行的任务，显示确认对话框
+  if (currentTaskId.value && isSending.value) {
+    showTaskContinueDialog();
+  } else {
+    emit('close');
+  }
+}
+
+// 显示任务继续确认对话框
+function showTaskContinueDialog() {
+  showTaskDialog.value = true;
+}
+
+// 用户选择停止任务并关闭
+function stopTaskAndClose() {
+  if (currentTaskId.value) {
+    stopTask(currentTaskId.value);
+  }
+  showTaskDialog.value = false;
+  emit('close');
+}
+
+// 用户选择让任务在后台继续运行
+function continueTaskInBackground() {
+  showTaskDialog.value = false;
   emit('close');
 }
 
@@ -69,6 +136,15 @@ async function startTimedSend() {
   progress.value = 0;
   sendError.value = '';
 
+  console.log('TimedSendDialog - 开始创建定时发送任务，用户设置:', {
+    interval: interval.value,
+    repeatCount: repeatCount.value,
+    isInfinite: isInfinite.value,
+    selectedTargetId: selectedTargetId.value,
+    instanceId: props.instanceId,
+    instanceLabel: currentInstance.value.label,
+  });
+
   try {
     // 使用任务管理器创建并启动任务
     const taskId = createTimedSingleTask(
@@ -80,16 +156,20 @@ async function startTimedSend() {
       `定时发送-${currentInstance.value.label}`,
     );
 
+    console.log('TimedSendDialog - 创建任务结果:', { taskId });
+
     if (taskId) {
       currentTaskId.value = taskId;
       const started = await startTask(taskId);
+
+      console.log('TimedSendDialog - 启动任务结果:', { started, taskId });
 
       if (!started) {
         throw new Error(processingError.value || '启动任务失败');
       }
 
-      // 启动成功，关闭对话框
-      emit('close');
+      // 任务启动成功，保持对话框打开以便用户查看发送进度
+      console.log('定时发送任务已启动，任务ID:', taskId);
     } else {
       throw new Error(processingError.value || '创建任务失败');
     }
@@ -100,9 +180,11 @@ async function startTimedSend() {
   }
 }
 
-// 停止定时发送 - 现在不再需要直接在组件里处理，由任务管理器管理
+// 停止定时发送
 function stopTimedSend() {
-  isSending.value = false;
+  if (currentTaskId.value) {
+    stopTask(currentTaskId.value);
+  }
   emit('close');
 }
 
@@ -371,6 +453,63 @@ refreshTargets();
             </div>
           </div>
         </div>
+
+        <!-- 发送进度 -->
+        <div
+          v-if="isSending || currentTask"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-blue-800 mb-3"
+        >
+          <div class="text-xs font-medium text-industrial-primary mb-2 flex items-center">
+            <q-icon name="trending_up" size="xs" class="mr-1 text-blue-5" />
+            发送进度
+          </div>
+
+          <div class="space-y-2">
+            <!-- 进度条 -->
+            <div v-if="!isInfinite" class="flex items-center">
+              <div class="text-xs text-industrial-secondary w-16">进度:</div>
+              <div class="flex-1 bg-industrial-primary rounded-full h-2 mx-2">
+                <div
+                  class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  :style="{ width: `${progress}%` }"
+                ></div>
+              </div>
+              <div class="text-xs text-industrial-accent w-12">{{ progress }}%</div>
+            </div>
+
+            <!-- 发送计数 -->
+            <div class="flex items-center">
+              <div class="text-xs text-industrial-secondary w-16">计数:</div>
+              <div class="text-xs text-industrial-primary">
+                {{ currentCount }}{{ isInfinite ? '' : ` / ${repeatCount}` }}
+              </div>
+            </div>
+
+            <!-- 任务状态 -->
+            <div class="flex items-center">
+              <div class="text-xs text-industrial-secondary w-16">状态:</div>
+              <div
+                class="text-xs"
+                :class="{
+                  'text-blue-400': currentTask?.status === 'running',
+                  'text-green-400': currentTask?.status === 'completed',
+                  'text-red-400': currentTask?.status === 'error',
+                  'text-gray-400': currentTask?.status === 'idle',
+                }"
+              >
+                {{
+                  currentTask?.status === 'running'
+                    ? '运行中'
+                    : currentTask?.status === 'completed'
+                      ? '已完成'
+                      : currentTask?.status === 'error'
+                        ? '错误'
+                        : '空闲'
+                }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 按钮区域 -->
@@ -383,8 +522,20 @@ refreshTargets();
           @click="handleClose"
           :disable="isProcessing"
         />
-        <div>
+        <div class="flex gap-2">
+          <!-- 停止按钮 -->
           <q-btn
+            v-if="isSending"
+            color="negative"
+            icon="stop"
+            label="停止发送"
+            class="rounded-md px-4 text-xs"
+            @click="stopTimedSend"
+            :disable="isProcessing"
+          />
+          <!-- 开始按钮 -->
+          <q-btn
+            v-else
             color="primary"
             icon="schedule"
             label="开始定时发送"
@@ -396,6 +547,38 @@ refreshTargets();
         </div>
       </div>
     </div>
+
+    <!-- 任务继续确认对话框 -->
+    <q-dialog v-model="showTaskDialog" persistent>
+      <q-card class="bg-industrial-panel border border-industrial">
+        <q-card-section class="row items-center">
+          <q-icon name="task_alt" color="primary" size="md" class="q-mr-sm" />
+          <div>
+            <div class="text-h6 text-industrial-primary">任务正在运行</div>
+            <div class="text-industrial-secondary text-sm mt-1">
+              定时发送任务仍在后台运行，您希望如何处理？
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-section class="pt-0">
+          <div class="text-xs text-industrial-secondary bg-industrial-secondary p-2 rounded">
+            <q-icon name="info" size="xs" class="mr-1" />
+            任务将继续在后台执行，您可以随时通过任务监控查看进度和状态
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="bg-industrial-secondary">
+          <q-btn flat label="停止任务" color="negative" @click="stopTaskAndClose" class="text-xs" />
+          <q-btn
+            label="后台运行"
+            color="primary"
+            @click="continueTaskInBackground"
+            class="text-xs"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 

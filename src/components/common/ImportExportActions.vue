@@ -1,11 +1,24 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 import { useQuasar } from 'quasar';
-import { fileDialogManager } from '../../../utils/common/fileDialogManager';
-import { pathAPI } from '../../../utils/electronApi';
+import { fileDialogManager } from '../../utils/common/fileDialogManager';
+import { pathAPI } from '../../utils/electronApi';
 
-const store = useSendFrameInstancesStore();
+interface Props {
+  getData: () => any; // 获取要导出的数据
+  setData: (data: any) => Promise<void>; // 处理导入的数据
+  storageDir: string; // 存储目录
+  exportTitle?: string; // 导出标题
+  importTitle?: string; // 导入标题
+  prepareExportData?: (data: any) => any; // 导出前数据处理，可选
+  processImportData?: (fileData: any) => any; // 导入后数据处理，可选
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  exportTitle: '导出配置文件',
+  importTitle: '导入配置文件',
+});
+
 const $q = useQuasar();
 
 const isExporting = ref(false);
@@ -15,14 +28,22 @@ const isImporting = ref(false);
 async function handleExport() {
   isExporting.value = true;
   try {
-    // 准备要导出的数据
-    const instancesData = store.instances;
+    // 获取要导出的数据
+    let dataToExport = props.getData();
+
+    // 如果提供了数据预处理函数，则先处理数据
+    if (props.prepareExportData) {
+      dataToExport = props.prepareExportData(dataToExport);
+    }
+
+    // 构建完整的存储路径
+    const fullStorageDir = `${pathAPI.getDataPath()}/${props.storageDir}`;
 
     // 使用fileDialogManager打开导出对话框
     const result = await fileDialogManager.exportFile(
-      '导出帧实例配置',
-      `${pathAPI.getDataPath()}/data/frames/sendInstances`, // 存储目录
-      instancesData, // 直接传递数据对象
+      props.exportTitle,
+      fullStorageDir,
+      dataToExport,
     );
 
     if (result.success) {
@@ -56,20 +77,23 @@ async function handleExport() {
 async function handleImport() {
   isImporting.value = true;
   try {
+    // 构建完整的存储路径
+    const fullStorageDir = `${pathAPI.getDataPath()}/${props.storageDir}`;
+
     // 使用fileDialogManager打开导入对话框
-    const result = await fileDialogManager.importFile(
-      '导入帧实例配置',
-      `${pathAPI.getDataPath()}/data/frames/sendInstances`, // 从指定目录加载
-    );
+    const result = await fileDialogManager.importFile(props.importTitle, fullStorageDir);
 
     if (!result.canceled && result.fileData) {
-      // 验证导入的数据
-      if (!Array.isArray(result.fileData)) {
-        throw new Error('导入的数据格式不正确');
+      // 处理导入的数据
+      let processedData = result.fileData;
+
+      // 如果提供了数据后处理函数，则处理数据
+      if (props.processImportData) {
+        processedData = props.processImportData(result.fileData);
       }
 
-      // 使用store的批量保存方法保存导入的数据
-      await store.importFromJSON(JSON.stringify(result.fileData));
+      // 调用传入的数据设置函数
+      await props.setData(processedData);
 
       $q.notify({
         type: 'positive',
@@ -103,7 +127,7 @@ async function handleImport() {
         class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
         @click="handleImport"
       >
-        <q-tooltip>导入配置文件</q-tooltip>
+        <q-tooltip>{{ importTitle }}</q-tooltip>
       </q-btn>
 
       <q-btn
@@ -115,31 +139,7 @@ async function handleImport() {
         class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
         @click="handleExport"
       >
-        <q-tooltip>导出配置文件</q-tooltip>
-      </q-btn>
-
-      <!-- 预留排序功能按钮 -->
-      <q-btn
-        flat
-        dense
-        icon="sort"
-        size="sm"
-        disable
-        class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
-      >
-        <q-tooltip>排序（暂未实现）</q-tooltip>
-      </q-btn>
-
-      <!-- 预留批量编辑功能按钮 -->
-      <q-btn
-        flat
-        dense
-        icon="edit_note"
-        size="sm"
-        disable
-        class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
-      >
-        <q-tooltip>批量编辑（暂未实现）</q-tooltip>
+        <q-tooltip>{{ exportTitle }}</q-tooltip>
       </q-btn>
     </q-btn-group>
   </div>

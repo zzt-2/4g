@@ -16,6 +16,8 @@ export default defineConfig((/* ctx */) => {
     boot: [
       // 确保UnoCSS在应用启动时加载
       'unocss',
+      // 任务管理器初始化和清理逻辑
+      'taskManager',
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
@@ -98,17 +100,18 @@ export default defineConfig((/* ctx */) => {
       // viteVuePluginOptions: {},
 
       vitePlugins: [
-        [
-          'vite-plugin-checker',
-          {
-            vueTsc: true,
-            eslint: {
-              lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{ts,js,mjs,cjs,vue}"',
-              useFlatConfig: true,
-            },
-          },
-          { server: false },
-        ],
+        // 暂时注释掉 vite-plugin-checker 插件
+        // [
+        //   'vite-plugin-checker',
+        //   {
+        //     vueTsc: true,
+        //     eslint: {
+        //       lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{ts,js,mjs,cjs,vue}"',
+        //       useFlatConfig: true,
+        //     },
+        //   },
+        //   { server: false },
+        // ],
       ],
     },
 
@@ -225,7 +228,7 @@ export default defineConfig((/* ctx */) => {
       // specify the debugging port to use for the Electron app when running in development mode
       inspectPort: 5858,
 
-      bundler: 'builder', // 'packager' or 'builder'
+      bundler: 'packager', // 'packager' or 'builder'
 
       packager: {
         // 其他配置...

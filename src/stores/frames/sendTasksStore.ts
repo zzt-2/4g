@@ -1,14 +1,15 @@
 /**
- * 发送任务状态管理Store
- *
- * 负责管理所有类型的发送任务：单次发送、顺序发送、定时发送和触发发送
+ * 发送任务状态管理 Store
+ * 使用 Pinia + Composition API
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { useSerialStore } from '../serialStore';
-import { useSendFrameInstancesStore } from './sendFrameInstancesStore';
+import { nanoid } from 'nanoid';
+import type { TriggerCondition } from '../../types/frames/sendInstances';
 
-// 任务类型定义
+/**
+ * 任务类型枚举
+ */
 export type TaskType =
   | 'sequential' // 顺序发送
   | 'timed-single' // 单实例定时发送
@@ -16,7 +17,9 @@ export type TaskType =
   | 'triggered-single' // 单实例触发发送
   | 'triggered-multiple'; // 多实例触发发送
 
-// 任务状态定义
+/**
+ * 任务状态枚举
+ */
 export type TaskStatus =
   | 'idle' // 空闲
   | 'running' // 运行中
@@ -25,273 +28,234 @@ export type TaskStatus =
   | 'error' // 错误
   | 'waiting-trigger'; // 等待触发
 
-// 帧实例在任务中的配置
+/**
+ * 任务中的帧实例配置
+ */
 export interface FrameInstanceInTask {
-  id: string; // 任务内唯一标识符
-  instanceId: string; // 关联到原始 SendFrameInstance 的 id
-  targetId: string; // 发送目标ID
-  interval?: number; // 实例间延时(ms)，用于顺序/定时发送
-  status?: TaskStatus; // 实例状态，用于顺序发送中的状态追踪
-  errorMessage?: string; // 错误信息
+  id: string;
+  instanceId: string;
+  targetId: string;
+  interval?: number;
+  status?: TaskStatus;
+  errorMessage?: string;
 }
 
-// 任务基础配置接口
-export interface TaskConfigBase {
-  instances: FrameInstanceInTask[]; // 帧实例列表
-  name: string; // 任务名称
-  description?: string; // 任务描述
-}
-
-// 定时任务配置
-export interface TimedTaskConfig extends TaskConfigBase {
-  sendInterval: number; // 发送间隔(ms)，对于timed-multiple表示整个序列的重复间隔
-  repeatCount: number; // 重复次数，0表示无限循环
-  isInfinite: boolean; // 是否无限循环
-}
-
-// 触发任务配置
-export interface TriggerTaskConfig extends TaskConfigBase {
-  sourceId: string; // 监听来源ID
-  triggerFrameId: string; // 触发帧ID
-  conditions: TriggerCondition[]; // 触发条件列表
-}
-
-// 触发条件
-export interface TriggerCondition {
-  id: string; // 条件ID
-  fieldId: string; // 字段ID
-  condition: string; // 比较条件（equals, not_equals, greater, less, contains）
-  value: string; // 比较值
-  logicOperator?: 'and' | 'or'; // 与其他条件的逻辑关系
-}
-
-// 任务进度信息
+/**
+ * 任务进度信息
+ */
 export interface TaskProgress {
-  currentCount: number; // 当前计数（发送次数或处理的实例索引）
-  totalCount: number; // 总计数
-  percentage: number; // 进度百分比
-  currentInstanceIndex?: number; // 当前实例索引（用于多实例任务）
-  nextExecutionTime?: number; // 下次执行时间戳（用于定时任务）
+  currentCount?: number;
+  totalCount?: number;
+  percentage?: number;
+  currentInstanceId?: string;
+  lastSentAt?: string;
+  currentInstanceIndex?: number;
+  nextExecutionTime?: number;
 }
 
-// 发送任务接口
+/**
+ * 基础任务配置
+ */
+export interface TaskConfigBase {
+  instances: FrameInstanceInTask[];
+  name: string;
+  description?: string;
+}
+
+/**
+ * 定时任务配置
+ */
+export interface TimedTaskConfig extends TaskConfigBase {
+  sendInterval: number;
+  repeatCount: number;
+  isInfinite: boolean;
+  startDelay?: number;
+}
+
+/**
+ * 触发任务配置
+ */
+export interface TriggerTaskConfig extends TaskConfigBase {
+  sourceId: string;
+  triggerFrameId: string;
+  conditions: TriggerCondition[];
+  responseDelay?: number;
+}
+
+/**
+ * 发送任务
+ */
 export interface SendTask {
-  id: string; // 唯一ID
-  name: string; // 任务名称
-  type: TaskType; // 任务类型
-  status: TaskStatus; // 任务状态
-  config: TaskConfigBase | TimedTaskConfig | TriggerTaskConfig; // 任务配置
-  progress: TaskProgress; // 任务进度
-  errorInfo?: string; // 错误信息
-  createdAt: Date; // 创建时间
-  updatedAt: Date; // 更新时间
-  timers?: number[]; // 定时器ID列表，用于清理
+  id: string;
+  name: string;
+  type: TaskType;
+  status: TaskStatus;
+  config: TaskConfigBase | TimedTaskConfig | TriggerTaskConfig;
+  progress?: TaskProgress;
+  timers?: number[]; // 新增：存储定时器ID数组，用于任务停止时清理
+  errorInfo?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  updatedAt: string;
 }
 
+/**
+ * 发送任务状态管理 Store
+ */
 export const useSendTasksStore = defineStore('sendTasks', () => {
   // 状态
   const tasks = ref<SendTask[]>([]);
-  const isLoading = ref(false);
-  const error = ref<string | null>(null);
 
-  // 获取其他store实例
-  const serialStore = useSerialStore();
-  const sendFrameInstancesStore = useSendFrameInstancesStore();
-
-  // 计算属性：按状态筛选任务
-  const activeTasks = computed(() => {
-    return tasks.value.filter(
+  // 计算属性
+  const activeTasks = computed(() =>
+    tasks.value.filter(
       (task) =>
         task.status === 'running' || task.status === 'paused' || task.status === 'waiting-trigger',
-    );
-  });
+    ),
+  );
 
-  const completedTasks = computed(() => {
-    return tasks.value.filter((task) => task.status === 'completed' || task.status === 'error');
-  });
+  const runningTasks = computed(() => tasks.value.filter((task) => task.status === 'running'));
 
-  // 通过ID获取任务
-  function getTaskById(id: string): SendTask | undefined {
-    return tasks.value.find((task) => task.id === id);
-  }
+  const completedTasks = computed(() => tasks.value.filter((task) => task.status === 'completed'));
 
-  // 添加任务
-  function addTask(
-    taskData: Omit<SendTask, 'id' | 'createdAt' | 'updatedAt' | 'progress'>,
-  ): string {
-    const now = new Date();
-    const taskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const errorTasks = computed(() => tasks.value.filter((task) => task.status === 'error'));
 
-    const newTask: SendTask = {
-      id: taskId,
+  // 方法
+  /**
+   * 添加任务
+   */
+  function addTask(taskData: {
+    name: string;
+    type: TaskType;
+    status: TaskStatus;
+    config: TaskConfigBase | TimedTaskConfig | TriggerTaskConfig;
+  }): string {
+    const now = new Date().toISOString();
+    const task: SendTask = {
+      id: nanoid(),
       ...taskData,
-      progress: {
-        currentCount: 0,
-        totalCount: 0,
-        percentage: 0,
-      },
-      status: 'idle',
       createdAt: now,
       updatedAt: now,
     };
 
-    tasks.value.push(newTask);
-    return taskId;
+    tasks.value.push(task);
+    return task.id;
   }
 
-  // 更新任务
-  function updateTask(id: string, updates: Partial<SendTask>): boolean {
-    const taskIndex = tasks.value.findIndex((task) => task.id === id);
-    if (taskIndex === -1) return false;
-
-    const task = tasks.value[taskIndex];
-    if (!task) return false;
-
-    tasks.value[taskIndex] = {
-      ...task,
-      ...updates,
-      // 确保必填字段始终存在
-      id: task.id,
-      name: updates.name || task.name,
-      type: updates.type || task.type,
-      status: updates.status || task.status,
-      config: updates.config || task.config,
-      progress: updates.progress || task.progress,
-      createdAt: task.createdAt,
-      updatedAt: new Date(),
-    };
-
-    return true;
+  /**
+   * 根据ID获取任务
+   */
+  function getTaskById(id: string): SendTask | undefined {
+    return tasks.value.find((task) => task.id === id);
   }
 
-  // 更新任务状态
-  function updateTaskStatus(id: string, status: TaskStatus, errorInfo?: string): boolean {
-    const taskIndex = tasks.value.findIndex((task) => task.id === id);
-    if (taskIndex === -1) return false;
-
-    const task = tasks.value[taskIndex];
-    if (!task) return false;
+  /**
+   * 更新任务状态
+   */
+  function updateTaskStatus(id: string, status: TaskStatus, errorInfo?: string) {
+    const task = getTaskById(id);
+    if (!task) return;
 
     task.status = status;
-    task.updatedAt = new Date();
+    task.updatedAt = new Date().toISOString();
 
-    if (errorInfo !== undefined) {
-      task.errorInfo = errorInfo;
+    if (status === 'running' && !task.startedAt) {
+      task.startedAt = new Date().toISOString();
     }
 
-    return true;
+    if (status === 'completed' || status === 'error') {
+      task.completedAt = new Date().toISOString();
+    }
+
+    if (errorInfo) {
+      task.errorInfo = errorInfo;
+    }
   }
 
-  // 更新任务进度
-  function updateTaskProgress(id: string, progress: Partial<TaskProgress>): boolean {
-    const taskIndex = tasks.value.findIndex((task) => task.id === id);
-    if (taskIndex === -1) return false;
-
-    const task = tasks.value[taskIndex];
-    if (!task) return false;
+  /**
+   * 更新任务进度
+   */
+  function updateTaskProgress(id: string, progress: TaskProgress) {
+    const task = getTaskById(id);
+    if (!task) return;
 
     task.progress = {
       ...task.progress,
       ...progress,
     };
-    task.updatedAt = new Date();
-
-    return true;
+    task.updatedAt = new Date().toISOString();
   }
 
-  // 移除任务
-  function removeTask(id: string): boolean {
-    const taskIndex = tasks.value.findIndex((task) => task.id === id);
-    if (taskIndex === -1) return false;
+  /**
+   * 更新任务
+   */
+  function updateTask(id: string, updates: Partial<SendTask>) {
+    const task = getTaskById(id);
+    if (!task) return;
 
-    // 清理任务相关的定时器
-    const task = tasks.value[taskIndex];
-    if (task?.timers && task.timers.length > 0) {
-      task.timers.forEach((timerId) => {
-        clearTimeout(timerId);
-        clearInterval(timerId);
-      });
+    Object.assign(task, updates);
+    task.updatedAt = new Date().toISOString();
+  }
+
+  /**
+   * 删除任务
+   */
+  function removeTask(id: string) {
+    const index = tasks.value.findIndex((task) => task.id === id);
+    if (index !== -1) {
+      tasks.value.splice(index, 1);
     }
-
-    // 从数组中移除
-    tasks.value.splice(taskIndex, 1);
-    return true;
   }
 
-  // 清理所有任务
-  function clearAllTasks(): void {
-    // 先清理所有定时器
-    tasks.value.forEach((task) => {
-      if (task.timers && task.timers.length > 0) {
-        task.timers.forEach((timerId) => {
-          clearTimeout(timerId);
-          clearInterval(timerId);
-        });
-      }
-    });
+  /**
+   * 清空已完成的任务
+   */
+  function clearCompletedTasks() {
+    tasks.value = tasks.value.filter((task) => task.status !== 'completed');
+  }
 
-    // 清空数组
+  /**
+   * 清空错误任务
+   */
+  function clearErrorTasks() {
+    tasks.value = tasks.value.filter((task) => task.status !== 'error');
+  }
+
+  /**
+   * 清空所有任务
+   */
+  function clearAllTasks() {
     tasks.value = [];
   }
 
-  // 保存任务配置
-  async function saveTaskConfig(id: string): Promise<boolean> {
-    // 此处可以实现将任务配置保存到文件或localStorage的逻辑
-    // 目前为简化版实现，实际实现可能需要调用electron的文件保存API
-    try {
-      const task = getTaskById(id);
-      if (!task) return false;
-
-      // 保存逻辑会在useSendTaskManager中实现
-      console.log('保存任务配置', task);
-
-      return true;
-    } catch (e) {
-      console.error('保存任务配置失败:', e);
-      return false;
-    }
+  /**
+   * 停止所有运行中的任务
+   */
+  function stopAllRunningTasks() {
+    runningTasks.value.forEach((task) => {
+      updateTaskStatus(task.id, 'paused');
+    });
   }
 
-  // 加载保存的任务配置
-  async function loadTaskConfig(data: any): Promise<string | null> {
-    // 此处可以实现从文件或localStorage加载任务配置的逻辑
-    try {
-      // 验证数据格式
-      if (!data || !data.type || !data.config) {
-        throw new Error('无效的任务配置数据');
-      }
-
-      // 创建新任务
-      const taskId = addTask({
-        name: data.name || '加载的任务',
-        type: data.type as TaskType,
-        status: 'idle',
-        config: data.config,
-      });
-
-      return taskId;
-    } catch (e) {
-      console.error('加载任务配置失败:', e);
-      error.value = e instanceof Error ? e.message : '加载失败';
-      return null;
-    }
-  }
-
-  // 导出所有需要的状态和方法
   return {
+    // 状态
     tasks,
-    isLoading,
-    error,
     activeTasks,
+    runningTasks,
     completedTasks,
-    getTaskById,
+    errorTasks,
+
+    // 方法
     addTask,
-    updateTask,
+    getTaskById,
     updateTaskStatus,
     updateTaskProgress,
+    updateTask,
     removeTask,
+    clearCompletedTasks,
+    clearErrorTasks,
     clearAllTasks,
-    saveTaskConfig,
-    loadTaskConfig,
+    stopAllRunningTasks,
   };
 });

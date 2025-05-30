@@ -30,10 +30,7 @@
 
             <div class="form-group">
               <label for="defaultBaudRate">默认波特率</label>
-              <select
-                id="defaultBaudRate"
-                v-model="serialSettings.defaultBaudRate"
-              >
+              <select id="defaultBaudRate" v-model="serialSettings.defaultBaudRate">
                 <option v-for="rate in baudRates" :key="rate" :value="rate">
                   {{ rate }}
                 </option>
@@ -42,10 +39,7 @@
 
             <div class="form-group">
               <label for="defaultDataBits">默认数据位</label>
-              <select
-                id="defaultDataBits"
-                v-model="serialSettings.defaultDataBits"
-              >
+              <select id="defaultDataBits" v-model="serialSettings.defaultDataBits">
                 <option value="5">5</option>
                 <option value="6">6</option>
                 <option value="7">7</option>
@@ -66,10 +60,7 @@
 
             <div class="form-group">
               <label for="defaultStopBits">默认停止位</label>
-              <select
-                id="defaultStopBits"
-                v-model="serialSettings.defaultStopBits"
-              >
+              <select id="defaultStopBits" v-model="serialSettings.defaultStopBits">
                 <option value="1">1</option>
                 <option value="1.5">1.5</option>
                 <option value="2">2</option>
@@ -78,10 +69,7 @@
 
             <div class="form-group">
               <label for="defaultFlowControl">默认流控制</label>
-              <select
-                id="defaultFlowControl"
-                v-model="serialSettings.defaultFlowControl"
-              >
+              <select id="defaultFlowControl" v-model="serialSettings.defaultFlowControl">
                 <option value="none">无</option>
                 <option value="hardware">硬件流控</option>
                 <option value="software">软件流控</option>
@@ -110,10 +98,7 @@
                 <span>默认启用自动滚动</span>
               </div>
               <label class="switch">
-                <input
-                  type="checkbox"
-                  v-model="serialSettings.defaultAutoScroll"
-                />
+                <input type="checkbox" v-model="serialSettings.defaultAutoScroll" />
                 <span class="slider round"></span>
               </label>
             </div>
@@ -149,22 +134,10 @@
                 :class="{ active: appearanceSettings.theme === theme.id }"
                 @click="appearanceSettings.theme = theme.id"
               >
-                <div
-                  class="theme-preview"
-                  :style="{ backgroundColor: theme.backgroundColor }"
-                >
-                  <div
-                    class="theme-header"
-                    :style="{ backgroundColor: theme.headerColor }"
-                  ></div>
-                  <div
-                    class="theme-sidebar"
-                    :style="{ backgroundColor: theme.sidebarColor }"
-                  ></div>
-                  <div
-                    class="theme-content"
-                    :style="{ backgroundColor: theme.contentColor }"
-                  ></div>
+                <div class="theme-preview" :style="{ backgroundColor: theme.backgroundColor }">
+                  <div class="theme-header" :style="{ backgroundColor: theme.headerColor }"></div>
+                  <div class="theme-sidebar" :style="{ backgroundColor: theme.sidebarColor }"></div>
+                  <div class="theme-content" :style="{ backgroundColor: theme.contentColor }"></div>
                 </div>
                 <div class="theme-name">{{ theme.name }}</div>
               </div>
@@ -181,9 +154,7 @@
                   max="20"
                   step="1"
                 />
-                <span class="range-value"
-                  >{{ appearanceSettings.fontSize }}px</span
-                >
+                <span class="range-value">{{ appearanceSettings.fontSize }}px</span>
               </div>
             </div>
           </div>
@@ -196,10 +167,7 @@
                 <span>显示状态栏</span>
               </div>
               <label class="switch">
-                <input
-                  type="checkbox"
-                  v-model="appearanceSettings.showStatusBar"
-                />
+                <input type="checkbox" v-model="appearanceSettings.showStatusBar" />
                 <span class="slider round"></span>
               </label>
             </div>
@@ -209,10 +177,7 @@
                 <span>显示工具提示</span>
               </div>
               <label class="switch">
-                <input
-                  type="checkbox"
-                  v-model="appearanceSettings.showTooltips"
-                />
+                <input type="checkbox" v-model="appearanceSettings.showTooltips" />
                 <span class="slider round"></span>
               </label>
             </div>
@@ -226,10 +191,7 @@
                 </div>
               </div>
               <label class="switch">
-                <input
-                  type="checkbox"
-                  v-model="appearanceSettings.compactMode"
-                />
+                <input type="checkbox" v-model="appearanceSettings.compactMode" />
                 <span class="slider round"></span>
               </label>
             </div>
@@ -272,16 +234,11 @@
                 <span>启用硬件加速</span>
                 <div class="tooltip">
                   <span class="material-icons info-icon">info</span>
-                  <div class="tooltip-text">
-                    使用 GPU 加速渲染，可能提高性能但增加内存使用
-                  </div>
+                  <div class="tooltip-text">使用 GPU 加速渲染，可能提高性能但增加内存使用</div>
                 </div>
               </div>
               <label class="switch">
-                <input
-                  type="checkbox"
-                  v-model="advancedSettings.hardwareAcceleration"
-                />
+                <input type="checkbox" v-model="advancedSettings.hardwareAcceleration" />
                 <span class="slider round"></span>
               </label>
             </div>
@@ -339,10 +296,10 @@
           <div class="settings-card about-card">
             <div class="app-info">
               <div class="app-logo">
-                <img src="../../assets/logo.png" alt="App Logo" />
+                <img src="../../assets/icons/logo.svg" alt="App Logo" />
               </div>
               <div class="app-details">
-                <h3 class="app-name">RS485 上位机工具</h3>
+                <h3 class="app-name">上位机工具</h3>
                 <div class="app-version">版本 1.0.0</div>
                 <div class="app-copyright">© 2023 All Rights Reserved</div>
               </div>
@@ -350,9 +307,8 @@
 
             <div class="about-description">
               <p>
-                这是一个基于 Electron 和 Vue 开发的 RS485
-                通信工具，用于与各种支持 Modbus 和自定义协议的 RS485
-                设备进行通信。
+                这是一个基于 Electron 和 Vue 开发的 RS485 通信工具，用于与各种支持 Modbus
+                和自定义协议的 RS485 设备进行通信。
               </p>
               <p>特色功能包括串口监控、命令控制、帧结构定义、数据解析等。</p>
             </div>
@@ -422,30 +378,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive } from 'vue';
 
 // 设置部分
 const settingSections = [
-  { id: "serial", name: "串口设置", icon: "settings_ethernet" },
-  { id: "appearance", name: "界面设置", icon: "palette" },
-  { id: "advanced", name: "高级设置", icon: "tune" },
-  { id: "about", name: "关于", icon: "info" },
+  { id: 'serial', name: '串口设置', icon: 'settings_ethernet' },
+  { id: 'appearance', name: '界面设置', icon: 'palette' },
+  { id: 'advanced', name: '高级设置', icon: 'tune' },
+  { id: 'about', name: '关于', icon: 'info' },
 ];
 
-const activeSection = ref("serial");
+const activeSection = ref('serial');
 
 // 串口设置
 const baudRates = [
-  300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200, 128000,
-  256000,
+  300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200, 128000, 256000,
 ];
 
 const serialSettings = reactive({
   defaultBaudRate: 9600,
   defaultDataBits: 8,
-  defaultParity: "none",
+  defaultParity: 'none',
   defaultStopBits: 1,
-  defaultFlowControl: "none",
+  defaultFlowControl: 'none',
   maxBufferSize: 1000,
   defaultAutoScroll: true,
   autoReconnect: true,
@@ -454,41 +409,41 @@ const serialSettings = reactive({
 // 界面设置
 const themes = [
   {
-    id: "dark",
-    name: "深色主题",
-    backgroundColor: "#121212",
-    headerColor: "#1E1E1E",
-    sidebarColor: "#1A1A1A",
-    contentColor: "#232323",
+    id: 'dark',
+    name: '深色主题',
+    backgroundColor: '#121212',
+    headerColor: '#1E1E1E',
+    sidebarColor: '#1A1A1A',
+    contentColor: '#232323',
   },
   {
-    id: "blue",
-    name: "蓝色主题",
-    backgroundColor: "#0A1929",
-    headerColor: "#0D2341",
-    sidebarColor: "#0B1C33",
-    contentColor: "#0E2A4B",
+    id: 'blue',
+    name: '蓝色主题',
+    backgroundColor: '#0A1929',
+    headerColor: '#0D2341',
+    sidebarColor: '#0B1C33',
+    contentColor: '#0E2A4B',
   },
   {
-    id: "green",
-    name: "绿色主题",
-    backgroundColor: "#0A1F1A",
-    headerColor: "#0D3325",
-    sidebarColor: "#0B1F15",
-    contentColor: "#0E382A",
+    id: 'green',
+    name: '绿色主题',
+    backgroundColor: '#0A1F1A',
+    headerColor: '#0D3325',
+    sidebarColor: '#0B1F15',
+    contentColor: '#0E382A',
   },
   {
-    id: "light",
-    name: "浅色主题",
-    backgroundColor: "#F5F5F5",
-    headerColor: "#FFFFFF",
-    sidebarColor: "#EEEEEE",
-    contentColor: "#FFFFFF",
+    id: 'light',
+    name: '浅色主题',
+    backgroundColor: '#F5F5F5',
+    headerColor: '#FFFFFF',
+    sidebarColor: '#EEEEEE',
+    contentColor: '#FFFFFF',
   },
 ];
 
 const appearanceSettings = reactive({
-  theme: "dark",
+  theme: 'dark',
   fontSize: 14,
   showStatusBar: true,
   showTooltips: true,
@@ -498,9 +453,9 @@ const appearanceSettings = reactive({
 // 高级设置
 const advancedSettings = reactive({
   frameUpdateInterval: 64,
-  logLevel: "info",
+  logLevel: 'info',
   hardwareAcceleration: true,
-  dataStoragePath: "/users/data",
+  dataStoragePath: '/users/data',
   autoBackupInterval: 30,
 });
 
@@ -510,14 +465,14 @@ const showResetConfirm = ref(false);
 // 方法
 const selectStoragePath = () => {
   // 使用 Electron 的对话框 API 选择目录
-  console.log("选择数据存储路径");
+  console.log('选择数据存储路径');
 };
 
 const backupData = () => {
-  console.log("正在备份数据...");
+  console.log('正在备份数据...');
   // 这里应该调用备份 API
   setTimeout(() => {
-    alert("数据备份成功");
+    alert('数据备份成功');
   }, 1000);
 };
 
@@ -531,25 +486,25 @@ const cancelReset = () => {
 
 const resetSettings = () => {
   // 重置所有设置到默认值
-  console.log("重置所有设置");
+  console.log('重置所有设置');
   showResetConfirm.value = false;
 
   // 这里应该调用重置 API
   setTimeout(() => {
-    alert("设置已重置为默认值");
+    alert('设置已重置为默认值');
   }, 500);
 };
 
 const openGithub = () => {
   // 使用 Electron 的 shell API 打开浏览器
-  console.log("打开 GitHub 仓库");
+  console.log('打开 GitHub 仓库');
 };
 
 const checkForUpdates = () => {
-  console.log("检查更新...");
+  console.log('检查更新...');
   // 这里应该调用更新检查 API
   setTimeout(() => {
-    alert("您的应用已是最新版本");
+    alert('您的应用已是最新版本');
   }, 1500);
 };
 </script>
@@ -773,7 +728,7 @@ const checkForUpdates = () => {
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 16px;
   width: 16px;
   left: 2px;

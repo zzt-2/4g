@@ -3,7 +3,8 @@
     <!-- 发送间隔配置 -->
     <div>
       <q-input
-        v-model.number="localConfig.sendInterval"
+        :model-value="localConfig.sendInterval"
+        @update:model-value="updateSendInterval"
         type="number"
         label="发送间隔(毫秒)"
         min="100"
@@ -25,7 +26,8 @@
     <!-- 重复设置 -->
     <div class="space-y-2">
       <q-checkbox
-        v-model="localConfig.isInfinite"
+        :model-value="localConfig.isInfinite"
+        @update:model-value="updateIsInfinite"
         label="无限循环"
         color="primary"
         class="text-industrial-primary"
@@ -33,7 +35,8 @@
 
       <q-input
         v-if="!localConfig.isInfinite"
-        v-model.number="localConfig.repeatCount"
+        :model-value="localConfig.repeatCount"
+        @update:model-value="updateRepeatCount"
         type="number"
         label="重复次数"
         min="1"
@@ -52,7 +55,8 @@
     <!-- 开始延时配置 -->
     <div>
       <q-input
-        v-model.number="localConfig.startDelay"
+        :model-value="localConfig.startDelay || 0"
+        @update:model-value="updateStartDelay"
         type="number"
         label="开始延时(毫秒)"
         min="0"
@@ -108,7 +112,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { TimedStrategyConfig } from '../../../types/frames/sendInstances';
+import type { TimedStrategyConfig } from '../../../../types/frames/sendInstances';
 
 const props = defineProps<{
   config: TimedStrategyConfig;
@@ -118,10 +122,59 @@ const emit = defineEmits<{
   'update:config': [config: TimedStrategyConfig];
 }>();
 
-const localConfig = computed({
-  get: () => props.config,
-  set: (value) => emit('update:config', value),
-});
+const localConfig = computed(() => props.config);
+
+/**
+ * 更新发送间隔
+ */
+function updateSendInterval(value: number | string | null) {
+  if (value === null) return;
+  const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
+  if (isNaN(numValue)) return;
+
+  emit('update:config', {
+    ...localConfig.value,
+    sendInterval: numValue,
+  });
+}
+
+/**
+ * 更新是否无限循环
+ */
+function updateIsInfinite(value: boolean) {
+  emit('update:config', {
+    ...localConfig.value,
+    isInfinite: value,
+  });
+}
+
+/**
+ * 更新重复次数
+ */
+function updateRepeatCount(value: number | string | null) {
+  if (value === null) return;
+  const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
+  if (isNaN(numValue)) return;
+
+  emit('update:config', {
+    ...localConfig.value,
+    repeatCount: numValue,
+  });
+}
+
+/**
+ * 更新开始延时
+ */
+function updateStartDelay(value: number | string | null) {
+  if (value === null) return;
+  const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
+  if (isNaN(numValue)) return;
+
+  emit('update:config', {
+    ...localConfig.value,
+    startDelay: numValue,
+  });
+}
 
 /**
  * 格式化时间间隔显示

@@ -8,11 +8,12 @@ import FrameFormatList from '../components/frames/FrameSend/FrameFormatList.vue'
 import FrameInstanceList from '../components/frames/FrameSend/FrameInstanceList.vue';
 import FrameInstanceEditor from '../components/frames/FrameSend/FrameInstanceEditor.vue';
 import FramePreview from '../components/frames/FrameSend/FramePreview.vue';
-import FrameInstanceActions from '../components/frames/FrameSend/FrameInstanceActions.vue';
 import SendTargetSelector from '../components/frames/FrameSend/SendTargetSelector.vue';
-import TimedSendDialog from '../components/frames/FrameSend/TimedSendDialog.vue';
-import TriggerSendDialog from '../components/frames/FrameSend/TriggerSendDialog.vue';
-import EnhancedSequentialSendDialog from '../components/frames/FrameSend/EnhancedSequentialSendDialog.vue';
+import TimedSendDialog from '../components/frames/FrameSend/TimedSend/TimedSendDialog.vue';
+import TriggerSendDialog from '../components/frames/FrameSend/TriggerSend/TriggerSendDialog.vue';
+import EnhancedSequentialSendDialog from '../components/frames/FrameSend/EnhancedSequentialSend/EnhancedSequentialSendDialog.vue';
+import ActiveTasksMonitor from '../components/frames/FrameSend/ActiveTasksMonitor.vue';
+import ImportExportActions from '../components/common/ImportExportActions.vue';
 // 导入将在稍后实现
 // import { frameToBuffer } from '../utils/frameUtils';
 
@@ -22,8 +23,9 @@ const sendFrameInstancesStore = useSendFrameInstancesStore();
 const serialStore = useSerialStore();
 
 // 使用连接目标组合式函数，为此页面指定唯一的存储键
-const { selectedTargetId, availableTargets, refreshTargets, selectedTarget, parseTargetPath } =
-  useConnectionTargets('frame-send-selected-target');
+const { selectedTargetId, refreshTargets, parseTargetPath } = useConnectionTargets(
+  'frame-send-selected-target',
+);
 
 // 本地UI状态
 const searchQuery = ref('');
@@ -35,6 +37,10 @@ const sendError = ref('');
 const showTimedSendDialog = ref(false);
 const showTriggerSendDialog = ref(false);
 const showSequentialSendDialog = ref(false);
+const showTaskMonitorDialog = ref(false);
+
+// 布局相关
+const layoutReady = ref(false);
 
 // 从store获取状态
 const selectedInstance = computed(() => {
@@ -64,9 +70,6 @@ const canSendInstance = computed(() => {
   const hasInstance = selectedInstance.value !== null;
   return hasInstance && !isSending.value && !!selectedTargetId.value;
 });
-
-// 布局相关
-const layoutReady = ref(false);
 
 // 加载数据
 onMounted(async () => {
@@ -192,16 +195,36 @@ function closeSequentialSendDialog() {
   showSequentialSendDialog.value = false;
 }
 
+// 打开任务监控对话框
+function openTaskMonitorDialog() {
+  showTaskMonitorDialog.value = true;
+}
+
+// 关闭任务监控对话框
+function closeTaskMonitorDialog() {
+  showTaskMonitorDialog.value = false;
+}
+
 // 搜索帧格式
 function handleSearch() {
   // 已通过计算属性 filteredTemplates 实现
   console.log('搜索:', searchQuery.value);
 }
+
+// 数据处理函数
+const handleGetInstancesData = () => {
+  return sendFrameInstancesStore.instances;
+};
+
+const handleSetInstancesData = async (data: unknown) => {
+  await sendFrameInstancesStore.importFromJSON(JSON.stringify(data));
+};
 </script>
 
 <template>
-  <q-page class="p-4 h-full overflow-hidden bg-industrial-primary">
-    <div class="grid grid-cols-[240px_1fr_300px] h-full gap-4">
+  <q-page class="p-4 h-full overflow-hidden bg-industrial-primary flex flex-col">
+    <!-- 上部分：主要工作区域（3列布局） -->
+    <div class="grid grid-cols-[240px_1fr_300px] gap-4 flex-1 min-h-0">
       <!-- 左侧帧格式列表 -->
       <div
         class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg"
@@ -245,6 +268,19 @@ function handleSearch() {
               所有发送实例
             </h6>
 
+            <!-- 任务监控按钮 -->
+            <q-btn
+              flat
+              dense
+              round
+              color="blue-grey-6"
+              icon="task_alt"
+              class="ml-2"
+              @click="openTaskMonitorDialog"
+            >
+              <q-tooltip>任务监控</q-tooltip>
+            </q-btn>
+
             <!-- 顺序发送按钮 -->
             <q-btn
               flat
@@ -252,13 +288,48 @@ function handleSearch() {
               round
               color="blue-grey-6"
               icon="queue_play_next"
-              class="ml-4"
+              class="ml-2"
               @click="openSequentialSendDialog"
             >
               <q-tooltip>顺序发送</q-tooltip>
             </q-btn>
           </div>
-          <FrameInstanceActions />
+
+          <!-- 实例操作按钮组 -->
+          <div class="flex items-center gap-2">
+            <!-- 导入导出按钮 -->
+            <ImportExportActions
+              :getData="handleGetInstancesData"
+              :setData="handleSetInstancesData"
+              storageDir="data/frames/sendInstances"
+              exportTitle="导出帧实例配置"
+              importTitle="导入帧实例配置"
+            />
+
+            <!-- 排序按钮 -->
+            <q-btn
+              flat
+              dense
+              icon="sort"
+              size="sm"
+              disable
+              class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
+            >
+              <q-tooltip>排序（暂未实现）</q-tooltip>
+            </q-btn>
+
+            <!-- 批量编辑按钮 -->
+            <q-btn
+              flat
+              dense
+              icon="edit_note"
+              size="sm"
+              disable
+              class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
+            >
+              <q-tooltip>批量编辑（暂未实现）</q-tooltip>
+            </q-btn>
+          </div>
         </div>
         <div class="flex-1 overflow-auto w-full">
           <FrameInstanceList class="w-full h-full" />
@@ -414,6 +485,13 @@ function handleSearch() {
         <EnhancedSequentialSendDialog @close="closeSequentialSendDialog" class="h-full w-full" />
       </q-card>
     </q-dialog>
+
+    <!-- 任务监控对话框 -->
+    <ActiveTasksMonitor
+      v-model="showTaskMonitorDialog"
+      :show-filters="true"
+      @close="closeTaskMonitorDialog"
+    />
 
     <!-- 加载状态 -->
     <q-inner-loading :showing="isLoading">

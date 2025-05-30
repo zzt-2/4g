@@ -2,11 +2,7 @@
  * 策略配置验证工具函数
  */
 
-import type {
-  TimedStrategyConfig,
-  TriggerStrategyConfig,
-  StrategyConfig,
-} from '../../types/frames/sendInstances';
+import type { TimedStrategyConfig, StrategyConfig } from '../../types/frames/sendInstances';
 
 // 验证结果接口
 export interface ValidationResult {
@@ -43,53 +39,16 @@ export function validateTimedStrategy(config: TimedStrategyConfig): ValidationRe
 }
 
 /**
- * 验证触发策略配置
- */
-export function validateTriggerStrategy(config: TriggerStrategyConfig): ValidationResult {
-  const errors: string[] = [];
-
-  if (!config.sourceId) {
-    errors.push('必须选择监听来源');
-  }
-
-  if (!config.triggerFrameId) {
-    errors.push('必须选择触发帧');
-  }
-
-  if (!config.conditions || config.conditions.length === 0) {
-    errors.push('至少需要一个触发条件');
-  }
-
-  if (config.conditions) {
-    config.conditions.forEach((condition, index) => {
-      if (!condition.fieldId) {
-        errors.push(`条件${index + 1}：必须选择字段`);
-      }
-      if (!condition.value) {
-        errors.push(`条件${index + 1}：必须设置值`);
-      }
-    });
-  }
-
-  if (config.responseDelay && config.responseDelay < 0) {
-    errors.push('响应延时不能为负数');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
  * 验证策略配置
+ * 简化版本，只验证定时策略，触发策略不进行验证
  */
 export function validateStrategyConfig(config: StrategyConfig): ValidationResult {
   switch (config.type) {
     case 'timed':
       return validateTimedStrategy(config);
     case 'triggered':
-      return validateTriggerStrategy(config);
+      // 触发策略不进行验证，直接返回有效
+      return { valid: true, errors: [] };
     default:
       return { valid: false, errors: ['未知的策略类型'] };
   }

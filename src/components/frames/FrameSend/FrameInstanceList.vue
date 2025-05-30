@@ -53,7 +53,7 @@ const columns = [
     field: 'timestamp',
     align: 'center' as const,
     sortable: true,
-    style: 'width: 130px; min-width: 130px',
+    style: 'width: 140px; min-width: 140px',
     classes: 'text-blue-grey-5',
   },
   {
@@ -62,7 +62,7 @@ const columns = [
     field: 'description',
     align: 'left' as const,
     sortable: true,
-    style: 'width: 220px; min-width: 220px',
+    style: 'width: 100%; min-width: 100%',
     classes: 'text-blue-grey-5',
   },
   {
@@ -159,7 +159,7 @@ interface TableRow extends SendFrameInstance {
 }
 
 const tableData = computed<TableRow[]>(() => {
-  return instances.value.map((instance, index) => ({
+  return instances.value.map((instance: SendFrameInstance, index: number) => ({
     ...instance,
     index: index + 1,
     timestamp: new Date(instance.updatedAt).toLocaleString(), // 格式化时间戳

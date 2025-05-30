@@ -7,6 +7,8 @@ import type {
   TimedStrategyConfig,
   TriggerStrategyConfig,
   TriggerCondition,
+  TimeTriggerConfig,
+  ConditionTriggerConfig,
 } from '../../types/frames/sendInstances';
 
 /**
@@ -24,14 +26,39 @@ export function createDefaultTimedConfig(): TimedStrategyConfig {
 
 /**
  * 创建默认触发策略配置
+ * 扁平化结构，默认为条件触发
  */
 export function createDefaultTriggerConfig(): TriggerStrategyConfig {
   return {
     type: 'triggered',
+    triggerType: 'condition',
+    responseDelay: 0,
     sourceId: '',
     triggerFrameId: '',
     conditions: [createDefaultTriggerCondition()],
-    responseDelay: 0,
+  };
+}
+
+/**
+ * 创建默认时间触发配置
+ */
+export function createDefaultTimeTriggerConfig(): TimeTriggerConfig {
+  return {
+    triggerType: 'time',
+    executeTime: new Date().toISOString(),
+    isRecurring: false,
+  };
+}
+
+/**
+ * 创建默认条件触发配置
+ */
+export function createDefaultConditionTriggerConfig(): ConditionTriggerConfig {
+  return {
+    triggerType: 'condition',
+    sourceId: '',
+    triggerFrameId: '',
+    conditions: [createDefaultTriggerCondition()],
   };
 }
 

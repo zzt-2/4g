@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "configType": "multi-immediate",
+  "name": "多帧发送配置",
+  "instanceRefs": [
+    {
+      "id": "4",
+      "label": "111 #1",
+      "frameId": "123"
+    },
+    {
+      "id": "2",
+      "label": "新帧配置 #2",
+      "frameId": "VXA7FZfmv00z5heDrSU-8"
+    },
+    {
+      "id": "123",
+      "label": "新帧配置 #1",
+      "frameId": "VXA7FZfmv00z5heDrSU-8"
+    },
+    {
+      "id": "1",
+      "label": "222 #1",
+      "frameId": "1234"
+    },
+    {
+      "id": "6",
+      "label": "控制帧-继电器控制 #1",
+      "frameId": "11"
+    }
+  ],
+  "targets": [
+    {
+      "instanceId": "4",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    },
+    {
+      "instanceId": "2",
+      "targetId": "serial:COM1",
+      "interval": 200
+    },
+    {
+      "instanceId": "123",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    },
+    {
+      "instanceId": "1",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    },
+    {
+      "instanceId": "6",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    }
+  ],
+  "createdAt": "2025-05-30T03:03:27.065Z",
+  "updatedAt": "2025-05-30T03:03:27.065Z"
+}

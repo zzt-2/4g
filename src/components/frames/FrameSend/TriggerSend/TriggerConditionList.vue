@@ -100,30 +100,8 @@
               @update:model-value="updateCondition(index, condition)"
             />
           </div>
-
-          <!-- 条件预览 -->
-          <div
-            v-if="condition.fieldId && condition.value"
-            class="mt-2 text-xs text-industrial-secondary"
-          >
-            <q-icon name="visibility" size="14px" class="mr-1" />
-            当 {{ getFieldLabel(condition.fieldId) }}
-            {{ getConditionLabel(condition.condition) }} "{{ condition.value }}"
-          </div>
         </q-card-section>
       </q-card>
-    </div>
-
-    <!-- 条件组合预览 -->
-    <div v-if="localConditions.length > 1" class="mt-4">
-      <q-separator class="mb-2" />
-      <div class="text-sm text-industrial-secondary">
-        <q-icon name="rule" size="16px" class="mr-1" />
-        <span class="font-medium">条件组合预览：</span>
-        <div class="mt-1 ml-5">
-          {{ buildConditionPreview() }}
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -131,8 +109,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { nanoid } from 'nanoid';
-import type { TriggerCondition } from '../../../types/frames/sendInstances';
-import { getConditionTypeLabel } from '../../../utils/frames/defaultConfigs';
+import type { TriggerCondition } from '../../../../types/frames/sendInstances';
 
 const props = defineProps<{
   conditions: TriggerCondition[];
@@ -179,45 +156,6 @@ function updateCondition(index: number, condition: TriggerCondition) {
   const newConditions = [...localConditions.value];
   newConditions[index] = { ...condition };
   localConditions.value = newConditions;
-}
-
-/**
- * 获取字段标签
- */
-function getFieldLabel(fieldId: string): string {
-  const field = props.fieldOptions?.find((f) => f.id === fieldId);
-  return field?.label || fieldId;
-}
-
-/**
- * 获取条件标签
- */
-function getConditionLabel(condition: TriggerCondition['condition']): string {
-  return getConditionTypeLabel(condition);
-}
-
-/**
- * 构建条件组合预览
- */
-function buildConditionPreview(): string {
-  if (localConditions.value.length === 0) return '';
-
-  return localConditions.value
-    .map((condition, index) => {
-      const fieldLabel = getFieldLabel(condition.fieldId) || '未选择字段';
-      const conditionLabel = getConditionLabel(condition.condition);
-      const value = condition.value || '未设置值';
-
-      let preview = `${fieldLabel} ${conditionLabel} "${value}"`;
-
-      if (index > 0 && condition.logicOperator) {
-        const operator = condition.logicOperator === 'and' ? '并且' : '或者';
-        preview = `${operator} ${preview}`;
-      }
-
-      return preview;
-    })
-    .join(' ');
 }
 </script>
 

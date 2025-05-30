@@ -2,7 +2,7 @@
   <div class="custom-titlebar">
     <div class="left-section">
       <q-btn flat dense icon="menu" @click="toggleDrawer" class="no-drag" />
-      <div class="title">4G 上位机</div>
+      <div class="title">上位机</div>
       <div class="divider"></div>
     </div>
     <WindowControls />

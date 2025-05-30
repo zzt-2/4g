@@ -1,0 +1,266 @@
+/* 统一字体系统 - 工业主题 */
+
+/* ========================================
+   字体族定义
+   ======================================== */
+:root {
+  /* 主字体族 - 系统字体栈，优先选择无衬线字体 */
+  --font-family:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+
+  /* 等宽字体族 - 用于代码、数据显示 */
+  --font-family-mono:
+    'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Monaco, 'Consolas',
+    'Liberation Mono', 'Menlo', monospace;
+
+  /* 数字字体族 - 用于数字显示，确保数字对齐 */
+  --font-family-numeric: 'SF Pro Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ========================================
+   字体大小层级系统
+   ======================================== */
+:root {
+  /* 基础字体大小 */
+  --text-xs: 0.75rem; /* 12px - 微小文本 */
+  --text-sm: 0.875rem; /* 14px - 小文本 */
+  --text-base: 1rem; /* 16px - 基础文本 */
+  --text-lg: 1.125rem; /* 18px - 大文本 */
+  --text-xl: 1.25rem; /* 20px - 超大文本 */
+  --text-2xl: 1.5rem; /* 24px - 标题 */
+  --text-3xl: 1.875rem; /* 30px - 大标题 */
+  --text-4xl: 2.25rem; /* 36px - 超大标题 */
+
+  /* 行高配置 */
+  --leading-tight: 1.25; /* 紧凑行高 */
+  --leading-normal: 1.5; /* 正常行高 */
+  --leading-relaxed: 1.625; /* 宽松行高 */
+}
+
+/* ========================================
+   字体权重定义
+   ======================================== */
+:root {
+  --font-thin: 100;
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+}
+
+/* ========================================
+   全局字体应用
+   ======================================== */
+* {
+  font-family: var(--font-family);
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  font-weight: var(--font-normal);
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================
+   文本元素默认样式
+   ======================================== */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-family);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-tight);
+  color: #ffffff;
+  margin: 0;
+}
+
+h1 {
+  font-size: var(--text-4xl);
+}
+h2 {
+  font-size: var(--text-3xl);
+}
+h3 {
+  font-size: var(--text-2xl);
+}
+h4 {
+  font-size: var(--text-xl);
+}
+h5 {
+  font-size: var(--text-lg);
+}
+h6 {
+  font-size: var(--text-base);
+}
+
+p {
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: #ffffff;
+  margin: 0;
+}
+
+span,
+div,
+label {
+  font-family: var(--font-family);
+  color: #ffffff;
+}
+
+/* ========================================
+   工具类定义
+   ======================================== */
+
+/* 字体族工具类 */
+.font-sans {
+  font-family: var(--font-family);
+}
+.font-mono {
+  font-family: var(--font-family-mono);
+}
+.font-numeric {
+  font-family: var(--font-family-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 字体大小工具类 */
+.text-xs {
+  font-size: var(--text-xs);
+}
+.text-sm {
+  font-size: var(--text-sm);
+}
+.text-base {
+  font-size: var(--text-base);
+}
+.text-lg {
+  font-size: var(--text-lg);
+}
+.text-xl {
+  font-size: var(--text-xl);
+}
+.text-2xl {
+  font-size: var(--text-2xl);
+}
+.text-3xl {
+  font-size: var(--text-3xl);
+}
+.text-4xl {
+  font-size: var(--text-4xl);
+}
+
+/* 字体权重工具类 */
+.font-thin {
+  font-weight: var(--font-thin);
+}
+.font-light {
+  font-weight: var(--font-light);
+}
+.font-normal {
+  font-weight: var(--font-normal);
+}
+.font-medium {
+  font-weight: var(--font-medium);
+}
+.font-semibold {
+  font-weight: var(--font-semibold);
+}
+.font-bold {
+  font-weight: var(--font-bold);
+}
+.font-extrabold {
+  font-weight: var(--font-extrabold);
+}
+.font-black {
+  font-weight: var(--font-black);
+}
+
+/* 行高工具类 */
+.leading-tight {
+  line-height: var(--leading-tight);
+}
+.leading-normal {
+  line-height: var(--leading-normal);
+}
+.leading-relaxed {
+  line-height: var(--leading-relaxed);
+}
+
+/* ========================================
+   特殊用途字体样式
+   ======================================== */
+
+/* 数据显示专用 - 等宽数字对齐 */
+.font-data {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-medium);
+  letter-spacing: 0.025em;
+}
+
+/* 代码显示专用 */
+.font-code {
+  font-family: var(--font-family-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--font-normal);
+  letter-spacing: 0;
+}
+
+/* 标题专用 */
+.font-heading {
+  font-family: var(--font-family);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.025em;
+}
+
+/* 按钮文本专用 */
+.font-button {
+  font-family: var(--font-family);
+  font-weight: var(--font-medium);
+  letter-spacing: 0.025em;
+}
+
+/* 标签文本专用 */
+.font-label {
+  font-family: var(--font-family);
+  font-weight: var(--font-medium);
+  font-size: var(--text-sm);
+  letter-spacing: 0.025em;
+}
+
+/* ========================================
+   响应式字体调整
+   ======================================== */
+@media (max-width: 768px) {
+  :root {
+    --text-xs: 0.7rem; /* 11.2px */
+    --text-sm: 0.8rem; /* 12.8px */
+    --text-base: 0.9rem; /* 14.4px */
+    --text-lg: 1rem; /* 16px */
+    --text-xl: 1.1rem; /* 17.6px */
+    --text-2xl: 1.3rem; /* 20.8px */
+    --text-3xl: 1.6rem; /* 25.6px */
+    --text-4xl: 1.9rem; /* 30.4px */
+  }
+}
+
+/* ========================================
+   字体加载优化
+   ======================================== */
+@font-face {
+  font-family: system-ui;
+  font-display: swap;
+}

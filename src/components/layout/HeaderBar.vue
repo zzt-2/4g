@@ -7,7 +7,7 @@
         >
           <img src="../../assets/icons/logo.svg" alt="RS485" class="h-[20px] w-[20px]" />
         </div>
-        <div class="text-[16px] font-medium text-white m-0 tracking-wide">RS485 上位机</div>
+        <div class="text-[16px] font-medium text-white m-0 tracking-wide">上位机</div>
       </div>
 
       <q-space />

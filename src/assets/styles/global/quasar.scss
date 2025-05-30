@@ -1,0 +1,89 @@
+// /* Quasar 组件样式覆盖 - 精确控制版本 */
+
+// /* ========================================
+//    只针对特定文本元素设置白色，不影响图标
+//    ======================================== */
+
+// /* 复选框标签文本 */
+// .q-checkbox__label {
+//   color: #ffffff !important;
+// }
+
+// /* 单选框标签文本 */
+// .q-radio__label {
+//   color: #ffffff !important;
+// }
+
+// /* 开关标签文本 */
+// .q-toggle__label {
+//   color: #ffffff !important;
+// }
+
+// /* 按钮中的文本（不包括图标）*/
+// .q-btn .q-btn__wrapper > .q-btn__content {
+//   color: #ffffff !important;
+// }
+
+// /* 表单字段标签 */
+// .q-field .q-field__label {
+//   color: #cbd5e1 !important;
+// }
+
+// /* 表单字段输入文本 */
+// .q-field .q-field__native {
+//   color: #ffffff !important;
+// }
+
+// /* 列表项标签文本 */
+// .q-item .q-item__label {
+//   color: #ffffff !important;
+// }
+
+// /* 标签页文本 */
+// .q-tab .q-tab__content {
+//   color: #cbd5e1 !important;
+// }
+
+// .q-tab.q-tab--active .q-tab__content {
+//   color: #60a5fa !important;
+// }
+
+// /* 表格文本 */
+// .q-table .q-table__container {
+//   background-color: #0f172a;
+// }
+
+// .q-table thead th {
+//   background-color: #1e293b;
+//   color: #ffffff !important;
+//   border-bottom: 1px solid #475569;
+// }
+
+// .q-table tbody td {
+//   color: #ffffff !important;
+//   border-bottom: 1px solid #334155;
+// }
+
+// .q-table tbody tr:hover {
+//   background-color: #334155;
+// }
+
+// /* 对话框背景和文本 */
+// .q-dialog .q-card {
+//   background-color: #1e293b;
+//   color: #ffffff;
+// }
+
+// /* 选择器选项文本 */
+// .q-menu .q-item {
+//   color: #ffffff !important;
+// }
+
+// .q-menu .q-item:hover {
+//   background-color: #334155;
+// }
+
+// /* 工具栏标题文本 */
+// .q-toolbar .q-toolbar__title {
+//   color: #ffffff !important;
+// }

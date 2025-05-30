@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useSerialStore } from '../../../stores/serialStore';
-import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
-import { useFrameTemplateStore } from '../../../stores/frames/frameTemplateStore';
-import { useConnectionTargets } from '../../../composables/useConnectionTargets';
-import { useSendTaskManager } from '../../../composables/frames/sendFrame/useSendTaskManager';
-import { useTaskConfigManager } from '../../../composables/frames/sendFrame/useTaskConfigManager';
-import type { StrategyConfig } from '../../../types/frames/sendInstances';
+import { useSerialStore } from '../../../../stores/serialStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
+import { useFrameTemplateStore } from '../../../../stores/frames/frameTemplateStore';
+import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
+import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
+import { useTaskConfigManager } from '../../../../composables/frames/sendFrame/useTaskConfigManager';
+import type { StrategyConfig } from '../../../../types/frames/sendInstances';
 
 // 获取store实例
 const serialStore = useSerialStore();

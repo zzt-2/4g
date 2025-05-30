@@ -41,9 +41,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { TimedStrategyConfig } from '../../../types/frames/sendInstances';
-import { validateTimedStrategy } from '../../../utils/frames/strategyValidation';
-import { createDefaultTimedConfig } from '../../../utils/frames/defaultConfigs';
+import type { TimedStrategyConfig } from '../../../../types/frames/sendInstances';
+import { validateTimedStrategy } from '../../../../utils/frames/strategyValidation';
+import { createDefaultTimedConfig } from '../../../../utils/frames/defaultConfigs';
 import TimedConfigPanel from './TimedConfigPanel.vue';
 
 const props = defineProps<{

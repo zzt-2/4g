@@ -1,6 +1,6 @@
 /**
  * 策略配置组合式函数
- * 提供统一的策略配置状态管理和验证
+ * 提供统一的策略配置状态管理
  */
 
 import { ref, computed } from 'vue';
@@ -32,21 +32,13 @@ export function useStrategyConfig() {
     }
   });
 
-  // 验证当前配置
+  // 简化的验证，只对定时策略进行验证
   const validation = computed(() => {
     if (!currentStrategyConfig.value) {
       return { valid: true, errors: [] };
     }
     return validateStrategyConfig(currentStrategyConfig.value);
   });
-
-  // 计算是否有配置错误
-  const hasErrors = computed(() => !validation.value.valid);
-
-  // 计算错误消息
-  const errorMessage = computed(() =>
-    validation.value.errors.length > 0 ? validation.value.errors[0] : '',
-  );
 
   /**
    * 设置策略类型
@@ -58,14 +50,14 @@ export function useStrategyConfig() {
   /**
    * 更新定时配置
    */
-  function updateTimedConfig(config: Partial<TimedStrategyConfig>) {
+  function updateTimedConfig(config: Partial<TimedStrategyConfig> | TimedStrategyConfig) {
     timedConfig.value = { ...timedConfig.value, ...config };
   }
 
   /**
    * 更新触发配置
    */
-  function updateTriggerConfig(config: Partial<TriggerStrategyConfig>) {
+  function updateTriggerConfig(config: Partial<TriggerStrategyConfig> | TriggerStrategyConfig) {
     triggerConfig.value = { ...triggerConfig.value, ...config };
   }
 
@@ -88,10 +80,46 @@ export function useStrategyConfig() {
     }
 
     currentStrategyType.value = strategy.type;
+
     if (strategy.type === 'timed') {
-      timedConfig.value = { ...strategy };
+      // 确保所有定时配置属性都被正确应用
+      timedConfig.value = {
+        type: 'timed',
+        sendInterval: strategy.sendInterval,
+        repeatCount: strategy.repeatCount,
+        isInfinite: strategy.isInfinite,
+        ...(strategy.startDelay !== undefined ? { startDelay: strategy.startDelay } : {}),
+      };
     } else if (strategy.type === 'triggered') {
-      triggerConfig.value = { ...strategy };
+      // 适配新的扁平化结构
+      const newConfig: TriggerStrategyConfig = {
+        type: 'triggered',
+        triggerType: strategy.triggerType || 'condition',
+        responseDelay: strategy.responseDelay || 0,
+        // 条件触发相关字段
+        sourceId: strategy.sourceId || '',
+        triggerFrameId: strategy.triggerFrameId || '',
+        conditions: strategy.conditions ? [...strategy.conditions] : [],
+      };
+
+      // 只在有值时添加时间触发相关字段
+      if (strategy.executeTime) {
+        newConfig.executeTime = strategy.executeTime;
+      }
+      if (strategy.isRecurring !== undefined) {
+        newConfig.isRecurring = strategy.isRecurring;
+      }
+      if (strategy.recurringType) {
+        newConfig.recurringType = strategy.recurringType;
+      }
+      if (strategy.recurringInterval !== undefined) {
+        newConfig.recurringInterval = strategy.recurringInterval;
+      }
+      if (strategy.endTime) {
+        newConfig.endTime = strategy.endTime;
+      }
+
+      triggerConfig.value = newConfig;
     }
   }
 
@@ -127,8 +155,6 @@ export function useStrategyConfig() {
     currentStrategyType,
     currentStrategyConfig,
     validation,
-    hasErrors,
-    errorMessage,
 
     // 方法
     setStrategyType,
