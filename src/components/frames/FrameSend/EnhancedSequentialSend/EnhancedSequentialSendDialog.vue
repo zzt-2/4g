@@ -100,7 +100,7 @@
     <TriggerConfigDialog
       v-if="sendStrategy === 'triggered'"
       v-model="showTriggerConfig"
-      :initial-config="triggerConfig"
+      :initial-config="triggerStore.triggerStrategyConfig"
       :source-options="sourceOptions"
       :frame-options="frameOptions"
       @confirm="onTriggerConfigConfirm"
@@ -132,6 +132,7 @@
 import { ref, computed } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
+import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
 import { useStrategyConfig } from '../../../../composables/frames/useStrategyConfig';
@@ -158,6 +159,7 @@ import { TaskConfigFile } from 'src/types/frames/taskConfig';
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 const sendTasksStore = useSendTasksStore();
+const triggerStore = useTriggerConfigStore();
 
 // 使用连接目标管理
 const { availableTargets, refreshTargets } = useConnectionTargets(
@@ -169,6 +171,7 @@ const {
   createSequentialTask,
   createTimedMultipleTask,
   createTriggeredMultipleTask,
+  createTimedTriggeredMultipleTask,
   startTask,
   stopTask,
   isProcessing,
@@ -176,17 +179,8 @@ const {
 } = useSendTaskManager();
 
 // 使用策略配置管理
-const {
-  timedConfig,
-  triggerConfig,
-  currentStrategyType,
-  currentStrategyConfig,
-  setStrategyType,
-  updateTimedConfig,
-  updateTriggerConfig,
-  applyExternalConfig,
-  validation,
-} = useStrategyConfig();
+const { timedConfig, currentStrategyType, setStrategyType, updateTimedConfig, validation } =
+  useStrategyConfig();
 
 // 使用任务配置管理器
 const { createTaskConfigData, parseTaskConfigData } = useTaskConfigManager();
@@ -298,8 +292,8 @@ function getStrategyPreview(): string {
   if (sendStrategy.value === 'timed' && timedConfig.value) {
     const { sendInterval, repeatCount, isInfinite } = timedConfig.value;
     return `每${sendInterval}ms发送一次，${isInfinite ? '无限循环' : `重复${repeatCount}次`}`;
-  } else if (sendStrategy.value === 'triggered' && triggerConfig.value) {
-    const config = triggerConfig.value;
+  } else if (sendStrategy.value === 'triggered') {
+    const config = triggerStore.triggerStrategyConfig;
     if (config.triggerType === 'condition') {
       const sourceName =
         sourceOptions.value.find((s) => s.id === config.sourceId)?.name || '未选择';
@@ -419,7 +413,7 @@ function onTimedConfigConfirm(config: TimedStrategyConfig) {
  * 触发配置确认
  */
 function onTriggerConfigConfirm(config: TriggerStrategyConfig) {
-  updateTriggerConfig(config);
+  triggerStore.loadFromStrategyConfig(config);
   showTriggerConfig.value = false;
 }
 
@@ -444,7 +438,10 @@ function handleGetTaskConfigData() {
     interval: item.interval || 1000,
   }));
 
-  const strategy = currentStrategyConfig.value;
+  const strategy =
+    sendStrategy.value === 'triggered'
+      ? triggerStore.triggerStrategyConfig
+      : timedConfig.value || { type: 'immediate' };
   const configName = `多帧发送配置`;
 
   return createTaskConfigData(instances, targets, strategy, configName);
@@ -485,8 +482,16 @@ async function handleSetTaskConfigData(configFileContent: unknown) {
 
     // 应用导入的策略配置，包括具体的配置参数
     if (configData.strategy) {
-      // 使用 applyExternalConfig 正确应用完整的策略配置
-      applyExternalConfig(configData.strategy);
+      // 根据策略类型应用配置
+      if (configData.strategy.type === 'triggered') {
+        setStrategyType('triggered');
+        triggerStore.loadFromStrategyConfig(configData.strategy);
+      } else if (configData.strategy.type === 'timed') {
+        setStrategyType('timed');
+        updateTimedConfig(configData.strategy);
+      } else {
+        setStrategyType('immediate');
+      }
     } else {
       setStrategyType('immediate');
     }
@@ -534,10 +539,7 @@ async function startSendingTask() {
         break;
 
       case 'triggered': {
-        if (!triggerConfig.value) {
-          throw new Error('触发配置不完整');
-        }
-        const config = triggerConfig.value;
+        const config = triggerStore.triggerStrategyConfig;
         if (config.triggerType === 'condition') {
           // 确保条件触发的必要字段存在
           if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
@@ -549,9 +551,26 @@ async function startSendingTask() {
             config.triggerFrameId,
             config.conditions,
             '多帧条件触发发送',
+            `包含${selectedInstances.value.length}个帧实例的条件触发任务`,
+            config.continueListening ?? true,
+          );
+        } else if (config.triggerType === 'time') {
+          // 时间触发逻辑
+          if (!config.executeTime) {
+            throw new Error('时间触发配置不完整：缺少执行时间');
+          }
+          taskId = createTimedTriggeredMultipleTask(
+            selectedInstances.value,
+            config.executeTime,
+            config.isRecurring || false,
+            config.recurringType,
+            config.recurringInterval,
+            config.endTime,
+            '多帧时间触发发送',
+            `包含${selectedInstances.value.length}个帧实例的时间触发任务`,
           );
         } else {
-          throw new Error('暂不支持时间触发的多帧发送');
+          throw new Error('未知的触发类型');
         }
         break;
       }

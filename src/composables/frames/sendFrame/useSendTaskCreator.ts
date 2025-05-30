@@ -179,6 +179,7 @@ export function useSendTaskCreator() {
     triggerFrameId: string,
     conditions: TriggerCondition[],
     name: string = '触发发送任务',
+    continueListening: boolean = true,
   ): string | null {
     try {
       // 查找实例
@@ -201,6 +202,7 @@ export function useSendTaskCreator() {
         sourceId,
         triggerFrameId,
         conditions,
+        continueListening,
       };
 
       // 添加到任务存储
@@ -229,6 +231,7 @@ export function useSendTaskCreator() {
     conditions: TriggerCondition[],
     name: string = '多实例触发发送任务',
     description: string = '',
+    continueListening: boolean = true,
   ): string | null {
     if (!instances.length) {
       processingError.value = '无法创建任务：没有实例';
@@ -244,6 +247,7 @@ export function useSendTaskCreator() {
         sourceId,
         triggerFrameId,
         conditions,
+        continueListening,
       };
 
       // 添加到任务存储
@@ -262,6 +266,115 @@ export function useSendTaskCreator() {
     }
   }
 
+  /**
+   * 创建单实例时间触发发送任务
+   */
+  function createTimedTriggeredSingleTask(
+    instanceId: string,
+    targetId: string,
+    executeTime: string,
+    isRecurring: boolean = false,
+    recurringType?: 'daily' | 'weekly' | 'monthly',
+    recurringInterval?: number,
+    endTime?: string,
+    name: string = '时间触发发送任务',
+  ): string | null {
+    try {
+      // 查找实例
+      const instance = sendFrameInstancesStore.instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        processingError.value = '无法创建任务：找不到指定的实例';
+        return null;
+      }
+
+      // 创建时间触发任务配置
+      const taskConfig: TriggerTaskConfig = {
+        instances: [
+          {
+            id: `task_instance_${Date.now()}`,
+            instanceId,
+            targetId,
+          },
+        ],
+        name,
+        sourceId: '', // 时间触发不需要源ID
+        triggerFrameId: '', // 时间触发不需要触发帧ID
+        conditions: [], // 时间触发不需要条件
+        triggerType: 'time',
+        executeTime,
+        isRecurring,
+        ...(recurringType ? { recurringType } : {}),
+        ...(recurringInterval !== undefined ? { recurringInterval } : {}),
+        ...(endTime ? { endTime } : {}),
+      };
+
+      // 添加到任务存储
+      const taskId = sendTasksStore.addTask({
+        name,
+        type: 'triggered-single',
+        status: 'idle',
+        config: taskConfig,
+      });
+
+      return taskId;
+    } catch (e) {
+      console.error('创建时间触发发送任务失败:', e);
+      processingError.value = e instanceof Error ? e.message : '创建任务失败';
+      return null;
+    }
+  }
+
+  /**
+   * 创建多实例时间触发发送任务
+   */
+  function createTimedTriggeredMultipleTask(
+    instances: FrameInstanceInTask[],
+    executeTime: string,
+    isRecurring: boolean = false,
+    recurringType?: 'daily' | 'weekly' | 'monthly' | 'second' | 'minute' | 'hour',
+    recurringInterval?: number,
+    endTime?: string,
+    name: string = '多实例时间触发发送任务',
+    description: string = '',
+  ): string | null {
+    if (!instances.length) {
+      processingError.value = '无法创建任务：没有实例';
+      return null;
+    }
+
+    try {
+      // 创建时间触发任务配置
+      const taskConfig: TriggerTaskConfig = {
+        instances,
+        name,
+        description,
+        sourceId: '', // 时间触发不需要源ID
+        triggerFrameId: '', // 时间触发不需要触发帧ID
+        conditions: [], // 时间触发不需要条件
+        triggerType: 'time',
+        executeTime,
+        isRecurring,
+        ...(recurringType ? { recurringType } : {}),
+        ...(recurringInterval !== undefined ? { recurringInterval } : {}),
+        ...(endTime ? { endTime } : {}),
+      };
+
+      // 添加到任务存储
+      const taskId = sendTasksStore.addTask({
+        name,
+        type: 'triggered-multiple',
+        status: 'idle',
+        config: taskConfig,
+      });
+
+      return taskId;
+    } catch (e) {
+      console.error('创建多实例时间触发发送任务失败:', e);
+      processingError.value = e instanceof Error ? e.message : '创建任务失败';
+      return null;
+    }
+  }
+
   return {
     // 状态
     processingError,
@@ -272,5 +385,7 @@ export function useSendTaskCreator() {
     createTimedMultipleTask,
     createTriggeredSingleTask,
     createTriggeredMultipleTask,
+    createTimedTriggeredSingleTask,
+    createTimedTriggeredMultipleTask,
   };
 }

@@ -26,7 +26,8 @@ export type TaskStatus =
   | 'paused' // 暂停
   | 'completed' // 已完成
   | 'error' // 错误
-  | 'waiting-trigger'; // 等待触发
+  | 'waiting-trigger' // 等待条件触发
+  | 'waiting-schedule'; // 等待时间触发
 
 /**
  * 任务中的帧实例配置
@@ -80,6 +81,14 @@ export interface TriggerTaskConfig extends TaskConfigBase {
   triggerFrameId: string;
   conditions: TriggerCondition[];
   responseDelay?: number;
+  continueListening?: boolean; // 触发后是否继续监听（默认true）
+  // 时间触发相关字段
+  triggerType?: 'condition' | 'time';
+  executeTime?: string; // ISO 8601 日期时间字符串
+  isRecurring?: boolean; // 是否重复
+  recurringType?: 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'; // 重复类型
+  recurringInterval?: number; // 重复间隔
+  endTime?: string; // 重复结束时间
 }
 
 /**
@@ -111,7 +120,10 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
   const activeTasks = computed(() =>
     tasks.value.filter(
       (task) =>
-        task.status === 'running' || task.status === 'paused' || task.status === 'waiting-trigger',
+        task.status === 'running' ||
+        task.status === 'paused' ||
+        task.status === 'waiting-trigger' ||
+        task.status === 'waiting-schedule',
     ),
   );
 

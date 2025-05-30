@@ -12,12 +12,19 @@
       />
     </div>
 
-    <div v-if="localConditions.length === 0" class="text-center p-4 text-industrial-secondary">
+    <div
+      v-if="triggerStore.conditions.length === 0"
+      class="text-center p-4 text-industrial-secondary"
+    >
       <q-icon name="info" size="24px" class="mb-2" />
       <div>暂无触发条件，请点击"添加条件"按钮添加</div>
     </div>
 
-    <div v-for="(condition, index) in localConditions" :key="condition.id" class="condition-item">
+    <div
+      v-for="(condition, index) in triggerStore.conditions"
+      :key="condition.id"
+      class="condition-item"
+    >
       <q-card class="bg-industrial-panel border border-industrial">
         <q-card-section class="p-3">
           <div class="flex items-center justify-between mb-2">
@@ -107,23 +114,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import { nanoid } from 'nanoid';
+import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 import type { TriggerCondition } from '../../../../types/frames/sendInstances';
 
-const props = defineProps<{
-  conditions: TriggerCondition[];
+defineProps<{
   fieldOptions?: Array<{ id: string; label: string }>;
 }>();
 
-const emit = defineEmits<{
-  'update:conditions': [conditions: TriggerCondition[]];
-}>();
-
-const localConditions = computed({
-  get: () => props.conditions,
-  set: (value) => emit('update:conditions', value),
-});
+// 使用 store
+const triggerStore = useTriggerConfigStore();
 
 /**
  * 添加新条件
@@ -137,25 +137,25 @@ function addCondition() {
     logicOperator: 'and',
   };
 
-  localConditions.value = [...localConditions.value, newCondition];
+  triggerStore.conditions = [...triggerStore.conditions, newCondition];
 }
 
 /**
  * 删除条件
  */
 function removeCondition(index: number) {
-  const newConditions = [...localConditions.value];
+  const newConditions = [...triggerStore.conditions];
   newConditions.splice(index, 1);
-  localConditions.value = newConditions;
+  triggerStore.conditions = newConditions;
 }
 
 /**
  * 更新条件
  */
 function updateCondition(index: number, condition: TriggerCondition) {
-  const newConditions = [...localConditions.value];
+  const newConditions = [...triggerStore.conditions];
   newConditions[index] = { ...condition };
-  localConditions.value = newConditions;
+  triggerStore.conditions = newConditions;
 }
 </script>
 

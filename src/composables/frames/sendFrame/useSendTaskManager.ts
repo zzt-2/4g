@@ -94,6 +94,26 @@ export function useSendTaskManager() {
     return taskId;
   };
 
+  const createTimedTriggeredSingleTask = (
+    ...args: Parameters<typeof taskCreator.createTimedTriggeredSingleTask>
+  ) => {
+    const taskId = taskCreator.createTimedTriggeredSingleTask(...args);
+    if (taskId) {
+      currentTaskId.value = taskId;
+    }
+    return taskId;
+  };
+
+  const createTimedTriggeredMultipleTask = (
+    ...args: Parameters<typeof taskCreator.createTimedTriggeredMultipleTask>
+  ) => {
+    const taskId = taskCreator.createTimedTriggeredMultipleTask(...args);
+    if (taskId) {
+      currentTaskId.value = taskId;
+    }
+    return taskId;
+  };
+
   // 扩展停止任务函数，清空当前任务ID
   const stopTask = (taskId: string) => {
     const result = taskController.stopTask(taskId);
@@ -141,6 +161,8 @@ export function useSendTaskManager() {
     createTimedMultipleTask,
     createTriggeredSingleTask,
     createTriggeredMultipleTask,
+    createTimedTriggeredSingleTask,
+    createTimedTriggeredMultipleTask,
 
     // 任务执行 (从 taskExecutor)
     startTask: taskExecutor.startTask,

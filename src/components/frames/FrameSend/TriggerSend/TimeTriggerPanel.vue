@@ -39,19 +39,21 @@
     <!-- 重复设置 -->
     <div class="space-y-2 mt-4">
       <q-checkbox
-        v-model="localConfig.isRecurring"
+        v-model="triggerStore.isRecurring"
         label="重复执行"
         color="primary"
         class="text-industrial-primary"
-        @update:model-value="onRecurringChange"
       />
 
       <!-- 重复配置 -->
-      <div v-if="localConfig.isRecurring" class="space-y-3 ml-6">
+      <div v-if="triggerStore.isRecurring" class="space-y-3 ml-6">
         <div class="grid grid-cols-2 gap-3">
           <q-select
-            v-model="localConfig.recurringType"
+            v-model="triggerStore.recurringType"
             :options="[
+              { label: '每秒', value: 'second' },
+              { label: '每分钟', value: 'minute' },
+              { label: '每小时', value: 'hour' },
               { label: '每日', value: 'daily' },
               { label: '每周', value: 'weekly' },
               { label: '每月', value: 'monthly' },
@@ -64,22 +66,20 @@
             outlined
             dense
             class="bg-industrial-panel text-industrial-primary"
-            @update:model-value="(value) => updateConfig({ recurringType: value })"
           />
           <q-input
-            v-model.number="localConfig.recurringInterval"
+            v-model.number="triggerStore.recurringInterval"
             type="number"
             label="重复间隔"
-            min="1"
+            :min="getMinInterval(triggerStore.recurringType)"
             step="1"
             outlined
             dense
             class="bg-industrial-panel text-industrial-primary"
-            @update:model-value="(value) => updateConfig({ recurringInterval: Number(value) || 1 })"
           >
             <template #append>
               <span class="text-industrial-secondary text-xs">
-                {{ getIntervalUnit(localConfig.recurringType) }}
+                {{ getIntervalUnit(triggerStore.recurringType) }}
               </span>
             </template>
           </q-input>
@@ -99,6 +99,25 @@
             <q-icon name="event_busy" class="text-industrial-accent" />
           </template>
         </q-input>
+
+        <!-- 高频执行警告 -->
+        <div
+          v-if="triggerStore.recurringType === 'second'"
+          class="bg-orange-900 bg-opacity-20 border border-orange-700 rounded p-3 mt-2"
+        >
+          <div class="flex items-start">
+            <q-icon name="warning" class="text-orange-400 mr-2 mt-0.5" size="sm" />
+            <div class="text-xs text-orange-300">
+              <div class="font-medium mb-1">高频执行警告</div>
+              <div>
+                当前配置为
+                {{ triggerStore.recurringInterval || 1
+                }}{{ getIntervalUnit(triggerStore.recurringType) }}
+                执行一次。请确保串口设备能够处理如此频繁的数据发送，过于频繁的发送可能会影响设备性能或造成数据丢失。
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -118,21 +137,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import type { TimeTriggerConfig } from '../../../../types/frames/sendInstances';
+import { ref, watch } from 'vue';
+import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 
-const props = defineProps<{
-  config: TimeTriggerConfig;
-}>();
-
-const emit = defineEmits<{
-  'update:config': [config: TimeTriggerConfig];
-}>();
-
-const localConfig = computed({
-  get: () => props.config,
-  set: (value) => emit('update:config', value),
-});
+// 使用 store
+const triggerStore = useTriggerConfigStore();
 
 // 将执行时间分解为日期和时间
 const executeDate = ref('');
@@ -141,7 +150,7 @@ const endDate = ref('');
 
 // 初始化时间字段
 watch(
-  () => props.config.executeTime,
+  () => triggerStore.executeTime,
   (newTime) => {
     if (newTime) {
       const date = new Date(newTime);
@@ -161,7 +170,7 @@ watch(
 );
 
 watch(
-  () => props.config.endTime,
+  () => triggerStore.endTime,
   (newTime) => {
     if (newTime) {
       const date = new Date(newTime);
@@ -180,7 +189,7 @@ watch(
 function updateExecuteTime() {
   if (executeDate.value && executeTime.value) {
     const dateTime = new Date(`${executeDate.value}T${executeTime.value}`);
-    updateConfig({ executeTime: dateTime.toISOString() });
+    triggerStore.executeTime = dateTime.toISOString();
   }
 }
 
@@ -190,43 +199,10 @@ function updateExecuteTime() {
 function updateEndTime() {
   if (endDate.value) {
     const dateTime = new Date(`${endDate.value}T23:59:59`);
-    updateConfig({ endTime: dateTime.toISOString() });
+    triggerStore.endTime = dateTime.toISOString();
   } else {
-    const config = { ...localConfig.value };
-    delete config.endTime;
-    localConfig.value = config;
+    triggerStore.endTime = '';
   }
-}
-
-/**
- * 重复设置变化
- */
-function onRecurringChange(isRecurring: boolean) {
-  if (isRecurring) {
-    updateConfig({
-      isRecurring: true,
-      recurringType: 'daily' as const,
-      recurringInterval: 1,
-    });
-  } else {
-    const config = { ...localConfig.value };
-    config.isRecurring = false;
-    delete config.recurringType;
-    delete config.recurringInterval;
-    delete config.endTime;
-    localConfig.value = config;
-    endDate.value = '';
-  }
-}
-
-/**
- * 更新配置
- */
-function updateConfig(updates: Partial<TimeTriggerConfig>) {
-  localConfig.value = {
-    ...localConfig.value,
-    ...updates,
-  };
 }
 
 /**
@@ -235,11 +211,30 @@ function updateConfig(updates: Partial<TimeTriggerConfig>) {
 function getIntervalUnit(type: string | undefined): string {
   if (!type) return '';
   const units = {
+    second: '秒',
+    minute: '分钟',
+    hour: '小时',
     daily: '天',
     weekly: '周',
     monthly: '月',
   };
   return units[type as keyof typeof units] || '';
+}
+
+/**
+ * 获取重复间隔的最小值
+ */
+function getMinInterval(type: string | undefined): number {
+  if (!type) return 1;
+  const minIntervals = {
+    second: 1,
+    minute: 1,
+    hour: 1,
+    daily: 1,
+    weekly: 1,
+    monthly: 1,
+  };
+  return minIntervals[type as keyof typeof minIntervals] || 1;
 }
 
 /**

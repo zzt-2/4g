@@ -86,11 +86,12 @@ export interface TriggerStrategyConfig extends StrategyConfigBase {
   sourceId?: string; // 监听来源ID
   triggerFrameId?: string; // 触发帧ID
   conditions?: TriggerCondition[]; // 触发条件列表
+  continueListening?: boolean; // 触发后是否继续监听（默认true）
 
   // 时间触发相关字段
   executeTime?: string; // ISO 8601 日期时间字符串
   isRecurring?: boolean; // 是否重复
-  recurringType?: 'daily' | 'weekly' | 'monthly'; // 重复类型
+  recurringType?: 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'; // 重复类型
   recurringInterval?: number; // 重复间隔（如每2天、每3周）
   endTime?: string; // 重复结束时间
 }
@@ -103,7 +104,7 @@ export interface TimeTriggerConfig {
   triggerType: 'time';
   executeTime: string; // ISO 8601 日期时间字符串
   isRecurring?: boolean; // 是否重复
-  recurringType?: 'daily' | 'weekly' | 'monthly'; // 重复类型
+  recurringType?: 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'; // 重复类型
   recurringInterval?: number; // 重复间隔（如每2天、每3周）
   endTime?: string; // 重复结束时间
 }
@@ -117,6 +118,7 @@ export interface ConditionTriggerConfig {
   sourceId: string; // 监听来源ID
   triggerFrameId: string; // 触发帧ID
   conditions: TriggerCondition[]; // 触发条件列表
+  continueListening?: boolean; // 触发后是否继续监听（默认true）
 }
 
 /**

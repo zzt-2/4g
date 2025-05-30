@@ -3,7 +3,7 @@
     <!-- 监听来源选择 -->
     <div>
       <q-select
-        v-model="localConfig.sourceId"
+        v-model="triggerStore.sourceId"
         :options="sourceOptions"
         option-value="id"
         option-label="name"
@@ -14,7 +14,6 @@
         class="bg-industrial-panel text-industrial-primary"
         outlined
         dense
-        @update:model-value="updateConfig"
       >
         <template #prepend>
           <q-icon name="sensors" class="text-industrial-accent" />
@@ -30,7 +29,7 @@
     <!-- 触发帧选择 -->
     <div>
       <q-select
-        v-model="localConfig.triggerFrameId"
+        v-model="triggerStore.triggerFrameId"
         :options="frameOptions"
         option-value="id"
         option-label="name"
@@ -57,40 +56,55 @@
     <!-- 触发条件配置 -->
     <div>
       <TriggerConditionList
-        v-model:conditions="localConfig.conditions"
+        v-model:conditions="triggerStore.conditions"
         :field-options="triggerFrameFields"
-        @update:conditions="updateConfig"
       />
+    </div>
+
+    <!-- 触发后行为配置 -->
+    <div class="bg-industrial-highlight rounded p-3 border border-industrial">
+      <div class="text-subtitle2 text-industrial-primary mb-3 flex items-center">
+        <q-icon name="settings" class="mr-2" />
+        触发后行为设置
+      </div>
+
+      <q-checkbox
+        v-model="triggerStore.continueListening"
+        label="触发后继续监听"
+        color="primary"
+        class="text-industrial-primary"
+      />
+
+      <div class="text-xs text-industrial-secondary mt-2 ml-6">
+        {{
+          triggerStore.continueListening
+            ? '触发条件满足后，任务将继续监听并可能再次触发'
+            : '触发条件满足后，任务将自动停止监听'
+        }}
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { ConditionTriggerConfig } from '../../../../types/frames/sendInstances';
+import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 import TriggerConditionList from './TriggerConditionList.vue';
 
 const props = defineProps<{
-  config: ConditionTriggerConfig;
   sourceOptions?: Array<{ id: string; name: string; description?: string }>;
   frameOptions?: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string }> }>;
 }>();
 
-const emit = defineEmits<{
-  'update:config': [config: ConditionTriggerConfig];
-}>();
-
-const localConfig = computed({
-  get: () => props.config,
-  set: (value) => emit('update:config', value),
-});
+// 使用 store
+const triggerStore = useTriggerConfigStore();
 
 // 计算触发帧的字段选项
 const triggerFrameFields = computed(() => {
-  if (!localConfig.value.triggerFrameId) return [];
+  if (!triggerStore.triggerFrameId) return [];
 
   const selectedFrame = props.frameOptions?.find(
-    (frame) => frame.id === localConfig.value.triggerFrameId,
+    (frame) => frame.id === triggerStore.triggerFrameId,
   );
 
   return (
@@ -106,18 +120,7 @@ const triggerFrameFields = computed(() => {
  */
 function onTriggerFrameChange() {
   // 当触发帧变化时，清空已有的条件
-  localConfig.value = {
-    ...localConfig.value,
-    conditions: [],
-  };
-  updateConfig();
-}
-
-/**
- * 更新配置
- */
-function updateConfig() {
-  emit('update:config', { ...localConfig.value });
+  triggerStore.conditions = [];
 }
 </script>
 

@@ -13,10 +13,8 @@
 
       <q-card-section>
         <TriggerConfigPanel
-          :config="localConfig"
           :source-options="sourceOptions || []"
           :frame-options="frameOptions || []"
-          @update:config="onConfigUpdate"
         />
       </q-card-section>
 
@@ -30,9 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { computed, watch } from 'vue';
+import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 import type { TriggerStrategyConfig } from '../../../../types/frames/sendInstances';
-import { createDefaultTriggerConfig } from '../../../../utils/frames/defaultConfigs';
 import TriggerConfigPanel from './TriggerConfigPanel.vue';
 
 const props = defineProps<{
@@ -48,43 +46,37 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+// 使用 store
+const triggerStore = useTriggerConfigStore();
+
 const show = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 });
-
-const localConfig = ref<TriggerStrategyConfig>(props.initialConfig || createDefaultTriggerConfig());
 
 // 监听初始配置变化
 watch(
   () => props.initialConfig,
   (newConfig) => {
     if (newConfig) {
-      localConfig.value = { ...newConfig };
+      triggerStore.loadFromStrategyConfig(newConfig);
     }
   },
   { immediate: true },
 );
 
-// 监听对话框打开，重置配置
+// 监听对话框打开，同步配置
 watch(show, (isOpen) => {
   if (isOpen && props.initialConfig) {
-    localConfig.value = { ...props.initialConfig };
+    triggerStore.loadFromStrategyConfig(props.initialConfig);
   }
 });
-
-/**
- * 更新配置
- */
-function onConfigUpdate(config: TriggerStrategyConfig) {
-  localConfig.value = config;
-}
 
 /**
  * 确认配置
  */
 function confirm() {
-  emit('confirm', { ...localConfig.value });
+  emit('confirm', triggerStore.triggerStrategyConfig);
   show.value = false;
 }
 
@@ -100,7 +92,7 @@ function cancel() {
  * 重置配置
  */
 function reset() {
-  localConfig.value = createDefaultTriggerConfig();
+  triggerStore.resetConfig();
 }
 </script>
 

@@ -60,6 +60,7 @@ const taskStatusLabels: Record<TaskStatus, string> = {
   completed: '已完成',
   error: '错误',
   'waiting-trigger': '等待触发',
+  'waiting-schedule': '等待执行',
 };
 
 // 任务状态颜色
@@ -70,6 +71,7 @@ const taskStatusColors: Record<TaskStatus, string> = {
   completed: 'positive',
   error: 'negative',
   'waiting-trigger': 'purple',
+  'waiting-schedule': 'indigo',
 };
 
 // 任务类型图标
@@ -104,18 +106,28 @@ function handleTaskAction(action: string, taskId: string) {
   }
 }
 
-// 计算任务的剩余时间（用于定时任务）
+// 计算任务的剩余时间（用于定时任务和时间触发任务）
 function calculateRemainingTime(task: SendTask): string {
   if (
-    task.type.includes('timed') &&
-    task.status === 'running' &&
+    (task.type.includes('timed') || task.type.includes('triggered')) &&
+    (task.status === 'running' || task.status === 'waiting-schedule') &&
     task.progress?.nextExecutionTime
   ) {
     const remaining = task.progress.nextExecutionTime - Date.now();
     if (remaining <= 0) return '即将执行';
 
     const seconds = Math.floor(remaining / 1000);
-    return `${seconds}秒后`;
+    if (seconds >= 3600) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}时${minutes}分后`;
+    } else if (seconds >= 60) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}分${remainingSeconds}秒后`;
+    } else {
+      return `${seconds}秒后`;
+    }
   }
   return '';
 }
@@ -262,6 +274,7 @@ onBeforeUnmount(() => {
                       { label: '运行中', value: 'running' },
                       { label: '已暂停', value: 'paused' },
                       { label: '等待触发', value: 'waiting-trigger' },
+                      { label: '等待执行', value: 'waiting-schedule' },
                       { label: '错误', value: 'error' },
                     ]"
                     push
@@ -371,11 +384,29 @@ onBeforeUnmount(() => {
                           >
                             等待触发条件满足
                           </div>
+
+                          <!-- 时间触发任务特有信息 -->
+                          <div
+                            v-if="
+                              task.type.includes('triggered') && task.status === 'waiting-schedule'
+                            "
+                            class="text-xs text-indigo-400"
+                          >
+                            {{
+                              calculateRemainingTime(task)
+                                ? `将在 ${calculateRemainingTime(task)} 执行`
+                                : '等待执行时间到达'
+                            }}
+                          </div>
                         </template>
 
                         <!-- 运行时长 -->
                         <div
-                          v-if="task.status === 'running' || task.status === 'waiting-trigger'"
+                          v-if="
+                            task.status === 'running' ||
+                            task.status === 'waiting-trigger' ||
+                            task.status === 'waiting-schedule'
+                          "
                           class="text-xs text-industrial-secondary ml-auto"
                         >
                           运行: {{ calculateDuration(task) }}
@@ -454,6 +485,21 @@ onBeforeUnmount(() => {
                           @click.stop="handleTaskAction('stop', task.id)"
                         >
                           <q-tooltip>停止监听</q-tooltip>
+                        </q-btn>
+                      </template>
+
+                      <!-- 等待时间触发任务的操作 -->
+                      <template v-else-if="task.status === 'waiting-schedule'">
+                        <q-btn
+                          flat
+                          dense
+                          round
+                          size="sm"
+                          icon="stop"
+                          color="negative"
+                          @click.stop="handleTaskAction('stop', task.id)"
+                        >
+                          <q-tooltip>停止定时</q-tooltip>
                         </q-btn>
                       </template>
 

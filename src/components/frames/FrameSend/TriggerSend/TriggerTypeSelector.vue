@@ -2,35 +2,23 @@
   <div class="trigger-type-selector">
     <div class="text-subtitle2 text-industrial-primary mb-3">触发类型</div>
     <q-option-group
-      v-model="selectedType"
+      v-model="triggerStore.triggerType"
       :options="triggerTypeOptions"
-      color="primary"
       inline
-      class="trigger-type-options"
-      @update:model-value="onTypeChange"
+      class="trigger-type-options text-industrial-primary"
     />
     <div class="text-xs text-industrial-secondary mt-2">
-      {{ getTypeDescription(selectedType) }}
+      {{ getTypeDescription(triggerStore.triggerType) }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 import type { TriggerType } from '../../../../types/frames/sendInstances';
 
-const props = defineProps<{
-  modelValue: TriggerType;
-}>();
-
-const emit = defineEmits<{
-  'update:modelValue': [value: TriggerType];
-}>();
-
-const selectedType = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value),
-});
+// 使用 store
+const triggerStore = useTriggerConfigStore();
 
 const triggerTypeOptions = [
   { label: '条件触发', value: 'condition' },
@@ -46,13 +34,6 @@ function getTypeDescription(type: TriggerType): string {
     time: '在指定的日期时间触发发送，支持一次性和重复执行',
   };
   return descriptions[type] || '';
-}
-
-/**
- * 类型变化处理
- */
-function onTypeChange(type: TriggerType) {
-  selectedType.value = type;
 }
 </script>
 
