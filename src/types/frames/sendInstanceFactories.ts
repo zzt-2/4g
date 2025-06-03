@@ -66,5 +66,9 @@ export function createSendFrameInstance(frame: Frame, id?: string): SendFrameIns
     updatedAt: new Date(),
     fields: frame.fields.map((field) => createSendInstanceField(field)),
     isFavorite: false,
+    strategyConfig: {
+      type: 'none',
+      updatedAt: new Date().toISOString(),
+    },
   };
 }

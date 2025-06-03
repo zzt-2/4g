@@ -13,11 +13,10 @@ export interface FrameOptions {
 }
 
 export interface IdentifierRule {
-  startBit: number;
-  endBit: number;
+  startIndex: number;
+  endIndex: number;
   operator: string;
   value: string;
-  format: string;
   logicOperator: 'and' | 'or';
 }
 

@@ -114,7 +114,7 @@ class DataStorageManager<T> {
    * @param idField ID字段名称，默认为'id'
    * @returns 删除是否成功
    */
-  async deleteItem(id: any, idField: keyof T = 'id' as keyof T): Promise<boolean> {
+  async deleteItem(id: unknown, idField: keyof T = 'id' as keyof T): Promise<boolean> {
     // 确保数据已加载
     if (this.data.length === 0) {
       await this.loadData();

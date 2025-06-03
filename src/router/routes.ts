@@ -23,6 +23,10 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../pages/FrameSendPage.vue'),
       },
       {
+        path: '/frames/receive',
+        component: () => import('../pages/ReceiveFramePage.vue'),
+      },
+      {
         path: '/settings',
         component: () => import('../pages/settings/Index.vue'),
       },

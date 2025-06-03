@@ -13,7 +13,7 @@
     </div>
 
     <div
-      v-if="triggerStore.conditions.length === 0"
+      v-if="sendFrameInstancesStore.conditions.length === 0"
       class="text-center p-4 text-industrial-secondary"
     >
       <q-icon name="info" size="24px" class="mb-2" />
@@ -21,7 +21,7 @@
     </div>
 
     <div
-      v-for="(condition, index) in triggerStore.conditions"
+      v-for="(condition, index) in sendFrameInstancesStore.conditions"
       :key="condition.id"
       class="condition-item"
     >
@@ -115,7 +115,7 @@
 
 <script setup lang="ts">
 import { nanoid } from 'nanoid';
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import type { TriggerCondition } from '../../../../types/frames/sendInstances';
 
 defineProps<{
@@ -123,7 +123,7 @@ defineProps<{
 }>();
 
 // 使用 store
-const triggerStore = useTriggerConfigStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 /**
  * 添加新条件
@@ -137,25 +137,25 @@ function addCondition() {
     logicOperator: 'and',
   };
 
-  triggerStore.conditions = [...triggerStore.conditions, newCondition];
+  sendFrameInstancesStore.conditions = [...sendFrameInstancesStore.conditions, newCondition];
 }
 
 /**
  * 删除条件
  */
 function removeCondition(index: number) {
-  const newConditions = [...triggerStore.conditions];
+  const newConditions = [...sendFrameInstancesStore.conditions];
   newConditions.splice(index, 1);
-  triggerStore.conditions = newConditions;
+  sendFrameInstancesStore.conditions = newConditions;
 }
 
 /**
  * 更新条件
  */
 function updateCondition(index: number, condition: TriggerCondition) {
-  const newConditions = [...triggerStore.conditions];
+  const newConditions = [...sendFrameInstancesStore.conditions];
   newConditions[index] = { ...condition };
-  triggerStore.conditions = newConditions;
+  sendFrameInstancesStore.conditions = newConditions;
 }
 </script>
 

@@ -19,16 +19,10 @@ import {
   calculateChecksum,
 } from '../../../utils/frames/frameInstancesUtils';
 import { convertToHex, initializeHexValues } from '../../../utils/frames/hexCovertUtils';
-import type {
-  SendFrameInstance,
-  SendInstanceField,
-  InstanceTargetConfig,
-  StrategyConfig,
-} from '../../../types/frames/sendInstances';
+import type { SendFrameInstance, SendInstanceField } from '../../../types/frames/sendInstances';
 import { createSendFrameInstance } from '../../../types/frames/sendInstanceFactories';
 import type { Frame } from '../../../types/frames/frames';
 import { dataStorageAPI } from '../../../utils/electronApi';
-import { useTaskConfigManager } from './useTaskConfigManager';
 
 /**
  * 帧实例基本状态管理
@@ -455,14 +449,6 @@ export function useInstanceEditing(state: ReturnType<typeof useInstancesState>) 
  * 帧实例导入导出功能
  */
 export function useInstancesImportExport(state: ReturnType<typeof useInstancesState>) {
-  // 导出为JSON
-  async function exportToJSON(): Promise<string | null> {
-    return state.withErrorHandling(() => {
-      const jsonString = JSON.stringify(state.instances.value);
-      return Promise.resolve(jsonString);
-    }, '导出发送实例失败');
-  }
-
   // 从JSON导入
   async function importFromJSON(json: string): Promise<boolean | null> {
     return state.withErrorHandling(async () => {
@@ -482,86 +468,8 @@ export function useInstancesImportExport(state: ReturnType<typeof useInstancesSt
     }, '导入发送实例失败');
   }
 
-  // 保存实例到文件
-  async function saveToFile(filename?: string): Promise<boolean | null> {
-    return state.withErrorHandling(async () => {
-      // 使用electron API导出到文件
-      const result = await dataStorageAPI.sendInstances.export(state.instances.value, filename);
-      return result.success;
-    }, '保存实例到文件失败');
-  }
-
-  // 从文件加载实例
-  async function loadFromFile(filename?: string): Promise<boolean | null> {
-    return state.withErrorHandling(async () => {
-      // 使用electron API从文件导入
-      const result = await dataStorageAPI.sendInstances.import(filename);
-
-      if (result.success && result.data) {
-        // 更新本地数据
-        state.instances.value = result.data;
-        await dataStorageAPI.sendInstances.saveAll(result.data);
-        return true;
-      }
-
-      throw new Error(result.message || '从文件加载实例失败');
-    }, '从文件加载实例失败');
-  }
-
-  // 新增：任务配置管理器
-  const taskConfigManager = useTaskConfigManager();
-
-  // 新增：保存任务配置到用户选择的文件
-  async function saveConfigToUserFile(
-    instances: SendFrameInstance[],
-    targets: InstanceTargetConfig[],
-    strategy?: StrategyConfig,
-    name: string = '发送配置',
-    description?: string,
-  ): Promise<boolean | null> {
-    return state.withErrorHandling(async () => {
-      const result = await taskConfigManager.saveConfigToUserFile(
-        instances,
-        targets,
-        strategy,
-        name,
-        description,
-      );
-
-      if (!result.success) {
-        throw new Error(result.message || '保存配置失败');
-      }
-
-      return true;
-    }, '保存配置到文件失败');
-  }
-
-  // 新增：从用户选择的文件加载任务配置
-  async function loadConfigFromUserFile(): Promise<{
-    instances: SendFrameInstance[];
-    targets: InstanceTargetConfig[];
-    strategy?: StrategyConfig;
-    name: string;
-    description?: string;
-  } | null> {
-    return state.withErrorHandling(async () => {
-      const result = await taskConfigManager.loadConfigFromUserFile();
-
-      if (!result.success || !result.data) {
-        throw new Error(result.message || '加载配置失败');
-      }
-
-      return result.data;
-    }, '从文件加载配置失败');
-  }
-
   return {
-    exportToJSON,
     importFromJSON,
-    saveToFile,
-    loadFromFile,
-    saveConfigToUserFile,
-    loadConfigFromUserFile,
   };
 }
 

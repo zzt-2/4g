@@ -6,7 +6,7 @@
     "description": "",
     "paramCount": 1,
     "createdAt": "2025-04-30T07:57:14.698Z",
-    "updatedAt": "2025-04-30T07:57:30.907Z",
+    "updatedAt": "2025-06-03T03:34:05.895Z",
     "fields": [
       {
         "id": "oebDvBdhjIwiLgeU1M9pZ",
@@ -105,7 +105,34 @@
         "options": []
       }
     ],
-    "isFavorite": false
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-06-03T03:34:05.895Z",
+      "timedConfig": {
+        "type": "timed",
+        "sendInterval": 1000,
+        "repeatCount": 1,
+        "isInfinite": true
+      },
+      "targetId": "serial:COM1",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "serial:COM2",
+        "triggerFrameId": "12345678",
+        "conditions": [
+          {
+            "id": "condition_1748921631324",
+            "fieldId": "BK22GwuP0-AP7yVHieyKw",
+            "condition": "not_equals",
+            "value": "1"
+          }
+        ],
+        "continueListening": true
+      }
+    }
   },
   {
     "id": "1",
@@ -158,7 +185,7 @@
     "description": "",
     "paramCount": 1,
     "createdAt": "2025-05-15T05:52:13.041Z",
-    "updatedAt": "2025-05-15T05:52:16.098Z",
+    "updatedAt": "2025-05-30T15:30:17.985Z",
     "fields": [
       {
         "id": "oebDvBdhjIwiLgeU1M9pZ",
@@ -257,7 +284,18 @@
         "options": []
       }
     ],
-    "isFavorite": false
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "timed",
+      "updatedAt": "2025-05-30T15:30:17.985Z",
+      "timedConfig": {
+        "type": "timed",
+        "sendInterval": 1000,
+        "repeatCount": 1,
+        "isInfinite": false
+      },
+      "targetId": "serial:COM1"
+    }
   },
   {
     "id": "3",
@@ -294,7 +332,7 @@
     "description": "",
     "paramCount": 1,
     "createdAt": "2025-05-15T05:52:18.554Z",
-    "updatedAt": "2025-05-15T05:52:19.371Z",
+    "updatedAt": "2025-05-30T14:02:19.306Z",
     "fields": [
       {
         "id": "941q7cnKaSIYusJOtWff7",
@@ -329,7 +367,27 @@
         "options": []
       }
     ],
-    "isFavorite": false
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-05-30T14:02:19.306Z",
+      "timedConfig": {
+        "type": "timed",
+        "sendInterval": 1000,
+        "repeatCount": 1,
+        "isInfinite": true
+      },
+      "targetId": "serial:COM1",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "time",
+        "responseDelay": 0,
+        "executeTime": "2025-05-30T14:02:13.698Z",
+        "isRecurring": true,
+        "recurringType": "daily",
+        "recurringInterval": 1
+      }
+    }
   },
   {
     "id": "5",
@@ -337,8 +395,8 @@
     "frameId": "VXA7FZfmv00z5heDrSU-8",
     "description": "",
     "paramCount": 1,
-    "createdAt": "2025-05-15T12:24:37.441Z",
-    "updatedAt": "2025-05-15T12:24:37.441Z",
+    "createdAt": "2025-05-29T06:15:23.209Z",
+    "updatedAt": "2025-06-01T04:17:15.110Z",
     "fields": [
       {
         "id": "oebDvBdhjIwiLgeU1M9pZ",
@@ -437,7 +495,56 @@
         "options": []
       }
     ],
-    "isFavorite": false
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-06-01T04:17:15.110Z",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "",
+        "triggerFrameId": "",
+        "conditions": [
+          {
+            "id": "condition_1748751432730",
+            "fieldId": "",
+            "condition": "equals",
+            "value": ""
+          },
+          {
+            "id": "condition_1748751433274",
+            "fieldId": "",
+            "condition": "equals",
+            "value": "",
+            "logicOperator": "and"
+          },
+          {
+            "id": "condition_1748751434235",
+            "fieldId": "",
+            "condition": "equals",
+            "value": "",
+            "logicOperator": "and"
+          },
+          {
+            "id": "condition_1748751434746",
+            "fieldId": "",
+            "condition": "equals",
+            "value": "",
+            "logicOperator": "and"
+          },
+          {
+            "id": "condition_1748751435106",
+            "fieldId": "",
+            "condition": "equals",
+            "value": "",
+            "logicOperator": "and"
+          }
+        ],
+        "continueListening": true
+      },
+      "targetId": "serial:COM1"
+    }
   },
   {
     "id": "6",
@@ -445,8 +552,8 @@
     "frameId": "11",
     "description": "",
     "paramCount": 7,
-    "createdAt": "2025-05-30T03:03:09.368Z",
-    "updatedAt": "2025-05-30T03:03:10.616Z",
+    "createdAt": "2025-06-01T04:22:07.943Z",
+    "updatedAt": "2025-06-02T05:19:18.875Z",
     "fields": [
       {
         "id": "5Zhj14PZHlpWAnZJJ1Hol",
@@ -841,6 +948,27 @@
         "options": []
       }
     ],
-    "isFavorite": false
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-06-02T05:19:18.875Z",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "serial:COM2",
+        "triggerFrameId": "12345678",
+        "conditions": [
+          {
+            "id": "condition_1748841518804",
+            "fieldId": "4chscyTmuq-CdwKIe7crP",
+            "condition": "not_equals",
+            "value": "0xABCD"
+          }
+        ],
+        "continueListening": true
+      },
+      "targetId": "serial:COM1"
+    }
   }
 ]

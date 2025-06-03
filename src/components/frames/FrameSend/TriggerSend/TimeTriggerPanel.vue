@@ -39,17 +39,17 @@
     <!-- 重复设置 -->
     <div class="space-y-2 mt-4">
       <q-checkbox
-        v-model="triggerStore.isRecurring"
+        v-model="sendFrameInstancesStore.isRecurring"
         label="重复执行"
         color="primary"
         class="text-industrial-primary"
       />
 
       <!-- 重复配置 -->
-      <div v-if="triggerStore.isRecurring" class="space-y-3 ml-6">
+      <div v-if="sendFrameInstancesStore.isRecurring" class="space-y-3 ml-6">
         <div class="grid grid-cols-2 gap-3">
           <q-select
-            v-model="triggerStore.recurringType"
+            v-model="sendFrameInstancesStore.recurringType"
             :options="[
               { label: '每秒', value: 'second' },
               { label: '每分钟', value: 'minute' },
@@ -68,10 +68,10 @@
             class="bg-industrial-panel text-industrial-primary"
           />
           <q-input
-            v-model.number="triggerStore.recurringInterval"
+            v-model.number="sendFrameInstancesStore.recurringInterval"
             type="number"
             label="重复间隔"
-            :min="getMinInterval(triggerStore.recurringType)"
+            :min="getMinInterval(sendFrameInstancesStore.recurringType)"
             step="1"
             outlined
             dense
@@ -79,7 +79,7 @@
           >
             <template #append>
               <span class="text-industrial-secondary text-xs">
-                {{ getIntervalUnit(triggerStore.recurringType) }}
+                {{ getIntervalUnit(sendFrameInstancesStore.recurringType) }}
               </span>
             </template>
           </q-input>
@@ -102,7 +102,7 @@
 
         <!-- 高频执行警告 -->
         <div
-          v-if="triggerStore.recurringType === 'second'"
+          v-if="sendFrameInstancesStore.recurringType === 'second'"
           class="bg-orange-900 bg-opacity-20 border border-orange-700 rounded p-3 mt-2"
         >
           <div class="flex items-start">
@@ -111,8 +111,8 @@
               <div class="font-medium mb-1">高频执行警告</div>
               <div>
                 当前配置为
-                {{ triggerStore.recurringInterval || 1
-                }}{{ getIntervalUnit(triggerStore.recurringType) }}
+                {{ sendFrameInstancesStore.recurringInterval || 1
+                }}{{ getIntervalUnit(sendFrameInstancesStore.recurringType) }}
                 执行一次。请确保串口设备能够处理如此频繁的数据发送，过于频繁的发送可能会影响设备性能或造成数据丢失。
               </div>
             </div>
@@ -138,10 +138,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 
 // 使用 store
-const triggerStore = useTriggerConfigStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 // 将执行时间分解为日期和时间
 const executeDate = ref('');
@@ -150,7 +150,7 @@ const endDate = ref('');
 
 // 初始化时间字段
 watch(
-  () => triggerStore.executeTime,
+  () => sendFrameInstancesStore.executeTime,
   (newTime) => {
     if (newTime) {
       const date = new Date(newTime);
@@ -170,7 +170,7 @@ watch(
 );
 
 watch(
-  () => triggerStore.endTime,
+  () => sendFrameInstancesStore.endTime,
   (newTime) => {
     if (newTime) {
       const date = new Date(newTime);
@@ -189,7 +189,7 @@ watch(
 function updateExecuteTime() {
   if (executeDate.value && executeTime.value) {
     const dateTime = new Date(`${executeDate.value}T${executeTime.value}`);
-    triggerStore.executeTime = dateTime.toISOString();
+    sendFrameInstancesStore.executeTime = dateTime.toISOString();
   }
 }
 
@@ -199,9 +199,9 @@ function updateExecuteTime() {
 function updateEndTime() {
   if (endDate.value) {
     const dateTime = new Date(`${endDate.value}T23:59:59`);
-    triggerStore.endTime = dateTime.toISOString();
+    sendFrameInstancesStore.endTime = dateTime.toISOString();
   } else {
-    triggerStore.endTime = '';
+    sendFrameInstancesStore.endTime = '';
   }
 }
 

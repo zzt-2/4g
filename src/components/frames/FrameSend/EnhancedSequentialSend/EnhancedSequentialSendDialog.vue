@@ -100,7 +100,7 @@
     <TriggerConfigDialog
       v-if="sendStrategy === 'triggered'"
       v-model="showTriggerConfig"
-      :initial-config="triggerStore.triggerStrategyConfig"
+      :initial-config="sendFrameInstancesStore.triggerStrategyConfig"
       :source-options="sourceOptions"
       :frame-options="frameOptions"
       @confirm="onTriggerConfigConfirm"
@@ -132,7 +132,6 @@
 import { ref, computed } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
 import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
 import { useStrategyConfig } from '../../../../composables/frames/useStrategyConfig';
@@ -159,7 +158,6 @@ import { TaskConfigFile } from 'src/types/frames/taskConfig';
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 const sendTasksStore = useSendTasksStore();
-const triggerStore = useTriggerConfigStore();
 
 // 使用连接目标管理
 const { availableTargets, refreshTargets } = useConnectionTargets(
@@ -293,7 +291,7 @@ function getStrategyPreview(): string {
     const { sendInterval, repeatCount, isInfinite } = timedConfig.value;
     return `每${sendInterval}ms发送一次，${isInfinite ? '无限循环' : `重复${repeatCount}次`}`;
   } else if (sendStrategy.value === 'triggered') {
-    const config = triggerStore.triggerStrategyConfig;
+    const config = sendFrameInstancesStore.triggerStrategyConfig;
     if (config.triggerType === 'condition') {
       const sourceName =
         sourceOptions.value.find((s) => s.id === config.sourceId)?.name || '未选择';
@@ -413,7 +411,7 @@ function onTimedConfigConfirm(config: TimedStrategyConfig) {
  * 触发配置确认
  */
 function onTriggerConfigConfirm(config: TriggerStrategyConfig) {
-  triggerStore.loadFromStrategyConfig(config);
+  sendFrameInstancesStore.loadFromStrategyConfig(config);
   showTriggerConfig.value = false;
 }
 
@@ -440,7 +438,7 @@ function handleGetTaskConfigData() {
 
   const strategy =
     sendStrategy.value === 'triggered'
-      ? triggerStore.triggerStrategyConfig
+      ? sendFrameInstancesStore.triggerStrategyConfig
       : timedConfig.value || { type: 'immediate' };
   const configName = `多帧发送配置`;
 
@@ -485,7 +483,7 @@ async function handleSetTaskConfigData(configFileContent: unknown) {
       // 根据策略类型应用配置
       if (configData.strategy.type === 'triggered') {
         setStrategyType('triggered');
-        triggerStore.loadFromStrategyConfig(configData.strategy);
+        sendFrameInstancesStore.loadFromStrategyConfig(configData.strategy);
       } else if (configData.strategy.type === 'timed') {
         setStrategyType('timed');
         updateTimedConfig(configData.strategy);
@@ -539,7 +537,7 @@ async function startSendingTask() {
         break;
 
       case 'triggered': {
-        const config = triggerStore.triggerStrategyConfig;
+        const config = sendFrameInstancesStore.triggerStrategyConfig;
         if (config.triggerType === 'condition') {
           // 确保条件触发的必要字段存在
           if (!config.sourceId || !config.triggerFrameId || !config.conditions) {

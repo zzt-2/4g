@@ -32,6 +32,134 @@ export function useSendTaskExecutor() {
   const isProcessing = ref(false);
   const processingError = ref<string | null>(null);
 
+  // ============= 内部辅助函数 =============
+
+  /**
+   * 获取发送帧实例
+   */
+  const getSendFrameInstance = (instanceId: string): SendFrameInstance => {
+    const instance = sendFrameInstancesStore.instances.find((i) => i.id === instanceId);
+    if (!instance) {
+      throw new Error(`找不到实例: ${instanceId}`);
+    }
+    return instance;
+  };
+
+  /**
+   * 解析并验证目标路径
+   */
+  const getValidatedTargetPath = (targetId: string): string => {
+    const targetPath = parseTargetPath(targetId);
+    if (!targetPath) {
+      throw new Error(`无效的目标ID: ${targetId}`);
+    }
+    return targetPath;
+  };
+
+  /**
+   * 检查任务是否仍在运行
+   */
+  const isTaskStillRunning = (taskId: string, expectedStatus?: string[]): boolean => {
+    const currentTask = sendTasksStore.getTaskById(taskId);
+    if (!currentTask) {
+      return false;
+    }
+    if (expectedStatus) {
+      return expectedStatus.includes(currentTask.status);
+    }
+    return currentTask.status === 'running';
+  };
+
+  /**
+   * 清理定时器
+   */
+  const cleanupTimers = (timers: number[]): void => {
+    timers.forEach((timerId) => {
+      clearTimeout(timerId);
+      clearInterval(timerId);
+    });
+  };
+
+  /**
+   * 发送帧到目标并处理错误
+   */
+  const sendFrameToTarget = async (
+    targetPath: string,
+    instance: SendFrameInstance,
+    taskId: string,
+    taskName: string,
+    timers: number[],
+  ): Promise<boolean> => {
+    console.log(`发送帧到目标: ${targetPath}`, {
+      instanceId: instance.id,
+      isConnected: serialStore.isPortConnected(targetPath),
+    });
+
+    const success = await serialStore.sendFrameInstance(targetPath, instance);
+
+    if (!success) {
+      // 检查是否是连接问题
+      if (!serialStore.isPortConnected(targetPath)) {
+        console.log(`串口连接已断开 (${targetPath})，暂停任务: ${taskName}`);
+        sendTasksStore.updateTaskStatus(taskId, 'paused', '串口连接已断开');
+        cleanupTimers(timers);
+        return false;
+      }
+      throw new Error('帧发送失败');
+    }
+
+    return true;
+  };
+
+  /**
+   * 处理实例间延时
+   */
+  const addInstanceDelay = async (
+    instanceConfig: FrameInstanceInTask,
+    isLastInstance: boolean,
+  ): Promise<void> => {
+    if (!isLastInstance) {
+      const instanceInterval = instanceConfig.interval || 1000;
+      console.log(`等待 ${instanceInterval}ms 后发送下一个实例...`);
+      await new Promise((resolve) => setTimeout(resolve, instanceInterval));
+    }
+  };
+
+  /**
+   * 处理单个实例的发送逻辑
+   */
+  const processSingleInstance = async (
+    instanceConfig: FrameInstanceInTask,
+    taskId: string,
+    taskName: string,
+    timers: number[],
+    isLastInstance: boolean = true,
+  ): Promise<boolean> => {
+    try {
+      // 获取实例
+      const instance = getSendFrameInstance(instanceConfig.instanceId);
+
+      // 获取目标路径
+      const targetPath = getValidatedTargetPath(instanceConfig.targetId);
+
+      // 发送帧
+      const success = await sendFrameToTarget(targetPath, instance, taskId, taskName, timers);
+      if (!success) {
+        return false; // 连接错误已在函数内处理
+      }
+
+      // 添加实例间延时
+      await addInstanceDelay(instanceConfig, isLastInstance);
+
+      return true;
+    } catch (error) {
+      console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
+      throw error;
+    }
+  };
+
+  // ============= 任务执行函数 =============
+
   /**
    * 开始执行任务
    */
@@ -156,38 +284,18 @@ export function useSendTaskExecutor() {
       });
 
       try {
-        // 获取实例
-        const instance = sendFrameInstancesStore.instances.find(
-          (i) => i.id === instanceConfig.instanceId,
+        // 使用提取的函数处理实例发送
+        const isLastInstance = currentIndex === task.config.instances.length - 1;
+        const success = await processSingleInstance(
+          instanceConfig,
+          task.id,
+          task.name,
+          timers,
+          isLastInstance,
         );
-        if (!instance) {
-          throw new Error(`找不到实例: ${instanceConfig.instanceId}`);
-        }
-
-        // 发送帧
-        const targetPath = parseTargetPath(instanceConfig.targetId);
-        if (!targetPath) {
-          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
-        }
-
-        console.log(`发送帧到目标: ${instanceConfig.targetId} -> ${targetPath}`, {
-          instanceId: instanceConfig.instanceId,
-          isConnected: serialStore.isPortConnected(targetPath),
-          frameInstance: instance,
-        });
-
-        const success = await serialStore.sendFrameInstance(targetPath, instance);
 
         if (!success) {
-          // 检查是否是连接问题，如果是则暂停任务
-          if (!serialStore.isPortConnected(targetPath)) {
-            console.log(`串口连接已断开 (${targetPath})，暂停任务: ${task.name}`);
-            sendTasksStore.updateTaskStatus(task.id, 'paused', '串口连接已断开');
-            // 清理定时器
-            timers.forEach((timerId) => clearInterval(timerId));
-            return;
-          }
-          throw new Error('帧发送失败');
+          return; // 连接错误已处理
         }
 
         // 更新实例状态为成功
@@ -277,13 +385,8 @@ export function useSendTaskExecutor() {
       throw new Error('无效的实例配置');
     }
 
-    // 获取实例
-    const instance = sendFrameInstancesStore.instances.find(
-      (i) => i.id === instanceConfig.instanceId,
-    );
-    if (!instance) {
-      throw new Error(`找不到实例: ${instanceConfig.instanceId}`);
-    }
+    // 获取实例（使用提取的函数）
+    const instance = getSendFrameInstance(instanceConfig.instanceId);
 
     console.log('启动单实例定时发送任务:', {
       taskId: task.id,
@@ -312,8 +415,7 @@ export function useSendTaskExecutor() {
     const sendFrame = async () => {
       try {
         // 检查任务是否仍在运行
-        const currentTask = sendTasksStore.getTaskById(task.id);
-        if (!currentTask || currentTask.status !== 'running') {
+        if (!isTaskStillRunning(task.id)) {
           console.log('单实例定时任务已停止，取消发送');
           return;
         }
@@ -321,7 +423,7 @@ export function useSendTaskExecutor() {
         // 检查是否已达到发送次数限制
         if (!config.isInfinite && currentCount >= config.repeatCount) {
           console.log('单实例定时任务已达到发送次数限制，停止发送');
-          timers.forEach((timerId) => clearInterval(timerId));
+          cleanupTimers(timers);
           sendTasksStore.updateTaskStatus(task.id, 'completed');
           sendTasksStore.updateTaskProgress(task.id, {
             currentCount: config.repeatCount,
@@ -330,10 +432,8 @@ export function useSendTaskExecutor() {
           return;
         }
 
-        const targetPath = parseTargetPath(instanceConfig.targetId);
-        if (!targetPath) {
-          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
-        }
+        // 使用提取的函数发送帧
+        const targetPath = getValidatedTargetPath(instanceConfig.targetId);
 
         console.log(
           `单实例定时发送帧 ${currentCount + 1}/${config.isInfinite ? '∞' : config.repeatCount} 到目标: ${targetPath}`,
@@ -344,18 +444,10 @@ export function useSendTaskExecutor() {
           },
         );
 
-        const success = await serialStore.sendFrameInstance(targetPath, instance);
+        const success = await sendFrameToTarget(targetPath, instance, task.id, task.name, timers);
 
         if (!success) {
-          // 检查是否是连接问题，如果是则暂停任务
-          if (!serialStore.isPortConnected(targetPath)) {
-            console.log(`串口连接已断开 (${targetPath})，暂停任务: ${task.name}`);
-            sendTasksStore.updateTaskStatus(task.id, 'paused', '串口连接已断开');
-            // 清理定时器
-            timers.forEach((timerId) => clearInterval(timerId));
-            return;
-          }
-          throw new Error('帧发送失败');
+          return; // 连接错误已处理
         }
 
         currentCount++;
@@ -373,7 +465,7 @@ export function useSendTaskExecutor() {
           // 检查是否完成
           if (currentCount >= config.repeatCount) {
             console.log('单实例定时发送任务完成');
-            timers.forEach((timerId) => clearInterval(timerId));
+            cleanupTimers(timers);
             sendTasksStore.updateTaskStatus(task.id, 'completed');
             sendTasksStore.updateTaskProgress(task.id, {
               currentCount: config.repeatCount,
@@ -398,9 +490,7 @@ export function useSendTaskExecutor() {
           'error',
           error instanceof Error ? error.message : '发送失败',
         );
-
-        // 清理定时器
-        timers.forEach((timerId) => clearInterval(timerId));
+        cleanupTimers(timers);
       }
     };
 
@@ -410,12 +500,7 @@ export function useSendTaskExecutor() {
     // 如果需要重复发送，设置定时器
     if (config.isInfinite || config.repeatCount > 1) {
       // 检查任务是否仍在运行且还没完成
-      const currentTask = sendTasksStore.getTaskById(task.id);
-      if (
-        currentTask &&
-        currentTask.status === 'running' &&
-        (config.isInfinite || currentCount < config.repeatCount)
-      ) {
+      if (isTaskStillRunning(task.id) && (config.isInfinite || currentCount < config.repeatCount)) {
         const intervalId = window.setInterval(sendFrame, config.sendInterval);
         timers.push(intervalId);
         console.log(
@@ -474,8 +559,7 @@ export function useSendTaskExecutor() {
     // 发送一轮所有实例的函数
     const sendOneRound = async (): Promise<void> => {
       // 检查任务是否仍在运行
-      const currentTask = sendTasksStore.getTaskById(task.id);
-      if (!currentTask || currentTask.status !== 'running') {
+      if (!isTaskStillRunning(task.id)) {
         console.log('多实例定时任务已停止，取消发送');
         return;
       }
@@ -483,10 +567,7 @@ export function useSendTaskExecutor() {
       // 检查是否已达到轮次限制
       if (!config.isInfinite && currentRoundCount >= config.repeatCount) {
         console.log('多实例定时任务已达到轮次限制，停止发送');
-        timers.forEach((timerId) => {
-          clearTimeout(timerId);
-          clearInterval(timerId);
-        });
+        cleanupTimers(timers);
         sendTasksStore.updateTaskStatus(task.id, 'completed');
         sendTasksStore.updateTaskProgress(task.id, {
           currentCount: config.repeatCount,
@@ -502,8 +583,7 @@ export function useSendTaskExecutor() {
         // 按顺序发送所有实例
         for (let instanceIndex = 0; instanceIndex < config.instances.length; instanceIndex++) {
           // 再次检查任务状态
-          const taskStatus = sendTasksStore.getTaskById(task.id);
-          if (!taskStatus || taskStatus.status !== 'running') {
+          if (!isTaskStillRunning(task.id)) {
             console.log('任务在实例发送过程中被停止');
             return;
           }
@@ -520,54 +600,24 @@ export function useSendTaskExecutor() {
           });
 
           try {
-            // 获取实例
-            const instance = sendFrameInstancesStore.instances.find(
-              (i) => i.id === instanceConfig.instanceId,
+            // 使用提取的函数处理实例发送
+            const isLastInstance = instanceIndex === config.instances.length - 1;
+            const success = await processSingleInstance(
+              instanceConfig,
+              task.id,
+              task.name,
+              timers,
+              isLastInstance,
             );
-            if (!instance) {
-              console.error(`找不到实例: ${instanceConfig.instanceId}`);
-              continue;
-            }
-
-            // 发送帧
-            const targetPath = parseTargetPath(instanceConfig.targetId);
-            if (!targetPath) {
-              console.error(`无效的目标ID: ${instanceConfig.targetId}`);
-              continue;
-            }
-
-            console.log(
-              `发送实例 ${instanceIndex + 1}/${config.instances.length} 到目标: ${targetPath}`,
-              {
-                instanceId: instanceConfig.instanceId,
-                round: currentRoundCount,
-                isConnected: serialStore.isPortConnected(targetPath),
-              },
-            );
-
-            const success = await serialStore.sendFrameInstance(targetPath, instance);
 
             if (!success) {
-              // 检查是否是连接问题，如果是则暂停任务
-              if (!serialStore.isPortConnected(targetPath)) {
-                console.log(`串口连接已断开 (${targetPath})，暂停任务: ${task.name}`);
-                sendTasksStore.updateTaskStatus(task.id, 'paused', '串口连接已断开');
-                // 清理定时器
-                timers.forEach((timerId) => {
-                  clearTimeout(timerId);
-                  clearInterval(timerId);
-                });
-                return;
-              }
-              throw new Error('帧发送失败');
+              return; // 连接错误已处理
             }
 
-            // 在实例之间添加间隔（但不在最后一个实例后添加）
-            if (instanceIndex < config.instances.length - 1) {
-              const instanceInterval = instanceConfig.interval || 1000;
-              console.log(`等待 ${instanceInterval}ms 后发送下一个实例...`);
-              await new Promise((resolve) => setTimeout(resolve, instanceInterval));
-            }
+            console.log(`发送实例 ${instanceIndex + 1}/${config.instances.length} 到目标成功`, {
+              instanceId: instanceConfig.instanceId,
+              round: currentRoundCount,
+            });
           } catch (error) {
             console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
             continue;
@@ -592,10 +642,7 @@ export function useSendTaskExecutor() {
           // 检查是否完成
           if (currentRoundCount >= config.repeatCount) {
             console.log('多实例定时发送任务完成');
-            timers.forEach((timerId) => {
-              clearTimeout(timerId);
-              clearInterval(timerId);
-            });
+            cleanupTimers(timers);
             sendTasksStore.updateTaskStatus(task.id, 'completed');
             sendTasksStore.updateTaskProgress(task.id, {
               currentCount: config.repeatCount,
@@ -615,8 +662,7 @@ export function useSendTaskExecutor() {
         console.log(`第 ${currentRoundCount} 轮发送完成，${config.sendInterval}ms 后开始下一轮...`);
 
         // 只有在需要继续且任务仍在运行时，才设置下一轮的定时器
-        const stillRunning = sendTasksStore.getTaskById(task.id);
-        if (stillRunning && stillRunning.status === 'running') {
+        if (isTaskStillRunning(task.id)) {
           if (config.isInfinite || currentRoundCount < config.repeatCount) {
             console.log(`设置下一轮定时器，间隔: ${config.sendInterval}ms`);
             const nextTimerId = window.setTimeout(() => {
@@ -632,12 +678,7 @@ export function useSendTaskExecutor() {
           'error',
           error instanceof Error ? error.message : '发送失败',
         );
-
-        // 清理定时器
-        timers.forEach((timerId) => {
-          clearTimeout(timerId);
-          clearInterval(timerId);
-        });
+        cleanupTimers(timers);
       }
     };
 
@@ -667,13 +708,8 @@ export function useSendTaskExecutor() {
       throw new Error('无效的实例配置');
     }
 
-    // 获取实例
-    const instance = sendFrameInstancesStore.instances.find(
-      (i) => i.id === instanceConfig.instanceId,
-    );
-    if (!instance) {
-      throw new Error(`找不到实例: ${instanceConfig.instanceId}`);
-    }
+    // 获取实例（使用提取的函数）
+    const instance = getSendFrameInstance(instanceConfig.instanceId);
 
     // 根据触发类型处理
     if (config.triggerType === 'time') {
@@ -823,11 +859,7 @@ export function useSendTaskExecutor() {
     const executeTask = async () => {
       try {
         // 检查任务是否仍在运行状态
-        const currentTask = sendTasksStore.getTaskById(task.id);
-        if (
-          !currentTask ||
-          (currentTask.status !== 'waiting-schedule' && currentTask.status !== 'running')
-        ) {
+        if (!isTaskStillRunning(task.id, ['waiting-schedule', 'running'])) {
           console.log('时间触发任务已停止，取消执行');
           return;
         }
@@ -835,10 +867,8 @@ export function useSendTaskExecutor() {
         // 更新状态为运行中
         sendTasksStore.updateTaskStatus(task.id, 'running');
 
-        const targetPath = parseTargetPath(instanceConfig.targetId);
-        if (!targetPath) {
-          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
-        }
+        // 使用提取的函数发送帧
+        const targetPath = getValidatedTargetPath(instanceConfig.targetId);
 
         console.log(`时间触发发送帧到目标: ${targetPath}`, {
           instanceId: instanceConfig.instanceId,
@@ -847,21 +877,14 @@ export function useSendTaskExecutor() {
           isConnected: serialStore.isPortConnected(targetPath),
         });
 
-        const success = await serialStore.sendFrameInstance(targetPath, instance);
+        const success = await sendFrameToTarget(targetPath, instance, task.id, task.name, timers);
 
         if (!success) {
-          // 检查是否是连接问题
-          if (!serialStore.isPortConnected(targetPath)) {
-            console.log(`串口连接已断开 (${targetPath})，暂停任务: ${task.name}`);
-            sendTasksStore.updateTaskStatus(task.id, 'paused', '串口连接已断开');
-            timers.forEach((timerId) => clearTimeout(timerId));
-            return;
-          }
-          throw new Error('帧发送失败');
+          return; // 连接错误已处理
         }
 
         // 更新进度
-        const currentProgress = currentTask.progress?.currentCount || 0;
+        const currentProgress = task.progress?.currentCount || 0;
         sendTasksStore.updateTaskProgress(task.id, {
           currentCount: currentProgress + 1,
         });
@@ -904,7 +927,7 @@ export function useSendTaskExecutor() {
           'error',
           error instanceof Error ? error.message : '执行失败',
         );
-        timers.forEach((timerId) => clearTimeout(timerId));
+        cleanupTimers(timers);
       }
     };
 
@@ -1015,11 +1038,7 @@ export function useSendTaskExecutor() {
     const executeTask = async () => {
       try {
         // 检查任务是否仍在运行状态
-        const currentTask = sendTasksStore.getTaskById(task.id);
-        if (
-          !currentTask ||
-          (currentTask.status !== 'waiting-schedule' && currentTask.status !== 'running')
-        ) {
+        if (!isTaskStillRunning(task.id, ['waiting-schedule', 'running'])) {
           console.log('多实例时间触发任务已停止，取消执行');
           return;
         }
@@ -1036,8 +1055,7 @@ export function useSendTaskExecutor() {
         // 按顺序发送所有实例
         for (let instanceIndex = 0; instanceIndex < config.instances.length; instanceIndex++) {
           // 再次检查任务状态
-          const taskStatus = sendTasksStore.getTaskById(task.id);
-          if (!taskStatus || taskStatus.status !== 'running') {
+          if (!isTaskStillRunning(task.id)) {
             console.log('任务在实例发送过程中被停止');
             return;
           }
@@ -1054,49 +1072,26 @@ export function useSendTaskExecutor() {
           });
 
           try {
-            // 获取实例
-            const instance = sendFrameInstancesStore.instances.find(
-              (i) => i.id === instanceConfig.instanceId,
+            // 使用提取的函数处理实例发送
+            const isLastInstance = instanceIndex === config.instances.length - 1;
+            const success = await processSingleInstance(
+              instanceConfig,
+              task.id,
+              task.name,
+              timers,
+              isLastInstance,
             );
-            if (!instance) {
-              console.error(`找不到实例: ${instanceConfig.instanceId}`);
-              continue;
-            }
 
-            // 发送帧
-            const targetPath = parseTargetPath(instanceConfig.targetId);
-            if (!targetPath) {
-              console.error(`无效的目标ID: ${instanceConfig.targetId}`);
-              continue;
+            if (!success) {
+              return; // 连接错误已处理
             }
 
             console.log(
-              `时间触发发送实例 ${instanceIndex + 1}/${config.instances.length} 到目标: ${targetPath}`,
+              `时间触发发送实例 ${instanceIndex + 1}/${config.instances.length} 到目标成功`,
               {
                 instanceId: instanceConfig.instanceId,
-                isConnected: serialStore.isPortConnected(targetPath),
               },
             );
-
-            const success = await serialStore.sendFrameInstance(targetPath, instance);
-
-            if (!success) {
-              // 检查是否是连接问题
-              if (!serialStore.isPortConnected(targetPath)) {
-                console.log(`串口连接已断开 (${targetPath})，暂停任务: ${task.name}`);
-                sendTasksStore.updateTaskStatus(task.id, 'paused', '串口连接已断开');
-                timers.forEach((timerId) => clearTimeout(timerId));
-                return;
-              }
-              throw new Error('帧发送失败');
-            }
-
-            // 在实例之间添加间隔（但不在最后一个实例后添加）
-            if (instanceIndex < config.instances.length - 1) {
-              const instanceInterval = instanceConfig.interval || 1000;
-              console.log(`等待 ${instanceInterval}ms 后发送下一个实例...`);
-              await new Promise((resolve) => setTimeout(resolve, instanceInterval));
-            }
           } catch (error) {
             console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
             continue;
@@ -1104,7 +1099,7 @@ export function useSendTaskExecutor() {
         }
 
         // 更新进度
-        const currentProgress = currentTask.progress?.currentCount || 0;
+        const currentProgress = task.progress?.currentCount || 0;
         sendTasksStore.updateTaskProgress(task.id, {
           currentCount: currentProgress + 1,
         });
@@ -1147,7 +1142,7 @@ export function useSendTaskExecutor() {
           'error',
           error instanceof Error ? error.message : '执行失败',
         );
-        timers.forEach((timerId) => clearTimeout(timerId));
+        cleanupTimers(timers);
       }
     };
 

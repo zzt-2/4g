@@ -122,11 +122,10 @@ export const DEFAULT_FILTER_OPTIONS: FilterOptions = {
  * 默认识别规则
  */
 export const DEFAULT_IDENTIFIER_RULES: IdentifierRule = {
-  startBit: 0,
-  endBit: 7,
+  startIndex: 0,
+  endIndex: 7,
   operator: 'eq',
   value: '0x00',
-  format: 'hex',
   logicOperator: 'and',
 };
 

@@ -18,6 +18,8 @@ export default defineConfig((/* ctx */) => {
       'unocss',
       // 任务管理器初始化和清理逻辑
       'taskManager',
+      // Quasar 组件默认属性配置
+      'quasarDefaults',
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css

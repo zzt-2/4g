@@ -4,23 +4,11 @@ import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameI
 import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
 import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
-import { useTaskConfigManager } from '../../../../composables/frames/sendFrame/useTaskConfigManager';
-import type { StrategyConfig } from '../../../../types/frames/sendInstances';
-
-// 获取store实例
-const sendFrameInstancesStore = useSendFrameInstancesStore();
-const sendTasksStore = useSendTasksStore();
-
-// 使用连接目标管理composable - 使用专用的存储键
-const { availableTargets, selectedTargetId, refreshTargets } =
-  useConnectionTargets('timed-send-targets');
-
-// 使用任务管理器
-const { createTimedSingleTask, startTask, stopTask, isProcessing, processingError } =
-  useSendTaskManager();
-
-// 使用任务配置管理器
-const { saveConfigToUserFile, loadConfigFromUserFile } = useTaskConfigManager();
+import type {
+  InstanceStrategyConfig,
+  TimedStrategyConfig,
+} from '../../../../types/frames/sendInstances';
+import type { ConnectionTarget } from '../../../../types/common/connectionTarget';
 
 const props = defineProps<{
   instanceId: string;
@@ -30,10 +18,144 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-// 定时发送设置
-const interval = ref(1000); // 默认1000ms
-const repeatCount = ref(1); // 默认1次
-const isInfinite = ref(false); // 是否无限循环
+// 获取store实例
+const sendFrameInstancesStore = useSendFrameInstancesStore();
+const sendTasksStore = useSendTasksStore();
+
+// 连接目标相关状态 - 使用ref手动管理以响应instanceId变化
+const availableTargets = ref<ConnectionTarget[]>([]);
+const selectedTargetId = ref<string>('');
+const refreshTargets = ref<(() => void) | null>(null);
+
+// 使用任务管理器
+const { createTimedSingleTask, startTask, stopTask, isProcessing, processingError } =
+  useSendTaskManager();
+
+// 当前选中的实例
+const currentInstance = computed(() => {
+  if (!props.instanceId) return null;
+  return sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId) || null;
+});
+
+// 当前实例的策略配置
+const currentStrategyConfig = computed((): InstanceStrategyConfig => {
+  return (
+    currentInstance.value?.strategyConfig ||
+    ({
+      type: 'none',
+      updatedAt: new Date().toISOString(),
+    } as InstanceStrategyConfig)
+  );
+});
+
+// 本地定时配置状态（从实例配置中提取）
+const interval = ref(1000);
+const repeatCount = ref(1);
+const isInfinite = ref(false);
+
+// 使用watch监听instanceId变化，重新初始化连接目标管理
+watch(
+  () => props.instanceId,
+  (newInstanceId) => {
+    if (!newInstanceId) return;
+
+    // 当instanceId变化时，重新创建连接目标管理
+    const {
+      availableTargets: newAvailableTargets,
+      selectedTargetId: newSelectedTargetId,
+      refreshTargets: newRefreshTargets,
+    } = useConnectionTargets(`timed-send-targets-${newInstanceId}`);
+
+    // 更新本地引用
+    availableTargets.value = newAvailableTargets.value;
+    selectedTargetId.value = newSelectedTargetId.value;
+    refreshTargets.value = newRefreshTargets;
+
+    // 监听目标列表变化
+    watch(newAvailableTargets, (targets) => {
+      availableTargets.value = targets;
+    });
+
+    // 初始刷新
+    newRefreshTargets();
+  },
+  { immediate: true },
+);
+
+// 使用watch监听实例配置变化，同步到本地状态
+watch(
+  [() => props.instanceId, currentStrategyConfig],
+  ([instanceId, config]) => {
+    if (!instanceId) return;
+
+    if (config.type === 'timed' && config.timedConfig) {
+      interval.value = config.timedConfig.sendInterval || 1000;
+      repeatCount.value = config.timedConfig.repeatCount || 1;
+      isInfinite.value = config.timedConfig.isInfinite || false;
+      // 同步目标选择
+      if (config.targetId) {
+        selectedTargetId.value = config.targetId;
+      }
+    } else {
+      // 如果没有定时配置，使用默认值
+      interval.value = 1000;
+      repeatCount.value = 1;
+      isInfinite.value = false;
+      // 清空目标选择或使用默认目标
+      if (!selectedTargetId.value && availableTargets.value.length > 0) {
+        selectedTargetId.value = availableTargets.value[0]?.id || '';
+      }
+    }
+  },
+  { immediate: true, deep: true },
+);
+
+// 更新实例策略配置
+function updateInstanceStrategyConfig(config: Partial<InstanceStrategyConfig>) {
+  if (!currentInstance.value) return;
+
+  if (!currentInstance.value.strategyConfig) {
+    currentInstance.value.strategyConfig = {
+      type: 'none',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  // 直接修改实例配置
+  Object.assign(currentInstance.value.strategyConfig, config, {
+    updatedAt: new Date().toISOString(),
+  });
+
+  // 触发实例更新（会自动保存）
+  sendFrameInstancesStore.updateInstance(currentInstance.value);
+}
+
+// 设置定时配置
+function setTimedConfig() {
+  const timedConfig: TimedStrategyConfig = {
+    type: 'timed',
+    sendInterval: interval.value,
+    repeatCount: repeatCount.value,
+    isInfinite: isInfinite.value,
+  };
+
+  updateInstanceStrategyConfig({
+    type: 'timed',
+    timedConfig,
+    targetId: selectedTargetId.value,
+  });
+}
+
+// 监听配置变化自动保存
+watch(
+  [interval, repeatCount, isInfinite, selectedTargetId],
+  () => {
+    setTimedConfig();
+  },
+  { deep: true },
+);
+
+// 其他状态
 const isSending = ref(false);
 const progress = ref(0);
 const currentCount = ref(0);
@@ -48,12 +170,6 @@ const canStartSend = computed(() => {
     (isInfinite.value || repeatCount.value > 0) &&
     selectedTargetId.value !== ''
   );
-});
-
-// 当前选中的实例
-const currentInstance = computed(() => {
-  if (!props.instanceId) return null;
-  return sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId) || null;
 });
 
 // 监听当前任务状态
@@ -136,6 +252,9 @@ async function startTimedSend() {
   progress.value = 0;
   sendError.value = '';
 
+  // 保存当前配置
+  setTimedConfig();
+
   console.log('TimedSendDialog - 开始创建定时发送任务，用户设置:', {
     interval: interval.value,
     repeatCount: repeatCount.value,
@@ -187,89 +306,11 @@ function stopTimedSend() {
   }
   emit('close');
 }
-
-/**
- * 保存当前配置到文件
- */
-async function saveCurrentConfig() {
-  if (!currentInstance.value) {
-    sendError.value = '没有可保存的实例';
-    return;
-  }
-
-  try {
-    // 构建策略配置
-    const strategyConfig: StrategyConfig = {
-      type: 'timed',
-      sendInterval: interval.value,
-      repeatCount: repeatCount.value,
-      isInfinite: isInfinite.value,
-    };
-
-    // 构建目标配置
-    const targets = [
-      {
-        instanceId: props.instanceId,
-        targetId: selectedTargetId.value,
-        interval: 0, // 单帧发送不需要间隔
-      },
-    ];
-
-    const configName = `单帧定时发送配置-${currentInstance.value.label}`;
-    const result = await saveConfigToUserFile(
-      [currentInstance.value],
-      targets,
-      strategyConfig,
-      configName,
-      `定时发送配置：每${interval.value}ms发送一次，${isInfinite.value ? '无限循环' : `重复${repeatCount.value}次`}`,
-    );
-
-    if (!result.success) {
-      throw new Error(result.message || '保存配置失败');
-    }
-  } catch (error) {
-    console.error('保存配置失败:', error);
-    sendError.value = error instanceof Error ? error.message : '保存失败';
-  }
-}
-
-/**
- * 从文件加载配置
- */
-async function loadSavedConfig() {
-  try {
-    const result = await loadConfigFromUserFile();
-
-    if (!result.success || !result.data) {
-      if (result.message && !result.message.includes('取消')) {
-        throw new Error(result.message);
-      }
-      return;
-    }
-
-    const { strategy } = result.data;
-
-    // 如果是定时策略配置，恢复设置
-    if (strategy && strategy.type === 'timed') {
-      interval.value = strategy.sendInterval;
-      repeatCount.value = strategy.repeatCount;
-      isInfinite.value = strategy.isInfinite;
-    }
-
-    sendError.value = '';
-  } catch (error) {
-    console.error('加载配置失败:', error);
-    sendError.value = error instanceof Error ? error.message : '加载失败';
-  }
-}
-
-// 页面加载时刷新可用目标
-refreshTargets();
 </script>
 
 <template>
-  <div class="timed-send-dialog h-full">
-    <div class="flex flex-col space-y-3 h-full bg-industrial-panel p-4">
+  <div class="timed-send-dialog h-full w-full">
+    <div class="flex flex-col h-full bg-industrial-panel p-4">
       <!-- 标题信息 -->
       <div class="mb-4">
         <div class="flex justify-between items-center">
@@ -282,37 +323,13 @@ refreshTargets();
               {{ currentInstance?.label || '选中帧实例' }} - 设置定时重复发送参数
             </div>
           </div>
-          <div class="flex gap-2">
-            <q-btn
-              flat
-              dense
-              icon="save"
-              color="blue-grey"
-              class="bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 rounded-md text-xs"
-              @click="saveCurrentConfig"
-              :disable="isSending || isProcessing"
-            >
-              <q-tooltip>保存配置</q-tooltip>
-            </q-btn>
-            <q-btn
-              flat
-              dense
-              icon="folder_open"
-              color="blue-grey"
-              class="bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 rounded-md text-xs"
-              @click="loadSavedConfig"
-              :disable="isSending || isProcessing"
-            >
-              <q-tooltip>加载配置</q-tooltip>
-            </q-btn>
-          </div>
         </div>
       </div>
 
       <!-- 配置区域 -->
-      <div class="flex-1 overflow-auto">
+      <div class="flex-1 overflow-auto space-y-3">
         <!-- 发送目标选择 -->
-        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3">
+        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
           <div class="flex flex-row items-center mb-2">
             <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
               <q-icon name="send_to_mobile" size="xs" class="mr-1 text-blue-5" />
@@ -373,7 +390,7 @@ refreshTargets();
         </div>
 
         <!-- 时间间隔设置 -->
-        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3">
+        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
           <div class="flex flex-row items-center mb-2">
             <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
               <q-icon name="timer" size="xs" class="mr-1 text-blue-5" />
@@ -402,7 +419,7 @@ refreshTargets();
         </div>
 
         <!-- 重复次数设置 -->
-        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3">
+        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
           <div class="flex flex-row items-center mb-2">
             <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
               <q-icon name="repeat" size="xs" class="mr-1 text-blue-5" />
@@ -444,7 +461,7 @@ refreshTargets();
         <!-- 错误信息 -->
         <div
           v-if="sendError || processingError"
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800 mb-3"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800"
         >
           <div class="flex items-start">
             <q-icon name="error" color="negative" size="sm" class="mt-0.5 mr-2" />
@@ -457,7 +474,7 @@ refreshTargets();
         <!-- 发送进度 -->
         <div
           v-if="isSending || currentTask"
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-blue-800 mb-3"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-blue-800"
         >
           <div class="text-xs font-medium text-industrial-primary mb-2 flex items-center">
             <q-icon name="trending_up" size="xs" class="mr-1 text-blue-5" />

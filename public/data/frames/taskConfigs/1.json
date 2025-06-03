@@ -1,28 +1,8 @@
 {
   "version": "1.0",
-  "configType": "multi-triggered",
+  "configType": "single-triggered",
   "name": "多帧发送配置",
   "instanceRefs": [
-    {
-      "id": "4",
-      "label": "111 #1",
-      "frameId": "123"
-    },
-    {
-      "id": "2",
-      "label": "新帧配置 #2",
-      "frameId": "VXA7FZfmv00z5heDrSU-8"
-    },
-    {
-      "id": "123",
-      "label": "新帧配置 #1",
-      "frameId": "VXA7FZfmv00z5heDrSU-8"
-    },
-    {
-      "id": "1",
-      "label": "222 #1",
-      "frameId": "1234"
-    },
     {
       "id": "6",
       "label": "控制帧-继电器控制 #1",
@@ -31,47 +11,18 @@
   ],
   "targets": [
     {
-      "instanceId": "4",
-      "targetId": "serial:COM1",
-      "interval": 1000
-    },
-    {
-      "instanceId": "2",
-      "targetId": "serial:COM1",
-      "interval": 200
-    },
-    {
-      "instanceId": "123",
-      "targetId": "serial:COM1",
-      "interval": 1000
-    },
-    {
-      "instanceId": "1",
-      "targetId": "serial:COM1",
-      "interval": 1000
-    },
-    {
       "instanceId": "6",
       "targetId": "serial:COM1",
       "interval": 1000
     }
   ],
-  "createdAt": "2025-05-30T05:49:50.953Z",
-  "updatedAt": "2025-05-30T05:49:50.953Z",
+  "createdAt": "2025-05-30T10:03:15.838Z",
+  "updatedAt": "2025-05-30T10:03:15.838Z",
   "strategy": {
     "type": "triggered",
-    "triggerType": "condition",
+    "triggerType": "time",
     "responseDelay": 0,
-    "sourceId": "serial:COM1",
-    "triggerFrameId": "1",
-    "conditions": [
-      {
-        "id": "BdgIfU12ZICxstpeOgORX",
-        "fieldId": "nUkionINPRyBmxNVn2B-D",
-        "condition": "equals",
-        "value": "1",
-        "logicOperator": "and"
-      }
-    ]
+    "executeTime": "2025-05-30T10:05:00.000Z",
+    "isRecurring": false
   }
 }

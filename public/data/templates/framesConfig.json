@@ -1962,5 +1962,144 @@
       "includeLengthField": false
     },
     "identifierRules": []
+  },
+  {
+    "id": "12345678",
+    "lastId": "12345678",
+    "name": "接收测试",
+    "description": "",
+    "direction": "receive",
+    "frameType": "custom",
+    "protocol": "custom",
+    "fields": [
+      {
+        "id": "4chscyTmuq-CdwKIe7crP",
+        "name": "帧头",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xabcd",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "BK22GwuP0-AP7yVHieyKw",
+        "name": "随便什么",
+        "dataType": "uint32",
+        "length": 4,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x12345678",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "kbi-7j2IXVyGp_XKjARLN",
+        "name": "测试标签",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x00",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全0",
+            "isDefault": true
+          },
+          {
+            "value": "0xff",
+            "label": "全1",
+            "isDefault": false
+          }
+        ]
+      }
+    ],
+    "timestamp": 1748840270985,
+    "createdAt": "2025-06-01T05:59:01.841Z",
+    "updatedAt": "2025-06-02T04:57:50.985Z",
+    "isFavorite": false,
+    "options": {
+      "autoChecksum": true,
+      "bigEndian": false,
+      "includeLengthField": false
+    },
+    "identifierRules": [
+      {
+        "startIndex": 0,
+        "endIndex": "1",
+        "operator": "eq",
+        "value": "0xabcd",
+        "format": "hex",
+        "logicOperator": "and"
+      }
+    ]
+  },
+  {
+    "id": "5gSKOQrsl3haIitMYYQ3c",
+    "lastId": "5gSKOQrsl3haIitMYYQ3c",
+    "name": "接收测试 (副本)",
+    "description": "",
+    "direction": "receive",
+    "frameType": "custom",
+    "protocol": "custom",
+    "fields": [
+      {
+        "id": "4chscyTmuq-CdwKIe7crP",
+        "name": "帧头",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xabcd",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      }
+    ],
+    "timestamp": 1748769687960,
+    "createdAt": "2025-06-01T05:59:01.841Z",
+    "updatedAt": "2025-06-01T09:21:27.960Z",
+    "isFavorite": false,
+    "options": {
+      "autoChecksum": true,
+      "bigEndian": false,
+      "includeLengthField": false
+    },
+    "identifierRules": [
+      {
+        "startIndex": 0,
+        "endIndex": "0",
+        "operator": "eq",
+        "value": "0xabcd",
+        "format": "hex",
+        "logicOperator": "and"
+      }
+    ]
   }
 ]

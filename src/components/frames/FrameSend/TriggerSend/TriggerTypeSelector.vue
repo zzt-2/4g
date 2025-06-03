@@ -2,23 +2,23 @@
   <div class="trigger-type-selector">
     <div class="text-subtitle2 text-industrial-primary mb-3">触发类型</div>
     <q-option-group
-      v-model="triggerStore.triggerType"
+      v-model="sendFrameInstancesStore.triggerType"
       :options="triggerTypeOptions"
       inline
       class="trigger-type-options text-industrial-primary"
     />
     <div class="text-xs text-industrial-secondary mt-2">
-      {{ getTypeDescription(triggerStore.triggerType) }}
+      {{ getTypeDescription(sendFrameInstancesStore.triggerType) }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import type { TriggerType } from '../../../../types/frames/sendInstances';
 
 // 使用 store
-const triggerStore = useTriggerConfigStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 const triggerTypeOptions = [
   { label: '条件触发', value: 'condition' },

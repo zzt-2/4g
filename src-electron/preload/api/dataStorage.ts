@@ -22,16 +22,16 @@ export const dataStorageAPI = Object.fromEntries(
         list: () => ipcRenderer.invoke(`${name}:list`),
 
         // 保存单个数据项
-        save: (item: any) => ipcRenderer.invoke(`${name}:save`, item),
+        save: (item: unknown) => ipcRenderer.invoke(`${name}:save`, item),
 
         // 删除数据项
         delete: (id: string) => ipcRenderer.invoke(`${name}:delete`, id),
 
         // 保存所有数据
-        saveAll: (items: any[]) => ipcRenderer.invoke(`${name}:saveAll`, items),
+        saveAll: (items: unknown[]) => ipcRenderer.invoke(`${name}:saveAll`, items),
 
         // 导出数据到文件
-        export: (items: any[], filePath?: string) =>
+        export: (items: unknown[], filePath?: string) =>
           ipcRenderer.invoke(`${name}:export`, items, filePath),
 
         // 从文件导入数据
@@ -41,14 +41,16 @@ export const dataStorageAPI = Object.fromEntries(
   }),
 ) as {
   [K in DataType]: {
-    list: () => Promise<any[]>;
-    save: (item: any) => Promise<{ success: boolean; message?: string }>;
+    list: () => Promise<unknown[]>;
+    save: (item: unknown) => Promise<{ success: boolean; message?: string }>;
     delete: (id: string) => Promise<{ success: boolean; message?: string }>;
-    saveAll: (items: any[]) => Promise<{ success: boolean; message?: string }>;
+    saveAll: (items: unknown[]) => Promise<{ success: boolean; message?: string }>;
     export: (
-      items: any[],
+      items: unknown[],
       filePath?: string,
     ) => Promise<{ success: boolean; filePath?: string; message?: string }>;
-    import: (filePath?: string) => Promise<{ success: boolean; data?: any[]; message?: string }>;
+    import: (
+      filePath?: string,
+    ) => Promise<{ success: boolean; data?: unknown[]; message?: string }>;
   };
 };

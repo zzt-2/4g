@@ -65,13 +65,13 @@ const formatDate = (date: Date | undefined | null) => {
       </div>
 
       <!-- 备注 -->
-      <div class="text-blue-grey-4 text-xs mt-2" v-if="instance.description">
+      <div class="break-all text-blue-grey-4 text-xs mt-2" v-if="instance.description">
         <span class="text-blue-grey-5">备注: </span>
         {{ instance.description }}
       </div>
 
       <!-- 完整帧十六进制显示 -->
-      <div class="mt-3 bg-[#0d1117] rounded-md p-2 border border-[#1E293B]" v-if="fullHexString">
+      <div class="mt-3 bg-[#0d1117] rounded-md border border-[#1E293B]" v-if="fullHexString">
         <div class="text-xs text-blue-grey-4 mb-1">完整帧十六进制:</div>
         <div class="font-mono text-blue-400 text-sm break-all select-all">
           {{ fullHexString }}
@@ -80,7 +80,7 @@ const formatDate = (date: Date | undefined | null) => {
     </div>
 
     <!-- 帧数据主体 - 只显示可配置字段 -->
-    <div class="flex-1 overflow-y-auto p-3" v-if="instance">
+    <div class="flex-1 overflow-y-auto" v-if="instance">
       <!-- 可配置字段数量为0时的提示 -->
       <div
         v-if="configurableFields.length === 0"
@@ -102,14 +102,16 @@ const formatDate = (date: Date | undefined | null) => {
               label: '字段',
               field: 'label',
               align: 'left',
-              style: 'width: 30%',
+              sortable: true,
+              style: 'width: 80px',
             },
             {
               name: 'hex',
               label: '十六进制值',
               field: 'hexValue',
-              align: 'left',
-              style: 'width: 70%',
+              align: 'right',
+              sortable: true,
+              style: 'width: 100%; min-width: 100%',
             },
           ]"
           row-key="id"
@@ -141,6 +143,27 @@ const formatDate = (date: Date | undefined | null) => {
                 </span>
                 <span v-else class="text-blue-grey-6">-</span>
               </q-td>
+            </q-tr>
+          </template>
+          <!-- 自定义行样式 -->
+          <template v-slot:header="props">
+            <q-tr :props="props">
+              <q-th
+                v-for="col in props.cols"
+                :key="col.name"
+                :props="props"
+                :style="col.style"
+                :class="[
+                  col.classes,
+                  {
+                    'text-left': col.align === 'left',
+                    'text-right': col.align === 'right',
+                    'text-center': col.align === 'center',
+                  },
+                ]"
+              >
+                {{ col.label }}
+              </q-th>
             </q-tr>
           </template>
         </q-table>

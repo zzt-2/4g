@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue';
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import type { TriggerStrategyConfig } from '../../../../types/frames/sendInstances';
 import TriggerConfigPanel from './TriggerConfigPanel.vue';
 
@@ -47,7 +47,7 @@ const emit = defineEmits<{
 }>();
 
 // 使用 store
-const triggerStore = useTriggerConfigStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 const show = computed({
   get: () => props.modelValue,
@@ -59,7 +59,7 @@ watch(
   () => props.initialConfig,
   (newConfig) => {
     if (newConfig) {
-      triggerStore.loadFromStrategyConfig(newConfig);
+      sendFrameInstancesStore.loadFromStrategyConfig(newConfig);
     }
   },
   { immediate: true },
@@ -68,7 +68,7 @@ watch(
 // 监听对话框打开，同步配置
 watch(show, (isOpen) => {
   if (isOpen && props.initialConfig) {
-    triggerStore.loadFromStrategyConfig(props.initialConfig);
+    sendFrameInstancesStore.loadFromStrategyConfig(props.initialConfig);
   }
 });
 
@@ -76,7 +76,7 @@ watch(show, (isOpen) => {
  * 确认配置
  */
 function confirm() {
-  emit('confirm', triggerStore.triggerStrategyConfig);
+  emit('confirm', sendFrameInstancesStore.triggerStrategyConfig);
   show.value = false;
 }
 
@@ -92,7 +92,7 @@ function cancel() {
  * 重置配置
  */
 function reset() {
-  triggerStore.resetConfig();
+  sendFrameInstancesStore.resetTriggerConfig();
 }
 </script>
 

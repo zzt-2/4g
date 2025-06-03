@@ -1,37 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useSerialStore } from '../../../../stores/serialStore';
+import { ref, computed, watch } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useFrameTemplateStore } from '../../../../stores/frames/frameTemplateStore';
 import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
-import { useTaskConfigManager } from '../../../../composables/frames/sendFrame/useTaskConfigManager';
-import type { StrategyConfig } from '../../../../types/frames/sendInstances';
-
-// 获取store实例
-const serialStore = useSerialStore();
-const sendFrameInstancesStore = useSendFrameInstancesStore();
-const frameTemplateStore = useFrameTemplateStore();
-
-// 使用连接目标管理composable - 使用不同的存储键区分监听来源和发送目标
-const {
-  availableTargets: sourceTargets,
-  selectedTargetId: selectedSourceId,
-  refreshTargets: refreshSourceTargets,
-} = useConnectionTargets('trigger-send-source-targets');
-
-const {
-  availableTargets: targetTargets,
-  selectedTargetId: selectedTargetId,
-  refreshTargets: refreshTargetTargets,
-} = useConnectionTargets('trigger-send-dest-targets');
-
-// 使用任务管理器composable
-const { createTriggeredSingleTask, startTask, isProcessing, processingError } =
-  useSendTaskManager();
-
-// 使用任务配置管理器
-const { saveConfigToUserFile, loadConfigFromUserFile } = useTaskConfigManager();
+import type {
+  InstanceStrategyConfig,
+  TriggerStrategyConfig,
+  TriggerCondition,
+  TriggerType,
+} from '../../../../types/frames/sendInstances';
+import type { ConnectionTarget } from '../../../../types/common/connectionTarget';
 
 const props = defineProps<{
   instanceId: string;
@@ -41,89 +20,30 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-// 触发设置
-const selectedTriggerType = ref('frame'); // frame, time, condition
+// 获取store实例
+const sendFrameInstancesStore = useSendFrameInstancesStore();
+const frameTemplateStore = useFrameTemplateStore();
+
+// 连接目标相关状态 - 使用ref手动管理以响应instanceId变化
+const sourceTargets = ref<ConnectionTarget[]>([]);
+const targetTargets = ref<ConnectionTarget[]>([]);
+const selectedTargetId = ref<string>('');
+const refreshSourceTargets = ref<(() => void) | null>(null);
+const refreshTargets = ref<(() => void) | null>(null);
+
+// 使用任务管理器composable
+const {
+  createTriggeredSingleTask,
+  createTimedTriggeredSingleTask,
+  startTask,
+  isProcessing,
+  processingError,
+} = useSendTaskManager();
+
+// 本地状态
 const isMonitoring = ref(false);
 const triggerError = ref('');
 const currentTaskId = ref<string | null>(null);
-
-// 触发帧设置
-const selectedFrameId = ref('');
-const triggerConditions = ref<
-  Array<{
-    id: string;
-    fieldId: string;
-    condition: string;
-    value: string;
-    logicOperator?: 'and' | 'or'; // 与条件之间的逻辑关系
-  }>
->([]);
-
-// 添加一个默认的空条件
-function addNewCondition() {
-  // 如果已有条件，默认添加"与"逻辑
-  const newCondition: any = {
-    id: `condition_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    fieldId: '',
-    condition: 'equals', // 默认等于
-    value: '',
-  };
-
-  // 如果不是第一个条件，添加逻辑操作符
-  if (triggerConditions.value.length > 0) {
-    newCondition.logicOperator = 'and'; // 默认使用"与"逻辑
-  }
-
-  triggerConditions.value.push(newCondition);
-}
-
-// 初始化一个默认条件
-if (triggerConditions.value.length === 0) {
-  addNewCondition();
-}
-
-// 删除条件
-function removeCondition(conditionId: string) {
-  const index = triggerConditions.value.findIndex((c) => c.id === conditionId);
-  if (index !== -1) {
-    triggerConditions.value.splice(index, 1);
-  }
-  // 如果删除后没有条件了，添加一个空条件
-  if (triggerConditions.value.length === 0) {
-    addNewCondition();
-  }
-}
-
-// 更新条件的逻辑操作符
-function updateLogicOperator(conditionId: string, operator: 'and' | 'or') {
-  const condition = triggerConditions.value.find((c) => c.id === conditionId);
-  if (condition) {
-    condition.logicOperator = operator;
-  }
-}
-
-// 可选的帧模板
-const availableFrames = computed(() => {
-  return frameTemplateStore.frames.map((frame) => ({
-    id: frame.id,
-    label: frame.name,
-    description: frame.description || '',
-  }));
-});
-
-// 当前选中帧的可选字段
-const availableFields = computed(() => {
-  if (!selectedFrameId.value) return [];
-
-  const frame = frameTemplateStore.frames.find((f) => f.id === selectedFrameId.value);
-  if (!frame) return [];
-
-  return frame.fields.map((field) => ({
-    id: field.id,
-    label: field.name,
-    dataType: field.dataType,
-  }));
-});
 
 // 当前选中的实例
 const currentInstance = computed(() => {
@@ -131,26 +51,233 @@ const currentInstance = computed(() => {
   return sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId) || null;
 });
 
-// 计算属性：是否可以开始监听
-const canStartMonitor = computed(() => {
-  if (isMonitoring.value || isProcessing.value) return false;
+// 当前实例的策略配置
+const currentStrategyConfig = computed((): InstanceStrategyConfig => {
+  return (
+    currentInstance.value?.strategyConfig ||
+    ({
+      type: 'none',
+      updatedAt: new Date().toISOString(),
+    } as InstanceStrategyConfig)
+  );
+});
 
-  if (selectedTriggerType.value === 'frame') {
-    // 检查是否有有效的触发条件
-    const hasValidConditions =
-      triggerConditions.value.length > 0 &&
-      triggerConditions.value.every(
-        (condition) =>
-          condition.fieldId &&
-          condition.value &&
-          selectedFrameId.value &&
-          selectedSourceId.value &&
-          selectedTargetId.value,
-      );
-    return hasValidConditions;
+// 本地触发配置状态
+const triggerType = ref<TriggerType>('condition');
+const responseDelay = ref<number>(0);
+
+// 条件触发配置
+const sourceId = ref<string>('');
+const triggerFrameId = ref<string>('');
+const conditions = ref<TriggerCondition[]>([]);
+const continueListening = ref<boolean>(true);
+
+// 时间触发配置
+const executeTime = ref<string>(new Date().toISOString());
+const isRecurring = ref<boolean>(false);
+const recurringType = ref<'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'>('daily');
+const recurringInterval = ref<number>(1);
+const endTime = ref<string>('');
+
+// 使用watch监听instanceId变化，重新初始化连接目标管理
+watch(
+  () => props.instanceId,
+  (newInstanceId) => {
+    if (!newInstanceId) return;
+
+    // 当instanceId变化时，重新创建连接目标管理
+    const { availableTargets: newSourceTargets, refreshTargets: newRefreshSourceTargets } =
+      useConnectionTargets(`trigger-send-source-targets-${newInstanceId}`);
+
+    const {
+      availableTargets: newTargetTargets,
+      selectedTargetId: newSelectedTargetId,
+      refreshTargets: newRefreshTargets,
+    } = useConnectionTargets(`trigger-send-dest-targets-${newInstanceId}`);
+
+    // 更新本地引用
+    sourceTargets.value = newSourceTargets.value;
+    targetTargets.value = newTargetTargets.value;
+    selectedTargetId.value = newSelectedTargetId.value;
+    refreshSourceTargets.value = newRefreshSourceTargets;
+    refreshTargets.value = newRefreshTargets;
+
+    // 监听目标列表变化
+    watch(newSourceTargets, (targets) => {
+      sourceTargets.value = targets;
+    });
+
+    watch(newTargetTargets, (targets) => {
+      targetTargets.value = targets;
+    });
+
+    // 初始刷新
+    if (newRefreshSourceTargets) newRefreshSourceTargets();
+    if (newRefreshTargets) newRefreshTargets();
+  },
+  { immediate: true },
+);
+
+// 使用watch监听实例配置变化，同步到本地状态
+watch(
+  [() => props.instanceId, currentStrategyConfig],
+  ([instanceId, config]) => {
+    if (!instanceId) return;
+
+    if (config.type === 'triggered' && config.triggeredConfig) {
+      const triggeredConfig = config.triggeredConfig;
+      triggerType.value = triggeredConfig.triggerType || 'condition';
+      responseDelay.value = triggeredConfig.responseDelay || 0;
+
+      // 条件触发配置
+      sourceId.value = triggeredConfig.sourceId || '';
+      triggerFrameId.value = triggeredConfig.triggerFrameId || '';
+      conditions.value = triggeredConfig.conditions || [];
+      continueListening.value = triggeredConfig.continueListening ?? true;
+
+      // 时间触发配置
+      executeTime.value = triggeredConfig.executeTime || new Date().toISOString();
+      isRecurring.value = triggeredConfig.isRecurring || false;
+      recurringType.value = triggeredConfig.recurringType || 'daily';
+      recurringInterval.value = triggeredConfig.recurringInterval || 1;
+      endTime.value = triggeredConfig.endTime || '';
+
+      // 同步目标选择
+      if (config.targetId) {
+        selectedTargetId.value = config.targetId;
+      }
+    } else {
+      // 如果没有触发配置，使用默认值
+      triggerType.value = 'condition';
+      responseDelay.value = 0;
+      sourceId.value = '';
+      triggerFrameId.value = '';
+      conditions.value = [];
+      continueListening.value = true;
+      executeTime.value = new Date().toISOString();
+      isRecurring.value = false;
+      recurringType.value = 'daily';
+      recurringInterval.value = 1;
+      endTime.value = '';
+
+      // 清空目标选择或使用默认目标
+      if (!selectedTargetId.value && targetTargets.value.length > 0) {
+        selectedTargetId.value = targetTargets.value[0]?.id || '';
+      }
+    }
+  },
+  { immediate: true, deep: true },
+);
+
+// 更新实例策略配置
+function updateInstanceStrategyConfig(config: Partial<InstanceStrategyConfig>) {
+  if (!currentInstance.value) return;
+
+  if (!currentInstance.value.strategyConfig) {
+    currentInstance.value.strategyConfig = {
+      type: 'none',
+      updatedAt: new Date().toISOString(),
+    };
   }
 
-  return false; // 其他触发类型待实现
+  // 直接修改实例配置
+  Object.assign(currentInstance.value.strategyConfig, config, {
+    updatedAt: new Date().toISOString(),
+  });
+
+  // 触发实例更新（会自动保存）
+  sendFrameInstancesStore.updateInstance(currentInstance.value);
+}
+
+// 设置触发配置
+function setTriggerConfig() {
+  const triggeredConfig: TriggerStrategyConfig = {
+    type: 'triggered',
+    triggerType: triggerType.value,
+    responseDelay: responseDelay.value,
+  };
+
+  if (triggerType.value === 'condition') {
+    triggeredConfig.sourceId = sourceId.value;
+    triggeredConfig.triggerFrameId = triggerFrameId.value;
+    triggeredConfig.conditions = conditions.value;
+    triggeredConfig.continueListening = continueListening.value;
+  } else if (triggerType.value === 'time') {
+    triggeredConfig.executeTime = executeTime.value;
+    triggeredConfig.isRecurring = isRecurring.value;
+    if (isRecurring.value) {
+      triggeredConfig.recurringType = recurringType.value;
+      triggeredConfig.recurringInterval = recurringInterval.value;
+      if (endTime.value) {
+        triggeredConfig.endTime = endTime.value;
+      }
+    }
+  }
+
+  updateInstanceStrategyConfig({
+    type: 'triggered',
+    triggeredConfig,
+    targetId: selectedTargetId.value,
+  });
+}
+
+// 监听配置变化自动保存
+watch(
+  [
+    triggerType,
+    responseDelay,
+    sourceId,
+    triggerFrameId,
+    conditions,
+    continueListening,
+    executeTime,
+    isRecurring,
+    recurringType,
+    recurringInterval,
+    endTime,
+    selectedTargetId,
+  ],
+  () => {
+    setTriggerConfig();
+  },
+  { deep: true },
+);
+
+// 连接来源选项（用于触发配置）
+const sourceOptions = computed(() =>
+  sourceTargets.value.map((target) => ({
+    id: target.id,
+    name: target.name,
+    ...(target.description ? { description: target.description } : {}),
+  })),
+);
+
+// 帧选项（用于触发配置）
+const frameOptions = computed(() =>
+  frameTemplateStore.frames.map((frame) => ({
+    id: frame.id,
+    name: frame.name,
+    fields:
+      frame.fields?.map((field) => ({
+        id: field.id,
+        name: field.name,
+      })) || [],
+  })),
+);
+
+// 计算属性：是否可以开始监听
+const canStartMonitor = computed(() => {
+  if (isMonitoring.value || isProcessing.value || !selectedTargetId.value) return false;
+
+  if (triggerType.value === 'condition') {
+    // 检查条件触发的必要字段
+    return !!(sourceId.value && triggerFrameId.value && conditions.value.length);
+  } else if (triggerType.value === 'time') {
+    // 检查时间触发的必要字段
+    return !!executeTime.value;
+  }
+
+  return false;
 });
 
 // 关闭对话框
@@ -166,15 +293,53 @@ async function startMonitoring() {
   triggerError.value = '';
 
   try {
-    // 使用任务管理器创建并启动任务
-    const taskId = createTriggeredSingleTask(
-      props.instanceId,
-      selectedTargetId.value,
-      selectedSourceId.value,
-      selectedFrameId.value,
-      triggerConditions.value,
-      `触发发送-${currentInstance.value.label}`,
-    );
+    // 先保存当前配置到实例
+    setTriggerConfig();
+
+    let taskId: string | null = null;
+
+    if (triggerType.value === 'condition') {
+      // 条件触发
+      if (!sourceId.value || !triggerFrameId.value || !conditions.value.length) {
+        throw new Error('条件触发配置不完整');
+      }
+
+      taskId = createTriggeredSingleTask(
+        props.instanceId,
+        selectedTargetId.value,
+        sourceId.value,
+        triggerFrameId.value,
+        conditions.value,
+        `触发发送-${currentInstance.value.label}`,
+        continueListening.value,
+      );
+    } else if (triggerType.value === 'time') {
+      // 时间触发
+      if (!executeTime.value) {
+        throw new Error('时间触发配置不完整：缺少执行时间');
+      }
+
+      // 确保 recurringType 与 createTimedTriggeredSingleTask 方法参数类型匹配
+      const validRecurringTypes = ['daily', 'weekly', 'monthly'] as const;
+      type ValidRecurringType = (typeof validRecurringTypes)[number];
+
+      const recurringTypeValue =
+        recurringType.value &&
+        validRecurringTypes.includes(recurringType.value as ValidRecurringType)
+          ? (recurringType.value as ValidRecurringType)
+          : undefined;
+
+      taskId = createTimedTriggeredSingleTask(
+        props.instanceId,
+        selectedTargetId.value,
+        executeTime.value,
+        isRecurring.value,
+        recurringTypeValue,
+        recurringInterval.value,
+        endTime.value,
+        `时间触发发送-${currentInstance.value.label}`,
+      );
+    }
 
     if (taskId) {
       currentTaskId.value = taskId;
@@ -196,114 +361,26 @@ async function startMonitoring() {
   }
 }
 
-// 停止监听 - 现在由任务管理器统一管理
-function stopMonitoring() {
-  isMonitoring.value = false;
-  emit('close');
+// 添加条件
+function addCondition() {
+  conditions.value.push({
+    id: `condition_${Date.now()}`,
+    fieldId: '',
+    condition: 'equals',
+    value: '',
+    logicOperator: conditions.value.length > 0 ? 'and' : undefined,
+  } as TriggerCondition);
 }
 
-/**
- * 保存当前配置到文件
- */
-async function saveCurrentConfig() {
-  if (!currentInstance.value) {
-    triggerError.value = '没有可保存的实例';
-    return;
-  }
-
-  try {
-    // 构建策略配置
-    const strategyConfig: StrategyConfig = {
-      type: 'triggered',
-      sourceId: selectedSourceId.value,
-      triggerFrameId: selectedFrameId.value,
-      conditions: triggerConditions.value.map((condition) => ({
-        id: condition.id,
-        fieldId: condition.fieldId,
-        condition: condition.condition as 'equals' | 'not_equals' | 'greater' | 'less' | 'contains',
-        value: condition.value,
-        ...(condition.logicOperator ? { logicOperator: condition.logicOperator } : {}),
-      })),
-    };
-
-    // 构建目标配置
-    const targets = [
-      {
-        instanceId: props.instanceId,
-        targetId: selectedTargetId.value,
-        interval: 0, // 单帧发送不需要间隔
-      },
-    ];
-
-    const configName = `单帧触发发送配置-${currentInstance.value.label}`;
-    const conditionsDesc = triggerConditions.value
-      .filter((c) => c.fieldId && c.value)
-      .map((c) => `${c.fieldId} ${c.condition} ${c.value}`)
-      .join(` ${triggerConditions.value[0]?.logicOperator || 'and'} `);
-
-    const result = await saveConfigToUserFile(
-      [currentInstance.value],
-      targets,
-      strategyConfig,
-      configName,
-      `触发发送配置：监听来源 ${selectedSourceId.value}，触发帧 ${selectedFrameId.value}，条件：${conditionsDesc}`,
-    );
-
-    if (!result.success) {
-      throw new Error(result.message || '保存配置失败');
-    }
-  } catch (error) {
-    console.error('保存配置失败:', error);
-    triggerError.value = error instanceof Error ? error.message : '保存失败';
-  }
+// 删除条件
+function removeCondition(index: number) {
+  conditions.value.splice(index, 1);
 }
-
-/**
- * 从文件加载配置
- */
-async function loadSavedConfig() {
-  try {
-    const result = await loadConfigFromUserFile();
-
-    if (!result.success || !result.data) {
-      if (result.message && !result.message.includes('取消')) {
-        throw new Error(result.message);
-      }
-      return;
-    }
-
-    const { strategy } = result.data;
-
-    // 如果是触发策略配置，恢复设置
-    if (strategy && strategy.type === 'triggered') {
-      selectedSourceId.value = strategy.sourceId;
-      selectedFrameId.value = strategy.triggerFrameId;
-
-      // 恢复触发条件
-      triggerConditions.value = strategy.conditions.map((condition) => ({
-        id: condition.id,
-        fieldId: condition.fieldId,
-        condition: condition.condition,
-        value: condition.value,
-        ...(condition.logicOperator ? { logicOperator: condition.logicOperator } : {}),
-      }));
-    }
-
-    triggerError.value = '';
-  } catch (error) {
-    console.error('加载配置失败:', error);
-    triggerError.value = error instanceof Error ? error.message : '加载失败';
-  }
-}
-
-// 页面加载时刷新可用目标
-refreshSourceTargets();
-refreshTargetTargets();
 </script>
 
 <template>
-  <div class="trigger-send-dialog h-full">
-    <div class="flex flex-col space-y-3 h-full bg-industrial-panel p-4">
+  <div class="trigger-send-dialog h-full w-full">
+    <div class="flex flex-col h-full bg-industrial-panel p-4">
       <!-- 标题信息 -->
       <div class="mb-4">
         <div class="flex justify-between items-center">
@@ -316,114 +393,84 @@ refreshTargetTargets();
               {{ currentInstance?.label || '选中帧实例' }} - 设置触发条件，当条件满足时发送帧实例
             </div>
           </div>
-          <div class="flex gap-2">
-            <q-btn
-              flat
-              dense
-              icon="save"
-              color="blue-grey"
-              class="bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 rounded-md text-xs"
-              @click="saveCurrentConfig"
-              :disable="isMonitoring || isProcessing"
-            >
-              <q-tooltip>保存配置</q-tooltip>
-            </q-btn>
-            <q-btn
-              flat
-              dense
-              icon="folder_open"
-              color="blue-grey"
-              class="bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 rounded-md text-xs"
-              @click="loadSavedConfig"
-              :disable="isMonitoring || isProcessing"
-            >
-              <q-tooltip>加载配置</q-tooltip>
-            </q-btn>
-          </div>
         </div>
       </div>
 
-      <!-- 配置区域 -->
-      <div class="flex-1 overflow-auto">
+      <!-- 触发配置面板 -->
+      <div class="flex-1 overflow-auto space-y-3">
         <!-- 触发类型选择 -->
-        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3">
-          <div class="flex flex-row items-center">
+        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+          <div class="flex flex-row items-center mb-2">
             <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
-              <q-icon name="category" size="xs" class="mr-1 text-blue-5" />
+              <q-icon name="settings" size="xs" class="mr-1 text-blue-5" />
               <span>触发类型</span>
             </div>
 
-            <div class="flex items-center justify-between flex-1">
-              <q-radio
-                v-model="selectedTriggerType"
-                val="frame"
-                label="帧数据触发"
-                color="primary"
-                dark
+            <q-select
+              v-model="triggerType"
+              :options="[
+                { label: '条件触发', value: 'condition' },
+                { label: '时间触发', value: 'time' },
+              ]"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+              dense
+              outlined
+              dark
+              bg-color="rgba(18, 35, 63, 0.7)"
+              class="w-full"
+              :disable="isMonitoring || isProcessing"
+              input-class="py-0.5 px-1"
+              hide-bottom-space
+            />
+          </div>
+        </div>
+
+        <!-- 响应延时配置 -->
+        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+          <div class="flex flex-row items-center mb-2">
+            <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
+              <q-icon name="schedule" size="xs" class="mr-1 text-blue-5" />
+              <span>响应延时</span>
+            </div>
+
+            <div class="flex items-center">
+              <q-input
+                v-model.number="responseDelay"
+                type="number"
+                min="0"
+                step="10"
                 dense
+                outlined
+                dark
+                bg-color="rgba(18, 35, 63, 0.7)"
+                class="w-24"
                 :disable="isMonitoring || isProcessing"
-                class="text-xs text-blue-500"
+                input-class="py-0.5 px-1"
+                hide-bottom-space
               />
-              <q-radio
-                v-model="selectedTriggerType"
-                val="time"
-                label="时间触发"
-                color="primary"
-                dark
-                dense
-                :disable="true"
-                class="text-xs text-blue-500"
-              />
-              <q-radio
-                v-model="selectedTriggerType"
-                val="condition"
-                label="条件触发"
-                color="primary"
-                dark
-                dense
-                :disable="true"
-                class="text-xs text-blue-500"
-              />
+              <span class="ml-2 text-xs text-industrial-secondary">毫秒</span>
             </div>
           </div>
         </div>
 
-        <!-- 帧触发设置 -->
-        <div
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3"
-          v-if="selectedTriggerType === 'frame'"
-        >
-          <div
-            class="text-xs font-medium text-industrial-primary mb-2 flex items-center justify-between"
-          >
-            <div class="flex items-center">
-              <q-icon name="settings_suggest" size="xs" class="mr-1 text-blue-5" />
-              <span>帧触发设置</span>
-            </div>
+        <!-- 条件触发配置 -->
+        <div v-if="triggerType === 'condition'" class="space-y-3">
+          <!-- 监听来源 -->
+          <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+            <div class="flex flex-row items-center mb-2">
+              <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
+                <q-icon name="radio" size="xs" class="mr-1 text-blue-5" />
+                <span>监听来源</span>
+              </div>
 
-            <q-btn
-              flat
-              dense
-              round
-              icon="add_circle"
-              color="positive"
-              size="sm"
-              @click="addNewCondition"
-              :disable="isMonitoring || isProcessing"
-            >
-              <q-tooltip>添加条件</q-tooltip>
-            </q-btn>
-          </div>
-
-          <!-- 选择触发帧 -->
-          <div class="pl-6 mb-3">
-            <div class="flex items-center mb-1">
-              <div class="text-2xs text-industrial-secondary w-20">选择触发帧</div>
               <q-select
-                v-model="selectedFrameId"
-                :options="availableFrames"
+                v-model="sourceId"
+                :options="sourceOptions"
                 option-value="id"
-                option-label="label"
+                option-label="name"
                 dense
                 outlined
                 emit-value
@@ -434,111 +481,246 @@ refreshTargetTargets();
                 :disable="isMonitoring || isProcessing"
                 input-class="py-0.5 px-1"
                 hide-bottom-space
-              >
-                <template #option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.label }}</q-item-label>
-                      <q-item-label caption v-if="scope.opt.description">
-                        {{ scope.opt.description }}
-                      </q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
+              />
             </div>
           </div>
 
-          <!-- 触发条件列表 -->
-          <div
-            v-for="(condition, index) in triggerConditions"
-            :key="condition.id"
-            class="pl-6 mb-2"
-          >
-            <!-- 逻辑操作符选择 (从第二个条件开始显示) -->
-            <div v-if="index > 0" class="ml-20 mb-1 flex items-center">
-              <div class="w-20 text-center border-t border-dashed border-industrial my-2"></div>
-              <div class="flex-1 flex items-center justify-start ml-2">
-                <q-btn-toggle
-                  v-model="condition.logicOperator"
-                  :options="[
-                    { label: '与', value: 'and' },
-                    { label: '或', value: 'or' },
-                  ]"
-                  push
-                  glossy
-                  rounded
-                  no-caps
-                  unelevated
-                  dense
-                  class="text-2xs"
-                  toggle-color="primary"
-                  color="grey-9"
-                  text-color="white"
-                  :disable="isMonitoring || isProcessing"
-                  @update:model-value="updateLogicOperator(condition.id, $event)"
-                />
+          <!-- 触发帧 -->
+          <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+            <div class="flex flex-row items-center mb-2">
+              <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
+                <q-icon name="data_object" size="xs" class="mr-1 text-blue-5" />
+                <span>触发帧</span>
               </div>
+
+              <q-select
+                v-model="triggerFrameId"
+                :options="frameOptions"
+                option-value="id"
+                option-label="name"
+                dense
+                outlined
+                emit-value
+                map-options
+                dark
+                bg-color="rgba(18, 35, 63, 0.7)"
+                class="w-full"
+                :disable="isMonitoring || isProcessing"
+                input-class="py-0.5 px-1"
+                hide-bottom-space
+              />
+            </div>
+          </div>
+
+          <!-- 触发条件 -->
+          <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+            <div class="flex justify-between items-center mb-2">
+              <div class="text-xs font-medium text-industrial-primary flex items-center">
+                <q-icon name="rule" size="xs" class="mr-1 text-blue-5" />
+                <span>触发条件</span>
+              </div>
+              <q-btn
+                dense
+                flat
+                icon="add"
+                color="blue-5"
+                size="sm"
+                @click="addCondition"
+                :disable="isMonitoring || isProcessing"
+              >
+                <q-tooltip>添加条件</q-tooltip>
+              </q-btn>
             </div>
 
-            <div class="flex items-center mb-1">
-              <div class="text-2xs text-industrial-secondary w-20">条件 #{{ index + 1 }}</div>
-              <div class="flex items-center w-full gap-2">
-                <!-- 字段选择 -->
-                <q-select
-                  v-model="condition.fieldId"
-                  :options="availableFields"
-                  option-value="id"
-                  option-label="label"
-                  dense
-                  outlined
-                  emit-value
-                  map-options
-                  dark
-                  bg-color="rgba(18, 35, 63, 0.7)"
-                  class="w-1/3"
-                  :disable="isMonitoring || !selectedFrameId || isProcessing"
-                  input-class="py-0.5 px-1"
-                  hide-bottom-space
-                  placeholder="选择字段"
-                >
-                  <template #option="scope">
-                    <q-item v-bind="scope.itemProps">
-                      <q-item-section>
-                        <q-item-label>{{ scope.opt.label }}</q-item-label>
-                        <q-item-label caption>
-                          {{ scope.opt.dataType }}
-                        </q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
+            <div
+              v-if="conditions.length === 0"
+              class="text-xs text-industrial-tertiary text-center py-4"
+            >
+              暂无触发条件，点击上方按钮添加
+            </div>
 
-                <!-- 条件选择 -->
-                <q-select
-                  v-model="condition.condition"
-                  :options="[
-                    { label: '等于', value: 'equals' },
-                    { label: '不等于', value: 'not_equals' },
-                    { label: '大于', value: 'greater' },
-                    { label: '小于', value: 'less' },
-                    { label: '包含', value: 'contains' },
-                  ]"
+            <div v-else class="space-y-2">
+              <div
+                v-for="(condition, index) in conditions"
+                :key="condition.id"
+                class="bg-industrial-primary rounded p-2 border border-industrial"
+              >
+                <div class="flex items-center gap-2">
+                  <!-- 逻辑操作符 -->
+                  <div v-if="index > 0" class="text-xs text-industrial-accent w-8">
+                    {{ condition.logicOperator === 'or' ? '或' : '且' }}
+                  </div>
+                  <div v-else class="w-8"></div>
+
+                  <!-- 字段选择 -->
+                  <q-select
+                    v-model="condition.fieldId"
+                    :options="frameOptions.find((f) => f.id === triggerFrameId)?.fields || []"
+                    option-value="id"
+                    option-label="name"
+                    dense
+                    outlined
+                    emit-value
+                    map-options
+                    dark
+                    bg-color="rgba(18, 35, 63, 0.7)"
+                    class="flex-1"
+                    placeholder="选择字段"
+                    :disable="isMonitoring || isProcessing"
+                    input-class="py-0.5 px-1"
+                    hide-bottom-space
+                  />
+
+                  <!-- 条件操作符 -->
+                  <q-select
+                    v-model="condition.condition"
+                    :options="[
+                      { label: '等于', value: 'equals' },
+                      { label: '不等于', value: 'not_equals' },
+                      { label: '大于', value: 'greater' },
+                      { label: '小于', value: 'less' },
+                      { label: '包含', value: 'contains' },
+                    ]"
+                    option-label="label"
+                    option-value="value"
+                    emit-value
+                    map-options
+                    dense
+                    outlined
+                    dark
+                    bg-color="rgba(18, 35, 63, 0.7)"
+                    class="w-20"
+                    :disable="isMonitoring || isProcessing"
+                    input-class="py-0.5 px-1"
+                    hide-bottom-space
+                  />
+
+                  <!-- 值输入 -->
+                  <q-input
+                    v-model="condition.value"
+                    dense
+                    outlined
+                    dark
+                    bg-color="rgba(18, 35, 63, 0.7)"
+                    class="w-24"
+                    placeholder="值"
+                    :disable="isMonitoring || isProcessing"
+                    input-class="py-0.5 px-1"
+                    hide-bottom-space
+                  />
+
+                  <!-- 删除按钮 -->
+                  <q-btn
+                    dense
+                    flat
+                    icon="delete"
+                    color="negative"
+                    size="sm"
+                    @click="removeCondition(index)"
+                    :disable="isMonitoring || isProcessing"
+                  >
+                    <q-tooltip>删除条件</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 继续监听选项 -->
+          <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+            <q-checkbox
+              v-model="continueListening"
+              dark
+              dense
+              :disable="isMonitoring || isProcessing"
+              label="触发后继续监听"
+              class="text-xs text-industrial-primary"
+            />
+          </div>
+        </div>
+
+        <!-- 时间触发配置 -->
+        <div v-else-if="triggerType === 'time'" class="space-y-3">
+          <!-- 执行时间 -->
+          <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+            <div class="flex flex-row items-center mb-2">
+              <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
+                <q-icon name="event" size="xs" class="mr-1 text-blue-5" />
+                <span>执行时间</span>
+              </div>
+
+              <q-input
+                v-model="executeTime"
+                type="datetime-local"
+                dense
+                outlined
+                dark
+                bg-color="rgba(18, 35, 63, 0.7)"
+                class="w-full"
+                :disable="isMonitoring || isProcessing"
+                input-class="py-0.5 px-1"
+                hide-bottom-space
+              />
+            </div>
+          </div>
+
+          <!-- 重复设置 -->
+          <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
+            <q-checkbox
+              v-model="isRecurring"
+              dark
+              dense
+              :disable="isMonitoring || isProcessing"
+              label="重复执行"
+              class="text-xs text-industrial-primary mb-2"
+            />
+
+            <div v-if="isRecurring" class="space-y-2 ml-6">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-industrial-secondary">每</span>
+                <q-input
+                  v-model.number="recurringInterval"
+                  type="number"
+                  min="1"
                   dense
                   outlined
-                  emit-value
-                  map-options
                   dark
                   bg-color="rgba(18, 35, 63, 0.7)"
-                  class="w-1/4"
+                  class="w-16"
                   :disable="isMonitoring || isProcessing"
                   input-class="py-0.5 px-1"
                   hide-bottom-space
                 />
+                <q-select
+                  v-model="recurringType"
+                  :options="[
+                    { label: '秒', value: 'second' },
+                    { label: '分钟', value: 'minute' },
+                    { label: '小时', value: 'hour' },
+                    { label: '天', value: 'daily' },
+                    { label: '周', value: 'weekly' },
+                    { label: '月', value: 'monthly' },
+                  ]"
+                  option-label="label"
+                  option-value="value"
+                  emit-value
+                  map-options
+                  dense
+                  outlined
+                  dark
+                  bg-color="rgba(18, 35, 63, 0.7)"
+                  class="w-20"
+                  :disable="isMonitoring || isProcessing"
+                  input-class="py-0.5 px-1"
+                  hide-bottom-space
+                />
+              </div>
 
-                <!-- 值输入 -->
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-industrial-secondary">结束时间:</span>
                 <q-input
-                  v-model="condition.value"
+                  v-model="endTime"
+                  type="datetime-local"
                   dense
                   outlined
                   dark
@@ -547,90 +729,14 @@ refreshTargetTargets();
                   :disable="isMonitoring || isProcessing"
                   input-class="py-0.5 px-1"
                   hide-bottom-space
-                  placeholder="输入值"
                 />
-
-                <!-- 删除按钮 -->
-                <q-btn
-                  flat
-                  dense
-                  round
-                  icon="remove_circle_outline"
-                  color="negative"
-                  size="xs"
-                  @click="removeCondition(condition.id)"
-                  :disable="isMonitoring || triggerConditions.length <= 1 || isProcessing"
-                >
-                  <q-tooltip>删除条件</q-tooltip>
-                </q-btn>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 监听来源设置 -->
-        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3">
-          <div class="flex flex-row items-center mb-2">
-            <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
-              <q-icon name="developer_board" size="xs" class="mr-1 text-blue-5" />
-              <span>监听来源</span>
-            </div>
-
-            <q-select
-              v-model="selectedSourceId"
-              :options="sourceTargets"
-              option-value="id"
-              option-label="name"
-              dense
-              outlined
-              emit-value
-              map-options
-              dark
-              bg-color="rgba(18, 35, 63, 0.7)"
-              class="w-full"
-              :disable="isMonitoring || isProcessing"
-              input-class="py-0.5 px-1"
-              hide-bottom-space
-            >
-              <template #option="scope">
-                <q-item v-bind="scope.itemProps">
-                  <q-item-section>
-                    <q-item-label>{{ scope.opt.name }}</q-item-label>
-                    <q-item-label caption>
-                      <span
-                        :class="
-                          scope.opt.status === 'connected' ? 'text-positive' : 'text-negative'
-                        "
-                      >
-                        {{ scope.opt.status === 'connected' ? '已连接' : '未连接' }}
-                      </span>
-                      <span v-if="scope.opt.description" class="ml-2 text-industrial-tertiary">
-                        {{ scope.opt.description }}
-                      </span>
-                    </q-item-label>
-                  </q-item-section>
-
-                  <q-item-section side>
-                    <q-icon
-                      :name="
-                        scope.opt.type === 'serial'
-                          ? 'usb'
-                          : scope.opt.type === 'network'
-                            ? 'lan'
-                            : 'device_hub'
-                      "
-                      size="xs"
-                      class="text-blue-5"
-                    />
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
-          </div>
-        </div>
-
         <!-- 发送目标设置 -->
-        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial mb-3">
+        <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
           <div class="flex flex-row items-center mb-2">
             <div class="text-xs font-medium text-industrial-primary w-24 flex items-center">
               <q-icon name="send_to_mobile" size="xs" class="mr-1 text-blue-5" />
@@ -693,7 +799,7 @@ refreshTargetTargets();
         <!-- 错误信息 -->
         <div
           v-if="triggerError || processingError"
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800 mb-3"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800"
         >
           <div class="flex items-start">
             <q-icon name="error" color="negative" size="sm" class="mt-0.5 mr-2" />

@@ -3,7 +3,7 @@
     <!-- 监听来源选择 -->
     <div>
       <q-select
-        v-model="triggerStore.sourceId"
+        v-model="sendFrameInstancesStore.sourceId"
         :options="sourceOptions"
         option-value="id"
         option-label="name"
@@ -29,7 +29,7 @@
     <!-- 触发帧选择 -->
     <div>
       <q-select
-        v-model="triggerStore.triggerFrameId"
+        v-model="sendFrameInstancesStore.triggerFrameId"
         :options="frameOptions"
         option-value="id"
         option-label="name"
@@ -55,10 +55,7 @@
 
     <!-- 触发条件配置 -->
     <div>
-      <TriggerConditionList
-        v-model:conditions="triggerStore.conditions"
-        :field-options="triggerFrameFields"
-      />
+      <TriggerConditionList :field-options="triggerFrameFields" />
     </div>
 
     <!-- 触发后行为配置 -->
@@ -69,7 +66,7 @@
       </div>
 
       <q-checkbox
-        v-model="triggerStore.continueListening"
+        v-model="sendFrameInstancesStore.continueListening"
         label="触发后继续监听"
         color="primary"
         class="text-industrial-primary"
@@ -77,7 +74,7 @@
 
       <div class="text-xs text-industrial-secondary mt-2 ml-6">
         {{
-          triggerStore.continueListening
+          sendFrameInstancesStore.continueListening
             ? '触发条件满足后，任务将继续监听并可能再次触发'
             : '触发条件满足后，任务将自动停止监听'
         }}
@@ -88,7 +85,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import TriggerConditionList from './TriggerConditionList.vue';
 
 const props = defineProps<{
@@ -97,14 +94,14 @@ const props = defineProps<{
 }>();
 
 // 使用 store
-const triggerStore = useTriggerConfigStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 // 计算触发帧的字段选项
 const triggerFrameFields = computed(() => {
-  if (!triggerStore.triggerFrameId) return [];
+  if (!sendFrameInstancesStore.triggerFrameId) return [];
 
   const selectedFrame = props.frameOptions?.find(
-    (frame) => frame.id === triggerStore.triggerFrameId,
+    (frame) => frame.id === sendFrameInstancesStore.triggerFrameId,
   );
 
   return (
@@ -120,7 +117,7 @@ const triggerFrameFields = computed(() => {
  */
 function onTriggerFrameChange() {
   // 当触发帧变化时，清空已有的条件
-  triggerStore.conditions = [];
+  sendFrameInstancesStore.conditions = [];
 }
 </script>
 

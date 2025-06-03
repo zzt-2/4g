@@ -54,10 +54,11 @@ const selectedInstance = computed(() => {
 
 // 筛选查询的帧模板
 const filteredTemplates = computed(() => {
-  if (!searchQuery.value) return frameTemplateStore.frames;
+  const frames = frameTemplateStore.frames.filter((frame) => frame.direction === 'send');
+  if (!searchQuery.value) return frames;
 
   const query = searchQuery.value.toLowerCase();
-  return frameTemplateStore.frames.filter(
+  return frames.filter(
     (frame) =>
       frame.id.toLowerCase().includes(query) ||
       frame.name.toLowerCase().includes(query) ||
@@ -205,12 +206,6 @@ function closeTaskMonitorDialog() {
   showTaskMonitorDialog.value = false;
 }
 
-// 搜索帧格式
-function handleSearch() {
-  // 已通过计算属性 filteredTemplates 实现
-  console.log('搜索:', searchQuery.value);
-}
-
 // 数据处理函数
 const handleGetInstancesData = () => {
   return sendFrameInstancesStore.instances;
@@ -240,7 +235,6 @@ const handleSetInstancesData = async (data: unknown) => {
             class="w-full mt-2 bg-industrial-secondary"
             dark
             bg-color="rgba(16, 24, 40, 0.6)"
-            @keyup.enter="handleSearch"
           >
             <template #append>
               <q-icon name="search" class="text-blue-grey-6" />
@@ -419,7 +413,7 @@ const handleSetInstancesData = async (data: unknown) => {
 
     <!-- 帧编辑对话框 -->
     <q-dialog v-model="sendFrameInstancesStore.showEditorDialog" persistent>
-      <q-card style="width: 1400px; max-width: 95vw">
+      <q-card style="width: 80vw; max-width: 80vw">
         <q-card-section class="overflow-auto p-0 bg-industrial-panel" style="max-height: 80vh">
           <FrameInstanceEditor />
         </q-card-section>
@@ -448,38 +442,30 @@ const handleSetInstancesData = async (data: unknown) => {
 
     <!-- 定时发送对话框 -->
     <q-dialog v-model="showTimedSendDialog" persistent>
-      <q-card
-        style="width: 700px; max-width: 90vw"
-        class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial"
-      >
-        <q-card-section class="bg-industrial-panel p-4">
-          <TimedSendDialog
-            :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
-            @close="closeTimedSendDialog"
-          />
-        </q-card-section>
+      <q-card class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial">
+        <TimedSendDialog
+          :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
+          @close="closeTimedSendDialog"
+          class="h-full w-full"
+        />
       </q-card>
     </q-dialog>
 
     <!-- 触发发送对话框 -->
     <q-dialog v-model="showTriggerSendDialog" persistent>
-      <q-card
-        style="width: 800px; max-width: 90vw"
-        class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial"
-      >
-        <q-card-section class="bg-industrial-panel p-4">
-          <TriggerSendDialog
-            :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
-            @close="closeTriggerSendDialog"
-          />
-        </q-card-section>
+      <q-card class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial">
+        <TriggerSendDialog
+          :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
+          @close="closeTriggerSendDialog"
+          class="h-full w-full"
+        />
       </q-card>
     </q-dialog>
 
     <!-- 顺序发送对话框 -->
     <q-dialog v-model="showSequentialSendDialog" persistent full-height>
       <q-card
-        style="width: 1000px; max-width: 95vw"
+        style="max-width: 80vw"
         class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial"
       >
         <EnhancedSequentialSendDialog @close="closeSequentialSendDialog" class="h-full w-full" />

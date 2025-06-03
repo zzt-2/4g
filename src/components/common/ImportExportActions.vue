@@ -5,13 +5,13 @@ import { fileDialogManager } from '../../utils/common/fileDialogManager';
 import { pathAPI } from '../../utils/electronApi';
 
 interface Props {
-  getData: () => any; // 获取要导出的数据
-  setData: (data: any) => Promise<void>; // 处理导入的数据
+  getData: () => unknown; // 获取要导出的数据
+  setData: (data: unknown) => Promise<void>; // 处理导入的数据
   storageDir: string; // 存储目录
   exportTitle?: string; // 导出标题
   importTitle?: string; // 导入标题
-  prepareExportData?: (data: any) => any; // 导出前数据处理，可选
-  processImportData?: (fileData: any) => any; // 导入后数据处理，可选
+  prepareExportData?: (data: unknown) => unknown; // 导出前数据处理，可选
+  processImportData?: (fileData: unknown) => unknown; // 导入后数据处理，可选
 }
 
 const props = withDefaults(defineProps<Props>(), {

@@ -7,17 +7,13 @@ import { BrowserWindow, app } from 'electron';
 import serialport from 'serialport';
 const SerialPort = serialport.SerialPort || serialport;
 import { ReadlineParser } from '@serialport/parser-readline';
-import type {
-  SerialPortOptions,
-  SerialStatus,
-  MultiPortOperationResult,
-} from '../../../src/types/serial/serial';
+import type { SerialPortOptions, SerialStatus } from '../../../src/types/serial/serial';
 // 导入子进程和工具模块，用于执行系统命令
 import { exec } from 'child_process';
 import { promisify } from 'util';
 // 导入IPC和错误处理工具
 import { createHandlerRegistry } from '../../../src/utils/common/ipcUtils';
-import { logError, withErrorResponse } from '../../../src/utils/common/errorUtils';
+import { logError } from '../../../src/utils/common/errorUtils';
 
 // 将exec函数转换为Promise版本
 const execAsync = promisify(exec);
@@ -61,39 +57,7 @@ async function listPorts() {
     if (comPorts.length > 0) {
       return comPorts;
     }
-
-    // 如果注册表方法失败，回退到使用mode命令
-    const { stdout } = await execAsync('mode');
-
-    // 直接匹配所有含有COM的行
-    const comMatches = stdout.match(/COM\d+:/g) || [];
-    const comPortsFromMode = [];
-
-    // 提取COM端口号并创建端口对象
-    for (const match of comMatches) {
-      // 从匹配结果中提取COM端口号
-      const comPortMatch = match.match(/COM\d+/);
-      if (comPortMatch && comPortMatch[0]) {
-        const comPort = comPortMatch[0];
-        console.log('发现COM端口:', comPort);
-
-        // 检查串口是否已连接
-        const isOpen = portConnections.has(comPort) && portConnections.get(comPort)?.port.isOpen;
-
-        comPortsFromMode.push({
-          path: comPort,
-          manufacturer: '系统命令检测到的串口',
-          pnpId: undefined,
-          locationId: undefined,
-          productId: undefined,
-          vendorId: undefined,
-          isOpen: isOpen || false,
-        });
-      }
-    }
-
-    console.log(`系统命令共发现 ${comPortsFromMode.length} 个串口`);
-    return comPortsFromMode;
+    console.log('检测端口注册表方法失败');
   } catch (err) {
     logError('执行系统命令失败:', err);
     return [];
@@ -452,7 +416,7 @@ function readFromPort(portPath: string) {
       } else {
         resolve({ portPath, data: Buffer.alloc(0), size: 0 });
       }
-    }, 50); // 50ms超时，通常足够收集一次数据
+    }, 10); // 50ms超时，通常足够收集一次数据
   });
 }
 
@@ -609,19 +573,6 @@ function broadcastStatus(portPath: string) {
         portPath,
         status,
       });
-    }
-  }
-}
-
-/**
- * 广播所有串口状态到所有窗口
- */
-function broadcastAllStatus() {
-  const allStatus = getAllPortStatus();
-  const windows = BrowserWindow.getAllWindows();
-  for (const win of windows) {
-    if (!win.isDestroyed()) {
-      win.webContents.send('serial:all-status', allStatus);
     }
   }
 }

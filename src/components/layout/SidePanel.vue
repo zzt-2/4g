@@ -42,6 +42,7 @@ const navItems = ref([
   { label: '串口配置', path: '/serial/config', icon: 'insights' },
   { label: '帧配置', path: '/frames/list', icon: 'view_list' },
   { label: '帧发送', path: '/frames/send', icon: 'send' },
+  { label: '帧接收', path: '/frames/receive', icon: '' },
   { label: '设置', path: '/settings', icon: 'settings' },
 ]);
 

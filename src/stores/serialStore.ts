@@ -13,10 +13,10 @@ import type {
   SerialStatus,
   ConnectionStatus,
   MessageFormat,
-  PortConnectionMap,
   MultiPortOperationResult,
 } from '../types/serial/serial';
 import type { SendFrameInstance } from '../types/frames/sendInstances';
+import { useReceiveFramesStore } from './receiveFrames';
 
 // 默认串口配置
 const DEFAULT_OPTIONS: SerialPortOptions = {
@@ -30,6 +30,8 @@ const DEFAULT_OPTIONS: SerialPortOptions = {
 
 // 创建串口Store
 export const useSerialStore = defineStore('serial', () => {
+  // 获取接收帧处理Store
+  const receiveFramesStore = useReceiveFramesStore();
   // 可用串口列表
   const availablePorts = ref<SerialPortInfo[]>([]);
 
@@ -395,7 +397,7 @@ export const useSerialStore = defineStore('serial', () => {
           receivedMessagesMap.value[portPath] = [];
         }
 
-        // 添加接收到的数据
+        // 添加接收到的数据（保持原有功能）
         receivedMessagesMap.value[portPath].push({
           id: generateId(),
           timestamp: Date.now(),
@@ -407,6 +409,13 @@ export const useSerialStore = defineStore('serial', () => {
         // 限制消息数量
         if (receivedMessagesMap.value[portPath].length > 100) {
           receivedMessagesMap.value[portPath].shift();
+        }
+
+        // 统一数据接收处理 - 调用接收帧处理
+        try {
+          receiveFramesStore.handleReceivedData('serial', portPath, new Uint8Array(data.data));
+        } catch (error) {
+          console.error('统一数据接收处理失败:', error);
         }
       }
     });

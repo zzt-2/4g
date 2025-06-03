@@ -25,6 +25,23 @@ export interface SendInstanceField {
 }
 
 /**
+ * 单实例策略配置
+ * 直接嵌入到SendFrameInstance中
+ */
+export interface InstanceStrategyConfig {
+  type: 'none' | 'timed' | 'triggered';
+
+  // 复用现有接口
+  timedConfig?: TimedStrategyConfig;
+  triggeredConfig?: TriggerStrategyConfig;
+
+  // 目标配置
+  targetId?: string;
+
+  updatedAt?: string;
+}
+
+/**
  * 发送帧实例
  * 用于配置发送用例
  */
@@ -38,6 +55,8 @@ export interface SendFrameInstance {
   updatedAt: Date; // 修改时间
   fields: SendInstanceField[]; // 字段值集合
   isFavorite: boolean; // 是否收藏
+  // 新增：实例级策略配置
+  strategyConfig?: InstanceStrategyConfig;
 }
 
 /**
@@ -58,68 +77,19 @@ export interface StrategyConfigBase {
 }
 
 /**
- * 定时策略配置
- */
-export interface TimedStrategyConfig extends StrategyConfigBase {
-  type: 'timed';
-  sendInterval: number; // 发送间隔（毫秒）
-  repeatCount: number; // 重复次数（0表示无限）
-  isInfinite: boolean; // 是否无限循环
-  startDelay?: number; // 开始延时
-}
-
-/**
- * 触发类型枚举
+ * 触发类型
  */
 export type TriggerType = 'condition' | 'time';
 
 /**
- * 触发策略配置
- * 扁平化结构，直接包含所有配置字段
+ * 条件操作符
  */
-export interface TriggerStrategyConfig extends StrategyConfigBase {
-  type: 'triggered';
-  triggerType: TriggerType; // 触发类型：条件触发或时间触发
-  responseDelay?: number; // 响应延时
-
-  // 条件触发相关字段
-  sourceId?: string; // 监听来源ID
-  triggerFrameId?: string; // 触发帧ID
-  conditions?: TriggerCondition[]; // 触发条件列表
-  continueListening?: boolean; // 触发后是否继续监听（默认true）
-
-  // 时间触发相关字段
-  executeTime?: string; // ISO 8601 日期时间字符串
-  isRecurring?: boolean; // 是否重复
-  recurringType?: 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'; // 重复类型
-  recurringInterval?: number; // 重复间隔（如每2天、每3周）
-  endTime?: string; // 重复结束时间
-}
+export type ConditionOperator = 'equals' | 'not_equals' | 'greater' | 'less' | 'contains';
 
 /**
- * 时间触发配置
- * 用于组件内部使用
+ * 逻辑操作符
  */
-export interface TimeTriggerConfig {
-  triggerType: 'time';
-  executeTime: string; // ISO 8601 日期时间字符串
-  isRecurring?: boolean; // 是否重复
-  recurringType?: 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'; // 重复类型
-  recurringInterval?: number; // 重复间隔（如每2天、每3周）
-  endTime?: string; // 重复结束时间
-}
-
-/**
- * 条件触发配置
- * 用于组件内部使用
- */
-export interface ConditionTriggerConfig {
-  triggerType: 'condition';
-  sourceId: string; // 监听来源ID
-  triggerFrameId: string; // 触发帧ID
-  conditions: TriggerCondition[]; // 触发条件列表
-  continueListening?: boolean; // 触发后是否继续监听（默认true）
-}
+export type LogicOperator = 'and' | 'or';
 
 /**
  * 触发条件
@@ -127,9 +97,70 @@ export interface ConditionTriggerConfig {
 export interface TriggerCondition {
   id: string;
   fieldId: string;
-  condition: 'equals' | 'not_equals' | 'greater' | 'less' | 'contains';
+  condition: ConditionOperator;
   value: string;
-  logicOperator?: 'and' | 'or';
+  logicOperator?: LogicOperator;
+}
+
+/**
+ * 周期类型
+ */
+export type RecurringType = 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly';
+
+/**
+ * 定时策略配置
+ */
+export interface TimedStrategyConfig extends StrategyConfigBase {
+  type: 'timed';
+  sendInterval: number; // 发送间隔(ms)
+  repeatCount: number; // 重复次数
+  isInfinite: boolean; // 是否无限循环
+  startDelay?: number; // 开始延时(ms)
+}
+
+/**
+ * 触发策略配置
+ */
+export interface TriggerStrategyConfig extends StrategyConfigBase {
+  type: 'triggered';
+  triggerType: TriggerType; // 触发类型：条件 | 时间
+  responseDelay: number; // 响应延时(ms)
+
+  // 条件触发相关
+  sourceId?: string; // 监听来源ID
+  triggerFrameId?: string; // 触发帧ID
+  conditions?: TriggerCondition[]; // 触发条件
+  continueListening?: boolean; // 触发后是否继续监听
+
+  // 时间触发相关
+  executeTime?: string; // 执行时间 (ISO字符串)
+  isRecurring?: boolean; // 是否重复执行
+  recurringType?: RecurringType; // 重复类型
+  recurringInterval?: number; // 重复间隔
+  endTime?: string; // 结束时间 (ISO字符串)
+}
+
+/**
+ * 条件触发配置（单独类型，用于组件）
+ */
+export interface ConditionTriggerConfig {
+  triggerType: 'condition';
+  sourceId: string; // 监听来源ID
+  triggerFrameId: string; // 触发帧ID
+  conditions: TriggerCondition[]; // 触发条件
+  continueListening: boolean; // 触发后是否继续监听
+}
+
+/**
+ * 时间触发配置（单独类型，用于组件）
+ */
+export interface TimeTriggerConfig {
+  triggerType: 'time';
+  executeTime: string; // 执行时间 (ISO字符串)
+  isRecurring: boolean; // 是否重复执行
+  recurringType?: RecurringType; // 重复类型
+  recurringInterval?: number; // 重复间隔
+  endTime?: string; // 结束时间 (ISO字符串)
 }
 
 /**

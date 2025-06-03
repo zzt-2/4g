@@ -25,11 +25,11 @@
           <div class="grid grid-cols-2 gap-3">
             <!-- 起始位 -->
             <q-input
-              v-model="rule.startBit"
+              v-model="rule.startIndex"
               type="number"
               min="0"
               max="1024"
-              label="起始位"
+              label="起始字节"
               dense
               outlined
               dark
@@ -37,11 +37,11 @@
 
             <!-- 结束位 -->
             <q-input
-              v-model="rule.endBit"
+              v-model="rule.endIndex"
               type="number"
               min="0"
               max="1024"
-              label="结束位"
+              label="结束字节"
               dense
               outlined
               dark
@@ -69,30 +69,7 @@
             />
 
             <!-- 预期值 -->
-            <q-input
-              v-model="rule.value"
-              label="预期值"
-              dense
-              outlined
-              dark
-              :hint="rule.format === 'hex' ? '十六进制格式' : '十进制格式'"
-            />
-
-            <!-- 数据格式 -->
-            <q-select
-              v-model="rule.format"
-              :options="[
-                { label: '十六进制', value: 'hex' },
-                { label: '十进制', value: 'decimal' },
-                { label: 'ASCII文本', value: 'ascii' },
-              ]"
-              label="数据格式"
-              dense
-              outlined
-              dark
-              emit-value
-              map-options
-            />
+            <q-input v-model="rule.value" label="预期值" dense outlined dark />
 
             <!-- 逻辑操作符 -->
             <q-select
@@ -133,7 +110,7 @@
         <div class="text-subtitle2 text-primary-color">规则说明</div>
         <div class="text-caption text-secondary-color">
           <ul>
-            <li>起始位和结束位是字节中的位索引，从0开始</li>
+            <li>起始字节和结束字节是字节的索引，从0开始</li>
             <li>可以定义多条规则，通过逻辑操作符组合</li>
             <li>预期值应与数据格式一致（例如：十六进制应使用0x前缀）</li>
           </ul>

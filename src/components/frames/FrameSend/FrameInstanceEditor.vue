@@ -272,7 +272,7 @@ function getDefaultOptions(field: SendInstanceField) {
                 </div>
 
                 <!-- 右侧输入控件区域 -->
-                <div class="flex flex-1 gap-2">
+                <div class="flex flex-1 gap-2 items-center">
                   <!-- 左侧输入控件 -->
                   <div class="flex-1">
                     <!-- 下拉框类型 -->
@@ -313,7 +313,7 @@ function getDefaultOptions(field: SendInstanceField) {
                         type="radio"
                         inline
                         dense
-                        class="w-full"
+                        class="w-full text-xs"
                         @update:model-value="handleValueChange(field, $event)"
                       />
                       <!-- 无选项时显示默认选项 -->
@@ -330,7 +330,7 @@ function getDefaultOptions(field: SendInstanceField) {
                         type="radio"
                         inline
                         dense
-                        class="w-full"
+                        class="w-full text-xs"
                         @update:model-value="handleValueChange(field, $event)"
                       >
                         <div class="text-warning text-2xs mb-1">使用默认选项</div>
@@ -357,7 +357,7 @@ function getDefaultOptions(field: SendInstanceField) {
 
                   <!-- 右侧十六进制显示 -->
                   <div
-                    class="flex-1 px-2 py-1 bg-[#0d1117] rounded-md font-mono text-xs text-blue-400 flex items-center justify-center"
+                    class="flex-1 px-2 py-1 h-40px bg-[#0d1117] rounded-md font-mono text-xs text-blue-400 flex items-center justify-left"
                     v-if="
                       ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
                         field.dataType,

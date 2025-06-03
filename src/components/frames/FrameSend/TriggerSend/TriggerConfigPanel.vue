@@ -1,12 +1,12 @@
 <template>
   <div class="trigger-config-panel space-y-4">
     <!-- 触发类型选择 -->
-    <TriggerTypeSelector v-model="triggerStore.triggerType" />
+    <TriggerTypeSelector />
 
     <!-- 响应延时配置 -->
     <div>
       <q-input
-        v-model.number="triggerStore.responseDelay"
+        v-model.number="sendFrameInstancesStore.responseDelay"
         type="number"
         label="响应延时(毫秒)"
         min="0"
@@ -27,19 +27,19 @@
 
       <!-- 条件触发配置 -->
       <ConditionTriggerPanel
-        v-if="triggerStore.triggerType === 'condition'"
+        v-if="sendFrameInstancesStore.triggerType === 'condition'"
         :source-options="sourceOptions || []"
         :frame-options="frameOptions || []"
       />
 
       <!-- 时间触发配置 -->
-      <TimeTriggerPanel v-else-if="triggerStore.triggerType === 'time'" />
+      <TimeTriggerPanel v-else-if="sendFrameInstancesStore.triggerType === 'time'" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useTriggerConfigStore } from '../../../../stores/triggerConfigStore';
+import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import TriggerTypeSelector from './TriggerTypeSelector.vue';
 import ConditionTriggerPanel from './ConditionTriggerPanel.vue';
 import TimeTriggerPanel from './TimeTriggerPanel.vue';
@@ -50,7 +50,7 @@ defineProps<{
 }>();
 
 // 使用 store
-const triggerStore = useTriggerConfigStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 </script>
 
 <style scoped>
