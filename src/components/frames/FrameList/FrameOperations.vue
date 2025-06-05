@@ -8,7 +8,7 @@
       :icon="frame.isFavorite ? 'star' : 'star_outline'"
       size="sm"
       @click.stop="handleAction(ACTIONS.FAVORITE)"
-      class="opacity-80 hover:opacity-100 transition-opacity duration-200"
+      class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors opacity-80 hover:opacity-100"
     >
       <q-tooltip>{{ frame.isFavorite ? '取消收藏' : '收藏' }}</q-tooltip>
     </q-btn>
@@ -21,7 +21,7 @@
       icon="edit"
       size="sm"
       @click.stop="handleAction(ACTIONS.EDIT)"
-      class="opacity-80 hover:opacity-100 transition-opacity duration-200"
+      class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors opacity-80 hover:opacity-100"
     >
       <q-tooltip>编辑</q-tooltip>
     </q-btn>
@@ -34,7 +34,7 @@
       icon="content_copy"
       size="sm"
       @click.stop="handleAction(ACTIONS.DUPLICATE)"
-      class="opacity-80 hover:opacity-100 transition-opacity duration-200"
+      class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors opacity-80 hover:opacity-100"
     >
       <q-tooltip>复制</q-tooltip>
     </q-btn>
@@ -47,7 +47,7 @@
       icon="delete"
       size="sm"
       @click.stop="confirmDelete"
-      class="opacity-80 hover:opacity-100 transition-opacity duration-200"
+      class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors opacity-80 hover:opacity-100"
     >
       <q-tooltip>删除</q-tooltip>
     </q-btn>
@@ -90,7 +90,7 @@ const confirmDelete = () => {
     cancel: true,
     persistent: true,
     dark: true,
-    class: 'bg-[#12233f]',
+    class: 'bg-industrial-panel border border-industrial',
   }).onOk(() => {
     emit('action', ACTIONS.DELETE, props.frame.id);
   });
@@ -98,17 +98,5 @@ const confirmDelete = () => {
 </script>
 
 <style scoped>
-.frame-operations {
-  display: flex;
-  gap: 4px;
-}
-
-.action-btn {
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
-
-.action-btn:hover {
-  opacity: 1;
-}
+/* 使用工业主题样式，无需额外样式定义 */
 </style>

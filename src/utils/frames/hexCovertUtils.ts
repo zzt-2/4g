@@ -66,7 +66,7 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
         return (buffer[0] & 0xffff).toString(16).toUpperCase().padStart(4, '0');
       }
       case 'uint32':
-        return Math.min(4294967295, Math.max(0, Math.floor(numValue)))
+        return Math.min(4294967295, Math.max(0, Math.abs(numValue)))
           .toString(16)
           .toUpperCase()
           .padStart(8, '0');

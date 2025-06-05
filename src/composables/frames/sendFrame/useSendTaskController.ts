@@ -43,6 +43,12 @@ export function useSendTaskController() {
         });
       }
 
+      // 清理触发监听器
+      if (task.status === 'waiting-trigger') {
+        console.log(`清理任务 ${task.name} 的触发监听器`);
+        sendTasksStore.unregisterTaskTriggerListener(taskId);
+      }
+
       // 更新任务状态
       sendTasksStore.updateTaskStatus(taskId, 'completed');
 
@@ -194,6 +200,12 @@ export function useSendTaskController() {
           clearTimeout(timerId);
           clearInterval(timerId);
         });
+      }
+
+      // 强制清理触发监听器
+      if (task.status === 'waiting-trigger') {
+        console.warn(`强制清理任务 ${task.name} 的触发监听器`);
+        sendTasksStore.unregisterTaskTriggerListener(taskId);
       }
 
       // 清空定时器记录

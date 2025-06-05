@@ -3,7 +3,7 @@
  */
 
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type {
   DataGroup,
   FrameFieldMapping,
@@ -13,16 +13,17 @@ import type {
   DataItem,
   ReceivedDataPacket,
   DataReceiveStats,
-} from '../types/frames/receive';
-import type { Frame } from '../types/frames/frames';
-import { useFrameTemplateStore } from './frames/frameTemplateStore';
+} from '../../types/frames/receive';
+import type { Frame } from '../../types/frames/frames';
+import { useFrameTemplateStore } from './frameTemplateStore';
 import {
   validateMappings as validateMappingsUtil,
   createDataPacket,
   matchDataToFrame,
   processReceivedData,
   applyDataProcessResult,
-} from '../utils/receive';
+} from '../../utils/receive';
+import { dataStorageAPI } from 'src/utils/electronApi';
 
 export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   // 核心状态
@@ -48,6 +49,54 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
   // 获取帧模板Store
   const frameTemplateStore = useFrameTemplateStore();
+
+  // 获取发送任务Store（动态导入避免循环依赖）
+  const getSendTasksStore = async () => {
+    const { useSendTasksStore } = await import('./sendTasksStore');
+    return useSendTasksStore();
+  };
+
+  // 防抖保存函数
+  let saveTimeout: NodeJS.Timeout | null = null;
+  const debouncedSaveConfig = (): void => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+    saveTimeout = setTimeout(() => {
+      saveConfig();
+    }, 1000); // 1秒防抖
+  };
+
+  // 创建用于监听的计算属性（排除value和displayValue）
+  const configForWatch = computed(() => {
+    // 过滤掉value和displayValue字段的groups副本
+    const filteredGroups = groups.value.map((group) => ({
+      ...group,
+      dataItems: group.dataItems.map((item) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { value: _value, displayValue: _displayValue, ...configItem } = item;
+        return configItem;
+      }),
+    }));
+
+    return {
+      groups: filteredGroups,
+      mappings: mappings.value,
+    };
+  });
+
+  // 监听配置变化并自动保存
+  watch(
+    configForWatch,
+    () => {
+      // 避免在初始加载时触发保存
+      if (!isLoading.value) {
+        console.log('检测到接收帧配置变化，将在1秒后自动保存...');
+        debouncedSaveConfig();
+      }
+    },
+    { deep: true },
+  );
 
   // 计算属性：筛选接收帧
   const receiveFrames = computed(() => {
@@ -83,7 +132,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     try {
       isLoading.value = true;
       // TODO: 使用dataStorageAPI.receiveConfig.list()
-      // const result = await dataStorageAPI.receiveConfig.list();
+      const result = (await dataStorageAPI.receiveConfig.list())[0] as ReceiveConfig | undefined;
 
       // 临时模拟数据
       const mockConfig: ReceiveConfig = {
@@ -94,8 +143,8 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         updatedAt: new Date(),
       };
 
-      groups.value = mockConfig.groups;
-      mappings.value = mockConfig.mappings;
+      groups.value = result?.groups ? result.groups : mockConfig.groups;
+      mappings.value = result?.mappings ? result.mappings : mockConfig.mappings;
 
       // 验证映射关系
       validateMappings();
@@ -119,11 +168,68 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       };
 
       // TODO: 使用dataStorageAPI.receiveConfig.save()
-      // await dataStorageAPI.receiveConfig.save(config);
+      await dataStorageAPI.receiveConfig.save(config);
 
       console.log('接收配置已保存:', config);
     } catch (error) {
       console.error('保存接收配置失败:', error);
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // 方法：导出配置（用于文件导出）
+  const exportConfig = (): ReceiveConfig => {
+    return {
+      groups: groups.value,
+      mappings: mappings.value,
+      version: '1.0.0',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  };
+
+  // 方法：导入配置（用于文件导入）
+  const importConfig = async (config: ReceiveConfig): Promise<void> => {
+    try {
+      isLoading.value = true;
+
+      // 验证导入的配置数据
+      if (!config || typeof config !== 'object') {
+        throw new Error('无效的配置数据格式');
+      }
+
+      if (!Array.isArray(config.groups) || !Array.isArray(config.mappings)) {
+        throw new Error('配置数据缺少必要的分组或映射信息');
+      }
+
+      // 清空当前配置
+      groups.value = [];
+      mappings.value = [];
+
+      // 导入分组数据
+      groups.value = config.groups.map((group) => ({
+        ...group,
+        dataItems: group.dataItems.map((item) => ({
+          ...item,
+          // 确保isFavorite字段存在，如果不存在则设置默认值
+          isFavorite: item.isFavorite ?? false,
+          // 重置运行时值，只保留配置信息
+          value: null,
+          displayValue: '-',
+        })),
+      }));
+
+      // 导入映射数据
+      mappings.value = [...config.mappings];
+
+      // 验证映射关系
+      validateMappings();
+
+      console.log('接收配置导入成功:', config);
+    } catch (error) {
+      console.error('导入接收配置失败:', error);
+      throw error; // 重新抛出错误，让调用方处理
     } finally {
       isLoading.value = false;
     }
@@ -277,6 +383,29 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     dataItem.isVisible = !dataItem.isVisible;
   };
 
+  // 方法：切换数据项收藏状态
+  const toggleDataItemFavorite = (groupId: number, dataItemId: number): void => {
+    const group = groups.value.find((g: DataGroup) => g.id === groupId);
+    if (!group) return;
+
+    const dataItem = group.dataItems.find((item) => item.id === dataItemId);
+    if (!dataItem) return;
+
+    dataItem.isFavorite = !dataItem.isFavorite;
+  };
+
+  /**
+   * 清空所有数据项的值
+   */
+  const clearDataItemValues = (): void => {
+    groups.value.forEach((group) => {
+      group.dataItems.forEach((dataItem) => {
+        dataItem.value = null;
+        dataItem.displayValue = '';
+      });
+    });
+  };
+
   /**
    * 统一数据接收处理入口
    * @param source 数据来源
@@ -347,6 +476,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         updateFrameStats(matchResult.frameId, {
           totalReceived: (frameStats.value.get(matchResult.frameId)?.totalReceived || 0) + 1,
           lastReceiveTime: new Date(),
+          lastReceivedFrame: packet.data,
         });
       }
 
@@ -355,9 +485,68 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         frameName: matchResult.frame?.name,
         updatedItems: processResult.updatedDataItems?.length || 0,
       });
+
+      // 检查触发条件（异步处理，不阻塞当前流程）
+      if (matchResult.frameId && processResult.updatedDataItems) {
+        checkTriggerConditions(
+          matchResult.frameId,
+          source + ':' + sourceId,
+          processResult.updatedDataItems,
+        );
+      }
     } catch (error) {
       receiveStats.value.errorPackets++;
       console.error('数据接收处理异常:', error);
+    }
+  };
+
+  /**
+   * 检查触发条件
+   */
+  const checkTriggerConditions = async (
+    frameId: string,
+    sourceId: string,
+    updatedDataItems: {
+      groupId: number;
+      dataItemId: number;
+      value: unknown;
+      displayValue: string;
+    }[],
+  ): Promise<void> => {
+    try {
+      const sendTasksStore = await getSendTasksStore();
+
+      // 将简化的数据项转换为DataItem格式
+      const dataItems: DataItem[] = updatedDataItems.map((item) => {
+        // 从对应的分组中查找完整的DataItem信息
+        const group = groups.value.find((g) => g.id === item.groupId);
+        const dataItem = group?.dataItems.find((di) => di.id === item.dataItemId);
+
+        if (dataItem) {
+          // 返回带有更新值的DataItem
+          return {
+            ...dataItem,
+            value: item.value,
+            displayValue: item.displayValue,
+          };
+        } else {
+          // 如果找不到原始DataItem，创建一个最小的DataItem对象
+          return {
+            id: item.dataItemId,
+            label: `数据项${item.dataItemId}`,
+            isVisible: true,
+            isFavorite: false,
+            dataType: 'uint8' as const,
+            value: item.value,
+            displayValue: item.displayValue,
+            useLabel: false,
+          };
+        }
+      });
+
+      sendTasksStore.handleFrameReceived(frameId, sourceId, dataItems);
+    } catch (error) {
+      console.error('触发条件检查异常:', error);
     }
   };
 
@@ -416,6 +605,8 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     // 方法
     loadConfig,
     saveConfig,
+    exportConfig,
+    importConfig,
     validateMappings,
     selectFrame,
     selectGroup,
@@ -429,10 +620,15 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     addMapping,
     updateGroup,
     toggleDataItemVisibility,
+    toggleDataItemFavorite,
 
     // 数据接收处理
     handleReceivedData,
     clearReceiveStats,
     getRecentPackets,
+
+    // 新方法
+    clearDataItemValues,
+    debouncedSaveConfig,
   };
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useFrameTemplateStore } from '../stores/frames/frameTemplateStore';
 import { useSendFrameInstancesStore } from '../stores/frames/sendFrameInstancesStore';
 import { useSerialStore } from '../stores/serialStore';
@@ -23,13 +23,10 @@ const sendFrameInstancesStore = useSendFrameInstancesStore();
 const serialStore = useSerialStore();
 
 // 使用连接目标组合式函数，为此页面指定唯一的存储键
-const { selectedTargetId, refreshTargets, parseTargetPath } = useConnectionTargets(
-  'frame-send-selected-target',
-);
+const { selectedTargetId, parseTargetPath } = useConnectionTargets('frame-send-selected-target');
 
 // 本地UI状态
 const searchQuery = ref('');
-const isLoading = ref(false);
 const isSending = ref(false);
 const sendError = ref('');
 
@@ -38,9 +35,6 @@ const showTimedSendDialog = ref(false);
 const showTriggerSendDialog = ref(false);
 const showSequentialSendDialog = ref(false);
 const showTaskMonitorDialog = ref(false);
-
-// 布局相关
-const layoutReady = ref(false);
 
 // 从store获取状态
 const selectedInstance = computed(() => {
@@ -73,24 +67,24 @@ const canSendInstance = computed(() => {
 });
 
 // 加载数据
-onMounted(async () => {
-  isLoading.value = true;
-  try {
-    await frameTemplateStore.fetchFrames();
-    await sendFrameInstancesStore.fetchInstances();
-    await serialStore.refreshPorts();
-    await refreshTargets(); // 刷新可用的连接目标
-  } catch (error) {
-    console.error('加载数据失败:', error);
-  } finally {
-    isLoading.value = false;
+// onMounted(async () => {
+//   isLoading.value = true;
+//   try {
+//     await frameTemplateStore.fetchFrames();
+//     await sendFrameInstancesStore.fetchInstances();
+//     await serialStore.refreshPorts();
+//     await refreshTargets(); // 刷新可用的连接目标
+//   } catch (error) {
+//     console.error('加载数据失败:', error);
+//   } finally {
+//     isLoading.value = false;
 
-    // 确保布局计算完成
-    setTimeout(() => {
-      layoutReady.value = true;
-    }, 50);
-  }
-});
+//     // 确保布局计算完成
+//     setTimeout(() => {
+//       layoutReady.value = true;
+//     }, 50);
+//   }
+// });
 
 // 关闭编辑对话框
 function closeEditorDialog() {
@@ -249,7 +243,6 @@ const handleSetInstancesData = async (data: unknown) => {
       <!-- 中间发送实例列表 -->
       <div
         class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg w-full"
-        :class="{ invisible: !layoutReady, visible: layoutReady }"
       >
         <div
           class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
@@ -478,11 +471,6 @@ const handleSetInstancesData = async (data: unknown) => {
       :show-filters="true"
       @close="closeTaskMonitorDialog"
     />
-
-    <!-- 加载状态 -->
-    <q-inner-loading :showing="isLoading">
-      <q-spinner-gears size="50px" color="primary" />
-    </q-inner-loading>
   </q-page>
 </template>
 

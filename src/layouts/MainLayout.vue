@@ -10,7 +10,7 @@
       <!-- 侧边栏固定宽度 -->
       <q-drawer
         v-model="leftDrawerOpen"
-        :breakpoint="500"
+        :breakpoint="200"
         dark
         persistent
         show-if-above
@@ -38,15 +38,65 @@
 import { ref, provide, onMounted, onUnmounted } from 'vue';
 import HeaderBar from '../components/layout/HeaderBar.vue';
 import SidePanel from '../components/layout/SidePanel.vue';
+import { useReceiveFramesStore } from 'src/stores/frames/receiveFramesStore';
+import { useConnectionTargets } from 'src/composables/useConnectionTargets';
+import { useFrameTemplateStore, useSendFrameInstancesStore } from 'src/stores/framesStore';
+import { useSerialStore } from 'src/stores/serialStore';
+import { useDataDisplayStore } from 'src/stores/frames/dataDisplayStore';
+
+// 自动开始记录设置（临时使用const，后续可改为配置）
+const AUTO_START_RECORDING = true;
 
 const leftDrawerOpen = ref(true);
-const drawerWidth = ref(250); // 默认宽度，单位是像素
+const drawerWidth = ref(120); // 默认宽度，单位是像素
 const miniState = ref(true); // 默认为mini模式
+const receiveFramesStore = useReceiveFramesStore();
+const frameTemplateStore = useFrameTemplateStore();
+const sendFrameInstancesStore = useSendFrameInstancesStore();
+const serialStore = useSerialStore();
+const dataDisplayStore = useDataDisplayStore();
+
+// 方法：清理数据项值
+const clearDataItemValues = async (): Promise<void> => {
+  try {
+    console.log('页面卸载，开始清理接收帧数据项值...');
+
+    // 使用store中的清理方法
+    receiveFramesStore.clearDataItemValues();
+
+    // 保存配置
+    await receiveFramesStore.saveConfig();
+    console.log('接收帧数据项值已清理并保存');
+  } catch (error) {
+    console.error('清理接收帧数据项值失败:', error);
+  }
+};
+
+const { refreshTargets } = useConnectionTargets('frame-send-selected-target');
 
 // 计算抽屉宽度为视窗宽度的百分比
-onMounted(() => {
+onMounted(async () => {
+  try {
+    await frameTemplateStore.fetchFrames();
+    await sendFrameInstancesStore.fetchInstances();
+    await receiveFramesStore.loadConfig();
+    await serialStore.refreshPorts();
+    await refreshTargets(); // 刷新可用的连接目标
+
+    // 启动数据收集定时器（常开模式）
+    dataDisplayStore.startDataCollection();
+
+    // 根据设置自动开始记录
+    if (AUTO_START_RECORDING && !dataDisplayStore.recordingStatus.isRecording) {
+      console.log('自动开始数据记录...');
+      dataDisplayStore.startRecording();
+    }
+  } catch (error) {
+    console.error('加载数据失败:', error);
+  }
+
   const updateWidth = () => {
-    drawerWidth.value = Math.round(window.innerWidth * 0.15); // 15% 的视窗宽度
+    drawerWidth.value = Math.round(window.innerWidth * 0.08); // 15% 的视窗宽度
   };
 
   updateWidth();
@@ -55,6 +105,17 @@ onMounted(() => {
   // 清理监听器
   onUnmounted(() => {
     window.removeEventListener('resize', updateWidth);
+
+    // 停止数据记录
+    if (dataDisplayStore.recordingStatus.isRecording) {
+      console.log('页面卸载，停止数据记录...');
+      dataDisplayStore.stopRecording();
+    }
+
+    // 停止数据收集定时器
+    dataDisplayStore.stopDataCollection();
+
+    clearDataItemValues();
   });
 });
 

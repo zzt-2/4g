@@ -171,7 +171,11 @@ export function extractFieldValue(
       case 'uint32':
         value =
           fieldData.length >= 4
-            ? (fieldData[0]! << 24) | (fieldData[1]! << 16) | (fieldData[2]! << 8) | fieldData[3]!
+            ? ((fieldData[0]! << 24) |
+                (fieldData[1]! << 16) |
+                (fieldData[2]! << 8) |
+                fieldData[3]!) >>>
+              0
             : 0;
         displayValue = (value as number).toString();
         break;

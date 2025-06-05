@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useReceiveFramesStore } from '../../../stores/receiveFrames';
+import { computed } from 'vue';
+import { useReceiveFramesStore } from '../../../stores/frames/receiveFramesStore';
 import type { ReceiveFrameStats } from '../../../types/frames/receive';
+import FrameStructureViewer from 'src/components/frames/receive/FrameStructureViewer.vue';
+import { useDataDisplayStore } from '../../../stores/frames/dataDisplayStore';
+import { formatDuration } from '../../../utils/common/dateUtils';
 
 // Store
 const receiveFramesStore = useReceiveFramesStore();
+const dataDisplayStore = useDataDisplayStore();
 
-// 本地状态
-const refreshInterval = ref<NodeJS.Timeout | null>(null);
-const isAutoRefresh = ref<boolean>(true);
-const refreshRate = ref<number>(1000); // 1秒刷新一次
+// 计算属性：记录统计信息
+const recordingStats = dataDisplayStore.getRecordingStats();
 
 // 计算属性：选中帧的统计信息
 const selectedFrameStats = computed((): ReceiveFrameStats | null => {
@@ -39,24 +41,6 @@ const errorRate = computed((): number => {
   return (overallStats.value.totalErrors / overallStats.value.totalReceived) * 100;
 });
 
-// 计算属性：校验失败率
-const checksumFailureRate = computed((): number => {
-  if (overallStats.value.totalReceived === 0) return 0;
-  return (overallStats.value.totalChecksumFailures / overallStats.value.totalReceived) * 100;
-});
-
-// 计算属性：接收速率（每秒）
-const receiveRate = computed((): number => {
-  // 这里应该基于时间窗口计算，暂时返回模拟值
-  return Math.floor(Math.random() * 10);
-});
-
-// 计算属性：连接状态
-const connectionStatus = computed((): 'connected' | 'disconnected' | 'error' => {
-  // 这里应该从串口状态获取，暂时返回模拟值
-  return 'connected';
-});
-
 // 方法：格式化时间差
 const formatTimeDiff = (date: Date | null): string => {
   if (!date) return '从未';
@@ -78,39 +62,17 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
-// 方法：获取状态颜色
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'connected':
-      return 'green';
-    case 'disconnected':
-      return 'grey';
-    case 'error':
-      return 'red';
-    default:
-      return 'grey';
-  }
-};
-
-// 方法：获取状态图标
-const getStatusIcon = (status: string): string => {
-  switch (status) {
-    case 'connected':
-      return 'wifi';
-    case 'disconnected':
-      return 'wifi_off';
-    case 'error':
-      return 'error';
-    default:
-      return 'help';
-  }
-};
-
 // 方法：重置统计
 const resetStats = (): void => {
   if (!confirm('确定要重置所有统计信息吗？')) return;
 
   receiveFramesStore.frameStats.clear();
+  receiveFramesStore.groups.forEach((group) => {
+    group.dataItems.forEach((item) => {
+      item.value = null;
+      item.displayValue = '';
+    });
+  });
 };
 
 // 方法：重置选中帧统计
@@ -120,185 +82,183 @@ const resetSelectedFrameStats = (): void => {
 
   receiveFramesStore.frameStats.delete(receiveFramesStore.selectedFrameId);
 };
-
-// 方法：切换自动刷新
-const toggleAutoRefresh = (): void => {
-  isAutoRefresh.value = !isAutoRefresh.value;
-
-  if (isAutoRefresh.value) {
-    startAutoRefresh();
-  } else {
-    stopAutoRefresh();
-  }
-};
-
-// 方法：开始自动刷新
-const startAutoRefresh = (): void => {
-  if (refreshInterval.value) return;
-
-  refreshInterval.value = setInterval(() => {
-    // 这里可以触发数据更新
-    // 暂时只是为了触发响应式更新
-  }, refreshRate.value);
-};
-
-// 方法：停止自动刷新
-const stopAutoRefresh = (): void => {
-  if (refreshInterval.value) {
-    clearInterval(refreshInterval.value);
-    refreshInterval.value = null;
-  }
-};
-
-// 生命周期
-onMounted(() => {
-  if (isAutoRefresh.value) {
-    startAutoRefresh();
-  }
-});
-
-onUnmounted(() => {
-  stopAutoRefresh();
-});
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-industrial-secondary">
-    <!-- 标题栏 - 压缩高度 -->
-    <div class="p-2 border-b border-industrial">
-      <div class="flex items-center justify-between mb-1">
-        <h3 class="text-industrial-primary text-base font-medium">统计信息</h3>
-        <div class="flex items-center space-x-1">
-          <q-btn
-            flat
-            dense
-            size="sm"
-            :icon="isAutoRefresh ? 'pause' : 'play_arrow'"
-            :color="isAutoRefresh ? 'orange' : 'green'"
-            @click="toggleAutoRefresh"
+  <div class="h-full flex flex-col">
+    <!-- 标题栏 -->
+    <div
+      class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
+    >
+      <h6
+        class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
+      >
+        <q-icon name="analytics" size="xs" class="mr-1 text-blue-5" />
+        统计信息
+      </h6>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="flex-1 overflow-y-auto bg-industrial-secondary">
+      <div class="flex flex-col h-full">
+        <div class="flex-1 space-y-3 p-3">
+          <!-- 总体统计 -->
+          <div class="bg-industrial-panel rounded-lg p-3 border border-industrial">
+            <div class="text-industrial-primary text-sm font-medium mb-3">总体统计</div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div class="space-y-1">
+                <div class="text-industrial-secondary">接收总数</div>
+                <div class="text-industrial-primary font-mono text-lg">
+                  {{ formatNumber(overallStats.totalReceived) }}
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-industrial-secondary">错误总数</div>
+                <div class="text-red-400 font-mono text-lg">
+                  {{ formatNumber(overallStats.totalErrors) }}
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-industrial-secondary">校验失败</div>
+                <div class="text-orange-400 font-mono text-lg">
+                  {{ formatNumber(overallStats.totalChecksumFailures) }}
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-industrial-secondary">活跃帧数</div>
+                <div class="text-blue-400 font-mono text-lg">
+                  {{ overallStats.totalFrames }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 错误率 -->
+            <div class="mt-3 pt-3 border-t border-industrial">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-industrial-secondary">错误率</span>
+                <span :class="errorRate > 5 ? 'text-red-400' : 'text-green-400'" class="font-mono">
+                  {{ errorRate.toFixed(2) }}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 选中帧统计 -->
+          <div
+            v-if="receiveFramesStore.selectedFrameId"
+            class="bg-industrial-panel rounded-lg p-3 border border-industrial"
           >
-            <q-tooltip>{{ isAutoRefresh ? '暂停' : '开始' }}自动刷新</q-tooltip>
-          </q-btn>
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-industrial-primary text-sm font-medium">当前帧统计</div>
+              <q-btn
+                flat
+                dense
+                round
+                size="sm"
+                icon="clear"
+                color="red"
+                @click="resetSelectedFrameStats"
+              >
+                <q-tooltip>重置当前帧统计</q-tooltip>
+              </q-btn>
+            </div>
 
-          <q-btn flat dense size="sm" icon="refresh" color="blue" @click="() => {}">
-            <q-tooltip>手动刷新</q-tooltip>
-          </q-btn>
-        </div>
-      </div>
+            <div v-if="selectedFrameStats" class="grid grid-cols-2 gap-3 text-xs">
+              <div class="space-y-1">
+                <div class="text-industrial-secondary">接收次数</div>
+                <div class="text-industrial-primary font-mono text-lg">
+                  {{ formatNumber(selectedFrameStats.totalReceived) }}
+                </div>
+              </div>
 
-      <div class="text-xs text-industrial-secondary">
-        <span>{{ isAutoRefresh ? '自动刷新' : '已暂停' }}</span>
-      </div>
-    </div>
+              <div class="space-y-1">
+                <div class="text-industrial-secondary">错误次数</div>
+                <div class="text-red-400 font-mono text-lg">
+                  {{ selectedFrameStats.errorCount }}
+                </div>
+              </div>
 
-    <!-- 连接状态 - 压缩高度 -->
-    <div class="p-2 border-b border-industrial">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <q-icon
-            :name="getStatusIcon(connectionStatus)"
-            :color="getStatusColor(connectionStatus)"
-            size="16px"
-          />
-          <span class="text-industrial-primary text-sm font-medium">
-            {{
-              connectionStatus === 'connected'
-                ? '已连接'
-                : connectionStatus === 'disconnected'
-                  ? '未连接'
-                  : '连接错误'
-            }}
-          </span>
-        </div>
-
-        <div class="text-xs text-industrial-secondary">{{ receiveRate }}/秒</div>
-      </div>
-    </div>
-
-    <!-- 统计概览 - 压缩内容 -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="space-y-2 p-2">
-        <!-- 总体统计 -->
-        <div class="bg-industrial-panel rounded p-2">
-          <div class="text-industrial-primary text-sm font-medium mb-2">总体统计</div>
-
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="space-y-1">
-              <div class="text-industrial-secondary">接收总数</div>
-              <div class="text-industrial-primary font-mono">
-                {{ formatNumber(overallStats.totalReceived) }}
+              <div class="col-span-2 space-y-1">
+                <div class="text-industrial-secondary">最后接收</div>
+                <div class="text-industrial-secondary text-xs">
+                  {{ formatTimeDiff(selectedFrameStats.lastReceiveTime) }}
+                </div>
               </div>
             </div>
 
-            <div class="space-y-1">
-              <div class="text-industrial-secondary">错误总数</div>
-              <div class="text-red-400 font-mono">
-                {{ formatNumber(overallStats.totalErrors) }}
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <div class="text-industrial-secondary">校验失败</div>
-              <div class="text-orange-400 font-mono">
-                {{ formatNumber(overallStats.totalChecksumFailures) }}
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <div class="text-industrial-secondary">活跃帧数</div>
-              <div class="text-blue-400 font-mono">
-                {{ overallStats.totalFrames }}
-              </div>
+            <div v-else class="text-xs text-industrial-secondary text-center py-4">
+              暂无统计数据
             </div>
           </div>
 
-          <!-- 错误率 -->
-          <div class="mt-2 pt-2 border-t border-industrial-primary/20">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-industrial-secondary">错误率</span>
-              <span :class="errorRate > 5 ? 'text-red-400' : 'text-green-400'">
-                {{ errorRate.toFixed(2) }}%
-              </span>
-            </div>
+          <div class="overflow-hidden bg-industrial-panel">
+            <FrameStructureViewer />
           </div>
-        </div>
+          <!-- 记录控制区域 -->
+          <div class="flex-shrink-0 p-3 border-t border-industrial bg-industrial-panel">
+            <div class="space-y-3">
+              <!-- 记录状态显示 -->
+              <div v-if="recordingStats.isRecording" class="text-xs">
+                <div class="flex items-center space-x-2 mb-2">
+                  <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span class="text-green-400 font-medium">正在记录数据</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-industrial-secondary">
+                  <div>运行时间: {{ formatDuration(recordingStats.runningTime) }}</div>
+                  <div>记录数: {{ recordingStats.recordCount }}</div>
+                  <div>历史记录: {{ recordingStats.totalRecords }}</div>
+                  <div>CSV批次: {{ recordingStats.csvBatchCount }}</div>
+                </div>
+              </div>
 
-        <!-- 选中帧统计 -->
-        <div v-if="receiveFramesStore.selectedFrameId" class="bg-industrial-panel rounded p-2">
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-industrial-primary text-sm font-medium">当前帧</div>
-            <q-btn flat dense size="sm" icon="clear" color="red" @click="resetSelectedFrameStats">
-              <q-tooltip>重置当前帧统计</q-tooltip>
-            </q-btn>
-          </div>
-
-          <div v-if="selectedFrameStats" class="grid grid-cols-2 gap-2 text-xs">
-            <div class="space-y-1">
-              <div class="text-industrial-secondary">接收次数</div>
-              <div class="text-industrial-primary font-mono">
-                {{ formatNumber(selectedFrameStats.totalReceived) }}
+              <!-- 记录控制按钮 -->
+              <div class="flex items-center justify-center gap-2">
+                <q-btn
+                  v-if="!recordingStats.isRecording"
+                  flat
+                  dense
+                  size="sm"
+                  icon="play_arrow"
+                  color="green"
+                  label="开始记录"
+                  @click="dataDisplayStore.startRecording()"
+                  class="text-xs"
+                />
+                <q-btn
+                  v-else
+                  flat
+                  dense
+                  size="sm"
+                  icon="stop"
+                  color="red"
+                  label="停止记录"
+                  @click="dataDisplayStore.stopRecording()"
+                  class="text-xs"
+                />
               </div>
             </div>
-
-            <div class="space-y-1">
-              <div class="text-industrial-secondary">错误次数</div>
-              <div class="text-red-400 font-mono">
-                {{ selectedFrameStats.errorCount }}
-              </div>
-            </div>
           </div>
-
-          <div v-else class="text-xs text-industrial-secondary text-center py-1">暂无统计数据</div>
         </div>
       </div>
     </div>
 
-    <!-- 底部操作 - 压缩高度 -->
-    <div class="p-2 border-t border-industrial bg-industrial-panel">
-      <div class="flex items-center justify-between text-xs">
-        <q-btn flat dense size="sm" icon="clear_all" color="red" label="重置" @click="resetStats" />
-
-        <div class="text-industrial-secondary">{{ refreshRate / 1000 }}秒</div>
+    <!-- 底部操作 -->
+    <div class="p-3 border-t border-industrial bg-industrial-table-header">
+      <div class="flex items-center justify-center">
+        <q-btn
+          flat
+          dense
+          size="sm"
+          icon="clear_all"
+          color="red"
+          label="重置统计"
+          @click="resetStats"
+          class="text-xs"
+        />
       </div>
     </div>
   </div>

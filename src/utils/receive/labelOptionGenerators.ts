@@ -56,21 +56,21 @@ export function generateLabelOptionsFromField(field: FrameField): {
 
     case 'input':
       // 根据数据类型生成默认选项
-      options.push(...generateDefaultOptionsForDataType(field.dataType));
+      // options.push(...generateDefaultOptionsForDataType(field.dataType));
       break;
 
     default:
-      // 未知输入类型，生成基础选项
-      options.push(...generateDefaultOptionsForDataType(field.dataType));
+    // 未知输入类型，生成基础选项
+    // options.push(...generateDefaultOptionsForDataType(field.dataType));
   }
 
   // 如果没有生成任何选项，添加默认选项
-  if (options.length === 0) {
-    options.push({
-      value: '0',
-      label: '默认值',
-    });
-  }
+  // if (options.length === 0) {
+  //   options.push({
+  //     value: '0',
+  //     label: '默认值',
+  //   });
+  // }
 
   return options;
 }
@@ -89,56 +89,20 @@ function generateDefaultOptionsForDataType(dataType: FieldType): {
   switch (dataType) {
     case 'uint8':
     case 'int8':
-      // 8位数值，生成常用值
-      options.push(
-        { value: '0', label: '0' },
-        { value: '1', label: '1' },
-        { value: '255', label: '255 (最大值)' },
-      );
       break;
 
     case 'uint16':
     case 'int16':
-      // 16位数值，生成常用值
-      options.push(
-        { value: '0', label: '0' },
-        { value: '1', label: '1' },
-        { value: '100', label: '100' },
-        { value: '1000', label: '1000' },
-        { value: '65535', label: '65535 (最大值)' },
-      );
       break;
 
     case 'uint32':
     case 'int32':
-      // 32位数值，生成常用值
-      options.push(
-        { value: '0', label: '0' },
-        { value: '1', label: '1' },
-        { value: '100', label: '100' },
-        { value: '1000', label: '1000' },
-        { value: '10000', label: '10000' },
-      );
       break;
 
     case 'float':
-      // 浮点数，生成常用值
-      options.push(
-        { value: '0.0', label: '0.0' },
-        { value: '1.0', label: '1.0' },
-        { value: '3.14', label: '3.14' },
-        { value: '100.0', label: '100.0' },
-      );
       break;
 
     case 'bytes':
-      // 字节数组，生成常用值
-      options.push(
-        { value: '00', label: '00' },
-        { value: 'FF', label: 'FF' },
-        { value: 'AA', label: 'AA' },
-        { value: '55', label: '55' },
-      );
       break;
 
     default:

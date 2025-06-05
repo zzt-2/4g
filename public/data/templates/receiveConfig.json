@@ -1,0 +1,168 @@
+[
+  {
+    "groups": [
+      {
+        "id": 1,
+        "label": "1",
+        "dataItems": [
+          {
+            "label": "无符号1",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 170,
+            "displayValue": "170",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 1
+          },
+          {
+            "label": "无符号2",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": 65535,
+            "displayValue": "65535",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 2
+          },
+          {
+            "label": "无符号4",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 4294967295,
+            "displayValue": "4294967295",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 3
+          },
+          {
+            "label": "有符号1",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "int8",
+            "value": -1,
+            "displayValue": "-1",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 4
+          },
+          {
+            "label": "有符号2",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "int16",
+            "value": -1,
+            "displayValue": "-1",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 5
+          },
+          {
+            "label": "有符号4",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "int32",
+            "value": -1,
+            "displayValue": "-1",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 6
+          },
+          {
+            "label": "浮点4",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": 1.1443742118159064e-28,
+            "displayValue": "0.00",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 7
+          },
+          {
+            "label": "6字节",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "bytes",
+            "value": {
+              "0": 17,
+              "1": 17,
+              "2": 17,
+              "3": 17,
+              "4": 17,
+              "5": 17
+            },
+            "displayValue": "11 11 11 11 11 11",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 8
+          }
+        ]
+      }
+    ],
+    "mappings": [
+      {
+        "frameId": "22222",
+        "fieldId": "GyyChrkgMWa0J7tB2WGbB",
+        "fieldName": "无符号1",
+        "groupId": 1,
+        "dataItemId": 1
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "Ghzoxs1w33nxKod1RC2pb",
+        "fieldName": "无符号2",
+        "groupId": 1,
+        "dataItemId": 2
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "vo6FzcrxdY-zhpF7F0ybW",
+        "fieldName": "无符号4",
+        "groupId": 1,
+        "dataItemId": 3
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "UbsKqJlmp7g8TW7sFbSBr",
+        "fieldName": "有符号1",
+        "groupId": 1,
+        "dataItemId": 4
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "kC5-sfSp2yA5TK8dMDnHY",
+        "fieldName": "有符号2",
+        "groupId": 1,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "LGc5eRDW4zoePGwUghH6b",
+        "fieldName": "有符号4",
+        "groupId": 1,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "eB02Ny4KQIUruf1lZAiDa",
+        "fieldName": "浮点4",
+        "groupId": 1,
+        "dataItemId": 7
+      },
+      {
+        "frameId": "22222",
+        "fieldId": "dKlEwd7HClNKjCqx29IF-",
+        "fieldName": "6字节",
+        "groupId": 1,
+        "dataItemId": 8
+      }
+    ],
+    "version": "1.0.0",
+    "createdAt": "2025-06-05T10:01:50.158Z",
+    "updatedAt": "2025-06-05T10:01:50.158Z"
+  }
+]

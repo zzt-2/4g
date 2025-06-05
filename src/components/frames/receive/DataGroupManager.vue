@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useReceiveFramesStore } from '../../../stores/receiveFrames';
-import type { DataGroup, DataItem } from '../../../types/frames/receive';
+import { useReceiveFramesStore } from '../../../stores/frames/receiveFramesStore';
+import type { DataGroup } from '../../../types/frames/receive';
+import type { ContentMode } from '../../../types/frames/receive';
+
+// 定义 props 和 emits
+defineProps<{
+  contentMode: ContentMode;
+}>();
+
+const emit = defineEmits<{
+  'toggle-mode': [mode: ContentMode];
+}>();
 
 // Store
 const receiveFramesStore = useReceiveFramesStore();
@@ -14,9 +24,6 @@ const editingGroup = ref<DataGroup | null>(null);
 
 // 计算属性：所有分组
 const groups = computed(() => receiveFramesStore.groups);
-
-// 计算属性：选中分组
-const selectedGroup = computed(() => receiveFramesStore.selectedGroup);
 
 // 方法：选择分组
 const selectGroup = (group: DataGroup): void => {
@@ -79,190 +86,196 @@ const cancelAdd = (): void => {
   newGroupLabel.value = '';
 };
 
-// 方法：获取分组统计信息
-const getGroupStats = (group: DataGroup) => {
-  const totalItems = group.dataItems.length;
-  const visibleItems = group.dataItems.filter((item: DataItem) => item.isVisible).length;
-  return { totalItems, visibleItems };
+// 方法：切换内容模式
+const toggleContentMode = (mode: ContentMode): void => {
+  emit('toggle-mode', mode);
 };
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-industrial-secondary">
+  <div class="h-full flex flex-col bg-industrial-secondary min-w-[240px] max-w-[240px]">
     <!-- 标题栏 -->
-    <div class="p-4 border-b border-industrial">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-industrial-primary text-lg font-medium">数据分组管理</h3>
-        <q-btn flat dense size="sm" icon="add" color="blue" @click="showAddDialog = true">
-          <q-tooltip>添加分组</q-tooltip>
-        </q-btn>
-      </div>
+    <div
+      class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header"
+    >
+      <h6
+        class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
+      >
+        <q-icon name="folder" size="xs" class="mr-1 text-blue-5" />
+        数据分组
+      </h6>
 
-      <div class="text-sm text-industrial-secondary">
-        <span>{{ groups.length }} 个分组</span>
-        <span v-if="selectedGroup" class="ml-2"> • 已选择: {{ selectedGroup.label }} </span>
+      <!-- 编辑/显示模式切换按钮 -->
+      <div class="flex bg-industrial-secondary rounded">
+        <q-btn
+          flat
+          dense
+          size="sm"
+          :color="contentMode === 'edit' ? 'blue' : 'grey'"
+          label="编辑"
+          class="text-xs px-3 py-1"
+          @click="toggleContentMode('edit')"
+        />
+        <q-btn
+          flat
+          dense
+          size="sm"
+          :color="contentMode === 'display' ? 'blue' : 'grey'"
+          label="显示"
+          class="text-xs px-3 py-1"
+          @click="toggleContentMode('display')"
+        />
       </div>
     </div>
 
-    <!-- 分组列表 -->
+    <!-- 分组列表 - 表格形式 -->
     <div class="flex-1 overflow-y-auto">
       <!-- 无分组时的提示 -->
       <div v-if="groups.length === 0" class="p-4 text-center text-industrial-secondary">
         <q-icon name="folder_open" size="24px" class="mb-2" />
         <p>暂无数据分组</p>
-        <p class="text-xs mt-1">点击右上角按钮添加分组</p>
+        <p v-if="contentMode === 'display'" class="text-xs mt-1">点击下方按钮添加分组</p>
       </div>
 
-      <!-- 分组列表 -->
-      <div v-else class="space-y-2 p-3">
+      <!-- 分组表格 -->
+      <div v-else class="divide-y divide-industrial">
         <div
           v-for="group in groups"
           :key="group.id"
-          class="rounded-lg p-3 cursor-pointer transition-colors duration-200"
+          class="px-3 py-2 cursor-pointer transition-colors duration-200 hover:bg-industrial-highlight relative group"
           :class="{
-            'bg-industrial-highlight border border-blue-500': isSelected(group),
-            'bg-industrial-panel hover:bg-industrial-highlight': !isSelected(group),
+            'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2': isSelected(group),
           }"
           @click="selectGroup(group)"
+          @dblclick="editGroup(group)"
         >
-          <!-- 分组头部 -->
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center space-x-2">
-              <q-icon name="folder" :color="isSelected(group) ? 'blue' : 'grey-5'" size="16px" />
-
-              <span class="text-industrial-primary font-medium text-sm">
+          <!-- 分组名称 -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 min-w-0 flex-1">
+              <q-icon name="folder" :color="isSelected(group) ? 'blue' : 'grey-5'" size="14px" />
+              <span
+                class="text-industrial-primary text-sm font-medium truncate"
+                :title="group.label"
+              >
                 {{ group.label }}
               </span>
-
-              <span class="text-industrial-id text-xs font-mono"> #{{ group.id }} </span>
             </div>
 
-            <!-- 操作按钮 -->
-            <div class="flex items-center space-x-1" @click.stop>
-              <q-btn flat dense size="sm" icon="edit" color="blue" @click="editGroup(group)">
-                <q-tooltip>编辑分组</q-tooltip>
-              </q-btn>
-
-              <q-btn flat dense size="sm" icon="delete" color="red" @click="deleteGroup(group)">
-                <q-tooltip>删除分组</q-tooltip>
-              </q-btn>
+            <!-- 操作按钮（编辑模式下显示） -->
+            <div
+              v-if="contentMode === 'display'"
+              class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <q-btn
+                flat
+                dense
+                size="xs"
+                icon="edit"
+                color="blue"
+                class="text-xs"
+                @click.stop="editGroup(group)"
+              />
+              <q-btn
+                flat
+                dense
+                size="xs"
+                icon="delete"
+                color="red"
+                class="text-xs"
+                @click.stop="deleteGroup(group)"
+              />
             </div>
-          </div>
 
-          <!-- 分组统计 -->
-          <div class="text-xs text-industrial-secondary">
-            <div class="flex items-center justify-between">
-              <span> {{ getGroupStats(group).totalItems }} 个数据项 </span>
-              <span> {{ getGroupStats(group).visibleItems }} 个可见 </span>
-            </div>
-          </div>
-
-          <!-- 数据项预览 -->
-          <div
-            v-if="group.dataItems.length > 0"
-            class="mt-2 pt-2 border-t border-industrial-primary/20"
-          >
-            <div class="flex flex-wrap gap-1">
-              <span
-                v-for="item in group.dataItems.slice(0, 3)"
-                :key="item.id"
-                class="inline-block px-2 py-1 rounded text-xs"
-                :class="{
-                  'bg-blue-500/20 text-blue-300': item.isVisible,
-                  'bg-grey-500/20 text-grey-400': !item.isVisible,
-                }"
-              >
-                {{ item.label }}
-              </span>
-
-              <span
-                v-if="group.dataItems.length > 3"
-                class="inline-block px-2 py-1 rounded text-xs bg-grey-500/20 text-grey-400"
-              >
-                +{{ group.dataItems.length - 3 }}
+            <!-- 数据项数量（仅在编辑模式且不悬停时显示） -->
+            <div v-if="contentMode === 'display'" class="flex-shrink-0 group-hover:hidden">
+              <span class="text-industrial-secondary text-xs">
+                {{ group.dataItems.filter((item) => item.isVisible).length }}
               </span>
             </div>
-          </div>
-
-          <!-- 选中指示器 -->
-          <div v-if="isSelected(group)" class="mt-2 flex items-center justify-center">
-            <q-icon name="check_circle" color="blue" size="16px" />
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 底部统计信息 -->
-    <div class="p-3 border-t border-industrial bg-industrial-panel">
-      <div class="text-xs text-industrial-secondary text-center">
-        <div v-if="selectedGroup">
-          当前分组: {{ selectedGroup.label }} ({{ selectedGroup.dataItems.length }} 项)
-        </div>
-        <div v-else>请选择一个分组进行管理</div>
-      </div>
+    <!-- 底部添加按钮区域 -->
+    <div
+      v-if="contentMode === 'display'"
+      class="p-3 border-t border-industrial bg-industrial-panel"
+    >
+      <q-btn
+        flat
+        dense
+        size="sm"
+        icon="add"
+        color="blue"
+        label="添加分组"
+        class="w-full text-xs"
+        @click="showAddDialog = true"
+      />
     </div>
+
+    <!-- 添加分组对话框 -->
+    <q-dialog v-model="showAddDialog" persistent>
+      <q-card class="bg-industrial-panel" style="min-width: 300px">
+        <q-card-section class="bg-industrial-table-header">
+          <div class="text-h6 text-industrial-primary">添加数据分组</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="newGroupLabel"
+            autofocus
+            label="分组名称"
+            outlined
+            class="bg-industrial-secondary text-industrial-primary"
+            @keyup.enter="addGroup"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="取消" color="grey" @click="cancelAdd" />
+          <q-btn
+            flat
+            label="添加"
+            color="blue"
+            :disable="!newGroupLabel.trim()"
+            @click="addGroup"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- 编辑分组对话框 -->
+    <q-dialog v-model="showEditDialog" persistent>
+      <q-card class="bg-industrial-panel" style="min-width: 300px">
+        <q-card-section class="bg-industrial-table-header">
+          <div class="text-h6 text-industrial-primary">编辑数据分组</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="editingGroup!.label"
+            autofocus
+            label="分组名称"
+            outlined
+            class="bg-industrial-secondary text-industrial-primary"
+            @keyup.enter="saveEdit"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="取消" color="grey" @click="cancelEdit" />
+          <q-btn
+            flat
+            label="保存"
+            color="blue"
+            :disable="!editingGroup?.label.trim()"
+            @click="saveEdit"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
-
-  <!-- 添加分组对话框 -->
-  <q-dialog v-model="showAddDialog" persistent>
-    <q-card class="bg-industrial-panel" style="min-width: 350px">
-      <q-card-section class="bg-industrial-secondary">
-        <div class="text-lg text-industrial-primary">添加数据分组</div>
-      </q-card-section>
-
-      <q-card-section class="space-y-4">
-        <q-input
-          v-model="newGroupLabel"
-          label="分组名称"
-          outlined
-          dense
-          bg-color="industrial-secondary"
-          color="blue"
-          class="text-industrial-primary"
-          autofocus
-          @keyup.enter="addGroup"
-        />
-      </q-card-section>
-
-      <q-card-actions align="right" class="bg-industrial-secondary">
-        <q-btn flat label="取消" color="grey" @click="cancelAdd" />
-        <q-btn flat label="添加" color="blue" :disable="!newGroupLabel.trim()" @click="addGroup" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
-
-  <!-- 编辑分组对话框 -->
-  <q-dialog v-model="showEditDialog" persistent>
-    <q-card class="bg-industrial-panel" style="min-width: 350px">
-      <q-card-section class="bg-industrial-secondary">
-        <div class="text-lg text-industrial-primary">编辑数据分组</div>
-      </q-card-section>
-
-      <q-card-section v-if="editingGroup" class="space-y-4">
-        <q-input
-          v-model="editingGroup.label"
-          label="分组名称"
-          outlined
-          dense
-          bg-color="industrial-secondary"
-          color="blue"
-          class="text-industrial-primary"
-          autofocus
-        />
-      </q-card-section>
-
-      <q-card-actions align="right" class="bg-industrial-secondary">
-        <q-btn flat label="取消" color="grey" @click="cancelEdit" />
-        <q-btn
-          flat
-          label="保存"
-          color="blue"
-          :disable="!editingGroup?.label?.trim()"
-          @click="saveEdit"
-        />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
 </template>
 
 <style scoped>

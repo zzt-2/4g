@@ -2,8 +2,10 @@
   <div
     class="flex flex-col h-full w-full overflow-hidden bg-industrial-panel text-industrial-primary rounded"
   >
-    <div class="flex justify-between items-center px-4 py-3 bg-[#1a3663] border-b border-[#334155]">
-      <div class="flex items-center text-sm font-medium">
+    <div
+      class="flex justify-between items-center px-4 py-3 bg-industrial-table-header border-b border-industrial"
+    >
+      <div class="flex items-center text-sm font-medium text-industrial-primary">
         <q-icon name="description" size="20px" class="mr-2" />
         帧详情 - {{ frame ? frame.id : '未选择' }}
       </div>
@@ -18,18 +20,18 @@
         </div>
         <div class="flex mb-2">
           <div class="w-[70px] text-xs text-industrial-secondary">名称:</div>
-          <div class="flex-1">{{ frame.name }}</div>
+          <div class="flex-1 text-industrial-primary">{{ frame.name }}</div>
         </div>
         <div class="flex">
           <div class="w-[70px] text-xs text-industrial-secondary">时间戳:</div>
-          <div class="flex-1">{{ formatTime(frame.timestamp) }}</div>
+          <div class="flex-1 text-industrial-primary">{{ formatTime(frame.timestamp) }}</div>
         </div>
       </div>
 
       <q-separator color="grey-8" />
 
       <!-- 使用QTable组件显示参数列表 -->
-      <div class="px-4 py-3 text-sm font-medium bg-[#1a3663] flex items-center">
+      <div class="px-4 py-3 text-sm font-medium bg-industrial-table-header flex items-center">
         <q-icon name="tune" size="18px" class="mr-2" />
         参数列表
       </div>
@@ -48,20 +50,20 @@
           flat
           dark
           dense
-          class="max-h-[568px] overflow-auto"
+          class="frame-detail-table"
           style="height: calc(100vh - 280px)"
         >
           <!-- 自定义表头样式 -->
           <template v-slot:header="props">
             <q-tr
               :props="props"
-              class="bg-[#1a3663] border-b border-[#334155] font-bold h-10 whitespace-nowrap"
+              class="bg-industrial-table-header border-b border-industrial font-medium h-10"
             >
               <q-th
                 v-for="col in props.cols"
                 :key="col.name"
                 :props="props"
-                :class="[col.align, 'text-xs px-2']"
+                :class="[col.align, 'text-xs px-2 text-industrial-primary']"
                 :style="{
                   width: col.width,
                   minWidth: col.width,
@@ -78,15 +80,15 @@
             <q-tr
               :props="props"
               :class="[
-                props.rowIndex % 2 === 1 ? 'bg-[#0f2744]' : '',
-                'border-b border-[#1a3663] h-10',
+                props.rowIndex % 2 === 1 ? 'bg-industrial-secondary' : 'bg-industrial-panel',
+                'border-b border-industrial h-10',
               ]"
             >
               <q-td
                 v-for="col in props.cols"
                 :key="col.name"
                 :props="props"
-                :class="[col.align, 'text-xs px-2']"
+                :class="[col.align, 'text-xs px-2 text-industrial-primary']"
                 :style="{
                   width: col.width,
                   minWidth: col.width,
@@ -115,7 +117,7 @@
 
     <div
       v-else
-      class="flex flex-col items-center justify-center py-10 text-[#64748b] text-center gap-4"
+      class="flex flex-col items-center justify-center py-10 text-industrial-secondary text-center gap-4"
     >
       <q-icon name="info" size="36px" color="grey-7" />
       <div>请选择一个帧查看详情</div>
@@ -235,41 +237,40 @@ const formattedParams = computed(() => {
 });
 </script>
 
-<style lang="scss" scoped>
-// 确保表格充满容器和内容区域可滚动
-:deep(.q-table) {
+<style>
+.frame-detail-table {
+  max-height: 568px;
+  overflow: auto;
+}
+
+/* 确保表格充满容器 */
+.frame-detail-table .q-table {
   display: flex;
   flex-direction: column;
   width: 100%;
   table-layout: fixed;
 }
 
-:deep(.q-table__container) {
+.frame-detail-table .q-table__container {
   height: 100%;
 }
 
-:deep(.q-table__middle) {
-  flex: 1;
-  overflow: auto !important;
+/* 自定义滚动条样式 */
+.frame-detail-table .q-table__virtual-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-:deep(.q-table tbody tr) {
-  height: 36px;
+.frame-detail-table .q-table__virtual-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-:deep(.q-table__grid-content),
-:deep(.q-virtual-scroll) {
-  height: 100%;
-  overflow: auto !important;
+.frame-detail-table .q-table__virtual-content::-webkit-scrollbar-thumb {
+  background: #2a2f45;
+  border-radius: 4px;
 }
 
-:deep(.q-table__top),
-:deep(.q-table__bottom) {
-  flex: 0 0 auto;
-}
-
-:deep(td) {
-  text-overflow: ellipsis;
-  overflow: hidden;
+.frame-detail-table .q-table__virtual-content::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
 }
 </style>

@@ -3,7 +3,7 @@
  * 展示如何统一处理网口和串口数据
  */
 
-import { useReceiveFramesStore } from '../../stores/receiveFrames';
+import { useReceiveFramesStore } from '../../stores/frames/receiveFramesStore';
 
 // 网络连接状态类型
 export interface NetworkConnection {

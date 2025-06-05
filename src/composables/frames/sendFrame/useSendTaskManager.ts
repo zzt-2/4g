@@ -188,6 +188,10 @@ export function useSendTaskManager() {
     loadMultipleTaskConfigs: taskConfigManager.loadMultipleTaskConfigs,
     validateTaskConfig: taskConfigManager.validateTaskConfig,
 
+    // 触发监听器功能 (从 sendTasksStore)
+    getActiveTriggerListeners: sendTasksStore.getActiveTriggerListeners,
+    getTriggerListenerStats: sendTasksStore.getTriggerListenerStats,
+
     // 任务管理功能
     selectTask,
     clearSelection,

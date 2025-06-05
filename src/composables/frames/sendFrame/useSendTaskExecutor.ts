@@ -67,7 +67,7 @@ export function useSendTaskExecutor() {
     if (expectedStatus) {
       return expectedStatus.includes(currentTask.status);
     }
-    return currentTask.status === 'running';
+    return currentTask.status === 'running' || currentTask.status === 'waiting-trigger';
   };
 
   /**
@@ -90,11 +90,6 @@ export function useSendTaskExecutor() {
     taskName: string,
     timers: number[],
   ): Promise<boolean> => {
-    console.log(`发送帧到目标: ${targetPath}`, {
-      instanceId: instance.id,
-      isConnected: serialStore.isPortConnected(targetPath),
-    });
-
     const success = await serialStore.sendFrameInstance(targetPath, instance);
 
     if (!success) {
@@ -120,7 +115,6 @@ export function useSendTaskExecutor() {
   ): Promise<void> => {
     if (!isLastInstance) {
       const instanceInterval = instanceConfig.interval || 1000;
-      console.log(`等待 ${instanceInterval}ms 后发送下一个实例...`);
       await new Promise((resolve) => setTimeout(resolve, instanceInterval));
     }
   };
@@ -158,6 +152,160 @@ export function useSendTaskExecutor() {
     }
   };
 
+  /**
+   * 处理单个实例（包含完整状态管理）
+   * 用于顺序发送和触发发送任务
+   */
+  const processInstance = async (
+    instanceConfig: FrameInstanceInTask,
+    taskId: string,
+    taskName: string,
+    timers: number[],
+    instanceIndex: number,
+    totalInstances: number,
+    isLastInstance: boolean = true,
+  ): Promise<boolean> => {
+    const task = sendTasksStore.getTaskById(taskId);
+    if (!task || !task.config || !('instances' in task.config)) {
+      throw new Error('任务配置无效');
+    }
+
+    // 更新当前处理的实例状态为 running
+    const updatedInstances = [...task.config.instances];
+    updatedInstances[instanceIndex] = {
+      id: instanceConfig.id,
+      instanceId: instanceConfig.instanceId,
+      targetId: instanceConfig.targetId,
+      interval: instanceConfig.interval || 0,
+      status: 'running',
+    };
+
+    sendTasksStore.updateTask(taskId, {
+      config: {
+        ...task.config,
+        instances: updatedInstances,
+      },
+    });
+
+    sendTasksStore.updateTaskProgress(taskId, {
+      currentCount: instanceIndex,
+      percentage: Math.floor((instanceIndex / totalInstances) * 100),
+      currentInstanceIndex: instanceIndex,
+    });
+
+    try {
+      // 使用基础的实例发送方法
+      const success = await processSingleInstance(
+        instanceConfig,
+        taskId,
+        taskName,
+        timers,
+        isLastInstance,
+      );
+
+      if (!success) {
+        return false; // 连接错误已在函数内处理
+      }
+
+      // 更新实例状态为成功
+      updatedInstances[instanceIndex] = {
+        id: instanceConfig.id,
+        instanceId: instanceConfig.instanceId,
+        targetId: instanceConfig.targetId,
+        interval: instanceConfig.interval || 0,
+        status: 'completed',
+      };
+
+      sendTasksStore.updateTask(taskId, {
+        config: {
+          ...task.config,
+          instances: updatedInstances,
+        },
+      });
+
+      return true;
+    } catch (error) {
+      // 更新实例状态为错误
+      updatedInstances[instanceIndex] = {
+        id: instanceConfig.id,
+        instanceId: instanceConfig.instanceId,
+        targetId: instanceConfig.targetId,
+        interval: instanceConfig.interval || 0,
+        status: 'error',
+        errorMessage: error instanceof Error ? error.message : '发送失败',
+      };
+
+      sendTasksStore.updateTask(taskId, {
+        config: {
+          ...task.config,
+          instances: updatedInstances,
+        },
+      });
+
+      throw error; // 重新抛出错误供调用方处理
+    }
+  };
+
+  /**
+   * 处理多个实例（触发任务专用）
+   * 顺序处理所有实例，包含完整状态管理
+   */
+  const processMultipleInstances = async (
+    instances: FrameInstanceInTask[],
+    taskId: string,
+    taskName: string,
+    timers: number[],
+  ): Promise<boolean> => {
+    try {
+      // 按顺序发送所有实例
+      for (let instanceIndex = 0; instanceIndex < instances.length; instanceIndex++) {
+        // 检查任务是否仍在运行状态
+        if (!isTaskStillRunning(taskId)) {
+          console.log('任务在实例发送过程中被停止');
+          return false;
+        }
+
+        const instanceConfig = instances[instanceIndex];
+        if (!instanceConfig) {
+          console.warn(`无效的实例配置，索引: ${instanceIndex}`);
+          continue;
+        }
+
+        try {
+          // 使用带状态管理的实例处理方法
+          const isLastInstance = instanceIndex === instances.length - 1;
+          const success = await processInstance(
+            instanceConfig,
+            taskId,
+            taskName,
+            timers,
+            instanceIndex,
+            instances.length,
+            isLastInstance,
+          );
+
+          if (!success) {
+            console.error(`实例 ${instanceConfig.instanceId} 处理失败`);
+            return false; // 任何一个实例失败都返回失败
+          }
+        } catch (error) {
+          console.error(`处理实例 ${instanceConfig.instanceId} 时出错:`, error);
+          return false; // 任何一个实例出错都返回失败
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('批量处理实例时出错:', error);
+      sendTasksStore.updateTaskStatus(
+        taskId,
+        'error',
+        error instanceof Error ? error.message : '批量处理失败',
+      );
+      return false;
+    }
+  };
+
   // ============= 任务执行函数 =============
 
   /**
@@ -170,18 +318,7 @@ export function useSendTaskExecutor() {
       return false;
     }
 
-    console.log('startTask - 开始执行任务:', {
-      taskId,
-      taskType: task.type,
-      taskName: task.name,
-      taskStatus: task.status,
-      configSendInterval: (task.config as TimedTaskConfig)?.sendInterval,
-      configRepeatCount: (task.config as TimedTaskConfig)?.repeatCount,
-      configIsInfinite: (task.config as TimedTaskConfig)?.isInfinite,
-    });
-
     if (task.status === 'running') {
-      console.log('startTask - 任务已在运行中');
       return true; // 任务已在运行中
     }
 
@@ -190,23 +327,16 @@ export function useSendTaskExecutor() {
 
     try {
       // 根据任务类型执行不同的启动逻辑
-      console.log('startTask - 分发任务类型:', task.type);
-
       switch (task.type) {
         case 'sequential':
-          console.log('startTask - 执行顺序发送任务');
           return await startSequentialTask(task);
         case 'timed-single':
-          console.log('startTask - 执行单实例定时发送任务');
           return await startTimedSingleTask(task);
         case 'timed-multiple':
-          console.log('startTask - 执行多实例定时发送任务');
           return await startTimedMultipleTask(task);
         case 'triggered-single':
-          console.log('startTask - 执行单实例触发发送任务');
           return await startTriggeredSingleTask(task);
         case 'triggered-multiple':
-          console.log('startTask - 执行多实例触发发送任务');
           return await startTriggeredMultipleTask(task);
         default:
           throw new Error(`未知的任务类型: ${task.type}`);
@@ -241,129 +371,41 @@ export function useSendTaskExecutor() {
     // 存储定时器ID，用于后续清理
     const timers: number[] = [];
 
-    // 按顺序处理每个实例
-    let currentIndex = 0;
+    try {
+      // 直接使用统一的多实例处理函数
+      const success = await processMultipleInstances(
+        task.config.instances,
+        task.id,
+        task.name,
+        timers,
+      );
 
-    // 处理下一个实例的函数
-    const processNextInstance = async () => {
-      if (currentIndex >= task.config.instances.length) {
-        // 所有实例处理完成
-        sendTasksStore.updateTaskStatus(task.id, 'completed');
-        sendTasksStore.updateTaskProgress(task.id, {
-          percentage: 100,
-        });
-        return;
+      if (!success) {
+        return false; // 错误已在processMultipleInstances中处理
       }
 
-      const instanceConfig = task.config.instances[currentIndex];
-      if (!instanceConfig) {
-        throw new Error(`无效的实例配置，索引: ${currentIndex}`);
-      }
-
-      // 更新当前处理的实例状态
-      const updatedInstances = [...task.config.instances];
-      updatedInstances[currentIndex] = {
-        id: instanceConfig.id,
-        instanceId: instanceConfig.instanceId,
-        targetId: instanceConfig.targetId,
-        interval: instanceConfig.interval || 0,
-        status: 'running',
-      };
-
-      sendTasksStore.updateTask(task.id, {
-        config: {
-          ...task.config,
-          instances: updatedInstances,
-        },
-      });
-
+      // 所有实例处理完成，更新任务状态
+      sendTasksStore.updateTaskStatus(task.id, 'completed');
       sendTasksStore.updateTaskProgress(task.id, {
-        currentCount: currentIndex,
-        percentage: Math.floor((currentIndex / task.config.instances.length) * 100),
-        currentInstanceIndex: currentIndex,
+        percentage: 100,
       });
 
-      try {
-        // 使用提取的函数处理实例发送
-        const isLastInstance = currentIndex === task.config.instances.length - 1;
-        const success = await processSingleInstance(
-          instanceConfig,
-          task.id,
-          task.name,
-          timers,
-          isLastInstance,
-        );
+      // 存储定时器ID到任务中
+      sendTasksStore.updateTask(task.id, {
+        timers,
+      });
 
-        if (!success) {
-          return; // 连接错误已处理
-        }
-
-        // 更新实例状态为成功
-        updatedInstances[currentIndex] = {
-          id: instanceConfig.id,
-          instanceId: instanceConfig.instanceId,
-          targetId: instanceConfig.targetId,
-          interval: instanceConfig.interval || 0,
-          status: 'completed',
-        };
-
-        sendTasksStore.updateTask(task.id, {
-          config: {
-            ...task.config,
-            instances: updatedInstances,
-          },
-        });
-
-        // 延时处理下一个实例
-        currentIndex++;
-
-        // 使用实例的延时，默认为1000ms
-        const delay = instanceConfig.interval || 1000;
-
-        const timerId = window.setTimeout(() => {
-          processNextInstance();
-        }, delay);
-
-        timers.push(timerId);
-      } catch (error) {
-        // 更新实例状态为错误
-        const updatedInstances = [...task.config.instances];
-        updatedInstances[currentIndex] = {
-          id: instanceConfig.id,
-          instanceId: instanceConfig.instanceId,
-          targetId: instanceConfig.targetId,
-          interval: instanceConfig.interval || 0,
-          status: 'error',
-          errorMessage: error instanceof Error ? error.message : '发送失败',
-        };
-
-        sendTasksStore.updateTask(task.id, {
-          config: {
-            ...task.config,
-            instances: updatedInstances,
-          },
-        });
-
-        // 继续处理下一个实例
-        currentIndex++;
-
-        const timerId = window.setTimeout(() => {
-          processNextInstance();
-        }, 1000); // 错误后延迟1秒再处理下一个
-
-        timers.push(timerId);
-      }
-    };
-
-    // 开始处理第一个实例
-    processNextInstance();
-
-    // 存储定时器ID到任务中
-    sendTasksStore.updateTask(task.id, {
-      timers,
-    });
-
-    return true;
+      return true;
+    } catch (error) {
+      console.error(`顺序发送任务 ${task.name} 执行失败:`, error);
+      sendTasksStore.updateTaskStatus(
+        task.id,
+        'error',
+        error instanceof Error ? error.message : '执行失败',
+      );
+      cleanupTimers(timers);
+      return false;
+    }
   }
 
   /**
@@ -387,14 +429,6 @@ export function useSendTaskExecutor() {
 
     // 获取实例（使用提取的函数）
     const instance = getSendFrameInstance(instanceConfig.instanceId);
-
-    console.log('启动单实例定时发送任务:', {
-      taskId: task.id,
-      sendInterval: config.sendInterval,
-      repeatCount: config.repeatCount,
-      isInfinite: config.isInfinite,
-      instanceId: instanceConfig.instanceId,
-    });
 
     // 更新任务状态
     sendTasksStore.updateTaskStatus(task.id, 'running');
@@ -602,11 +636,13 @@ export function useSendTaskExecutor() {
           try {
             // 使用提取的函数处理实例发送
             const isLastInstance = instanceIndex === config.instances.length - 1;
-            const success = await processSingleInstance(
+            const success = await processInstance(
               instanceConfig,
               task.id,
               task.name,
               timers,
+              instanceIndex,
+              config.instances.length,
               isLastInstance,
             );
 
@@ -731,10 +767,22 @@ export function useSendTaskExecutor() {
       });
 
       // 设置监听逻辑
-      // TODO: 实现条件监听和触发逻辑
-      // 需要根据 config.continueListening 决定触发后是否继续监听
-      // - 如果 continueListening 为 true（默认），触发后继续监听
-      // - 如果 continueListening 为 false，触发后停止任务
+      console.log(`注册触发监听器: ${task.id}`, {
+        sourceId: config.sourceId,
+        triggerFrameId: config.triggerFrameId,
+        conditionsCount: config.conditions?.length || 0,
+        continueListening: config.continueListening ?? true,
+        responseDelay: config.responseDelay || 0,
+      });
+
+      // 注册触发监听器
+      sendTasksStore.registerTaskTriggerListener(task.id, {
+        sourceId: config.sourceId,
+        triggerFrameId: config.triggerFrameId,
+        conditions: config.conditions || [],
+        continueListening: config.continueListening ?? true,
+        responseDelay: config.responseDelay || 0,
+      });
 
       return true;
     }
@@ -770,10 +818,23 @@ export function useSendTaskExecutor() {
       });
 
       // 设置监听逻辑
-      // TODO: 实现条件监听和触发逻辑
-      // 需要根据 config.continueListening 决定触发后是否继续监听
-      // - 如果 continueListening 为 true（默认），触发后继续监听
-      // - 如果 continueListening 为 false，触发后停止任务
+      console.log(`注册多实例触发监听器: ${task.id}`, {
+        sourceId: config.sourceId,
+        triggerFrameId: config.triggerFrameId,
+        conditionsCount: config.conditions?.length || 0,
+        continueListening: config.continueListening ?? true,
+        responseDelay: config.responseDelay || 0,
+        instancesCount: config.instances.length,
+      });
+
+      // 注册触发监听器
+      sendTasksStore.registerTaskTriggerListener(task.id, {
+        sourceId: config.sourceId,
+        triggerFrameId: config.triggerFrameId,
+        conditions: config.conditions || [],
+        continueListening: config.continueListening ?? true,
+        responseDelay: config.responseDelay || 0,
+      });
 
       return true;
     }
@@ -1046,11 +1107,7 @@ export function useSendTaskExecutor() {
         // 更新状态为运行中
         sendTasksStore.updateTaskStatus(task.id, 'running');
 
-        console.log(`开始执行多实例时间触发任务: ${task.name}`, {
-          executeTime: config.executeTime,
-          isRecurring: config.isRecurring,
-          instancesCount: config.instances.length,
-        });
+        console.log(`开始执行多实例时间触发任务: ${task.name}`);
 
         // 按顺序发送所有实例
         for (let instanceIndex = 0; instanceIndex < config.instances.length; instanceIndex++) {
@@ -1074,24 +1131,19 @@ export function useSendTaskExecutor() {
           try {
             // 使用提取的函数处理实例发送
             const isLastInstance = instanceIndex === config.instances.length - 1;
-            const success = await processSingleInstance(
+            const success = await processInstance(
               instanceConfig,
               task.id,
               task.name,
               timers,
+              instanceIndex,
+              config.instances.length,
               isLastInstance,
             );
 
             if (!success) {
               return; // 连接错误已处理
             }
-
-            console.log(
-              `时间触发发送实例 ${instanceIndex + 1}/${config.instances.length} 到目标成功`,
-              {
-                instanceId: instanceConfig.instanceId,
-              },
-            );
           } catch (error) {
             console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
             continue;
@@ -1186,5 +1238,10 @@ export function useSendTaskExecutor() {
     startTimedMultipleTask,
     startTriggeredSingleTask,
     startTriggeredMultipleTask,
+
+    // 触发任务专用方法
+    processSingleInstance,
+    processInstance,
+    processMultipleInstances,
   };
 }

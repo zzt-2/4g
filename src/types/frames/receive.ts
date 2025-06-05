@@ -10,6 +10,7 @@ export interface DataItem {
   id: number; // 从1开始的计数ID
   label: string; // 显示名称
   isVisible: boolean; // 是否显示
+  isFavorite: boolean; // 是否收藏
   dataType: FieldType; // 数据类型（独立设置，与字段类型无关）
   value: unknown; // 实际数据值
   displayValue: string; // 显示值
@@ -46,6 +47,7 @@ export interface ReceiveFrameStats {
   lastReceiveTime: Date; // 上次接收时间
   checksumFailures: number; // 校验失败次数
   errorCount: number; // 错误计数
+  lastReceivedFrame?: Uint8Array; // 最后接收到的帧原始数据
 }
 
 // 配置数据结构（用于文件存储）

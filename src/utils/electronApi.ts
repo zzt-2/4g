@@ -119,7 +119,7 @@ export const filesAPI = {
   },
 
   // 保存JSON数据到文件
-  saveJsonToFile: (filePath: string, data: any) => {
+  saveJsonToFile: (filePath: string, data: unknown) => {
     if (window.electron?.files?.saveJsonToFile) {
       return window.electron.files.saveJsonToFile(filePath, deepClone(data));
     }
@@ -295,15 +295,17 @@ type DataType = keyof typeof DATA_PATH_MAP;
 // 创建类型安全的数据存储API
 export const dataStorageAPI = {} as {
   [K in DataType]: {
-    list: () => Promise<any[]>;
-    save: (item: any) => Promise<{ success: boolean; message?: string }>;
+    list: () => Promise<unknown[]>;
+    save: (item: unknown) => Promise<{ success: boolean; message?: string }>;
     delete: (id: string) => Promise<{ success: boolean; message?: string }>;
-    saveAll: (items: any[]) => Promise<{ success: boolean; message?: string }>;
+    saveAll: (items: unknown[]) => Promise<{ success: boolean; message?: string }>;
     export: (
-      items: any[],
+      items: unknown[],
       filePath?: string,
     ) => Promise<{ success: boolean; filePath?: string; message?: string }>;
-    import: (filePath?: string) => Promise<{ success: boolean; data?: any[]; message?: string }>;
+    import: (
+      filePath?: string,
+    ) => Promise<{ success: boolean; data?: unknown[]; message?: string }>;
   };
 };
 
@@ -320,7 +322,7 @@ Object.entries(DATA_PATH_MAP).forEach(([key, _]) => {
     },
 
     // 保存单个数据项
-    save: (item: any) => {
+    save: (item: unknown) => {
       const api = window.electron?.dataStorage?.[typedKey];
       return api
         ? api.save(deepClone(item))
@@ -336,7 +338,7 @@ Object.entries(DATA_PATH_MAP).forEach(([key, _]) => {
     },
 
     // 保存所有数据
-    saveAll: (items: any[]) => {
+    saveAll: (items: unknown[]) => {
       const api = window.electron?.dataStorage?.[typedKey];
       return api
         ? api.saveAll(deepClone(items))
@@ -344,7 +346,7 @@ Object.entries(DATA_PATH_MAP).forEach(([key, _]) => {
     },
 
     // 导出数据到文件
-    export: (items: any[], filePath?: string) => {
+    export: (items: unknown[], filePath?: string) => {
       const api = window.electron?.dataStorage?.[typedKey];
       return api
         ? api.export(deepClone(items), filePath)
@@ -380,5 +382,67 @@ export const pathAPI = {
       return window.electron.path.isPackaged();
     }
     return Promise.resolve(false);
+  },
+};
+
+// 导出CSV API
+export const csvAPI = {
+  // 保存CSV数据到文件
+  save: (hourKey: string, csvContent: string, append = true) => {
+    if (window.electron?.csv?.save) {
+      return window.electron.csv.save(hourKey, csvContent, append);
+    }
+    return Promise.resolve({
+      success: false,
+      filePath: '',
+      error: 'Electron CSV API(save) 不可用',
+    });
+  },
+
+  // 读取CSV文件内容
+  read: (hourKey: string) => {
+    if (window.electron?.csv?.read) {
+      return window.electron.csv.read(hourKey);
+    }
+    return Promise.resolve({
+      success: false,
+      content: '',
+      error: 'Electron CSV API(read) 不可用',
+    });
+  },
+
+  // 获取CSV文件信息
+  getInfo: (hourKey: string) => {
+    if (window.electron?.csv?.getInfo) {
+      return window.electron.csv.getInfo(hourKey);
+    }
+    return Promise.resolve({
+      success: false,
+      exists: false,
+      error: 'Electron CSV API(getInfo) 不可用',
+    });
+  },
+
+  // 列出所有CSV文件
+  list: () => {
+    if (window.electron?.csv?.list) {
+      return window.electron.csv.list();
+    }
+    return Promise.resolve({
+      success: false,
+      files: [],
+      error: 'Electron CSV API(list) 不可用',
+    });
+  },
+
+  // 删除CSV文件
+  delete: (hourKey: string) => {
+    if (window.electron?.csv?.delete) {
+      return window.electron.csv.delete(hourKey);
+    }
+    return Promise.resolve({
+      success: false,
+      error: 'Electron CSV API(delete) 不可用',
+    });
   },
 };

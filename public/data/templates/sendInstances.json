@@ -304,7 +304,7 @@
     "description": "",
     "paramCount": 1,
     "createdAt": "2025-05-15T05:52:17.113Z",
-    "updatedAt": "2025-05-15T05:52:17.922Z",
+    "updatedAt": "2025-06-05T09:52:49.285Z",
     "fields": [
       {
         "id": "qpkztgYL3EpbJTtzB1fkN",
@@ -323,7 +323,28 @@
         "options": []
       }
     ],
-    "isFavorite": false
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-06-05T09:52:49.285Z",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "serial:COM1",
+        "triggerFrameId": "22222",
+        "conditions": [
+          {
+            "id": "condition_1749117147383",
+            "fieldId": "GyyChrkgMWa0J7tB2WGbB",
+            "condition": "greater",
+            "value": "128"
+          }
+        ],
+        "continueListening": true
+      },
+      "targetId": "serial:COM1"
+    }
   },
   {
     "id": "4",
@@ -553,7 +574,7 @@
     "description": "",
     "paramCount": 7,
     "createdAt": "2025-06-01T04:22:07.943Z",
-    "updatedAt": "2025-06-02T05:19:18.875Z",
+    "updatedAt": "2025-06-03T07:21:55.518Z",
     "fields": [
       {
         "id": "5Zhj14PZHlpWAnZJJ1Hol",
@@ -936,7 +957,7 @@
         "label": "校验和",
         "dataType": "uint8",
         "inputType": "input",
-        "value": "0",
+        "value": "0x63",
         "validOption": {
           "isChecksum": true,
           "startFieldIndex": "0",
@@ -951,24 +972,30 @@
     "isFavorite": false,
     "strategyConfig": {
       "type": "triggered",
-      "updatedAt": "2025-06-02T05:19:18.875Z",
+      "updatedAt": "2025-06-03T07:21:55.518Z",
       "triggeredConfig": {
         "type": "triggered",
         "triggerType": "condition",
         "responseDelay": 0,
-        "sourceId": "serial:COM2",
+        "sourceId": "serial:COM1",
         "triggerFrameId": "12345678",
         "conditions": [
           {
-            "id": "condition_1748841518804",
-            "fieldId": "4chscyTmuq-CdwKIe7crP",
+            "id": "condition_1748934965336",
+            "fieldId": "BK22GwuP0-AP7yVHieyKw",
             "condition": "not_equals",
-            "value": "0xABCD"
+            "value": "1"
           }
         ],
-        "continueListening": true
+        "continueListening": false
       },
-      "targetId": "serial:COM1"
+      "targetId": "serial:COM1",
+      "timedConfig": {
+        "type": "timed",
+        "sendInterval": 1000,
+        "repeatCount": 1,
+        "isInfinite": true
+      }
     }
   }
 ]

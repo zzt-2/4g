@@ -100,7 +100,7 @@
     ],
     "timestamp": 1745548763632,
     "createdAt": "2025-04-25T02:38:51.988Z",
-    "updatedAt": "2025-04-30T08:08:19.938Z",
+    "updatedAt": "2025-06-05T06:04:43.055Z",
     "isFavorite": false,
     "options": {
       "autoChecksum": true,
@@ -2098,6 +2098,188 @@
         "operator": "eq",
         "value": "0xabcd",
         "format": "hex",
+        "logicOperator": "and"
+      }
+    ]
+  },
+  {
+    "id": "22222",
+    "lastId": "22222",
+    "name": "接收测试2",
+    "description": "",
+    "direction": "receive",
+    "frameType": "custom",
+    "protocol": "custom",
+    "fields": [
+      {
+        "id": "lc_f3W9Zd7qmpbHxeba4q",
+        "name": "帧头",
+        "dataType": "uint32",
+        "length": 4,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "GyyChrkgMWa0J7tB2WGbB",
+        "name": "无符号1",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "UbsKqJlmp7g8TW7sFbSBr",
+        "name": "有符号1",
+        "dataType": "int8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "Ghzoxs1w33nxKod1RC2pb",
+        "name": "无符号2",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "kC5-sfSp2yA5TK8dMDnHY",
+        "name": "有符号2",
+        "dataType": "int16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "vo6FzcrxdY-zhpF7F0ybW",
+        "name": "无符号4",
+        "dataType": "uint32",
+        "length": 4,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "LGc5eRDW4zoePGwUghH6b",
+        "name": "有符号4",
+        "dataType": "int32",
+        "length": 4,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "eB02Ny4KQIUruf1lZAiDa",
+        "name": "浮点4",
+        "dataType": "float",
+        "length": 4,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "dKlEwd7HClNKjCqx29IF-",
+        "name": "6字节",
+        "dataType": "bytes",
+        "length": 6,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      }
+    ],
+    "timestamp": 1749109386491,
+    "createdAt": "2025-06-05T07:41:17.585Z",
+    "updatedAt": "2025-06-05T07:43:06.491Z",
+    "isFavorite": false,
+    "options": {
+      "autoChecksum": true,
+      "bigEndian": false,
+      "includeLengthField": false
+    },
+    "identifierRules": [
+      {
+        "startIndex": 0,
+        "endIndex": "3",
+        "operator": "eq",
+        "value": "0x1acffc1d",
         "logicOperator": "and"
       }
     ]

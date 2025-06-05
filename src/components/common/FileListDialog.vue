@@ -261,29 +261,10 @@ const executeDelete = async () => {
 
 <style>
 /* 确保输入框可以正常交互 */
-.bg-industrial-panel {
-  background-color: #0d1117;
-}
 
-.bg-industrial-secondary {
-  background-color: #1a1e2e;
-}
-
-.bg-industrial-primary {
-  background-color: #131725;
-}
-
-.bg-industrial-highlight {
-  background-color: #232b3f;
-}
-
-.bg-industrial-table-header {
-  background-color: #111827;
-}
-
-.border-industrial {
+/* .border-industrial {
   border-color: #2a2f45;
-}
+} */
 
 .text-industrial-primary {
   color: #ffffff;

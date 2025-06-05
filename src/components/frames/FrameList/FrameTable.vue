@@ -13,15 +13,12 @@
     flat
     dark
     dense
-    class="w-full h-full bg-industrial-panel text-industrial-primary rounded overflow-hidden flex flex-col"
+    class="frame-table-container"
     @row-click="onRowClick"
   >
     <!-- 自定义表头样式 -->
     <template v-slot:header="props">
-      <q-tr
-        :props="props"
-        class="bg-[#1a3663] border-b border-[#334155] font-bold h-10 whitespace-nowrap sticky-header"
-      >
+      <q-tr :props="props" class="bg-industrial-table-header border-b border-industrial">
         <q-th
           v-for="col in props.cols"
           :key="col.name"
@@ -32,7 +29,7 @@
               : col.align === 'right'
                 ? 'text-right'
                 : 'text-left',
-            'text-xs px-2',
+            'text-xs px-2 text-industrial-primary font-medium h-10',
           ]"
           :style="{
             width: col.width,
@@ -49,11 +46,13 @@
       <q-tr
         :props="props"
         :class="[
-          { 'bg-[#1d4ed8]': props.row.id === selectedFrameId },
-          props.rowIndex % 2 === 1 ? 'bg-[#0f2744]' : '',
-          'border-b border-[#1a3663] hover:bg-[#1e3a6a] transition-colors duration-200 cursor-pointer',
+          {
+            'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
+              props.row.id === selectedFrameId,
+          },
+          props.rowIndex % 2 === 1 ? 'bg-industrial-secondary' : 'bg-industrial-panel',
+          'border-b border-industrial hover:bg-industrial-highlight transition-colors duration-200 cursor-pointer h-10',
         ]"
-        class="h-10 whitespace-nowrap"
         @click="onRowClick($event, props.row)"
       >
         <q-td
@@ -66,7 +65,7 @@
               : col.align === 'right'
                 ? 'text-right'
                 : 'text-left',
-            col.name === 'id' ? 'font-mono text-[#ffcb6b]' : '',
+            col.name === 'id' ? 'font-mono text-industrial-id' : 'text-industrial-primary',
             'text-xs px-2 overflow-hidden text-ellipsis',
           ]"
           :style="{
@@ -86,7 +85,7 @@
 
           <!-- 时间列 -->
           <template v-else-if="col.name === 'timestamp'">
-            <span class="text-[#94a3b8]">{{ formatTime(props.row.timestamp) }}</span>
+            <span class="text-industrial-secondary">{{ formatTime(props.row.timestamp) }}</span>
           </template>
 
           <!-- 操作列 -->
@@ -228,45 +227,27 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss">
-// 自定义滚动条样式
-.q-table__virtual-content::-webkit-scrollbar {
+<style>
+.frame-table-container {
+  @apply w-full h-full bg-industrial-panel text-industrial-primary rounded overflow-hidden flex flex-col;
+}
+
+/* 自定义滚动条样式 */
+.frame-table-container .q-table__virtual-content::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.q-table__virtual-content::-webkit-scrollbar-track {
-  background: #1e293b;
+.frame-table-container .q-table__virtual-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.frame-table-container .q-table__virtual-content::-webkit-scrollbar-thumb {
+  background: #2a2f45;
   border-radius: 4px;
 }
 
-.q-table__virtual-content::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 4px;
-}
-
-.q-table__virtual-content::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-// 确保表格充满容器和内容区域可滚动
-.q-table {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.q-table__container {
-  height: 100%;
-}
-
-.q-table__middle {
-  flex: 1;
-  overflow: hidden;
-}
-
-// 修复行高度
-.q-table tbody tr {
-  height: 40px;
+.frame-table-container .q-table__virtual-content::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
 }
 </style>

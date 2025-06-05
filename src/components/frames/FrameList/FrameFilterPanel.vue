@@ -1,42 +1,48 @@
 <template>
-  <div class="frame-filter-panel">
-    <div class="filter-header">
-      <div class="filter-title">
-        <q-icon name="filter_list" size="20px" class="q-mr-sm" />
+  <div class="bg-industrial-panel border border-industrial rounded overflow-hidden">
+    <div
+      class="flex justify-between items-center p-3 bg-industrial-table-header border-b border-industrial"
+    >
+      <div class="flex items-center text-sm font-medium text-industrial-primary">
+        <q-icon name="filter_list" size="20px" class="mr-2" />
         数据帧过滤
       </div>
       <q-btn flat round dense icon="close" size="sm" @click="emit('close')" v-if="closable" />
     </div>
 
-    <div class="filter-body">
-      <div class="filter-item">
-        <div class="filter-label">帧ID:</div>
+    <div class="p-4 space-y-4">
+      <div class="space-y-2">
+        <div class="text-xs text-industrial-secondary">帧ID:</div>
         <q-input
           v-model="localFilters.frameId"
           dense
           dark
           outlined
           placeholder="输入帧ID"
-          class="filter-input"
+          bg-color="industrial-secondary"
+          color="blue"
+          class="text-industrial-primary"
           @update:model-value="applyLocalFilters"
         />
       </div>
 
-      <div class="filter-item">
-        <div class="filter-label">名称:</div>
+      <div class="space-y-2">
+        <div class="text-xs text-industrial-secondary">名称:</div>
         <q-input
           v-model="localFilters.name"
           dense
           dark
           outlined
           placeholder="输入名称关键词"
-          class="filter-input"
+          bg-color="industrial-secondary"
+          color="blue"
+          class="text-industrial-primary"
           @update:model-value="applyLocalFilters"
         />
       </div>
 
-      <div class="filter-item">
-        <div class="filter-label">参数数:</div>
+      <div class="space-y-2">
+        <div class="text-xs text-industrial-secondary">参数数:</div>
         <q-select
           v-model="localFilters.paramCount"
           :options="paramCountOptions"
@@ -48,57 +54,70 @@
           option-label="label"
           option-value="value"
           placeholder="选择参数数"
-          class="filter-input"
+          bg-color="industrial-secondary"
+          color="blue"
           @update:model-value="applyLocalFilters"
           clearable
         />
       </div>
 
-      <div class="filter-item time-filter">
-        <div class="filter-label">时间范围:</div>
-        <div class="time-range">
+      <div class="space-y-2">
+        <div class="text-xs text-industrial-secondary">时间范围:</div>
+        <div class="flex items-center gap-2">
           <q-input
             v-model="localFilters.startTime"
             dense
             dark
             outlined
             type="time"
-            class="time-input"
+            bg-color="industrial-secondary"
+            color="blue"
+            class="flex-1"
             @update:model-value="applyLocalFilters"
           />
-          <div class="time-separator">至</div>
+          <div class="text-xs text-industrial-secondary">至</div>
           <q-input
             v-model="localFilters.endTime"
             dense
             dark
             outlined
             type="time"
-            class="time-input"
+            bg-color="industrial-secondary"
+            color="blue"
+            class="flex-1"
             @update:model-value="applyLocalFilters"
           />
         </div>
       </div>
     </div>
 
-    <div class="filter-actions">
-      <q-btn color="primary" label="应用过滤" @click="applyLocalFilters" size="sm" />
-      <q-btn outline color="grey" label="重置" @click="resetLocalFilters" size="sm" />
+    <div
+      class="flex justify-end items-center gap-2 p-3 bg-industrial-table-header border-t border-industrial"
+    >
+      <q-btn
+        flat
+        dense
+        size="sm"
+        color="blue"
+        label="应用过滤"
+        @click="applyLocalFilters"
+        class="btn-industrial-primary"
+      />
+      <q-btn
+        flat
+        dense
+        size="sm"
+        color="grey"
+        label="重置"
+        @click="resetLocalFilters"
+        class="btn-industrial-secondary"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useFrameFilterStore } from 'src/stores/framesStore';
 import { reactive } from 'vue';
-// 目前没有直接使用useFrameFilters，暂时注释掉
-// import { useFrameFilters } from '../../../composables/frames/useFrameFilters';
-// 未使用的类型导入，暂时注释掉
-// import type { FrameStatus } from '../../../types/frames/index';
-
-// 暂时不使用frameFilters，如果需要全局过滤可以重新添加
-// const frameFilters = useFrameFilters();
-
-const frameFilterStore = useFrameFilterStore();
 
 interface LocalFilterValues {
   frameId: string;
@@ -108,7 +127,7 @@ interface LocalFilterValues {
   endTime: string;
 }
 
-const props = defineProps<{
+defineProps<{
   closable?: boolean;
 }>();
 
@@ -159,79 +178,5 @@ const resetLocalFilters = () => {
 </script>
 
 <style scoped>
-.frame-filter-panel {
-  background-color: #2c2c2c;
-  color: #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background-color: #333;
-  border-bottom: 1px solid #444;
-}
-
-.filter-title {
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-}
-
-.filter-body {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter-label {
-  font-size: 12px;
-  color: #aaa;
-}
-
-.filter-input {
-  width: 100%;
-}
-
-.time-filter {
-  margin-top: 4px;
-}
-
-.time-range {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.time-input {
-  flex: 1;
-}
-
-.time-separator {
-  color: #aaa;
-  font-size: 12px;
-}
-
-.filter-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 16px;
-  gap: 8px;
-  background-color: #333;
-  border-top: 1px solid #444;
-}
+/* 使用工业主题样式，无需额外样式定义 */
 </style>

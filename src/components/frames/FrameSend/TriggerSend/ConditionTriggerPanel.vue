@@ -26,14 +26,14 @@
       </q-select>
     </div>
 
-    <!-- 触发帧选择 -->
+    <!-- 触发帧选择 - 只显示接收帧 -->
     <div>
       <q-select
         v-model="sendFrameInstancesStore.triggerFrameId"
-        :options="frameOptions"
+        :options="receiveFrameOptions"
         option-value="id"
         option-label="name"
-        label="触发帧"
+        label="触发帧（仅接收帧）"
         emit-value
         map-options
         clearable
@@ -47,7 +47,7 @@
         </template>
         <template #no-option>
           <q-item>
-            <q-item-section class="text-grey"> 无可用的触发帧 </q-item-section>
+            <q-item-section class="text-grey"> 无可用的接收帧 </q-item-section>
           </q-item>
         </template>
       </q-select>
@@ -86,21 +86,35 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
+import { useReceiveFramesStore } from '../../../../stores/frames/receiveFramesStore';
 import TriggerConditionList from './TriggerConditionList.vue';
 
-const props = defineProps<{
+defineProps<{
   sourceOptions?: Array<{ id: string; name: string; description?: string }>;
-  frameOptions?: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string }> }>;
 }>();
 
 // 使用 store
 const sendFrameInstancesStore = useSendFrameInstancesStore();
+const receiveFramesStore = useReceiveFramesStore();
+
+// 接收帧选项（用于触发配置）
+const receiveFrameOptions = computed(() =>
+  receiveFramesStore.receiveFrames.map((frame) => ({
+    id: frame.id,
+    name: frame.name,
+    fields:
+      frame.fields?.map((field) => ({
+        id: field.id,
+        name: field.name,
+      })) || [],
+  })),
+);
 
 // 计算触发帧的字段选项
 const triggerFrameFields = computed(() => {
   if (!sendFrameInstancesStore.triggerFrameId) return [];
 
-  const selectedFrame = props.frameOptions?.find(
+  const selectedFrame = receiveFrameOptions.value.find(
     (frame) => frame.id === sendFrameInstancesStore.triggerFrameId,
   );
 

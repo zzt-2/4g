@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
-import { useFrameTemplateStore } from '../../../../stores/frames/frameTemplateStore';
+import { useReceiveFramesStore } from '../../../../stores/frames/receiveFramesStore';
 import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
 import type {
@@ -22,7 +22,7 @@ const emit = defineEmits<{
 
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
-const frameTemplateStore = useFrameTemplateStore();
+const receiveFramesStore = useReceiveFramesStore();
 
 // 连接目标相关状态 - 使用ref手动管理以响应instanceId变化
 const sourceTargets = ref<ConnectionTarget[]>([]);
@@ -252,9 +252,9 @@ const sourceOptions = computed(() =>
   })),
 );
 
-// 帧选项（用于触发配置）
+// 帧选项（用于触发配置）- 只显示接收帧
 const frameOptions = computed(() =>
-  frameTemplateStore.frames.map((frame) => ({
+  receiveFramesStore.receiveFrames.map((frame) => ({
     id: frame.id,
     name: frame.name,
     fields:

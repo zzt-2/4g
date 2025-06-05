@@ -6,6 +6,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { nanoid } from 'nanoid';
 import type { TriggerCondition } from '../../types/frames/sendInstances';
+import type { DataItem } from '../../types/frames/receive';
+import { useSendTaskTriggerListener } from '../../composables/frames/sendFrame/useSendTaskTriggerListener';
 
 /**
  * 任务类型枚举
@@ -116,6 +118,9 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
   // 状态
   const tasks = ref<SendTask[]>([]);
 
+  // 触发监听器实例
+  const triggerListener = useSendTaskTriggerListener();
+
   // 计算属性
   const activeTasks = computed(() =>
     tasks.value.filter(
@@ -132,6 +137,11 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
   const completedTasks = computed(() => tasks.value.filter((task) => task.status === 'completed'));
 
   const errorTasks = computed(() => tasks.value.filter((task) => task.status === 'error'));
+
+  // 等待触发的任务
+  const waitingTriggerTasks = computed(() =>
+    tasks.value.filter((task) => task.status === 'waiting-trigger'),
+  );
 
   // 方法
   /**
@@ -250,6 +260,54 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
     });
   }
 
+  /**
+   * 注册任务的触发监听器
+   */
+  function registerTaskTriggerListener(
+    taskId: string,
+    config: {
+      sourceId: string;
+      triggerFrameId: string;
+      conditions: TriggerCondition[];
+      continueListening?: boolean;
+      responseDelay?: number;
+    },
+  ): void {
+    triggerListener.registerTriggerListener(taskId, config);
+  }
+
+  /**
+   * 注销任务的触发监听器
+   */
+  function unregisterTaskTriggerListener(taskId: string): void {
+    triggerListener.unregisterTriggerListener(taskId);
+  }
+
+  /**
+   * 处理接收到的帧数据（供接收帧Store调用）
+   */
+  function handleFrameReceived(
+    frameId: string,
+    sourceId: string,
+    updatedDataItems?: DataItem[],
+  ): void {
+    triggerListener.handleFrameReceived(frameId, sourceId, updatedDataItems);
+  }
+
+  /**
+   * 获取活跃的触发监听器信息
+   */
+  function getActiveTriggerListeners() {
+    return triggerListener.getActiveTriggerListeners();
+  }
+
+  /**
+   * 获取触发监听器统计信息
+   */
+  function getTriggerListenerStats() {
+    return triggerListener.getListenerStats();
+  }
+
   return {
     // 状态
     tasks,
@@ -257,6 +315,7 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
     runningTasks,
     completedTasks,
     errorTasks,
+    waitingTriggerTasks,
 
     // 方法
     addTask,
@@ -269,5 +328,12 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
     clearErrorTasks,
     clearAllTasks,
     stopAllRunningTasks,
+
+    // 触发监听器相关方法
+    registerTaskTriggerListener,
+    unregisterTaskTriggerListener,
+    handleFrameReceived,
+    getActiveTriggerListeners,
+    getTriggerListenerStats,
   };
 });

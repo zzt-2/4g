@@ -5,6 +5,7 @@ import { serialAPI } from './serial';
 import { filesAPI } from './files';
 import { dataStorageAPI } from './dataStorage';
 import { pathAPI } from './path';
+import { csvAPI } from './csv';
 
 // 动态导入所有API模块
 const apiModules = {
@@ -15,6 +16,7 @@ const apiModules = {
   files: filesAPI,
   dataStorage: dataStorageAPI,
   path: pathAPI,
+  csv: csvAPI,
 };
 
 // 导出组合的API对象

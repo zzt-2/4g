@@ -39,10 +39,11 @@ const activeRoute = computed(() => route.path);
 // 导航数据
 const navItems = ref([
   { label: '首页', path: '/', icon: 'home' },
-  { label: '串口配置', path: '/serial/config', icon: 'insights' },
-  { label: '帧配置', path: '/frames/list', icon: 'view_list' },
-  { label: '帧发送', path: '/frames/send', icon: 'send' },
-  { label: '帧接收', path: '/frames/receive', icon: '' },
+  { label: '连接', path: '/serial/config', icon: 'insights' },
+  { label: '配置', path: '/frames/list', icon: 'view_list' },
+  { label: '发送', path: '/frames/send', icon: 'send' },
+  { label: '接收', path: '/frames/receive', icon: 'download' },
+  { label: '历史', path: '/history', icon: 'history' },
   { label: '设置', path: '/settings', icon: 'settings' },
 ]);
 

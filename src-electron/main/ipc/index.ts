@@ -3,6 +3,7 @@ import { setupMenuIPC } from './menuHandlers';
 import { setupSerialIPC } from './serialHandlers';
 import { registerFileMetadataHandlers } from './fileMetadataHandlers';
 import { registerStorageHandlers } from './dataStorageHandlers';
+import { registerCSVHandlers } from './csvHandlers';
 
 export function setupIPC() {
   setupWindowIPC();
@@ -10,4 +11,5 @@ export function setupIPC() {
   registerStorageHandlers(); // 注册统一的数据存储处理程序
   setupSerialIPC(); // 注册串口处理程序
   registerFileMetadataHandlers();
+  registerCSVHandlers(); // 注册CSV处理程序
 }

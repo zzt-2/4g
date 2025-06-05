@@ -1,8 +1,6 @@
 <template>
   <div class="flex flex-col h-full bg-industrial-primary text-industrial-primary">
-    <div
-      class="flex justify-between items-center p-3 bg-industrial-panel border-b border-industrial"
-    >
+    <div class="flex justify-between items-center p-3 border-b border-industrial">
       <div class="flex-1 max-w-[400px]">
         <q-input
           v-model="searchQuery"
@@ -56,13 +54,15 @@
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden h-full pt-3">
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <div v-if="showFilterPanel" class="p-3 bg-industrial-panel border-b border-industrial">
+    <div class="flex flex-1 overflow-hidden h-full gap-3">
+      <div
+        class="flex-1 flex flex-col overflow-hidden rounded-lg border border-solid border-industrial shadow-lg"
+      >
+        <div v-if="showFilterPanel" class="bg-industrial-panel border-b border-industrial">
           <FrameFilterPanel @filter="handleFilter" @close="toggleFilterPanel" closable />
         </div>
 
-        <div class="flex-1 overflow-auto pr-3">
+        <div class="flex-1 overflow-auto">
           <div
             v-if="templateStore.isLoading"
             class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary"
@@ -91,7 +91,9 @@
         </div>
       </div>
 
-      <div class="w-[30vw] border-l border-industrial overflow-hidden bg-industrial-panel">
+      <div
+        class="w-[30vw] rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg"
+      >
         <FrameDetailPanel v-if="selectedFrameData" :frame="selectedFrameData" />
         <div v-else class="flex items-center justify-center h-full text-industrial-secondary">
           选择一个帧查看详情

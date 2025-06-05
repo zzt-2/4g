@@ -16,7 +16,7 @@ import type {
   MultiPortOperationResult,
 } from '../types/serial/serial';
 import type { SendFrameInstance } from '../types/frames/sendInstances';
-import { useReceiveFramesStore } from './receiveFrames';
+import { useReceiveFramesStore } from './frames/receiveFramesStore';
 
 // 默认串口配置
 const DEFAULT_OPTIONS: SerialPortOptions = {
