@@ -1,600 +1,5 @@
 [
   {
-    "id": "123",
-    "lastId": "123",
-    "name": "111",
-    "description": "",
-    "direction": "send",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "941q7cnKaSIYusJOtWff7",
-        "name": "111",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "axoDlrBb3BmROnW9JOWTl",
-        "name": "222",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "33",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      }
-    ],
-    "timestamp": 1745574265399,
-    "createdAt": "2025-04-25T02:38:21.251Z",
-    "updatedAt": "2025-05-30T06:25:25.383Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "1234",
-    "lastId": "",
-    "name": "222",
-    "description": "",
-    "direction": "send",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "nUkionINPRyBmxNVn2B-D",
-        "name": "新字段",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0xaa",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "izdQRnFNnNg7P4SSKf2vD",
-        "name": "新字段2",
-        "dataType": "bytes",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "12345678",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      }
-    ],
-    "timestamp": 1745548763632,
-    "createdAt": "2025-04-25T02:38:51.988Z",
-    "updatedAt": "2025-06-05T06:04:43.055Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "4",
-    "lastId": "4",
-    "name": "test1",
-    "description": "123",
-    "direction": "send",
-    "frameType": "control",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "F_eyzrfFDbVDl7QW8V06K",
-        "name": "帧头",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "帧头1acffc1d",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0x1acffc1d",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "xMjm_sYoo-vzsOjv87wBT",
-        "name": "长度",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "后面的字节数",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "12",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "WBbdA01rzRanhIelLNaTM",
-        "name": "有效字段1",
-        "dataType": "int16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "bYhLhuRnsBMzj-8cGqwm_",
-        "name": "有效字段2",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "xDC7W0SDusMimhZ6h5Hml",
-        "name": "有效字段3",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "1",
-        "inputType": "select",
-        "configurable": true,
-        "options": [
-          {
-            "value": "1",
-            "label": "a",
-            "isDefault": true
-          },
-          {
-            "value": "2",
-            "label": "b",
-            "isDefault": false
-          },
-          {
-            "value": "0x16",
-            "label": "c",
-            "isDefault": false
-          }
-        ]
-      },
-      {
-        "id": "JBsNoZMB_R3brLMvHMwSI",
-        "name": "有效字段4",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "5",
-        "inputType": "radio",
-        "configurable": true,
-        "options": [
-          {
-            "value": "5",
-            "label": "a",
-            "isDefault": true
-          },
-          {
-            "value": "9",
-            "label": "b",
-            "isDefault": false
-          }
-        ]
-      },
-      {
-        "id": "-NS2fNEMhFNe1RnlaYYNm",
-        "name": "校验和",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "4",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "dew2-yeaYdVujIELYsZin",
-        "name": "帧尾",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0xab",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "LU0uJ_ctPDbcDI-wTkjMO",
-        "name": "帧尾 (副本)",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0xab",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      }
-    ],
-    "timestamp": 1745998586422,
-    "createdAt": "2025-04-29T09:54:04.563Z",
-    "updatedAt": "2025-04-30T08:08:06.937Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "VXA7FZfmv00z5heDrSU-8",
-    "lastId": "VXA7FZfmv00z5heDrSU-8",
-    "name": "新帧配置",
-    "description": "",
-    "direction": "send",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "oebDvBdhjIwiLgeU1M9pZ",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x5a5a",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "4Z0q6lAdCf5bhZXapBJ7B",
-        "name": "新字段",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "ObJips_-bf_kzkUWBF06w",
-        "name": "校验1-和",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "UpeYZYx19zDhEhrnfIeEp",
-        "name": "校验2-异或",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "xor8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "HdX18C_O1Pe8fW3G5oZFn",
-        "name": "校验3-crc16",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "LvSLvP72eCynuz43Jvzm9",
-        "name": "校验4-crc32",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "crc32"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      }
-    ],
-    "timestamp": 1745996257524,
-    "createdAt": "2025-04-30T06:33:33.032Z",
-    "updatedAt": "2025-04-30T06:57:37.524Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "I0MQuuiVRblj8rMEvvqEu",
-    "lastId": "",
-    "name": "新帧配置1234",
-    "description": "",
-    "direction": "send",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "qpkztgYL3EpbJTtzB1fkN",
-        "name": "新字段",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      }
-    ],
-    "timestamp": 1746944278489,
-    "createdAt": "2025-05-11T06:17:51.158Z",
-    "updatedAt": "2025-05-11T06:17:58.489Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "Wc6RHm6UmmEGLbf-Kp_z6",
-    "lastId": "VXA7FZfmv00z5heDrSU-8",
-    "name": "新帧配置 (副本)",
-    "description": "",
-    "direction": "send",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "oebDvBdhjIwiLgeU1M9pZ",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x5a5a",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "4Z0q6lAdCf5bhZXapBJ7B",
-        "name": "新字段",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "ObJips_-bf_kzkUWBF06w",
-        "name": "校验1-和",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "UpeYZYx19zDhEhrnfIeEp",
-        "name": "校验2-异或",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "xor8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "HdX18C_O1Pe8fW3G5oZFn",
-        "name": "校验3-crc16",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "crc16"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "LvSLvP72eCynuz43Jvzm9",
-        "name": "校验4-crc32",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "1",
-          "checksumMethod": "crc32"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      }
-    ],
-    "timestamp": 1747311858048,
-    "createdAt": "2025-04-30T06:33:33.032Z",
-    "updatedAt": "2025-05-30T06:25:18.247Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
     "id": "10",
     "lastId": "10",
     "name": "控制帧",
@@ -824,693 +229,6 @@
     "identifierRules": []
   },
   {
-    "id": "RfQt0oBI01iuOdYHq0w7T",
-    "lastId": "10",
-    "name": "控制帧 (副本)",
-    "description": "",
-    "direction": "send",
-    "frameType": "control",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "5Zhj14PZHlpWAnZJJ1Hol",
-        "name": "指令头",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xA5",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "jwf6xPj_uYEYuyV-c01z8",
-        "name": "指令长",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "xKElBmg--iLLrs_oVj7lc",
-        "name": "指令",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x5343",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "agk8TSJqp15ZMd8iGRPoH",
-        "name": "发送者MAC ID",
-        "dataType": "bytes",
-        "length": 6,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "FI7AITw5xHpBDLotyl-PT",
-        "name": "接收者MAC ID",
-        "dataType": "bytes",
-        "length": 6,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "dsvpRYfelHkdzHJhdcHft",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xDCCD",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "zRGFOXqaXRsZWvyTpxarv",
-        "name": "服务器命令序号",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x00",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "VBeYTy9lDQP334cHecAx5",
-        "name": "硬件命令序号",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xAA",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "yNkaq-SX-JkTuZa465Lss",
-        "name": "命令响应成功失败标志",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xE0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "KjzvkPGAPShFZsStZilWm",
-        "name": "命令字",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xD1",
-        "inputType": "select",
-        "configurable": true,
-        "options": [
-          {
-            "value": "0xA1",
-            "label": "控制",
-            "isDefault": false
-          },
-          {
-            "value": "0xB1",
-            "label": "读取",
-            "isDefault": false
-          },
-          {
-            "value": "0xC1",
-            "label": "主动上传数据",
-            "isDefault": false
-          },
-          {
-            "value": "0xD1",
-            "label": "自定义数据",
-            "isDefault": true
-          }
-        ]
-      },
-      {
-        "id": "jmZJMOGi7P-IHyDRU3bYC",
-        "name": "命令长度",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      }
-    ],
-    "timestamp": 1748501219331,
-    "createdAt": "2025-05-28T03:18:35.382Z",
-    "updatedAt": "2025-05-30T02:11:48.414Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "LCBY96JPtLPOOA4cNJJWA",
-    "lastId": "10",
-    "name": "控制帧 (副本)",
-    "description": "",
-    "direction": "send",
-    "frameType": "control",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "5Zhj14PZHlpWAnZJJ1Hol",
-        "name": "指令头",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xA5",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "jwf6xPj_uYEYuyV-c01z8",
-        "name": "指令长",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "xKElBmg--iLLrs_oVj7lc",
-        "name": "指令",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x5343",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "agk8TSJqp15ZMd8iGRPoH",
-        "name": "发送者MAC ID",
-        "dataType": "bytes",
-        "length": 6,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "FI7AITw5xHpBDLotyl-PT",
-        "name": "接收者MAC ID",
-        "dataType": "bytes",
-        "length": 6,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "dsvpRYfelHkdzHJhdcHft",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xDCCD",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "zRGFOXqaXRsZWvyTpxarv",
-        "name": "服务器命令序号",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x00",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "VBeYTy9lDQP334cHecAx5",
-        "name": "硬件命令序号",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xAA",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "yNkaq-SX-JkTuZa465Lss",
-        "name": "命令响应成功失败标志",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xE0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "KjzvkPGAPShFZsStZilWm",
-        "name": "命令字",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xD1",
-        "inputType": "select",
-        "configurable": true,
-        "options": [
-          {
-            "value": "0xA1",
-            "label": "控制",
-            "isDefault": false
-          },
-          {
-            "value": "0xB1",
-            "label": "读取",
-            "isDefault": false
-          },
-          {
-            "value": "0xC1",
-            "label": "主动上传数据",
-            "isDefault": false
-          },
-          {
-            "value": "0xD1",
-            "label": "自定义数据",
-            "isDefault": true
-          }
-        ]
-      },
-      {
-        "id": "jmZJMOGi7P-IHyDRU3bYC",
-        "name": "命令长度",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "17",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      }
-    ],
-    "timestamp": 1748501321295,
-    "createdAt": "2025-05-28T03:18:35.382Z",
-    "updatedAt": "2025-05-29T06:48:41.295Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "j9zJoSdRSeM70mDn36uAx",
-    "lastId": "10",
-    "name": "控制帧 (副本)",
-    "description": "",
-    "direction": "send",
-    "frameType": "control",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "5Zhj14PZHlpWAnZJJ1Hol",
-        "name": "指令头",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xA5",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "jwf6xPj_uYEYuyV-c01z8",
-        "name": "指令长",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "xKElBmg--iLLrs_oVj7lc",
-        "name": "指令",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x5343",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "agk8TSJqp15ZMd8iGRPoH",
-        "name": "发送者MAC ID",
-        "dataType": "bytes",
-        "length": 6,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "FI7AITw5xHpBDLotyl-PT",
-        "name": "接收者MAC ID",
-        "dataType": "bytes",
-        "length": 6,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "dsvpRYfelHkdzHJhdcHft",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xDCCD",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "zRGFOXqaXRsZWvyTpxarv",
-        "name": "服务器命令序号",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x00",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "VBeYTy9lDQP334cHecAx5",
-        "name": "硬件命令序号",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xAA",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "yNkaq-SX-JkTuZa465Lss",
-        "name": "命令响应成功失败标志",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xE0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "KjzvkPGAPShFZsStZilWm",
-        "name": "命令字",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xD1",
-        "inputType": "select",
-        "configurable": true,
-        "options": [
-          {
-            "value": "0xA1",
-            "label": "控制",
-            "isDefault": false
-          },
-          {
-            "value": "0xB1",
-            "label": "读取",
-            "isDefault": false
-          },
-          {
-            "value": "0xC1",
-            "label": "主动上传数据",
-            "isDefault": false
-          },
-          {
-            "value": "0xD1",
-            "label": "自定义数据",
-            "isDefault": true
-          }
-        ]
-      },
-      {
-        "id": "jmZJMOGi7P-IHyDRU3bYC",
-        "name": "命令长度",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "17",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      }
-    ],
-    "timestamp": 1748501325832,
-    "createdAt": "2025-05-28T03:18:35.382Z",
-    "updatedAt": "2025-05-29T06:48:45.832Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
     "id": "11",
     "lastId": "11",
     "name": "控制帧-继电器控制",
@@ -1574,6 +292,1789 @@
         "id": "agk8TSJqp15ZMd8iGRPoH",
         "name": "发送者MAC ID",
         "dataType": "bytes",
+        "length": 12,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "FI7AITw5xHpBDLotyl-PT",
+        "name": "接收者MAC ID",
+        "dataType": "bytes",
+        "length": 12,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "dsvpRYfelHkdzHJhdcHft",
+        "name": "帧头",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xDCCD",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "zRGFOXqaXRsZWvyTpxarv",
+        "name": "服务器命令序号",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x00",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "VBeYTy9lDQP334cHecAx5",
+        "name": "硬件命令序号",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xAA",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "yNkaq-SX-JkTuZa465Lss",
+        "name": "命令响应成功失败标志",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "KjzvkPGAPShFZsStZilWm",
+        "name": "命令字",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xD1",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0xA1",
+            "label": "控制",
+            "isDefault": false
+          },
+          {
+            "value": "0xB1",
+            "label": "读取",
+            "isDefault": false
+          },
+          {
+            "value": "0xC1",
+            "label": "主动上传数据",
+            "isDefault": false
+          },
+          {
+            "value": "0xD1",
+            "label": "自定义数据",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "jmZJMOGi7P-IHyDRU3bYC",
+        "name": "命令长度",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "17",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "DC-CeCIBsTUb5SkT3Qc-u",
+        "name": "数据类别1",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "hx3MFiSuSOtVjKnahD7-t",
+        "name": "继电器数据地址",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "8d5IZFIyZn2IwIhRRBK6v",
+        "name": "动作形式1",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "BYOfjeNODXmg2dVcT31ZO",
+        "name": "执行时间1",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "HRl8EVhww-Tg9XpiuLqqg",
+        "name": "固定位1",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "nfEnLPFwaMwOQJQrZDakc",
+        "name": "时间单位1",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "7PMquPt0vywkzlvZp6qe-",
+        "name": "继电器数据地址2",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "db3pXR4Wx1SIzm776DbvF",
+        "name": "数据类别2",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "moNRIquMEg_k2CTJUVVjK",
+        "name": "动作形式2",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "Znr65_esBC5kZHL-_kd1D",
+        "name": "执行时间2",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "oO_PHwKYb7B6ngP8W5GUj",
+        "name": "固定位2",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "IjTWvZFphbQ70sfCZtMIb",
+        "name": "时间单位2",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "mZGD0_Sbh6qs1R__9IMwV",
+        "name": "继电器数据继电器数据地址3",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "i1CC1g5NxwOWVevn_dNaj",
+        "name": "数据类别3",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "Lvx_dPi7Pz-ZnKVAWXrHp",
+        "name": "动作形式3",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "Zh1bfntZ-cz02NvOm2wV-",
+        "name": "执行时间3",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "bilLAxaMBtjztCFhtBBaL",
+        "name": "固定位3",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "qRPc-59zeKkQTZSSKTW0j",
+        "name": "时间单位3",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "sVeMLEfFPFN5uE20Uf7SZ",
+        "name": "继电器数据地址4",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "P0QLRsvy9Z8L43g41jd7f",
+        "name": "数据类别4",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "aRx9Zu6H8yScLe5V-WC0Z",
+        "name": "动作形式4",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "MyskFPM0y4SfkYd0mZyTE",
+        "name": "执行时间4",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "RXy44Ac2kMTSMnVoOAlGN",
+        "name": "固定位4",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "feuzhsZUpLFKFGE2YgvZ7",
+        "name": "时间单位4",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "Q-yuisF94Ah_rQhzOvmTs",
+        "name": "继电器数据地址5",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "uW-X3LuGSOF9FJQAs7Lyi",
+        "name": "数据类别5",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "3SeF8rifABkPxkHcNjSwL",
+        "name": "动作形式5",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "O4vgiSH6K-umBNCs245B4",
+        "name": "执行时间5",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "8QEWhznT9WokEoCEtfFlf",
+        "name": "固定位5",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "xqEh9WBCA8LZ85d3AotMV",
+        "name": "时间单位5",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "XYChOfpQ5TVzW_a1H3mZg",
+        "name": "继电器数据地址6",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "YNHIDr1Cee6y2Bds-TI8Q",
+        "name": "数据类别6",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "tXlJipaS_lnQ9K38BOTO-",
+        "name": "动作形式6",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "NIqaJZzNk_2zVL8emqjae",
+        "name": "执行时间6",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "7tkRiJSzc-29OAfrSoREV",
+        "name": "固定位6",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "U3eUFXqnFXOIfMpk9eNE0",
+        "name": "时间单位6",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "brS54rhHX5k-xNr1KAr-_",
+        "name": "继电器数据地址7",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "7q7Br77DyGA7f-Z37OOgW",
+        "name": "数据类别7",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "3F8slGuqVt3NlO3Sufagl",
+        "name": "动作形式7",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "xdQsg-0CVD8GCYsEHQT6-",
+        "name": "执行时间7",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "h-KEuoHrGLp6xDlIgP6gh",
+        "name": "固定位7",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "ReGnQz1y8kpkefAYFHMuW",
+        "name": "时间单位7",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "9yy5CIIpsb7sopgRgBlgC",
+        "name": "继电器数据地址8",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "选择继电器地址",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "第0路继电器",
+            "isDefault": true
+          },
+          {
+            "value": "1",
+            "label": "第1路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "2",
+            "label": "第2路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "3",
+            "label": "第3路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "4",
+            "label": "第4路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "5",
+            "label": "第5路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "6",
+            "label": "第6路继电器",
+            "isDefault": false
+          },
+          {
+            "value": "7",
+            "label": "第7路继电器",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "rm1vng0kwbWvlg_7mpi2c",
+        "name": "数据类别8",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE1",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "KIxdC7hR3IkOrAeOurNe3",
+        "name": "动作形式8",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x55",
+        "inputType": "radio",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00",
+            "label": "全关",
+            "isDefault": false
+          },
+          {
+            "value": "0xff",
+            "label": "全开",
+            "isDefault": false
+          },
+          {
+            "value": "0x22",
+            "label": "断开",
+            "isDefault": false
+          },
+          {
+            "value": "0x33",
+            "label": "延迟动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x44",
+            "label": "点动动作",
+            "isDefault": false
+          },
+          {
+            "value": "0x55",
+            "label": "导通",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "6csFR-kQ4a8lWLNIBHCn4",
+        "name": "执行时间8",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "点动或者延时动作的时间数据 最大60000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "c7GvPu1_Mzsv3ZFRZ4MzN",
+        "name": "固定位8",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "_DKC1TNzN85jEFZM3E988",
+        "name": "时间单位8",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x02",
+        "inputType": "radio",
+        "configurable": false,
+        "options": [
+          {
+            "value": "0x01",
+            "label": "毫秒",
+            "isDefault": false
+          },
+          {
+            "value": "0x02",
+            "label": "秒",
+            "isDefault": true
+          },
+          {
+            "value": "0x03",
+            "label": "分钟",
+            "isDefault": false
+          }
+        ]
+      },
+      {
+        "id": "C3Ujy_NjUFIZeUEpy47cU",
+        "name": "帧尾",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xCDDC",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "PBAEMnjEmsSLZXa1yQyQc",
+        "name": "校验和",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": true,
+          "startFieldIndex": "0",
+          "endFieldIndex": "59",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      }
+    ],
+    "timestamp": 1749194824843,
+    "createdAt": "2025-05-28T03:18:35.382Z",
+    "updatedAt": "2025-06-06T07:27:04.844Z",
+    "isFavorite": false,
+    "options": {
+      "autoChecksum": true,
+      "bigEndian": false,
+      "includeLengthField": false
+    },
+    "identifierRules": []
+  },
+  {
+    "id": "6vO3C74BR4BD_SNKZmI3y",
+    "lastId": "6vO3C74BR4BD_SNKZmI3y",
+    "name": "控制帧",
+    "description": "",
+    "direction": "send",
+    "frameType": "control",
+    "protocol": "custom",
+    "fields": [
+      {
+        "id": "5Zhj14PZHlpWAnZJJ1Hol",
+        "name": "指令头",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xA5",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "jwf6xPj_uYEYuyV-c01z8",
+        "name": "指令长",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "xKElBmg--iLLrs_oVj7lc",
+        "name": "指令",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x5343",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "agk8TSJqp15ZMd8iGRPoH",
+        "name": "发送者MAC ID",
+        "dataType": "bytes",
         "length": 6,
         "description": "",
         "validOption": {
@@ -1592,6 +2093,235 @@
         "name": "接收者MAC ID",
         "dataType": "bytes",
         "length": 6,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "dsvpRYfelHkdzHJhdcHft",
+        "name": "帧头",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xDCCD",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "zRGFOXqaXRsZWvyTpxarv",
+        "name": "服务器命令序号",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x00",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "VBeYTy9lDQP334cHecAx5",
+        "name": "硬件命令序号",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xAA",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "yNkaq-SX-JkTuZa465Lss",
+        "name": "命令响应成功失败标志",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xE0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "KjzvkPGAPShFZsStZilWm",
+        "name": "命令字",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xD1",
+        "inputType": "select",
+        "configurable": true,
+        "options": [
+          {
+            "value": "0xA1",
+            "label": "控制",
+            "isDefault": false
+          },
+          {
+            "value": "0xB1",
+            "label": "读取",
+            "isDefault": false
+          },
+          {
+            "value": "0xC1",
+            "label": "主动上传数据",
+            "isDefault": false
+          },
+          {
+            "value": "0xD1",
+            "label": "自定义数据",
+            "isDefault": true
+          }
+        ]
+      },
+      {
+        "id": "jmZJMOGi7P-IHyDRU3bYC",
+        "name": "命令长度",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "17",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      }
+    ],
+    "timestamp": 1749189539534,
+    "createdAt": "2025-05-28T03:18:35.382Z",
+    "updatedAt": "2025-06-06T05:58:59.534Z",
+    "isFavorite": false,
+    "options": {
+      "autoChecksum": true,
+      "bigEndian": false,
+      "includeLengthField": false
+    },
+    "identifierRules": []
+  },
+  {
+    "id": "back0001",
+    "lastId": "back0001",
+    "name": "响应帧-继电器返回1",
+    "description": "",
+    "direction": "receive",
+    "frameType": "response",
+    "protocol": "custom",
+    "fields": [
+      {
+        "id": "5Zhj14PZHlpWAnZJJ1Hol",
+        "name": "指令头",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0xA5",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "jwf6xPj_uYEYuyV-c01z8",
+        "name": "指令长",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "xKElBmg--iLLrs_oVj7lc",
+        "name": "指令",
+        "dataType": "uint16",
+        "length": 2,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0x5343",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "agk8TSJqp15ZMd8iGRPoH",
+        "name": "发送者MAC ID",
+        "dataType": "bytes",
+        "length": 12,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "FI7AITw5xHpBDLotyl-PT",
+        "name": "接收者MAC ID",
+        "dataType": "bytes",
+        "length": 12,
         "description": "",
         "validOption": {
           "isChecksum": false,
@@ -1739,17 +2469,17 @@
           "endFieldIndex": "0",
           "checksumMethod": "sum8"
         },
-        "defaultValue": "0xE1",
+        "defaultValue": "0xE2",
         "inputType": "input",
         "configurable": false,
         "options": []
       },
       {
-        "id": "hx3MFiSuSOtVjKnahD7-t",
+        "id": "VsEC2i__fmd6ValODvAZq",
         "name": "地址",
         "dataType": "uint8",
         "length": 1,
-        "description": "选择继电器地址",
+        "description": "",
         "validOption": {
           "isChecksum": false,
           "startFieldIndex": "0",
@@ -1757,54 +2487,30 @@
           "checksumMethod": "sum8"
         },
         "defaultValue": "0",
-        "inputType": "select",
-        "configurable": true,
-        "options": [
-          {
-            "value": "0",
-            "label": "第0路继电器",
-            "isDefault": true
-          },
-          {
-            "value": "1",
-            "label": "第1路继电器",
-            "isDefault": false
-          },
-          {
-            "value": "2",
-            "label": "第2路继电器",
-            "isDefault": false
-          },
-          {
-            "value": "3",
-            "label": "第3路继电器",
-            "isDefault": false
-          },
-          {
-            "value": "4",
-            "label": "第4路继电器",
-            "isDefault": false
-          },
-          {
-            "value": "5",
-            "label": "第5路继电器",
-            "isDefault": false
-          },
-          {
-            "value": "6",
-            "label": "第6路继电器",
-            "isDefault": false
-          },
-          {
-            "value": "7",
-            "label": "第7路继电器",
-            "isDefault": false
-          }
-        ]
+        "inputType": "input",
+        "configurable": false,
+        "options": []
       },
       {
-        "id": "8d5IZFIyZn2IwIhRRBK6v",
-        "name": "动作形式",
+        "id": "inBn5UdgaI9lqCqUKh7aU",
+        "name": "继电器状态",
+        "dataType": "bytes",
+        "length": 5,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "PYuHuR2O_H1THDdJHGwj2",
+        "name": "数据类别2",
         "dataType": "uint8",
         "length": 1,
         "description": "",
@@ -1814,62 +2520,14 @@
           "endFieldIndex": "0",
           "checksumMethod": "sum8"
         },
-        "defaultValue": "0x55",
-        "inputType": "radio",
-        "configurable": true,
-        "options": [
-          {
-            "value": "0x00",
-            "label": "全关",
-            "isDefault": false
-          },
-          {
-            "value": "0xff",
-            "label": "全开",
-            "isDefault": false
-          },
-          {
-            "value": "0x22",
-            "label": "断开",
-            "isDefault": false
-          },
-          {
-            "value": "0x33",
-            "label": "延迟动作",
-            "isDefault": false
-          },
-          {
-            "value": "0x44",
-            "label": "点动动作",
-            "isDefault": false
-          },
-          {
-            "value": "0x55",
-            "label": "导通",
-            "isDefault": true
-          }
-        ]
-      },
-      {
-        "id": "BYOfjeNODXmg2dVcT31ZO",
-        "name": "时间",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "点动或者延时动作的时间数据 最大60000",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
+        "defaultValue": "0xE3",
         "inputType": "input",
-        "configurable": true,
+        "configurable": false,
         "options": []
       },
       {
-        "id": "HRl8EVhww-Tg9XpiuLqqg",
-        "name": "固定位",
+        "id": "LIvaWGeVhVGY1f2paNJ-R",
+        "name": "继电器数据地址2",
         "dataType": "uint8",
         "length": 1,
         "description": "",
@@ -1885,98 +2543,27 @@
         "options": []
       },
       {
-        "id": "nfEnLPFwaMwOQJQrZDakc",
-        "name": "时间单位",
-        "dataType": "uint8",
-        "length": 1,
+        "id": "IKdHcFLtDZyUoxwNXkAEm",
+        "name": "开关量状态",
+        "dataType": "bytes",
+        "length": 5,
         "description": "",
         "validOption": {
           "isChecksum": false,
           "startFieldIndex": "0",
           "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0x01",
-        "inputType": "radio",
-        "configurable": true,
-        "options": [
-          {
-            "value": "0x01",
-            "label": "毫秒",
-            "isDefault": true
-          },
-          {
-            "value": "0x02",
-            "label": "秒",
-            "isDefault": false
-          },
-          {
-            "value": "0x03",
-            "label": "分钟",
-            "isDefault": false
-          }
-        ]
-      },
-      {
-        "id": "C3Ujy_NjUFIZeUEpy47cU",
-        "name": "帧尾",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xCDDC",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "PBAEMnjEmsSLZXa1yQyQc",
-        "name": "校验和",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "0",
-          "endFieldIndex": "17",
           "checksumMethod": "sum8"
         },
         "defaultValue": "0",
         "inputType": "input",
         "configurable": false,
         "options": []
-      }
-    ],
-    "timestamp": 1748501856319,
-    "createdAt": "2025-05-28T03:18:35.382Z",
-    "updatedAt": "2025-05-29T06:57:36.319Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": []
-  },
-  {
-    "id": "12345678",
-    "lastId": "12345678",
-    "name": "接收测试",
-    "description": "",
-    "direction": "receive",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
+      },
       {
-        "id": "4chscyTmuq-CdwKIe7crP",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
+        "id": "hbj5XisiNHHiI9XIDhnx8",
+        "name": "数据类别3",
+        "dataType": "uint8",
+        "length": 1,
         "description": "",
         "validOption": {
           "isChecksum": false,
@@ -1984,14 +2571,31 @@
           "endFieldIndex": "0",
           "checksumMethod": "sum8"
         },
-        "defaultValue": "0xabcd",
+        "defaultValue": "0xE4",
         "inputType": "input",
         "configurable": false,
         "options": []
       },
       {
-        "id": "BK22GwuP0-AP7yVHieyKw",
-        "name": "随便什么",
+        "id": "wIwjyo4CrVc-6w9KrVs5e",
+        "name": "继电器数据地址3",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "EpAKENnSHlJsJZ4lktODn",
+        "name": "某模拟量数值",
         "dataType": "uint32",
         "length": 4,
         "description": "",
@@ -2001,14 +2605,14 @@
           "endFieldIndex": "0",
           "checksumMethod": "sum8"
         },
-        "defaultValue": "0x12345678",
+        "defaultValue": "0",
         "inputType": "input",
-        "configurable": true,
+        "configurable": false,
         "options": []
       },
       {
-        "id": "kbi-7j2IXVyGp_XKjARLN",
-        "name": "测试标签",
+        "id": "2PNnrKtgqV8s8r6hamYVp",
+        "name": "保留",
         "dataType": "uint8",
         "length": 1,
         "description": "",
@@ -2018,73 +2622,15 @@
           "endFieldIndex": "0",
           "checksumMethod": "sum8"
         },
-        "defaultValue": "0x00",
-        "inputType": "radio",
-        "configurable": false,
-        "options": [
-          {
-            "value": "0x00",
-            "label": "全0",
-            "isDefault": true
-          },
-          {
-            "value": "0xff",
-            "label": "全1",
-            "isDefault": false
-          }
-        ]
-      }
-    ],
-    "timestamp": 1748840270985,
-    "createdAt": "2025-06-01T05:59:01.841Z",
-    "updatedAt": "2025-06-02T04:57:50.985Z",
-    "isFavorite": false,
-    "options": {
-      "autoChecksum": true,
-      "bigEndian": false,
-      "includeLengthField": false
-    },
-    "identifierRules": [
-      {
-        "startIndex": 0,
-        "endIndex": "1",
-        "operator": "eq",
-        "value": "0xabcd",
-        "format": "hex",
-        "logicOperator": "and"
-      }
-    ]
-  },
-  {
-    "id": "5gSKOQrsl3haIitMYYQ3c",
-    "lastId": "5gSKOQrsl3haIitMYYQ3c",
-    "name": "接收测试 (副本)",
-    "description": "",
-    "direction": "receive",
-    "frameType": "custom",
-    "protocol": "custom",
-    "fields": [
-      {
-        "id": "4chscyTmuq-CdwKIe7crP",
-        "name": "帧头",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0xabcd",
+        "defaultValue": "0",
         "inputType": "input",
         "configurable": false,
         "options": []
       }
     ],
-    "timestamp": 1748769687960,
-    "createdAt": "2025-06-01T05:59:01.841Z",
-    "updatedAt": "2025-06-01T09:21:27.960Z",
+    "timestamp": 1749198076146,
+    "createdAt": "2025-05-28T03:18:35.382Z",
+    "updatedAt": "2025-06-06T08:21:16.146Z",
     "isFavorite": false,
     "options": {
       "autoChecksum": true,
@@ -2093,163 +2639,26 @@
     },
     "identifierRules": [
       {
-        "startIndex": 0,
+        "startIndex": "0",
         "endIndex": "0",
         "operator": "eq",
-        "value": "0xabcd",
-        "format": "hex",
+        "value": "0xA5",
         "logicOperator": "and"
       }
     ]
   },
   {
-    "id": "22222",
-    "lastId": "22222",
-    "name": "接收测试2",
+    "id": "testreceive",
+    "lastId": "",
+    "name": "测试接收",
     "description": "",
     "direction": "receive",
     "frameType": "custom",
     "protocol": "custom",
     "fields": [
       {
-        "id": "lc_f3W9Zd7qmpbHxeba4q",
+        "id": "LKfrNsz7ISAtYPwGpwM3U",
         "name": "帧头",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "GyyChrkgMWa0J7tB2WGbB",
-        "name": "无符号1",
-        "dataType": "uint8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "UbsKqJlmp7g8TW7sFbSBr",
-        "name": "有符号1",
-        "dataType": "int8",
-        "length": 1,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "Ghzoxs1w33nxKod1RC2pb",
-        "name": "无符号2",
-        "dataType": "uint16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "kC5-sfSp2yA5TK8dMDnHY",
-        "name": "有符号2",
-        "dataType": "int16",
-        "length": 2,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "vo6FzcrxdY-zhpF7F0ybW",
-        "name": "无符号4",
-        "dataType": "uint32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "LGc5eRDW4zoePGwUghH6b",
-        "name": "有符号4",
-        "dataType": "int32",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": false,
-        "options": []
-      },
-      {
-        "id": "eB02Ny4KQIUruf1lZAiDa",
-        "name": "浮点4",
-        "dataType": "float",
-        "length": 4,
-        "description": "",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "defaultValue": "0",
-        "inputType": "input",
-        "configurable": true,
-        "options": []
-      },
-      {
-        "id": "dKlEwd7HClNKjCqx29IF-",
-        "name": "6字节",
         "dataType": "bytes",
         "length": 6,
         "description": "",
@@ -2261,13 +2670,30 @@
         },
         "defaultValue": "0",
         "inputType": "input",
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "rOhIaQKGl3Z19Gqwjmy6t",
+        "name": "新字段",
+        "dataType": "uint8",
+        "length": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
         "configurable": true,
         "options": []
       }
     ],
-    "timestamp": 1749109386491,
-    "createdAt": "2025-06-05T07:41:17.585Z",
-    "updatedAt": "2025-06-05T07:43:06.491Z",
+    "timestamp": 1749202308408,
+    "createdAt": "2025-06-06T09:28:04.118Z",
+    "updatedAt": "2025-06-06T09:31:48.408Z",
     "isFavorite": false,
     "options": {
       "autoChecksum": true,
@@ -2277,9 +2703,23 @@
     "identifierRules": [
       {
         "startIndex": 0,
+        "endIndex": "1",
+        "operator": "eq",
+        "value": "0x1234",
+        "logicOperator": "and"
+      },
+      {
+        "startIndex": "2",
         "endIndex": "3",
         "operator": "eq",
-        "value": "0x1acffc1d",
+        "value": "0x5678",
+        "logicOperator": "and"
+      },
+      {
+        "startIndex": "4",
+        "endIndex": "5",
+        "operator": "eq",
+        "value": "0x1234",
         "logicOperator": "and"
       }
     ]

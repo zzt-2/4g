@@ -67,66 +67,6 @@ export function validateMappings(
 }
 
 /**
- * 验证数据分组的有效性
- * @param groups 数据分组列表
- * @returns 验证结果
- */
-export function validateDataGroups(groups: DataGroup[]): ValidationResult {
-  const errors: string[] = [];
-  const groupIds = new Set<number>();
-  const dataItemIds = new Set<string>();
-
-  groups.forEach((group, groupIndex) => {
-    const groupPrefix = `分组 ${groupIndex + 1}`;
-
-    // 检查分组ID唯一性
-    if (groupIds.has(group.id)) {
-      errors.push(`${groupPrefix}: 分组ID ${group.id} 重复`);
-    } else {
-      groupIds.add(group.id);
-    }
-
-    // 检查分组标签
-    if (!group.label || group.label.trim() === '') {
-      errors.push(`${groupPrefix}: 分组标签不能为空`);
-    }
-
-    // 检查数据项
-    group.dataItems.forEach((dataItem, itemIndex) => {
-      const itemPrefix = `${groupPrefix} 数据项 ${itemIndex + 1}`;
-      const itemKey = `${group.id}-${dataItem.id}`;
-
-      // 检查数据项ID唯一性（在分组内）
-      if (dataItemIds.has(itemKey)) {
-        errors.push(`${itemPrefix}: 数据项ID ${dataItem.id} 在分组内重复`);
-      } else {
-        dataItemIds.add(itemKey);
-      }
-
-      // 检查数据项标签
-      if (!dataItem.label || dataItem.label.trim() === '') {
-        errors.push(`${itemPrefix}: 数据项标签不能为空`);
-      }
-
-      // 检查数据类型
-      if (!dataItem.dataType) {
-        errors.push(`${itemPrefix}: 数据类型不能为空`);
-      }
-
-      // 检查标签选项
-      if (dataItem.useLabel && (!dataItem.labelOptions || dataItem.labelOptions.length === 0)) {
-        errors.push(`${itemPrefix}: 启用标签显示但未提供标签选项`);
-      }
-    });
-  });
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
  * 验证帧字段的完整性
  * @param frame 帧对象
  * @returns 验证结果
@@ -178,40 +118,6 @@ export function validateFrameFields(frame: Frame): ValidationResult {
       }
     }
   });
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
- * 检查映射关系的循环依赖
- * @param mappings 映射关系列表
- * @returns 验证结果
- */
-export function checkMappingCircularDependency(mappings: FrameFieldMapping[]): ValidationResult {
-  const errors: string[] = [];
-
-  // 构建依赖图
-  const dependencyMap = new Map<string, Set<string>>();
-
-  mappings.forEach((mapping) => {
-    const key = `${mapping.frameId}-${mapping.fieldId}`;
-    const target = `${mapping.groupId}-${mapping.dataItemId}`;
-
-    if (!dependencyMap.has(key)) {
-      dependencyMap.set(key, new Set());
-    }
-    dependencyMap.get(key)!.add(target);
-  });
-
-  // 检查循环依赖（简化版本，实际可能需要更复杂的算法）
-  for (const [key, targets] of dependencyMap) {
-    if (targets.has(key)) {
-      errors.push(`检测到循环依赖: ${key}`);
-    }
-  }
 
   return {
     isValid: errors.length === 0,

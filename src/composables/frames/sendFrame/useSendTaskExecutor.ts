@@ -15,6 +15,7 @@ import {
 } from '../../../stores/frames/sendTasksStore';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
 import { useConnectionTargets } from '../../useConnectionTargets';
+import { useUnifiedSender } from './useUnifiedSender';
 
 /**
  * 任务执行器可组合函数
@@ -26,7 +27,10 @@ export function useSendTaskExecutor() {
   const sendTasksStore = useSendTasksStore();
 
   // 获取连接目标管理器用于解析目标ID
-  const { parseTargetPath } = useConnectionTargets('task-executor-targets');
+  const { getValidatedTargetPath } = useConnectionTargets('task-executor-targets');
+
+  // 获取统一发送路由器
+  const { sendFrameInstance: sendFrameInstanceUnified, isTargetAvailable } = useUnifiedSender();
 
   // 本地状态
   const isProcessing = ref(false);
@@ -43,17 +47,6 @@ export function useSendTaskExecutor() {
       throw new Error(`找不到实例: ${instanceId}`);
     }
     return instance;
-  };
-
-  /**
-   * 解析并验证目标路径
-   */
-  const getValidatedTargetPath = (targetId: string): string => {
-    const targetPath = parseTargetPath(targetId);
-    if (!targetPath) {
-      throw new Error(`无效的目标ID: ${targetId}`);
-    }
-    return targetPath;
   };
 
   /**
@@ -81,29 +74,35 @@ export function useSendTaskExecutor() {
   };
 
   /**
-   * 发送帧到目标并处理错误
+   * 发送帧到目标并处理错误（使用统一发送路由器）
    */
   const sendFrameToTarget = async (
-    targetPath: string,
+    targetId: string,
     instance: SendFrameInstance,
     taskId: string,
     taskName: string,
     timers: number[],
   ): Promise<boolean> => {
-    const success = await serialStore.sendFrameInstance(targetPath, instance);
+    try {
+      const result = await sendFrameInstanceUnified(targetId, instance);
 
-    if (!success) {
-      // 检查是否是连接问题
-      if (!serialStore.isPortConnected(targetPath)) {
-        console.log(`串口连接已断开 (${targetPath})，暂停任务: ${taskName}`);
-        sendTasksStore.updateTaskStatus(taskId, 'paused', '串口连接已断开');
-        cleanupTimers(timers);
-        return false;
+      if (!result.success) {
+        // 检查是否是连接问题
+        const isAvailable = await isTargetAvailable(targetId);
+        if (!isAvailable) {
+          console.log(`连接已断开 (${targetId})，暂停任务: ${taskName}`);
+          sendTasksStore.updateTaskStatus(taskId, 'paused', '连接已断开');
+          cleanupTimers(timers);
+          return false;
+        }
+        throw new Error(result.error || '帧发送失败');
       }
-      throw new Error('帧发送失败');
-    }
 
-    return true;
+      return true;
+    } catch (error) {
+      console.error(`发送帧到目标 ${targetId} 失败:`, error);
+      throw error;
+    }
   };
 
   /**
@@ -133,11 +132,14 @@ export function useSendTaskExecutor() {
       // 获取实例
       const instance = getSendFrameInstance(instanceConfig.instanceId);
 
-      // 获取目标路径
-      const targetPath = getValidatedTargetPath(instanceConfig.targetId);
-
-      // 发送帧
-      const success = await sendFrameToTarget(targetPath, instance, taskId, taskName, timers);
+      // 发送帧（使用统一发送路由器）
+      const success = await sendFrameToTarget(
+        instanceConfig.targetId,
+        instance,
+        taskId,
+        taskName,
+        timers,
+      );
       if (!success) {
         return false; // 连接错误已在函数内处理
       }
@@ -468,6 +470,9 @@ export function useSendTaskExecutor() {
 
         // 使用提取的函数发送帧
         const targetPath = getValidatedTargetPath(instanceConfig.targetId);
+        if (!targetPath) {
+          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
+        }
 
         console.log(
           `单实例定时发送帧 ${currentCount + 1}/${config.isInfinite ? '∞' : config.repeatCount} 到目标: ${targetPath}`,
@@ -478,7 +483,13 @@ export function useSendTaskExecutor() {
           },
         );
 
-        const success = await sendFrameToTarget(targetPath, instance, task.id, task.name, timers);
+        const success = await sendFrameToTarget(
+          instanceConfig.targetId,
+          instance,
+          task.id,
+          task.name,
+          timers,
+        );
 
         if (!success) {
           return; // 连接错误已处理
@@ -930,6 +941,9 @@ export function useSendTaskExecutor() {
 
         // 使用提取的函数发送帧
         const targetPath = getValidatedTargetPath(instanceConfig.targetId);
+        if (!targetPath) {
+          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
+        }
 
         console.log(`时间触发发送帧到目标: ${targetPath}`, {
           instanceId: instanceConfig.instanceId,
@@ -938,7 +952,13 @@ export function useSendTaskExecutor() {
           isConnected: serialStore.isPortConnected(targetPath),
         });
 
-        const success = await sendFrameToTarget(targetPath, instance, task.id, task.name, timers);
+        const success = await sendFrameToTarget(
+          instanceConfig.targetId,
+          instance,
+          task.id,
+          task.name,
+          timers,
+        );
 
         if (!success) {
           return; // 连接错误已处理

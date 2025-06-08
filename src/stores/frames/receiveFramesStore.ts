@@ -16,14 +16,7 @@ import type {
 } from '../../types/frames/receive';
 import type { Frame } from '../../types/frames/frames';
 import { useFrameTemplateStore } from './frameTemplateStore';
-import {
-  validateMappings as validateMappingsUtil,
-  createDataPacket,
-  matchDataToFrame,
-  processReceivedData,
-  applyDataProcessResult,
-} from '../../utils/receive';
-import { dataStorageAPI } from 'src/utils/electronApi';
+import { dataStorageAPI, receiveAPI } from 'src/utils/electronApi';
 
 export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   // 核心状态
@@ -236,8 +229,20 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   };
 
   // 方法：验证映射关系
-  const validateMappings = (): ValidationResult => {
-    return validateMappingsUtil(mappings.value, frameTemplateStore.frames, groups.value);
+  const validateMappings = async (): Promise<ValidationResult> => {
+    try {
+      return await receiveAPI.validateMappings(
+        mappings.value,
+        frameTemplateStore.frames,
+        groups.value,
+      );
+    } catch (error) {
+      console.error('验证映射关系失败:', error);
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : '验证过程发生未知错误'],
+      };
+    }
   };
 
   // 方法：选择帧
@@ -412,90 +417,134 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
    * @param sourceId 来源标识
    * @param data 接收数据
    */
-  const handleReceivedData = (
+  const handleReceivedData = async (
     source: 'serial' | 'network',
     sourceId: string,
     data: Uint8Array,
-  ): void => {
+  ): Promise<void> => {
     try {
-      // 创建数据包
-      const packet = createDataPacket(source, sourceId, data);
+      // 调用主进程的统一数据处理接口
+      const result = await receiveAPI.handleReceivedData(
+        source,
+        sourceId,
+        data,
+        frameTemplateStore.frames,
+        mappings.value,
+        groups.value,
+      );
 
-      // 添加到最近数据包列表
-      recentPackets.value.unshift(packet);
-      if (recentPackets.value.length > maxRecentPackets) {
-        recentPackets.value.splice(maxRecentPackets);
-      }
+      // 处理返回结果
+      if (!result.success) {
+        // 处理失败的情况
+        if (result.recentPacket) {
+          // 添加到最近数据包列表
+          recentPackets.value.unshift(result.recentPacket);
+          if (recentPackets.value.length > maxRecentPackets) {
+            recentPackets.value.splice(maxRecentPackets);
+          }
+        }
 
-      // 更新接收统计
-      receiveStats.value.totalPackets++;
-      receiveStats.value.bytesReceived += packet.size;
-      receiveStats.value.lastReceiveTime = new Date();
+        // 更新接收统计
+        if (result.receiveStats) {
+          receiveStats.value.totalPackets += result.receiveStats.totalPackets || 0;
+          receiveStats.value.unmatchedPackets += result.receiveStats.unmatchedPackets || 0;
+          receiveStats.value.matchedPackets += result.receiveStats.matchedPackets || 0;
+          receiveStats.value.errorPackets += result.receiveStats.errorPackets || 0;
+          receiveStats.value.bytesReceived += result.receiveStats.bytesReceived || 0;
+          receiveStats.value.lastReceiveTime = new Date();
+        }
 
-      // 匹配帧格式
-      const matchResult = matchDataToFrame(packet, frameTemplateStore.frames);
-
-      if (!matchResult.isMatched) {
-        // 未匹配的数据包
-        receiveStats.value.unmatchedPackets++;
-        console.warn('接收到未匹配的数据包:', {
-          source,
-          sourceId,
-          size: packet.size,
-          errors: matchResult.errors,
-        });
+        // 输出错误信息
+        if (result.errors && result.errors.length > 0) {
+          console.warn('数据处理失败:', result.errors);
+        }
         return;
       }
 
-      // 匹配成功
-      receiveStats.value.matchedPackets++;
+      // 处理成功的情况
 
-      // 处理数据并更新数据项
-      const processResult = processReceivedData(packet, matchResult, mappings.value, groups.value);
-
-      if (!processResult.success) {
-        // 处理失败
-        receiveStats.value.errorPackets++;
-        console.error('数据处理失败:', {
-          frameId: processResult.frameId,
-          errors: processResult.errors,
-        });
-        return;
+      // 添加最近数据包
+      if (result.recentPacket) {
+        recentPackets.value.unshift(result.recentPacket);
+        if (recentPackets.value.length > maxRecentPackets) {
+          recentPackets.value.splice(maxRecentPackets);
+        }
       }
 
-      // 应用处理结果
-      const applied = applyDataProcessResult(processResult, groups.value);
-      if (!applied) {
-        receiveStats.value.errorPackets++;
-        console.error('应用数据处理结果失败');
-        return;
+      // 更新数据分组
+      if (result.updatedGroups) {
+        groups.value = result.updatedGroups;
       }
 
       // 更新帧统计
-      if (matchResult.frameId) {
-        updateFrameStats(matchResult.frameId, {
-          totalReceived: (frameStats.value.get(matchResult.frameId)?.totalReceived || 0) + 1,
+      if (result.frameStats && result.frameStats.frameId) {
+        const currentStats = frameStats.value.get(result.frameStats.frameId) || {
+          frameId: result.frameStats.frameId,
+          totalReceived: 0,
           lastReceiveTime: new Date(),
-          lastReceivedFrame: packet.data,
+          checksumFailures: 0,
+          errorCount: 0,
+        };
+
+        frameStats.value.set(result.frameStats.frameId, {
+          ...currentStats,
+          totalReceived: currentStats.totalReceived + (result.frameStats.totalReceived || 0),
+          lastReceiveTime: result.frameStats.lastReceiveTime || new Date(),
+          ...(result.frameStats.lastReceivedFrame && {
+            lastReceivedFrame: result.frameStats.lastReceivedFrame,
+          }),
         });
       }
 
+      // 更新接收统计
+      if (result.receiveStats) {
+        receiveStats.value.totalPackets += result.receiveStats.totalPackets || 0;
+        receiveStats.value.matchedPackets += result.receiveStats.matchedPackets || 0;
+        receiveStats.value.bytesReceived += result.receiveStats.bytesReceived || 0;
+        receiveStats.value.lastReceiveTime = new Date();
+      }
+
       console.log('数据处理成功:', {
-        frameId: matchResult.frameId,
-        frameName: matchResult.frame?.name,
-        updatedItems: processResult.updatedDataItems?.length || 0,
+        frameId: result.frameStats?.frameId,
+        updatedGroups: result.updatedGroups ? result.updatedGroups.length : 0,
       });
 
       // 检查触发条件（异步处理，不阻塞当前流程）
-      if (matchResult.frameId && processResult.updatedDataItems) {
-        checkTriggerConditions(
-          matchResult.frameId,
-          source + ':' + sourceId,
-          processResult.updatedDataItems,
-        );
+      if (result.frameStats?.frameId && result.updatedGroups) {
+        // 从更新的分组中提取数据项信息用于触发条件检查
+        const updatedDataItems: {
+          groupId: number;
+          dataItemId: number;
+          value: unknown;
+          displayValue: string;
+        }[] = [];
+
+        result.updatedGroups.forEach((group) => {
+          group.dataItems.forEach((dataItem) => {
+            if (dataItem.value !== null && dataItem.value !== undefined) {
+              updatedDataItems.push({
+                groupId: group.id,
+                dataItemId: dataItem.id,
+                value: dataItem.value,
+                displayValue: dataItem.displayValue,
+              });
+            }
+          });
+        });
+
+        if (updatedDataItems.length > 0) {
+          checkTriggerConditions(
+            result.frameStats.frameId,
+            source + ':' + sourceId,
+            updatedDataItems,
+          );
+        }
       }
     } catch (error) {
       receiveStats.value.errorPackets++;
+      receiveStats.value.totalPackets++;
+      receiveStats.value.bytesReceived += data.length;
+      receiveStats.value.lastReceiveTime = new Date();
       console.error('数据接收处理异常:', error);
     }
   };

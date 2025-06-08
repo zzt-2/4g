@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useReceiveFramesStore } from '../../../../stores/frames/receiveFramesStore';
 import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
@@ -11,6 +11,7 @@ import type {
   TriggerType,
 } from '../../../../types/frames/sendInstances';
 import type { ConnectionTarget } from '../../../../types/common/connectionTarget';
+import type { FrameFieldMapping } from '../../../../types/frames/receive';
 
 const props = defineProps<{
   instanceId: string;
@@ -79,6 +80,9 @@ const recurringType = ref<'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'm
 const recurringInterval = ref<number>(1);
 const endTime = ref<string>('');
 
+// 防止初始化时的循环更新
+const isInitializing = ref(true);
+
 // 使用watch监听instanceId变化，重新初始化连接目标管理
 watch(
   () => props.instanceId,
@@ -124,6 +128,9 @@ watch(
   ([instanceId, config]) => {
     if (!instanceId) return;
 
+    // 设置初始化标志，防止触发配置保存
+    isInitializing.value = true;
+
     if (config.type === 'triggered' && config.triggeredConfig) {
       const triggeredConfig = config.triggeredConfig;
       triggerType.value = triggeredConfig.triggerType || 'condition';
@@ -165,6 +172,11 @@ watch(
         selectedTargetId.value = targetTargets.value[0]?.id || '';
       }
     }
+
+    // 在下个tick中重置初始化标志
+    nextTick(() => {
+      isInitializing.value = false;
+    });
   },
   { immediate: true, deep: true },
 );
@@ -191,6 +203,9 @@ function updateInstanceStrategyConfig(config: Partial<InstanceStrategyConfig>) {
 
 // 设置触发配置
 function setTriggerConfig() {
+  // 如果正在初始化，不执行保存
+  if (isInitializing.value) return;
+
   const triggeredConfig: TriggerStrategyConfig = {
     type: 'triggered',
     triggerType: triggerType.value,
@@ -221,7 +236,7 @@ function setTriggerConfig() {
   });
 }
 
-// 监听配置变化自动保存
+// 监听配置变化自动保存 - 只在非初始化时触发
 watch(
   [
     triggerType,
@@ -238,7 +253,10 @@ watch(
     selectedTargetId,
   ],
   () => {
-    setTriggerConfig();
+    // 只在非初始化时保存配置
+    if (!isInitializing.value) {
+      setTriggerConfig();
+    }
   },
   { deep: true },
 );
@@ -264,6 +282,45 @@ const frameOptions = computed(() =>
       })) || [],
   })),
 );
+
+// 获取指定帧中存在映射关系的字段选项
+const getMappedFieldOptions = computed(() => (frameId: string) => {
+  if (!frameId) return [];
+
+  // 获取该帧的所有映射关系
+  const frameMappings = receiveFramesStore.mappings.filter(
+    (mapping) => mapping.frameId === frameId,
+  );
+
+  // 获取该帧的字段定义
+  const frame = receiveFramesStore.receiveFrames.find((f) => f.id === frameId);
+  if (!frame || !frame.fields) return [];
+
+  // 只返回存在映射关系的字段
+  return frame.fields
+    .filter((field) => frameMappings.some((mapping) => mapping.fieldId === field.id))
+    .map((field) => ({
+      id: field.id,
+      name: field.name,
+      // 可以添加映射信息用于显示
+      mappingInfo: frameMappings.find((mapping) => mapping.fieldId === field.id),
+    }));
+});
+
+// 获取映射数据项的显示信息
+function getMappedDataItemInfo(mappingInfo: FrameFieldMapping | undefined) {
+  if (!mappingInfo) return '未知';
+
+  // 查找对应的数据分组和数据项
+  const group = receiveFramesStore.groups.find((g) => g.id === mappingInfo.groupId);
+  const dataItem = group?.dataItems.find((item) => item.id === mappingInfo.dataItemId);
+
+  if (group && dataItem) {
+    return `${group.label} - ${dataItem.label}`;
+  }
+
+  return `分组${mappingInfo.groupId} - 项目${mappingInfo.dataItemId}`;
+}
 
 // 计算属性：是否可以开始监听
 const canStartMonitor = computed(() => {
@@ -555,7 +612,7 @@ function removeCondition(index: number) {
                   <!-- 字段选择 -->
                   <q-select
                     v-model="condition.fieldId"
-                    :options="frameOptions.find((f) => f.id === triggerFrameId)?.fields || []"
+                    :options="getMappedFieldOptions(triggerFrameId)"
                     option-value="id"
                     option-label="name"
                     dense
@@ -565,11 +622,27 @@ function removeCondition(index: number) {
                     dark
                     bg-color="rgba(18, 35, 63, 0.7)"
                     class="flex-1"
-                    placeholder="选择字段"
+                    placeholder="选择已映射字段"
                     :disable="isMonitoring || isProcessing"
                     input-class="py-0.5 px-1"
                     hide-bottom-space
-                  />
+                  >
+                    <template #option="scope">
+                      <q-item v-bind="scope.itemProps">
+                        <q-item-section>
+                          <q-item-label class="text-xs text-industrial-primary">
+                            {{ scope.opt.name }}
+                          </q-item-label>
+                          <q-item-label caption class="text-2xs text-industrial-tertiary">
+                            映射到: {{ getMappedDataItemInfo(scope.opt.mappingInfo) }}
+                          </q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-icon name="link" size="xs" class="text-blue-5" />
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
 
                   <!-- 条件操作符 -->
                   <q-select

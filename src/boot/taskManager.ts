@@ -1,15 +1,26 @@
 import { boot } from 'quasar/wrappers';
 import { useSendTasksStore } from '../stores/frames/sendTasksStore';
+import { useNetworkStore } from '../stores/netWorkStore';
 
-export default boot(() => {
+export default boot(async () => {
   console.log('Task Manager boot file initialized');
+
+  // 初始化网络Store
+  try {
+    const networkStore = useNetworkStore();
+    await networkStore.initialize();
+    console.log('网络Store初始化完成');
+  } catch (error) {
+    console.error('网络Store初始化失败:', error);
+  }
 
   // 添加页面卸载时的清理逻辑
   window.addEventListener('beforeunload', () => {
     try {
       const sendTasksStore = useSendTasksStore();
+      const networkStore = useNetworkStore();
 
-      console.log('页面即将卸载，开始清理所有任务定时器...');
+      console.log('页面即将卸载，开始清理所有任务定时器和网络连接...');
 
       // 清理所有任务的定时器，防止内存泄漏
       let clearedTimersCount = 0;
@@ -26,7 +37,11 @@ export default boot(() => {
         }
       });
 
-      console.log(`页面卸载清理完成，共清理了 ${clearedTimersCount} 个定时器`);
+      // 清理网络连接和监听器
+      networkStore.cleanupListeners();
+      networkStore.disconnectAll();
+
+      console.log(`页面卸载清理完成，共清理了 ${clearedTimersCount} 个定时器和所有网络连接`);
     } catch (error) {
       console.error('页面卸载清理失败:', error);
     }

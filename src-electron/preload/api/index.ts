@@ -2,10 +2,12 @@ import { windowAPI } from './window';
 import { menuAPI } from './menu';
 import { autoLaunchApi } from './autolaunch';
 import { serialAPI } from './serial';
+import { networkAPI } from './network';
 import { filesAPI } from './files';
 import { dataStorageAPI } from './dataStorage';
 import { pathAPI } from './path';
 import { csvAPI } from './csv';
+import { receiveAPI } from './receive';
 
 // 动态导入所有API模块
 const apiModules = {
@@ -13,10 +15,12 @@ const apiModules = {
   menu: menuAPI,
   autoLaunch: autoLaunchApi,
   serial: serialAPI,
+  network: networkAPI,
   files: filesAPI,
   dataStorage: dataStorageAPI,
   path: pathAPI,
   csv: csvAPI,
+  receive: receiveAPI,
 };
 
 // 导出组合的API对象

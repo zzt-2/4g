@@ -45,7 +45,7 @@ import { useSerialStore } from 'src/stores/serialStore';
 import { useDataDisplayStore } from 'src/stores/frames/dataDisplayStore';
 
 // 自动开始记录设置（临时使用const，后续可改为配置）
-const AUTO_START_RECORDING = true;
+const AUTO_START_RECORDING = false;
 
 const leftDrawerOpen = ref(true);
 const drawerWidth = ref(120); // 默认宽度，单位是像素

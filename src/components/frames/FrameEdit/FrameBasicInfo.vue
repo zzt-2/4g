@@ -92,10 +92,7 @@
     <q-card v-if="frameEditorStore.editorFrame.direction === 'receive'">
       <q-card-section class="q-py-sm q-pb-xs">
         <div class="flex justify-between items-center">
-          <div class="font-medium text-accent-color uppercase">
-            帧识别规则
-            <q-badge color="orange" text-color="black" class="ml-2">开发中</q-badge>
-          </div>
+          <div class="font-medium text-accent-color uppercase">帧识别规则</div>
           <q-btn
             color="primary"
             label="编辑规则"
@@ -122,61 +119,6 @@
       </q-card-section>
     </q-card>
 
-    <!-- 选项
-    <q-card>
-      <q-card-section class="q-py-sm q-pb-xs">
-        <div class="card-title">选项</div>
-      </q-card-section>
-
-      <q-card-section v-if="!hasOptions" class="text-center">
-        <div class="text-secondary-color">
-          <q-spinner size="xs" class="mr-1" color="primary" />
-          加载选项数据中...
-        </div>
-      </q-card-section>
-
-      <q-card-section v-else class="q-pt-none">
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <span class="text-primary-color">自动计算校验</span>
-              <q-tooltip>自动计算CRC或校验和字段</q-tooltip>
-            </div>
-            <q-toggle
-              v-model="frameEditorStore.editorFrame.options.autoChecksum"
-              dense
-              color="primary"
-            />
-          </div>
-
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <span class="text-primary-color">大端字节序</span>
-              <q-tooltip>使用大端(高位在前)存储多字节数据</q-tooltip>
-            </div>
-            <q-toggle
-              v-model="frameEditorStore.editorFrame.options.bigEndian"
-              dense
-              color="primary"
-            />
-          </div>
-
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <span class="text-primary-color">包含长度字段</span>
-              <q-tooltip>自动添加数据长度字段</q-tooltip>
-            </div>
-            <q-toggle
-              v-model="frameEditorStore.editorFrame.options.includeLengthField"
-              dense
-              color="primary"
-            />
-          </div>
-
-        </div>
-      </q-card-section>
-    </q-card>
--->
     <!-- 帧识别规则对话框 -->
     <q-dialog v-model="showRulesDialog" persistent maximized>
       <q-card class="bg-darker">

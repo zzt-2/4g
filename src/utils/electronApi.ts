@@ -5,6 +5,22 @@
 
 import { deepClone } from './frames/frameUtils';
 import type { SerialPortOptions, SerialStatus } from '../types/serial/serial';
+import type { Frame } from '../types/frames/frames';
+import type {
+  FrameFieldMapping,
+  DataGroup,
+  ValidationResult,
+  ReceivedDataPacket,
+  ReceiveFrameStats,
+  DataReceiveStats,
+} from '../types/frames/receive';
+import type {
+  NetworkConnectionConfig,
+  NetworkConnection,
+  NetworkStatus,
+  NetworkOperationResult,
+  NetworkConnectionOptions,
+} from '../types/serial/network';
 import { DATA_PATH_MAP } from '../config/configDefaults';
 
 // 简单实现获取路径的最后一部分（basename）
@@ -47,6 +63,16 @@ export const electronAPI = window.electron || {
     setOptions: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
     clearBuffer: () => Promise.resolve({ success: false, message: 'Electron API不可用' }),
   },
+  network: {
+    connect: () => Promise.resolve({ success: false, error: 'Electron API不可用' }),
+    disconnect: () => Promise.resolve({ success: false, error: 'Electron API不可用' }),
+    send: () => Promise.resolve({ success: false, error: 'Electron API不可用' }),
+    getConnections: () => Promise.resolve([]),
+    getStatus: () => Promise.resolve(null),
+    onData: () => () => {}, // 返回一个取消监听的函数
+    onConnectionEvent: () => () => {}, // 返回一个取消监听的函数
+    onStatusChange: () => () => {}, // 返回一个取消监听的函数
+  },
   files: {
     listWithMetadata: () => Promise.resolve([]),
     getFullPath: () => Promise.resolve(''),
@@ -70,6 +96,18 @@ export const electronAPI = window.electron || {
     isEnabled: () => Promise.resolve(false),
     enable: () => Promise.resolve(),
     disable: () => Promise.resolve(),
+  },
+  receive: {
+    handleReceivedData: () =>
+      Promise.resolve({
+        success: false,
+        errors: ['Electron API不可用'],
+      }),
+    validateMappings: () =>
+      Promise.resolve({
+        isValid: false,
+        errors: ['Electron API不可用'],
+      }),
   },
   dataStorage: {
     // 为每个存储类型创建模拟API
@@ -289,6 +327,60 @@ export const serialAPI = {
   },
 };
 
+// 导出接收数据处理API
+export const receiveAPI = {
+  // 统一数据接收处理
+  handleReceivedData: (
+    source: 'serial' | 'network',
+    sourceId: string,
+    data: Uint8Array,
+    frames: Frame[],
+    mappings: FrameFieldMapping[],
+    groups: DataGroup[],
+  ): Promise<{
+    success: boolean;
+    updatedGroups?: DataGroup[];
+    recentPacket?: ReceivedDataPacket;
+    frameStats?: Partial<ReceiveFrameStats>;
+    receiveStats?: Partial<DataReceiveStats>;
+    errors?: string[];
+  }> => {
+    if (window.electron?.receive?.handleReceivedData) {
+      return window.electron.receive.handleReceivedData(
+        source,
+        sourceId,
+        data,
+        deepClone(frames),
+        deepClone(mappings),
+        deepClone(groups),
+      );
+    }
+    return Promise.resolve({
+      success: false,
+      errors: ['Electron receive API(handleReceivedData) 不可用'],
+    });
+  },
+
+  // 验证映射关系
+  validateMappings: (
+    mappings: FrameFieldMapping[],
+    frames: Frame[],
+    groups: DataGroup[],
+  ): Promise<ValidationResult> => {
+    if (window.electron?.receive?.validateMappings) {
+      return window.electron.receive.validateMappings(
+        deepClone(mappings),
+        deepClone(frames),
+        deepClone(groups),
+      );
+    }
+    return Promise.resolve({
+      isValid: false,
+      errors: ['Electron receive API(validateMappings) 不可用'],
+    });
+  },
+};
+
 // 导出数据存储API
 type DataType = keyof typeof DATA_PATH_MAP;
 
@@ -310,7 +402,7 @@ export const dataStorageAPI = {} as {
 };
 
 // 为每个数据类型添加API方法
-Object.entries(DATA_PATH_MAP).forEach(([key, _]) => {
+Object.entries(DATA_PATH_MAP).forEach(([key]) => {
   const typedKey = key as DataType;
   const fileName = getBasename(key);
 
@@ -444,5 +536,89 @@ export const csvAPI = {
       success: false,
       error: 'Electron CSV API(delete) 不可用',
     });
+  },
+};
+
+// 导出网络连接API
+export const networkAPI = {
+  // 连接网络
+  connect: (
+    config: NetworkConnectionConfig,
+    options?: NetworkConnectionOptions,
+  ): Promise<NetworkOperationResult> => {
+    if (window.electron?.network?.connect) {
+      return window.electron.network.connect(deepClone(config), deepClone(options));
+    }
+    return Promise.resolve({ success: false, error: 'Electron network API(connect) 不可用' });
+  },
+
+  // 断开网络连接
+  disconnect: (connectionId: string): Promise<NetworkOperationResult> => {
+    if (window.electron?.network?.disconnect) {
+      return window.electron.network.disconnect(connectionId);
+    }
+    return Promise.resolve({ success: false, error: 'Electron network API(disconnect) 不可用' });
+  },
+
+  // 发送网络数据
+  send: (connectionId: string, data: Uint8Array): Promise<NetworkOperationResult> => {
+    if (window.electron?.network?.send) {
+      return window.electron.network.send(connectionId, data);
+    }
+    return Promise.resolve({ success: false, error: 'Electron network API(send) 不可用' });
+  },
+
+  // 获取所有网络连接
+  getConnections: (): Promise<NetworkConnection[]> => {
+    if (window.electron?.network?.getConnections) {
+      return window.electron.network.getConnections();
+    }
+    return Promise.resolve([]);
+  },
+
+  // 获取网络连接状态
+  getStatus: (connectionId: string): Promise<NetworkStatus | null> => {
+    if (window.electron?.network?.getStatus) {
+      return window.electron.network.getStatus(connectionId);
+    }
+    return Promise.resolve(null);
+  },
+
+  // 监听网络数据
+  onData: (
+    callback: (data: {
+      connectionId: string;
+      data: number[];
+      size: number;
+      timestamp: Date;
+    }) => void,
+  ) => {
+    if (window.electron?.network?.onData) {
+      return window.electron.network.onData(callback);
+    }
+    return () => {}; // 返回空的清理函数
+  },
+
+  // 监听网络连接事件
+  onConnectionEvent: (
+    callback: (event: {
+      connectionId: string;
+      eventType: string;
+      data?: unknown;
+      timestamp: Date;
+    }) => void,
+  ) => {
+    if (window.electron?.network?.onConnectionEvent) {
+      return window.electron.network.onConnectionEvent(callback);
+    }
+    return () => {}; // 返回空的清理函数
+  },
+
+  // 监听网络状态变化
+  onStatusChange: (callback: (data: { connectionId: string; status: NetworkStatus }) => void) => {
+    if (window.electron?.network?.onStatusChange) {
+      return window.electron.network.onStatusChange(callback);
+    }
+    return () => {}; // 返回空的清理函数
   },
 };

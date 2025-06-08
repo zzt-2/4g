@@ -1,5 +1,6 @@
 import { ref, computed, watchEffect } from 'vue';
 import { useSerialStore } from '../stores/serialStore';
+import { useNetworkStore } from '../stores/netWorkStore';
 import type { ConnectionTarget, ConnectionType } from '../types/common/connectionTarget';
 import { useStorage } from '@vueuse/core';
 
@@ -11,6 +12,7 @@ import { useStorage } from '@vueuse/core';
 export function useConnectionTargets(storageKey = 'selected-connection-target') {
   // 引入stores
   const serialStore = useSerialStore();
+  const networkStore = useNetworkStore();
 
   // 状态
   const availableTargets = ref<ConnectionTarget[]>([]);
@@ -77,20 +79,26 @@ export function useConnectionTargets(storageKey = 'selected-connection-target') 
         });
       }
 
-      // 未来可以在这里添加其他类型的连接目标，如：
-      // - 网络连接
-      // if (networkStore && networkStore.connectedDevices) {
-      //   for (const device of networkStore.connectedDevices) {
-      //     newTargets.push({
-      //       id: `network:${device.address}`,
-      //       name: device.name || device.address,
-      //       type: 'network',
-      //       address: device.address,
-      //       status: 'connected',
-      //       description: device.description || '网络设备'
-      //     });
-      //   }
-      // }
+      // 添加网络连接目标
+      const networkConnections = networkStore.getActiveConnections();
+      for (const connection of networkConnections) {
+        // 构建网络连接ID，格式：network:tcp-192.168.1.100:8080 或 network:udp-255.255.255.255:9999
+        const connectionId = `network:${connection.type}-${connection.host}:${connection.port}`;
+
+        // 准备设备描述
+        const description =
+          connection.description ||
+          `${connection.type.toUpperCase()}连接 - ${connection.host}:${connection.port}`;
+
+        newTargets.push({
+          id: connectionId,
+          name: connection.name || `${connection.host}:${connection.port}`,
+          type: 'network',
+          address: `${connection.host}:${connection.port}`,
+          status: connection.isConnected ? 'connected' : 'disconnected',
+          description,
+        });
+      }
 
       // 更新可用目标列表
       availableTargets.value = newTargets;
@@ -156,13 +164,48 @@ export function useConnectionTargets(storageKey = 'selected-connection-target') 
     return null;
   }
 
+  /**
+   * 获取验证后的目标路径
+   * 用于统一发送路由器，确保路径格式正确
+   * @param targetId 目标ID
+   * @returns 验证后的路径，如果无效则返回null
+   */
+  function getValidatedTargetPath(targetId: string): string | null {
+    const target = getTargetById(targetId);
+    if (!target) {
+      return null;
+    }
+
+    // 对于串口，返回路径
+    if (target.type === 'serial' && target.path) {
+      return target.path;
+    }
+
+    // 对于网络连接，返回连接ID（去掉network:前缀）
+    if (target.type === 'network') {
+      const parts = targetId.split(':', 2);
+      if (parts.length === 2 && parts[1]) {
+        return parts[1]; // 返回 tcp-192.168.1.100:8080 或 udp-255.255.255.255:9999
+      }
+    }
+
+    return null;
+  }
+
   // 初始化
   refreshTargets();
 
   // 监听串口连接状态变化，及时更新目标列表
   watchEffect(() => {
     // 当串口连接状态变化时重新获取目标
-    const _ = serialStore.portConnectionStatuses;
+    void serialStore.portConnectionStatuses;
+    refreshTargets();
+  });
+
+  // 监听网络连接状态变化，及时更新目标列表
+  watchEffect(() => {
+    // 当网络连接状态变化时重新获取目标
+    void networkStore.connectedCount;
     refreshTargets();
   });
 
@@ -186,5 +229,6 @@ export function useConnectionTargets(storageKey = 'selected-connection-target') 
     getSelectedTargetType,
     parseTargetType,
     parseTargetPath,
+    getValidatedTargetPath,
   };
 }

@@ -40,7 +40,7 @@ export class NetworkReceiver {
    * @param connectionId 连接ID
    * @param data 接收到的数据
    */
-  handleNetworkData(connectionId: string, data: Uint8Array): void {
+  async handleNetworkData(connectionId: string, data: Uint8Array): Promise<void> {
     const connection = this.connections.get(connectionId);
     if (!connection || !connection.isConnected) {
       console.warn(`网络连接 ${connectionId} 不存在或未连接`);
@@ -49,7 +49,7 @@ export class NetworkReceiver {
 
     try {
       // 统一数据接收处理 - 调用接收帧处理
-      this.receiveFramesStore.handleReceivedData('network', connectionId, data);
+      await this.receiveFramesStore.handleReceivedData('network', connectionId, data);
 
       console.log(`网络数据已处理: ${connection.type}://${connection.host}:${connection.port}`);
     } catch (error) {

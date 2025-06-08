@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { defineProps, ref, computed, watch } from 'vue';
+import { defineProps, computed, watch } from 'vue';
 import { useSerialStore } from '../../stores/serialStore';
 import SerialOptionsForm from './SerialOptionsForm.vue';
 import SerialTestTools from './SerialTestTools.vue';
 import { useStorage } from '@vueuse/core';
-const props = defineProps<{
+defineProps<{
   // 面板显示模式：'config' | 'test'
   mode: 'config' | 'test';
 }>();
@@ -13,11 +13,6 @@ const serialStore = useSerialStore();
 
 // 选中的串口路径
 const selectedPort = useStorage<string>('selected-serial-port-test', '');
-
-// 计算已连接的串口列表
-const connectedPorts = computed(() => {
-  return serialStore.activePorts;
-});
 
 // 计算可用串口列表（包括连接和未连接的）
 const availablePorts = computed(() => {

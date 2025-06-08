@@ -156,7 +156,7 @@ onMounted(() => {
 
 // 添加新规则
 const addRule = () => {
-  tempRules.value.push(DEFAULT_IDENTIFIER_RULES);
+  tempRules.value.push(JSON.parse(JSON.stringify(DEFAULT_IDENTIFIER_RULES)));
 };
 
 // 删除规则

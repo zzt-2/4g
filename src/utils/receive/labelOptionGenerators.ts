@@ -1,32 +1,8 @@
 /**
  * 标签选项生成工具函数
  */
-
-import type { Frame } from '../../types/frames/frames';
 import type { FrameField } from '../../types/frames/fields';
 import type { FieldType } from '../../types/frames/basic';
-
-/**
- * 从帧字段生成标签选项
- * @param frame 帧对象
- * @param fieldId 字段ID
- * @returns 标签选项数组
- */
-export function generateLabelOptions(
-  frame: Frame,
-  fieldId: string,
-): {
-  value: string;
-  label: string;
-}[] {
-  const field = frame.fields.find((f) => f.id === fieldId);
-
-  if (!field) {
-    return [];
-  }
-
-  return generateLabelOptionsFromField(field);
-}
 
 /**
  * 从字段对象生成标签选项
@@ -108,43 +84,6 @@ function generateDefaultOptionsForDataType(dataType: FieldType): {
     default:
       // 未知类型，生成通用选项
       options.push({ value: '0', label: '0' }, { value: '1', label: '1' });
-  }
-
-  return options;
-}
-
-/**
- * 根据字段值生成智能标签选项
- * @param field 字段对象
- * @param recentValues 最近的值列表
- * @returns 智能标签选项数组
- */
-export function generateSmartLabelOptions(
-  field: FrameField,
-  recentValues: unknown[] = [],
-): {
-  value: string;
-  label: string;
-}[] {
-  const options: { value: string; label: string }[] = [];
-
-  // 首先添加字段定义的选项
-  const fieldOptions = generateLabelOptionsFromField(field);
-  options.push(...fieldOptions);
-
-  // 添加最近使用的值
-  if (recentValues.length > 0) {
-    const uniqueValues = [...new Set(recentValues)];
-    uniqueValues.forEach((value) => {
-      const stringValue = String(value);
-      // 避免重复添加
-      if (!options.some((opt) => opt.value === stringValue)) {
-        options.push({
-          value: stringValue,
-          label: `${stringValue} (最近使用)`,
-        });
-      }
-    });
   }
 
   return options;
