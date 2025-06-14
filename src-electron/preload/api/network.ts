@@ -39,10 +39,15 @@ export const networkAPI = {
    * 发送网络数据
    * @param connectionId 连接ID
    * @param data 要发送的数据
+   * @param targetHost 目标主机
    * @returns 操作结果
    */
-  send: (connectionId: string, data: Uint8Array): Promise<NetworkOperationResult> =>
-    ipcRenderer.invoke('network:send', connectionId, data),
+  send: (
+    connectionId: string,
+    data: Uint8Array,
+    targetHost?: string,
+  ): Promise<NetworkOperationResult> =>
+    ipcRenderer.invoke('network:send', connectionId, data, targetHost),
 
   /**
    * 获取所有网络连接
@@ -71,12 +76,7 @@ export const networkAPI = {
       timestamp: Date;
     }) => void,
   ) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      data: { connectionId: string; data: number[]; size: number; timestamp: Date },
-    ) => {
-      callback(data);
-    };
+    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data as any);
     ipcRenderer.on('network:data', listener);
 
     // 返回清理函数
@@ -98,12 +98,7 @@ export const networkAPI = {
       timestamp: Date;
     }) => void,
   ) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      eventData: { connectionId: string; eventType: string; data?: unknown; timestamp: Date },
-    ) => {
-      callback(eventData);
-    };
+    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data as any);
     ipcRenderer.on('network:connectionEvent', listener);
 
     // 返回清理函数
@@ -118,12 +113,7 @@ export const networkAPI = {
    * @returns 清理函数
    */
   onStatusChange: (callback: (data: { connectionId: string; status: NetworkStatus }) => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      data: { connectionId: string; status: NetworkStatus },
-    ) => {
-      callback(data);
-    };
+    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data as any);
     ipcRenderer.on('network:statusChange', listener);
 
     // 返回清理函数

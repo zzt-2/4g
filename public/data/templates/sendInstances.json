@@ -6,7 +6,7 @@
     "description": "控制8路继电器",
     "paramCount": 27,
     "createdAt": "2025-06-06T07:34:48.630Z",
-    "updatedAt": "2025-06-06T08:46:47.686Z",
+    "updatedAt": "2025-06-09T07:52:44.678Z",
     "fields": [
       {
         "id": "5Zhj14PZHlpWAnZJJ1Hol",
@@ -1573,24 +1573,17 @@
     "isFavorite": false,
     "strategyConfig": {
       "type": "triggered",
-      "updatedAt": "2025-06-06T07:53:29.054Z",
+      "updatedAt": "2025-06-09T07:52:44.678Z",
       "triggeredConfig": {
         "type": "triggered",
         "triggerType": "condition",
         "responseDelay": 0,
-        "sourceId": "serial:COM1",
-        "triggerFrameId": "back0001",
-        "conditions": [
-          {
-            "id": "condition_1749196406526",
-            "fieldId": "dsvpRYfelHkdzHJhdcHft",
-            "condition": "equals",
-            "value": ""
-          }
-        ],
+        "sourceId": "network:conn_1749440546668_6trm91uxw:remote_1749452903711_io3wcx229",
+        "triggerFrameId": "",
+        "conditions": [],
         "continueListening": true
       },
-      "targetId": "serial:COM1"
+      "targetId": "network:conn_1749440546668_6trm91uxw:remote_1749452903711_io3wcx229"
     }
   },
   {
@@ -1600,7 +1593,7 @@
     "description": "控制8路继电器全关",
     "paramCount": 27,
     "createdAt": "2025-06-06T07:35:43.664Z",
-    "updatedAt": "2025-06-06T08:51:15.265Z",
+    "updatedAt": "2025-06-09T07:46:07.106Z",
     "fields": [
       {
         "id": "5Zhj14PZHlpWAnZJJ1Hol",
@@ -3167,12 +3160,12 @@
     "isFavorite": false,
     "strategyConfig": {
       "type": "triggered",
-      "updatedAt": "2025-06-06T07:50:27.831Z",
+      "updatedAt": "2025-06-09T07:46:07.106Z",
       "triggeredConfig": {
         "type": "triggered",
         "triggerType": "condition",
         "responseDelay": 0,
-        "sourceId": "serial:COM1",
+        "sourceId": "network:conn_1749440546668_6trm91uxw:remote_1749452903711_io3wcx229",
         "triggerFrameId": "back0001",
         "conditions": [
           {
@@ -4788,7 +4781,7 @@
     "description": "控制8路继电器全断开",
     "paramCount": 27,
     "createdAt": "2025-06-06T07:36:37.272Z",
-    "updatedAt": "2025-06-06T08:21:43.907Z",
+    "updatedAt": "2025-06-09T07:49:48.973Z",
     "fields": [
       {
         "id": "5Zhj14PZHlpWAnZJJ1Hol",
@@ -6355,12 +6348,12 @@
     "isFavorite": false,
     "strategyConfig": {
       "type": "triggered",
-      "updatedAt": "2025-06-06T08:21:43.907Z",
+      "updatedAt": "2025-06-09T07:49:48.973Z",
       "triggeredConfig": {
         "type": "triggered",
         "triggerType": "condition",
         "responseDelay": 0,
-        "sourceId": "serial:COM1",
+        "sourceId": "serial:COM2",
         "triggerFrameId": "back0001",
         "conditions": [
           {

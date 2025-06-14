@@ -39,7 +39,7 @@ const activeRoute = computed(() => route.path);
 // 导航数据
 const navItems = ref([
   { label: '首页', path: '/', icon: 'home' },
-  { label: '连接', path: '/serial/config', icon: 'insights' },
+  { label: '连接', path: '/connect', icon: 'insights' },
   { label: '配置', path: '/frames/list', icon: 'view_list' },
   { label: '发送', path: '/frames/send', icon: 'send' },
   { label: '接收', path: '/frames/receive', icon: 'download' },

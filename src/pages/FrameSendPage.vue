@@ -2,8 +2,8 @@
 import { ref, computed } from 'vue';
 import { useFrameTemplateStore } from '../stores/frames/frameTemplateStore';
 import { useSendFrameInstancesStore } from '../stores/frames/sendFrameInstancesStore';
-import { useSerialStore } from '../stores/serialStore';
 import { useConnectionTargets } from '../composables/useConnectionTargets';
+import { useUnifiedSender } from '../composables/frames/sendFrame/useUnifiedSender';
 import FrameFormatList from '../components/frames/FrameSend/FrameFormatList.vue';
 import FrameInstanceList from '../components/frames/FrameSend/FrameInstanceList.vue';
 import FrameInstanceEditor from '../components/frames/FrameSend/FrameInstanceEditor.vue';
@@ -20,10 +20,12 @@ import ImportExportActions from '../components/common/ImportExportActions.vue';
 // 获取Store实例
 const frameTemplateStore = useFrameTemplateStore();
 const sendFrameInstancesStore = useSendFrameInstancesStore();
-const serialStore = useSerialStore();
 
 // 使用连接目标组合式函数，为此页面指定唯一的存储键
-const { selectedTargetId, parseTargetPath } = useConnectionTargets('frame-send-selected-target');
+const { selectedTargetId } = useConnectionTargets('frame-send-selected-target');
+
+// 使用统一发送器
+const { sendFrameInstance, isTargetAvailable } = useUnifiedSender();
 
 // 本地UI状态
 const searchQuery = ref('');
@@ -63,7 +65,8 @@ const filteredTemplates = computed(() => {
 // 是否可以发送当前实例
 const canSendInstance = computed(() => {
   const hasInstance = selectedInstance.value !== null;
-  return hasInstance && !isSending.value && !!selectedTargetId.value;
+  const hasTarget = !!selectedTargetId.value;
+  return hasInstance && hasTarget && !isSending.value;
 });
 
 // 加载数据
@@ -125,31 +128,22 @@ async function sendCurrentInstance() {
   sendError.value = '';
 
   try {
-    // 获取目标路径
-    const targetPath = parseTargetPath(selectedTargetId.value);
-    if (!targetPath) {
-      throw new Error('无效的目标ID');
+    console.log('准备发送帧实例:', selectedInstance.value, '到目标:', selectedTargetId.value);
+
+    // 检查目标是否可用
+    const available = await isTargetAvailable(selectedTargetId.value);
+    if (!available) {
+      throw new Error('目标连接不可用，请检查连接状态');
     }
 
-    // 检查串口是否已连接
-    if (!serialStore.isPortConnected(targetPath)) {
-      // 如果未连接，尝试连接
-      const connected = await serialStore.connectPort(targetPath);
-      if (!connected) {
-        throw new Error(`无法连接到目标: ${targetPath}`);
-      }
+    // 使用统一发送器发送帧实例
+    const result = await sendFrameInstance(selectedTargetId.value, selectedInstance.value);
+
+    if (!result.success) {
+      throw new Error(result.error || '帧发送失败');
     }
 
-    console.log('准备发送帧实例:', selectedInstance.value, '到目标:', targetPath);
-
-    // 使用serialStore的sendFrameInstance方法发送帧
-    const success = await serialStore.sendFrameInstance(targetPath, selectedInstance.value);
-
-    if (!success) {
-      throw new Error('帧发送失败');
-    }
-
-    console.log('帧发送完成');
+    console.log('帧发送完成:', result.message || '发送成功');
   } catch (err) {
     console.error('发送帧错误:', err);
     sendError.value = err instanceof Error ? err.message : '发送失败';

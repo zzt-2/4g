@@ -1,25 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useSerialStore } from '../stores/serialStore';
-import SerialPortList from '../components/serial/SerialPortList.vue';
-import SerialContentPanel from '../components/serial/SerialContentPanel.vue';
+import ConnectionList from '../components/connect/ConnectionList.vue';
+import ConnectionContentPanel from '../components/connect/ConnectionContentPanel.vue';
 
 const serialStore = useSerialStore();
 
 // 布局相关
 const layoutReady = ref(false);
 
-// 右侧面板内容模式: 'config' | 'test'
-const contentMode = ref<'config' | 'test'>('config');
+// 右侧面板内容模式: 'network' | 'serial' | 'test'
+const contentMode = ref<'network' | 'serial' | 'test'>('network');
 
 // 切换右侧面板内容模式
-const toggleContentMode = (mode: 'config' | 'test') => {
+const toggleContentMode = (mode: 'network' | 'serial' | 'test') => {
   contentMode.value = mode;
-};
-
-// 刷新串口列表
-const refreshPorts = () => {
-  serialStore.refreshPorts(true);
 };
 
 onMounted(async () => {
@@ -33,34 +28,12 @@ onMounted(async () => {
 <template>
   <q-page class="p-4 h-full overflow-hidden bg-industrial-primary">
     <div class="grid grid-cols-[300px_1fr] h-full gap-4">
-      <!-- 左侧串口列表面板 -->
+      <!-- 左侧连接列表面板 -->
       <div
         class="flex flex-col rounded-lg overflow-hidden border border-industrial bg-industrial-panel shadow-lg"
       >
-        <div
-          class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header"
-        >
-          <h6
-            class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-          >
-            <q-icon name="usb" size="xs" class="mr-1 text-blue-5" />
-            串口设备
-          </h6>
-          <q-btn
-            flat
-            round
-            size="sm"
-            color="grey"
-            icon="refresh"
-            class="text-industrial-accent hover:bg-industrial-highlight"
-            :loading="serialStore.isLoading"
-            @click="refreshPorts"
-          >
-            <q-tooltip>刷新串口列表</q-tooltip>
-          </q-btn>
-        </div>
-        <div class="flex-1 overflow-auto p-3">
-          <SerialPortList />
+        <div class="flex-1 overflow-auto">
+          <ConnectionList />
         </div>
       </div>
 
@@ -76,21 +49,38 @@ onMounted(async () => {
             class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
           >
             <q-icon
-              :name="contentMode === 'config' ? 'settings' : 'build'"
+              :name="
+                contentMode === 'network' ? 'wifi' : contentMode === 'serial' ? 'usb' : 'build'
+              "
               size="xs"
               class="mr-1 text-blue-5"
             />
-            {{ contentMode === 'config' ? '串口配置' : '测试工具' }}
+            {{
+              contentMode === 'network'
+                ? '网口配置'
+                : contentMode === 'serial'
+                  ? '串口配置'
+                  : '测试工具'
+            }}
           </h6>
           <div class="flex">
             <q-btn
               flat
               dense
               size="sm"
-              :color="contentMode === 'config' ? 'blue' : 'grey'"
-              label="配置"
+              :color="contentMode === 'network' ? 'blue' : 'grey'"
+              label="网口配置"
               class="text-xs mr-2"
-              @click="toggleContentMode('config')"
+              @click="toggleContentMode('network')"
+            />
+            <q-btn
+              flat
+              dense
+              size="sm"
+              :color="contentMode === 'serial' ? 'blue' : 'grey'"
+              label="串口配置"
+              class="text-xs mr-2"
+              @click="toggleContentMode('serial')"
             />
             <q-btn
               flat
@@ -104,7 +94,7 @@ onMounted(async () => {
           </div>
         </div>
         <div class="flex-1 overflow-auto p-3">
-          <SerialContentPanel :mode="contentMode" />
+          <ConnectionContentPanel :mode="contentMode" />
         </div>
       </div>
     </div>

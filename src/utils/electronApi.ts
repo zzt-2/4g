@@ -561,9 +561,13 @@ export const networkAPI = {
   },
 
   // 发送网络数据
-  send: (connectionId: string, data: Uint8Array): Promise<NetworkOperationResult> => {
+  send: (
+    connectionId: string,
+    data: Uint8Array,
+    targetHost?: string,
+  ): Promise<NetworkOperationResult> => {
     if (window.electron?.network?.send) {
-      return window.electron.network.send(connectionId, data);
+      return window.electron.network.send(connectionId, data, targetHost);
     }
     return Promise.resolve({ success: false, error: 'Electron network API(send) 不可用' });
   },

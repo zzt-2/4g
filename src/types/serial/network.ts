@@ -8,13 +8,24 @@ export type NetworkConnectionType = 'tcp' | 'udp';
 // 网络连接状态
 export type NetworkConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
 
+// 远程主机配置
+export interface RemoteHost {
+  id: string; // 远程主机唯一标识
+  name: string; // 远程主机名称
+  host: string; // IP地址或域名
+  port: number; // 端口号
+  enabled?: boolean; // 是否启用，默认true
+  description?: string; // 描述信息
+}
+
 // 网络连接配置
 export interface NetworkConnectionConfig {
   id: string; // 唯一标识符
   name: string; // 友好名称
   type: NetworkConnectionType; // 连接类型
-  host: string; // 主机地址
-  port: number; // 端口号
+  host: string; // 主机地址（主连接地址）
+  port: number; // 端口号（主连接端口）
+  remoteHosts?: RemoteHost[]; // 远程主机列表
   autoReconnect?: boolean; // 是否自动重连
   timeout?: number; // 连接超时时间(ms)
   description?: string; // 连接描述

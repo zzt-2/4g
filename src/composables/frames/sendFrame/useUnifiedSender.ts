@@ -4,7 +4,9 @@
  */
 
 import { serialAPI, networkAPI } from '../../../utils/electronApi';
+import { frameToBuffer } from '../../../utils/frames/frameInstancesUtils';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
+import { useConnectionTargets } from '../../useConnectionTargets';
 
 /**
  * 统一发送结果
@@ -58,25 +60,37 @@ export function useUnifiedSender() {
     frameInstance: SendFrameInstance,
   ): Promise<UnifiedSendResult> => {
     try {
-      // 解析目标ID
+      const data = frameToBuffer(frameInstance);
       const { type, identifier } = parseTargetId(targetId);
 
-      // 将帧实例转换为数据
-      const frameData = convertFrameInstanceToData(frameInstance);
-      if (!frameData || frameData.length === 0) {
-        return {
-          success: false,
-          error: '帧数据为空',
-          targetId,
-          targetType: type,
-        };
-      }
-
-      // 根据连接类型路由发送
       if (type === 'serial') {
-        return await sendToSerial(identifier, frameData, targetId);
+        return await sendToSerial(identifier, data, targetId);
       } else if (type === 'network') {
-        return await sendToNetwork(identifier, frameData, targetId);
+        // 检查是否是远程主机目标
+        if (targetId.includes(':') && targetId.split(':').length >= 3) {
+          // 远程主机目标格式：network:connectionId:remoteHostId
+          const parts = targetId.split(':');
+          const connectionId = parts[1] as string;
+
+          // 从useConnectionTargets获取目标信息
+          const connectionTargets = useConnectionTargets();
+          await connectionTargets.refreshTargets();
+          const target = connectionTargets.getTargetById(targetId);
+
+          if (target && target.address) {
+            return await sendToNetwork(connectionId, data, targetId, target.address);
+          } else {
+            return {
+              success: false,
+              error: '找不到远程主机目标信息',
+              targetId,
+              targetType: 'network',
+            };
+          }
+        } else {
+          // 传统主连接目标
+          return await sendToNetwork(identifier, data, targetId);
+        }
       } else {
         return {
           success: false,
@@ -92,54 +106,6 @@ export function useUnifiedSender() {
         targetId,
         targetType: 'serial', // 默认类型
       };
-    }
-  };
-
-  /**
-   * 将帧实例转换为数据
-   * @param frameInstance 帧实例
-   * @returns 数据数组
-   */
-  const convertFrameInstanceToData = (frameInstance: SendFrameInstance): Uint8Array => {
-    // 这里需要根据实际的帧结构转换逻辑
-    // 暂时返回空数组，后续需要实现具体的转换逻辑
-    const data: number[] = [];
-
-    // 遍历字段并转换为字节数据
-    frameInstance.fields.forEach((field) => {
-      if (field.value) {
-        // 根据字段类型转换值
-        const bytes = convertFieldValueToBytes(field.value, field.dataType);
-        data.push(...bytes);
-      }
-    });
-
-    return new Uint8Array(data);
-  };
-
-  /**
-   * 将字段值转换为字节数组
-   * @param value 字段值
-   * @param dataType 数据类型
-   * @returns 字节数组
-   */
-  const convertFieldValueToBytes = (value: string, dataType: string): number[] => {
-    // 简化的转换逻辑，实际应该根据具体的数据类型进行转换
-    if (dataType === 'hex') {
-      // 十六进制字符串转字节
-      const hex = value.replace(/\s/g, '');
-      const bytes: number[] = [];
-      for (let i = 0; i < hex.length; i += 2) {
-        bytes.push(parseInt(hex.substr(i, 2), 16));
-      }
-      return bytes;
-    } else if (dataType === 'number') {
-      // 数字转字节
-      const num = parseInt(value, 10);
-      return [num & 0xff];
-    } else {
-      // 字符串转ASCII字节
-      return Array.from(value).map((char) => char.charCodeAt(0));
     }
   };
 
@@ -188,15 +154,17 @@ export function useUnifiedSender() {
    * @param connectionId 网络连接ID
    * @param data 数据
    * @param targetId 目标ID
+   * @param targetHost 远程主机地址（可选）
    * @returns 发送结果
    */
   const sendToNetwork = async (
     connectionId: string,
     data: Uint8Array,
     targetId: string,
+    targetHost?: string,
   ): Promise<UnifiedSendResult> => {
     try {
-      const result = await networkAPI.send(connectionId, data);
+      const result = await networkAPI.send(connectionId, data, targetHost);
 
       const sendResult: UnifiedSendResult = {
         success: result.success,
@@ -230,14 +198,26 @@ export function useUnifiedSender() {
    */
   const isTargetAvailable = async (targetId: string): Promise<boolean> => {
     try {
-      const { type, identifier } = parseTargetId(targetId);
+      const { type } = parseTargetId(targetId);
 
       if (type === 'serial') {
+        const { identifier } = parseTargetId(targetId);
         const status = await serialAPI.getStatus(identifier);
         return status.isOpen;
       } else if (type === 'network') {
-        const status = await networkAPI.getStatus(identifier);
-        return status?.isConnected || false;
+        // 检查是否是远程主机目标
+        if (targetId.includes(':') && targetId.split(':').length >= 3) {
+          // 远程主机目标：检查对应的网络连接是否可用
+          const parts = targetId.split(':');
+          const connectionId = parts[1] as string;
+          const status = await networkAPI.getStatus(connectionId);
+          return status?.isConnected || false;
+        } else {
+          // 传统主连接目标
+          const { identifier } = parseTargetId(targetId);
+          const status = await networkAPI.getStatus(identifier);
+          return status?.isConnected || false;
+        }
       }
 
       return false;
@@ -254,12 +234,23 @@ export function useUnifiedSender() {
    */
   const getTargetStatus = async (targetId: string) => {
     try {
-      const { type, identifier } = parseTargetId(targetId);
+      const { type } = parseTargetId(targetId);
 
       if (type === 'serial') {
+        const { identifier } = parseTargetId(targetId);
         return await serialAPI.getStatus(identifier);
       } else if (type === 'network') {
-        return await networkAPI.getStatus(identifier);
+        // 检查是否是远程主机目标
+        if (targetId.includes(':') && targetId.split(':').length >= 3) {
+          // 远程主机目标：返回对应网络连接的状态
+          const parts = targetId.split(':');
+          const connectionId = parts[1] as string;
+          return await networkAPI.getStatus(connectionId);
+        } else {
+          // 传统主连接目标
+          const { identifier } = parseTargetId(targetId);
+          return await networkAPI.getStatus(identifier);
+        }
       }
 
       return null;
@@ -274,6 +265,5 @@ export function useUnifiedSender() {
     isTargetAvailable,
     getTargetStatus,
     parseTargetId,
-    convertFrameInstanceToData,
   };
 }

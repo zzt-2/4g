@@ -111,11 +111,12 @@ export const useNetworkStore = defineStore('network', () => {
   const sendData = async (
     connectionId: string,
     data: Uint8Array,
+    targetHost?: string,
   ): Promise<NetworkOperationResult> => {
     try {
       lastError.value = null;
 
-      const result = await networkAPI.send(connectionId, data);
+      const result = await networkAPI.send(connectionId, data, targetHost);
 
       if (!result.success) {
         lastError.value = result.error || '发送数据失败';

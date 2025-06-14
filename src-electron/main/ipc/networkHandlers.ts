@@ -32,10 +32,21 @@ class NetworkConnectionManager {
     options?: NetworkConnectionOptions,
   ): Promise<NetworkOperationResult> {
     try {
+      // 如果连接已存在，检查其状态
       if (this.connections.has(config.id)) {
-        return { success: false, error: '连接已存在' };
+        const existingConnection = this.connections.get(config.id)!;
+
+        // 如果是已连接状态，返回错误
+        if (existingConnection.isConnected) {
+          return { success: false, error: '连接已存在且处于连接状态' };
+        }
+
+        // 如果是未连接状态或错误状态，先清理再重新创建
+        console.log(`清理残留连接: ${config.id}`);
+        await this.disconnect(config.id);
       }
 
+      // 创建网络连接对象，简化写法
       const connection: NetworkConnection = {
         ...config,
         isConnected: false,
@@ -47,8 +58,13 @@ class NetworkConnectionManager {
 
       if (config.type === 'tcp') {
         return await this.connectTcp(config, options as TcpConnectionOptions);
-      } else {
+      } else if (config.type === 'udp') {
         return await this.connectUdp(config, options as UdpConnectionOptions);
+      } else {
+        return {
+          success: false,
+          error: `不支持的连接类型: ${config.type}`,
+        };
       }
     } catch (error) {
       return {
@@ -59,7 +75,7 @@ class NetworkConnectionManager {
   }
 
   /**
-   * 创建TCP连接
+   * 创建TCP连接（客户端模式）
    */
   private async connectTcp(
     config: NetworkConnectionConfig,
@@ -75,6 +91,7 @@ class NetworkConnectionManager {
       const timeout = options?.timeout || config.timeout || 5000;
       socket.setTimeout(timeout);
 
+      // TCP客户端连接到远程服务器
       socket.connect(config.port, config.host, () => {
         const connection = this.connections.get(config.id)!;
         connection.isConnected = true;
@@ -87,7 +104,7 @@ class NetworkConnectionManager {
         // 发送连接成功事件
         this.emitConnectionEvent(config.id, 'connected');
 
-        resolve({ success: true, message: 'TCP连接成功' });
+        resolve({ success: true, message: `TCP连接成功 ${config.host}:${config.port}` });
       });
 
       socket.on('data', (data: Buffer) => {
@@ -96,6 +113,9 @@ class NetworkConnectionManager {
 
       socket.on('error', (error) => {
         this.handleConnectionError(config.id, error.message);
+        // 连接失败时清理连接记录
+        this.connections.delete(config.id);
+        this.connectionStats.delete(config.id);
         resolve({ success: false, error: error.message });
       });
 
@@ -106,13 +126,16 @@ class NetworkConnectionManager {
       socket.on('timeout', () => {
         socket.destroy();
         this.handleConnectionError(config.id, '连接超时');
+        // 连接超时时清理连接记录
+        this.connections.delete(config.id);
+        this.connectionStats.delete(config.id);
         resolve({ success: false, error: '连接超时' });
       });
     });
   }
 
   /**
-   * 创建UDP连接
+   * 创建UDP连接（本地绑定模式）
    */
   private async connectUdp(
     config: NetworkConnectionConfig,
@@ -121,37 +144,61 @@ class NetworkConnectionManager {
     try {
       const socket = dgram.createSocket('udp4');
 
-      // 设置选项
-      if (options?.reuseAddr) socket.bind({ port: 0, exclusive: false });
-      if (options?.broadcast) socket.setBroadcast(true);
+      // UDP绑定到指定端口进行监听
+      const bindPort = config.port;
+      const bindHost = config.host === '0.0.0.0' ? undefined : config.host;
 
-      socket.on('message', (data: Buffer, _rinfo) => {
-        this.handleDataReceived(config.id, new Uint8Array(data));
+      console.log('[UDP连接] 准备绑定到:', {
+        bindHost,
+        bindPort,
+        configHost: config.host,
+        configPort: config.port,
       });
 
-      socket.on('error', (error) => {
-        this.handleConnectionError(config.id, error.message);
+      return new Promise((resolve) => {
+        socket.bind(bindPort, bindHost, () => {
+          // 获取实际绑定的地址信息
+          const address = socket.address();
+          console.log('[UDP连接] 绑定成功，实际地址:', address);
+
+          const connection = this.connections.get(config.id)!;
+          connection.isConnected = true;
+          connection.status = 'connected';
+          connection.lastActivity = new Date();
+
+          this.udpSockets.set(config.id, socket);
+          this.updateConnectionStats(config.id, { isConnected: true, connectionTime: new Date() });
+          this.emitConnectionEvent(config.id, 'connected');
+
+          resolve({ success: true, message: `UDP绑定成功 ${address.address}:${address.port}` });
+        });
+
+        // 设置选项
+        if (options?.broadcast) socket.setBroadcast(true);
+
+        socket.on('message', (data: Buffer, rinfo) => {
+          console.log(`UDP收到来自 ${rinfo.address}:${rinfo.port} 的数据`);
+          this.handleDataReceived(config.id, new Uint8Array(data));
+        });
+
+        socket.on('error', (error) => {
+          console.error('[UDP连接] 绑定错误:', error);
+          this.handleConnectionError(config.id, error.message);
+          // 连接失败时清理连接记录
+          this.connections.delete(config.id);
+          this.connectionStats.delete(config.id);
+          resolve({ success: false, error: error.message });
+        });
+
+        socket.on('close', () => {
+          console.log('[UDP连接] Socket已关闭');
+          this.handleConnectionClosed(config.id);
+        });
       });
-
-      socket.on('close', () => {
-        this.handleConnectionClosed(config.id);
-      });
-
-      this.udpSockets.set(config.id, socket);
-
-      const connection = this.connections.get(config.id)!;
-      connection.isConnected = true;
-      connection.status = 'connected';
-      connection.lastActivity = new Date();
-
-      this.updateConnectionStats(config.id, { isConnected: true, connectionTime: new Date() });
-      this.emitConnectionEvent(config.id, 'connected');
-
-      return { success: true, message: 'UDP连接成功' };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'UDP连接失败',
+        error: error instanceof Error ? error.message : 'UDP绑定失败',
       };
     }
   }
@@ -195,11 +242,29 @@ class NetworkConnectionManager {
   /**
    * 发送数据
    */
-  async sendData(connectionId: string, data: Uint8Array): Promise<NetworkOperationResult> {
+  async sendData(
+    connectionId: string,
+    data: Uint8Array,
+    targetHost?: string,
+  ): Promise<NetworkOperationResult> {
     try {
       const connection = this.connections.get(connectionId);
       if (!connection || !connection.isConnected) {
         return { success: false, error: '连接不存在或未连接' };
+      }
+
+      let targetAddress = { host: connection.host, port: connection.port };
+
+      // 如果指定了目标主机，解析目标地址
+      if (targetHost) {
+        // 解析格式：host:port
+        const parts = targetHost.split(':');
+        if (parts.length === 2) {
+          targetAddress = {
+            host: parts[0] || connection.host,
+            port: parseInt(parts[1] || '0') || connection.port,
+          };
+        }
       }
 
       if (connection.type === 'tcp') {
@@ -216,7 +281,14 @@ class NetworkConnectionManager {
       } else {
         const socket = this.udpSockets.get(connectionId);
         if (socket) {
-          socket.send(Buffer.from(data), connection.port, connection.host);
+          socket.send(Buffer.from(data), targetAddress.port, targetAddress.host, (error) => {
+            if (error) {
+              console.error('[UDP发送] 发送失败:', error);
+            } else {
+              console.log('[UDP发送] 发送成功');
+            }
+          });
+
           this.updateConnectionStats(connectionId, {
             bytesSent: data.length,
             messagesSent: 1,
@@ -384,14 +456,15 @@ async function sendNetworkData(
   _event: IpcMainInvokeEvent,
   connectionId: string,
   data: Uint8Array,
+  targetHost?: string,
 ): Promise<NetworkOperationResult> {
-  return await connectionManager.sendData(connectionId, data);
+  return await connectionManager.sendData(connectionId, data, targetHost);
 }
 
 /**
  * 获取所有网络连接
  */
-async function getNetworkConnections(_event: IpcMainInvokeEvent): Promise<NetworkConnection[]> {
+async function getNetworkConnections(): Promise<NetworkConnection[]> {
   return connectionManager.getConnections();
 }
 

@@ -7,8 +7,8 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', component: () => import('../pages/home/HomePage.vue') },
       {
-        path: '/serial/config',
-        component: () => import('../pages/SerialConfigPage.vue'),
+        path: '/connect',
+        component: () => import('../pages/ConnectConfigPage.vue'),
       },
       {
         path: '/frames/list',
