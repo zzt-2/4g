@@ -197,7 +197,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useHighSpeedStorageStore } from '../../stores/highSpeedStorageStore';
-import { useConnectionTargets } from '../../composables/useConnectionTargets';
+import { useConnectionTargetsStore } from '../../stores/connectionTargetsStore';
 import { storeToRefs } from 'pinia';
 import type { FrameHeaderRule } from '../../types/serial/highSpeedStorage';
 
@@ -209,9 +209,8 @@ const { config, stats, isLoading, lastError, hasRule, storageStatusText, formatt
 
 // ==================== 连接目标管理 ====================
 
-const { availableTargets, selectedTargetId, refreshTargets } = useConnectionTargets(
-  'high-speed-storage-target',
-);
+const connectionTargetsStore = useConnectionTargetsStore();
+const selectedTargetId = ref<string>('');
 
 // ==================== 本地状态 ====================
 
@@ -246,7 +245,7 @@ const statusClass = computed(() => {
 });
 
 const connectionOptions = computed(() => {
-  return availableTargets.value
+  return connectionTargetsStore.availableTargets
     .filter((target) => target.type === 'network') // 只显示网络连接
     .map((target) => ({
       label: `${target.name} (${target.address || target.path})`,
@@ -456,7 +455,7 @@ watch(
 
 onMounted(async () => {
   await store.initialize();
-  await refreshTargets();
+  connectionTargetsStore.refreshTargets();
 
   // 如果没有选中连接但有可用连接，选择第一个网络连接
   if (!selectedConnectionTargetId.value && connectionOptions.value.length > 0) {

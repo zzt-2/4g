@@ -10,8 +10,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 16,
-            "displayValue": "16",
+            "value": 286331153,
+            "displayValue": "286331153",
             "useLabel": false,
             "labelOptions": [],
             "id": 1
@@ -21,8 +21,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 286331153,
-            "displayValue": "286331153",
+            "value": 268435456,
+            "displayValue": "268435456",
             "useLabel": false,
             "labelOptions": [],
             "id": 2
@@ -32,8 +32,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 286331153,
-            "displayValue": "286331153",
+            "value": 0,
+            "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
             "id": 3
@@ -43,8 +43,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": null,
-            "displayValue": "数据不足",
+            "value": 0,
+            "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
             "id": 4
@@ -54,8 +54,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 69905,
-            "displayValue": "69905",
+            "value": 0,
+            "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
             "id": 5
@@ -65,8 +65,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 286331153,
-            "displayValue": "286331153",
+            "value": 0,
+            "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
             "id": 6
@@ -76,8 +76,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 286331137,
-            "displayValue": "286331137",
+            "value": 0,
+            "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
             "id": 7
@@ -87,8 +87,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": null,
-            "displayValue": "数据不足",
+            "value": 0,
+            "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
             "id": 8
@@ -99,7 +99,7 @@
             "isFavorite": false,
             "dataType": "uint8",
             "value": null,
-            "displayValue": "-",
+            "displayValue": "",
             "useLabel": true,
             "labelOptions": [
               {
@@ -194,7 +194,7 @@
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-06-17T17:43:50.174Z",
-    "updatedAt": "2025-06-17T17:43:50.174Z"
+    "createdAt": "2025-06-18T14:45:37.865Z",
+    "updatedAt": "2025-06-18T14:45:37.865Z"
   }
 ]

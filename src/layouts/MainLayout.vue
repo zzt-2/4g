@@ -39,13 +39,11 @@ import { ref, provide, onMounted, onUnmounted } from 'vue';
 import HeaderBar from '../components/layout/HeaderBar.vue';
 import SidePanel from '../components/layout/SidePanel.vue';
 import { useReceiveFramesStore } from 'src/stores/frames/receiveFramesStore';
-import { useConnectionTargets } from 'src/composables/useConnectionTargets';
+import { useConnectionTargetsStore } from 'src/stores/connectionTargetsStore';
 import { useFrameTemplateStore, useSendFrameInstancesStore } from 'src/stores/framesStore';
 import { useSerialStore } from 'src/stores/serialStore';
 import { useDataDisplayStore } from 'src/stores/frames/dataDisplayStore';
-
-// 自动开始记录设置（临时使用const，后续可改为配置）
-const AUTO_START_RECORDING = false;
+import { useSettingsStore } from 'src/stores/settingsStore';
 
 const leftDrawerOpen = ref(true);
 const drawerWidth = ref(120); // 默认宽度，单位是像素
@@ -55,6 +53,7 @@ const frameTemplateStore = useFrameTemplateStore();
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 const serialStore = useSerialStore();
 const dataDisplayStore = useDataDisplayStore();
+const settingsStore = useSettingsStore();
 
 // 方法：清理数据项值
 const clearDataItemValues = async (): Promise<void> => {
@@ -72,7 +71,11 @@ const clearDataItemValues = async (): Promise<void> => {
   }
 };
 
-const { refreshTargets } = useConnectionTargets('frame-send-selected-target');
+const connectionTargetsStore = useConnectionTargetsStore();
+
+const updateWidth = () => {
+  drawerWidth.value = Math.round(window.innerWidth * 0.08); // 15% 的视窗宽度
+};
 
 // 计算抽屉宽度为视窗宽度的百分比
 onMounted(async () => {
@@ -81,13 +84,13 @@ onMounted(async () => {
     await sendFrameInstancesStore.fetchInstances();
     await receiveFramesStore.loadConfig();
     await serialStore.refreshPorts();
-    await refreshTargets(); // 刷新可用的连接目标
+    connectionTargetsStore.refreshTargets(); // 刷新可用的连接目标
 
     // 启动数据收集定时器（常开模式）
     dataDisplayStore.startDataCollection();
 
     // 根据设置自动开始记录
-    if (AUTO_START_RECORDING && !dataDisplayStore.recordingStatus.isRecording) {
+    if (settingsStore.autoStartRecording && !dataDisplayStore.recordingStatus.isRecording) {
       console.log('自动开始数据记录...');
       dataDisplayStore.startRecording();
     }
@@ -95,30 +98,25 @@ onMounted(async () => {
     console.error('加载数据失败:', error);
   }
 
-  const updateWidth = () => {
-    drawerWidth.value = Math.round(window.innerWidth * 0.08); // 15% 的视窗宽度
-  };
-
   updateWidth();
   window.addEventListener('resize', updateWidth);
-
-  // 清理监听器
-  onUnmounted(() => {
-    window.removeEventListener('resize', updateWidth);
-
-    // 停止数据记录
-    if (dataDisplayStore.recordingStatus.isRecording) {
-      console.log('页面卸载，停止数据记录...');
-      dataDisplayStore.stopRecording();
-    }
-
-    // 停止数据收集定时器
-    dataDisplayStore.stopDataCollection();
-
-    clearDataItemValues();
-  });
 });
 
+// 清理监听器
+onUnmounted(() => {
+  window.removeEventListener('resize', updateWidth);
+
+  // 停止数据记录
+  if (dataDisplayStore.recordingStatus.isRecording) {
+    console.log('页面卸载，停止数据记录...');
+    dataDisplayStore.stopRecording();
+  }
+
+  // 停止数据收集定时器
+  dataDisplayStore.stopDataCollection();
+
+  clearDataItemValues();
+});
 const toggleDrawer = () => {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 };

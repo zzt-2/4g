@@ -14,7 +14,7 @@ import {
   FrameInstanceInTask,
 } from '../../../stores/frames/sendTasksStore';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
-import { useConnectionTargets } from '../../useConnectionTargets';
+import { useConnectionTargetsStore } from '../../../stores/connectionTargetsStore';
 import { useUnifiedSender } from './useUnifiedSender';
 
 /**
@@ -27,7 +27,7 @@ export function useSendTaskExecutor() {
   const sendTasksStore = useSendTasksStore();
 
   // 获取连接目标管理器用于解析目标ID
-  const { getValidatedTargetPath } = useConnectionTargets('task-executor-targets');
+  const connectionTargetsStore = useConnectionTargetsStore();
 
   // 获取统一发送路由器
   const { sendFrameInstance: sendFrameInstanceUnified, isTargetAvailable } = useUnifiedSender();
@@ -474,7 +474,7 @@ export function useSendTaskExecutor() {
         }
 
         // 使用提取的函数发送帧
-        const targetPath = getValidatedTargetPath(instanceConfig.targetId);
+        const targetPath = connectionTargetsStore.getValidatedTargetPath(instanceConfig.targetId);
         if (!targetPath) {
           throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
         }
@@ -945,7 +945,7 @@ export function useSendTaskExecutor() {
         sendTasksStore.updateTaskStatus(task.id, 'running');
 
         // 使用提取的函数发送帧
-        const targetPath = getValidatedTargetPath(instanceConfig.targetId);
+        const targetPath = connectionTargetsStore.getValidatedTargetPath(instanceConfig.targetId);
         if (!targetPath) {
           throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
         }

@@ -187,6 +187,7 @@ const updateHistoryChartData = () => {
       smooth: true,
       symbol: 'circle',
       symbolSize: 4,
+      sampling: 'none', // 禁用数据采样，确保不抽点
       lineStyle: { width: 2, color: dataItem.color },
       itemStyle: { color: dataItem.color },
       emphasis: {
@@ -234,6 +235,7 @@ const updateRealtimeChartData = () => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 4,
+        sampling: 'none', // 禁用数据采样，确保不抽点
         lineStyle: { width: 2, color: item.color || '#3b82f6' },
         itemStyle: item.color ? { color: item.color } : { color: '#3b82f6' },
         emphasis: { focus: 'series' as const },
@@ -264,6 +266,8 @@ const stopUpdateTimer = () => {
     updateTimer = null;
   }
 };
+
+const handleResize = () => chartInstance?.resize();
 
 // 初始化图表 - 统一使用LineChart的样式
 const initChart = async () => {
@@ -404,9 +408,8 @@ const initChart = async () => {
   }
 
   // 窗口大小变化处理
-  const handleResize = () => chartInstance?.resize();
+
   window.addEventListener('resize', handleResize);
-  onUnmounted(() => window.removeEventListener('resize', handleResize));
 };
 
 // 更新图表
@@ -492,6 +495,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopUpdateTimer();
+  window.removeEventListener('resize', handleResize);
   if (chartInstance) {
     chartInstance.dispose();
     chartInstance = null;

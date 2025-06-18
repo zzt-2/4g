@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import type {
-  CSVExportConfig,
-  DataItemSelection,
-  TimeRange,
-} from '../../types/storage/historyData';
+
 import { useHistoryAnalysisStore } from '../../stores/historyAnalysis';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { formatDateTime } from '../../utils/common/dateUtils';
+import type { CSVExportConfig } from '../../types/storage/historyData';
 
 // Props
 interface Props {
@@ -25,11 +23,13 @@ const emit = defineEmits<{
 
 const $q = useQuasar();
 const historyStore = useHistoryAnalysisStore();
+const settingsStore = useSettingsStore();
 
 // 本地状态
 const fileName = ref('history_data');
 const includeHeaders = ref(true);
 const includeTimestamp = ref(true);
+const usePresetPath = ref(true);
 const dateFormat = ref('YYYY-MM-DD HH:mm:ss');
 const isExporting = ref(false);
 
@@ -75,17 +75,6 @@ const exportStats = computed(() => {
 
   return stats;
 });
-
-// 文件大小格式化
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-};
 
 // 日期格式选项
 const dateFormatOptions = [
@@ -136,15 +125,20 @@ const executeExport = async (): Promise<void> => {
   try {
     isExporting.value = true;
 
+    // 构建导出配置
     const config: CSVExportConfig = {
       fileName: fileName.value.trim(),
       timeRange: timeRange.value,
       selectedItems: selectedDataItems.value,
       includeHeaders: includeHeaders.value,
       includeTimestamp: includeTimestamp.value,
+      usePresetPath: usePresetPath.value,
+      ...(usePresetPath.value && settingsStore.csvDefaultOutputPath
+        ? { outputDirectory: settingsStore.csvDefaultOutputPath }
+        : {}),
     };
 
-    await historyStore.exportCSV();
+    await historyStore.exportCSV(config);
 
     emit('export-success', '');
     isOpen.value = false;
@@ -178,14 +172,6 @@ const executeExport = async (): Promise<void> => {
   } finally {
     isExporting.value = false;
   }
-};
-
-// 重置表单
-const resetForm = (): void => {
-  fileName.value = 'history_data';
-  includeHeaders.value = true;
-  includeTimestamp.value = true;
-  dateFormat.value = 'YYYY-MM-DD HH:mm:ss';
 };
 
 // 生成建议的文件名
@@ -230,18 +216,13 @@ watch(isOpen, (newValue) => {
         </div>
       </q-card-section>
 
-      <q-card-section class="space-y-6">
+      <q-card-section>
         <!-- 导出概览 -->
-        <div class="bg-industrial-secondary rounded p-4 space-y-3">
-          <h3 class="text-industrial-primary text-sm font-medium flex items-center gap-2">
-            <q-icon name="info" size="sm" />
-            导出概览
-          </h3>
-
-          <div class="grid grid-cols-2 gap-4 text-sm">
-            <div class="space-y-1">
+        <div class="bg-industrial-secondary rounded p-4">
+          <div class="grid grid-cols-5 gap-4 text-sm h-12">
+            <div class="space-y-1 col-span-2">
               <div class="text-industrial-tertiary">时间范围</div>
-              <div class="text-industrial-primary text-xs font-mono">
+              <div class="text-industrial-primary text-xs font-mono w-36">
                 {{ timeRangeText }}
               </div>
             </div>
@@ -251,14 +232,16 @@ watch(isOpen, (newValue) => {
                 {{ exportStats.totalRecords.toLocaleString() }} 条
               </div>
             </div>
-            <div class="space-y-1">
-              <div class="text-industrial-tertiary">数据项</div>
-              <div class="text-industrial-primary">{{ exportStats.selectedItems }} 项</div>
-            </div>
-            <div class="space-y-1">
-              <div class="text-industrial-tertiary">预估大小</div>
-              <div class="text-industrial-primary">
-                {{ formatFileSize(exportStats.estimatedFileSize) }}
+            <div class="space-y-1 col-span-2">
+              <div class="text-industrial-tertiary">输出方式</div>
+              <div class="text-industrial-primary text-xs">
+                <div v-if="usePresetPath">
+                  <div>预设路径</div>
+                  <div class="text-industrial-tertiary text-2xs mt-1">
+                    {{ settingsStore.csvDefaultOutputPath || 'data/exports/csv' }}
+                  </div>
+                </div>
+                <div v-else>手动选择</div>
               </div>
             </div>
           </div>
@@ -282,7 +265,7 @@ watch(isOpen, (newValue) => {
                 outlined
                 class="flex-1"
                 input-class="text-industrial-primary"
-                :disabled="isExporting"
+                :disable="isExporting"
               >
                 <template #append>
                   <span class="text-industrial-tertiary text-xs">.csv</span>
@@ -293,7 +276,7 @@ watch(isOpen, (newValue) => {
                 dense
                 icon="auto_awesome"
                 class="text-industrial-accent hover:bg-industrial-highlight"
-                :disabled="isExporting"
+                :disable="isExporting"
                 @click="generateSuggestedFileName"
               >
                 <q-tooltip>生成建议文件名</q-tooltip>
@@ -304,21 +287,28 @@ watch(isOpen, (newValue) => {
           <!-- 导出选项 -->
           <div class="space-y-3">
             <label class="text-industrial-secondary text-xs">导出选项</label>
-
-            <div class="space-y-2">
+            <!-- 基本选项 -->
+            <div class="flex space-x-2">
               <q-checkbox
                 v-model="includeHeaders"
                 label="包含表头"
                 size="sm"
                 class="text-industrial-primary"
-                :disabled="isExporting"
+                :disable="isExporting"
               />
               <q-checkbox
                 v-model="includeTimestamp"
                 label="包含时间戳"
                 size="sm"
                 class="text-industrial-primary"
-                :disabled="isExporting"
+                :disable="isExporting"
+              />
+              <q-checkbox
+                v-model="usePresetPath"
+                label="使用预设路径"
+                size="sm"
+                class="text-industrial-primary"
+                :disable="isExporting"
               />
             </div>
           </div>
@@ -337,19 +327,19 @@ watch(isOpen, (newValue) => {
               outlined
               class="text-xs"
               input-class="text-industrial-primary"
-              :disabled="isExporting"
+              :disable="isExporting"
             />
           </div>
         </div>
 
         <!-- 数据项预览 -->
         <div class="space-y-4">
-          <h3 class="text-industrial-primary text-sm font-medium flex items-center gap-2">
+          <h3 class="text-industrial-primary text-sm font-medium flex items-center gap-2 mt-4 mb-1">
             <q-icon name="preview" size="sm" />
             数据项预览 ({{ selectedDataItems.length }})
           </h3>
 
-          <div class="max-h-32 overflow-y-auto space-y-1">
+          <div class="max-h-60 overflow-y-auto space-y-1">
             <div
               v-for="item in selectedDataItems"
               :key="`${item.groupId}-${item.dataItemId}`"
@@ -377,16 +367,8 @@ watch(isOpen, (newValue) => {
           flat
           label="取消"
           class="text-industrial-secondary hover:bg-industrial-highlight"
-          :disabled="isExporting"
+          :disable="isExporting"
           @click="isOpen = false"
-        />
-        <q-btn
-          flat
-          label="重置"
-          icon="refresh"
-          class="text-industrial-tertiary hover:bg-industrial-highlight"
-          :disabled="isExporting"
-          @click="resetForm"
         />
         <q-btn
           flat
@@ -394,7 +376,7 @@ watch(isOpen, (newValue) => {
           icon="download"
           class="btn-industrial-primary"
           :loading="isExporting"
-          :disabled="selectedDataItems.length === 0 || filteredData.length === 0"
+          :disable="selectedDataItems.length === 0 || filteredData.length === 0"
           @click="executeExport"
         >
           <template #loading>
@@ -408,24 +390,6 @@ watch(isOpen, (newValue) => {
 </template>
 
 <style scoped>
-/* 自定义滚动条 */
-.max-h-32::-webkit-scrollbar {
-  width: 4px;
-}
-
-.max-h-32::-webkit-scrollbar-track {
-  background: #0f2744;
-}
-
-.max-h-32::-webkit-scrollbar-thumb {
-  background: #1a3663;
-  border-radius: 2px;
-}
-
-.max-h-32::-webkit-scrollbar-thumb:hover {
-  background: #93c5fd;
-}
-
 /* 对话框样式 */
 :deep(.q-dialog__inner) {
   padding: 16px;

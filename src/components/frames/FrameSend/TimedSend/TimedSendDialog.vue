@@ -2,13 +2,12 @@
 import { ref, computed, watch } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
-import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
+import { useConnectionTargetsStore } from '../../../../stores/connectionTargetsStore';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
 import type {
   InstanceStrategyConfig,
   TimedStrategyConfig,
 } from '../../../../types/frames/sendInstances';
-import type { ConnectionTarget } from '../../../../types/common/connectionTarget';
 
 const props = defineProps<{
   instanceId: string;
@@ -21,11 +20,10 @@ const emit = defineEmits<{
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 const sendTasksStore = useSendTasksStore();
+const connectionTargetsStore = useConnectionTargetsStore();
 
-// 连接目标相关状态 - 使用ref手动管理以响应instanceId变化
-const availableTargets = ref<ConnectionTarget[]>([]);
+// 连接目标相关状态
 const selectedTargetId = ref<string>('');
-const refreshTargets = ref<(() => void) | null>(null);
 
 // 使用任务管理器
 const { createTimedSingleTask, startTask, stopTask, isProcessing, processingError } =
@@ -53,31 +51,16 @@ const interval = ref(1000);
 const repeatCount = ref(1);
 const isInfinite = ref(false);
 
-// 使用watch监听instanceId变化，重新初始化连接目标管理
+// 使用watch监听instanceId变化，初始化目标选择
 watch(
   () => props.instanceId,
   (newInstanceId) => {
     if (!newInstanceId) return;
 
-    // 当instanceId变化时，重新创建连接目标管理
-    const {
-      availableTargets: newAvailableTargets,
-      selectedTargetId: newSelectedTargetId,
-      refreshTargets: newRefreshTargets,
-    } = useConnectionTargets(`timed-send-targets-${newInstanceId}`);
-
-    // 更新本地引用
-    availableTargets.value = newAvailableTargets.value;
-    selectedTargetId.value = newSelectedTargetId.value;
-    refreshTargets.value = newRefreshTargets;
-
-    // 监听目标列表变化
-    watch(newAvailableTargets, (targets) => {
-      availableTargets.value = targets;
-    });
-
-    // 初始刷新
-    newRefreshTargets();
+    // 如果没有选择目标且有可用目标，选择第一个
+    if (!selectedTargetId.value && connectionTargetsStore.availableTargets.length > 0) {
+      selectedTargetId.value = connectionTargetsStore.availableTargets[0]?.id || '';
+    }
   },
   { immediate: true },
 );
@@ -102,8 +85,8 @@ watch(
       repeatCount.value = 1;
       isInfinite.value = false;
       // 清空目标选择或使用默认目标
-      if (!selectedTargetId.value && availableTargets.value.length > 0) {
-        selectedTargetId.value = availableTargets.value[0]?.id || '';
+      if (!selectedTargetId.value && connectionTargetsStore.availableTargets.length > 0) {
+        selectedTargetId.value = connectionTargetsStore.availableTargets[0]?.id || '';
       }
     }
   },
@@ -338,7 +321,7 @@ function stopTimedSend() {
 
             <q-select
               v-model="selectedTargetId"
-              :options="availableTargets"
+              :options="connectionTargetsStore.availableTargets"
               option-value="id"
               option-label="name"
               dense

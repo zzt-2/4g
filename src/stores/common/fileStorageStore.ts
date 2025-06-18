@@ -1,7 +1,7 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import type { FileRecord } from '../../types/files';
-import { filesAPI } from '../../utils/electronApi';
+import { filesAPI } from '../../api/common';
 
 export const useFileStorage = defineStore('fileStorage', () => {
   const fileRecords = ref<FileRecord[]>([]);

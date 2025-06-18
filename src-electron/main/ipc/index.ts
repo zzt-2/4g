@@ -7,6 +7,7 @@ import { registerStorageHandlers } from './dataStorageHandlers';
 import { registerReceiveHandlers } from './receiveHandlers';
 import { registerHighSpeedStorageHandlers } from './highSpeedStorageHandlers';
 import { registerHistoryDataHandlers } from './historyDataHandlers';
+import { registerTimerManagerHandlers } from './timerManagerHandlers';
 
 export function setupIPC() {
   setupWindowIPC();
@@ -18,4 +19,5 @@ export function setupIPC() {
   registerReceiveHandlers(); // 注册接收数据处理程序
   registerHighSpeedStorageHandlers(); // 注册高速存储处理程序
   registerHistoryDataHandlers(); // 注册历史数据处理程序
+  registerTimerManagerHandlers(); // 注册定时器管理处理程序
 }

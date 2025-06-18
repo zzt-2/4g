@@ -60,7 +60,13 @@ const table1AvailableItemsForChart = computed(() => {
   if (!groupId) return [];
 
   const group = receiveFramesStore.groups.find((g) => g.id === groupId);
-  return group?.dataItems.filter((item) => item.isVisible) || [];
+  const visibleItems = group?.dataItems.filter((item) => item.isVisible) || [];
+
+  // 为每个数据项添加颜色信息
+  return visibleItems.map((item) => ({
+    ...item,
+    color: generateChartColor(item.id),
+  }));
 });
 
 // 表格1可用数据项（转换为统一格式，用于 UniversalChartSettingsDialog）
@@ -75,6 +81,7 @@ const table1AvailableItems = computed(() => {
     id: item.id,
     label: item.label,
     displayValue: String(item.value || '-'),
+    color: generateChartColor(item.id), // 添加颜色信息
   }));
 });
 
@@ -100,7 +107,13 @@ const table2AvailableItemsForChart = computed(() => {
   if (!groupId) return [];
 
   const group = receiveFramesStore.groups.find((g) => g.id === groupId);
-  return group?.dataItems.filter((item) => item.isVisible) || [];
+  const visibleItems = group?.dataItems.filter((item) => item.isVisible) || [];
+
+  // 为每个数据项添加颜色信息
+  return visibleItems.map((item) => ({
+    ...item,
+    color: generateChartColor(item.id),
+  }));
 });
 
 // 表格2可用数据项（转换为统一格式，用于 UniversalChartSettingsDialog）
@@ -115,6 +128,7 @@ const table2AvailableItems = computed(() => {
     id: item.id,
     label: item.label,
     displayValue: String(item.value || '-'),
+    color: generateChartColor(item.id), // 添加颜色信息
   }));
 });
 
@@ -136,6 +150,25 @@ const handleTable1ChartConfigUpdate = (config: YAxisConfig) => {
 // 处理表格2图表配置更新
 const handleTable2ChartConfigUpdate = (config: YAxisConfig) => {
   dataDisplayStore.updateTable2Config({ yAxisConfig: config });
+};
+
+// 生成图表颜色的简单函数
+const generateChartColor = (id: number): string => {
+  const colors = [
+    '#3b82f6',
+    '#ef4444',
+    '#10b981',
+    '#f59e0b',
+    '#8b5cf6',
+    '#06b6d4',
+    '#84cc16',
+    '#f97316',
+    '#ec4899',
+    '#6366f1',
+    '#14b8a6',
+    '#eab308',
+  ];
+  return colors[id % colors.length] || '#3b82f6';
 };
 </script>
 

@@ -6,7 +6,7 @@
     "description": "",
     "paramCount": 1,
     "createdAt": "2025-06-16T09:47:11.312Z",
-    "updatedAt": "2025-06-16T09:52:25.832Z",
+    "updatedAt": "2025-06-18T14:11:58.878Z",
     "fields": [
       {
         "id": "TSD9mjEf7AedRvtzvDLH4",
@@ -62,8 +62,8 @@
       "type": "none",
       "updatedAt": "2025-06-16T09:47:11.312Z"
     },
-    "sendCount": 17,
-    "lastSentAt": "2025-06-16T09:52:25.832Z"
+    "sendCount": 32,
+    "lastSentAt": "2025-06-18T14:11:58.878Z"
   },
   {
     "id": "2",
@@ -72,7 +72,7 @@
     "description": "",
     "paramCount": 3,
     "createdAt": "2025-06-16T09:47:13.416Z",
-    "updatedAt": "2025-06-16T09:52:26.094Z",
+    "updatedAt": "2025-06-18T14:11:58.904Z",
     "fields": [
       {
         "id": "TSD9mjEf7AedRvtzvDLH4",
@@ -143,11 +143,18 @@
     ],
     "isFavorite": false,
     "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-06-16T09:47:13.416Z"
+      "type": "timed",
+      "updatedAt": "2025-06-18T13:58:23.127Z",
+      "timedConfig": {
+        "type": "timed",
+        "sendInterval": 1000,
+        "repeatCount": 1,
+        "isInfinite": false
+      },
+      "targetId": "network:conn_1749440546668_6trm91uxw:remote_1749452903711_io3wcx229"
     },
-    "sendCount": 8,
-    "lastSentAt": "2025-06-16T09:52:26.094Z"
+    "sendCount": 24,
+    "lastSentAt": "2025-06-18T14:11:58.904Z"
   },
   {
     "id": "3",
@@ -156,7 +163,7 @@
     "description": "",
     "paramCount": 33,
     "createdAt": "2025-06-16T09:47:14.912Z",
-    "updatedAt": "2025-06-16T09:52:26.368Z",
+    "updatedAt": "2025-06-18T14:25:43.186Z",
     "fields": [
       {
         "id": "TSD9mjEf7AedRvtzvDLH4",
@@ -707,11 +714,21 @@
     ],
     "isFavorite": false,
     "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-06-16T09:47:14.912Z"
+      "type": "triggered",
+      "updatedAt": "2025-06-18T13:42:00.080Z",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "serial:COM1",
+        "triggerFrameId": "",
+        "conditions": [],
+        "continueListening": true
+      },
+      "targetId": "serial:COM1"
     },
-    "sendCount": 8,
-    "lastSentAt": "2025-06-16T09:52:26.368Z"
+    "sendCount": 29,
+    "lastSentAt": "2025-06-18T14:25:43.186Z"
   },
   {
     "id": "4",
@@ -720,7 +737,7 @@
     "description": "",
     "paramCount": 6,
     "createdAt": "2025-06-16T09:47:16.848Z",
-    "updatedAt": "2025-06-16T09:52:26.636Z",
+    "updatedAt": "2025-06-18T14:12:12.111Z",
     "fields": [
       {
         "id": "TSD9mjEf7AedRvtzvDLH4",
@@ -896,10 +913,33 @@
     ],
     "isFavorite": false,
     "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-06-16T09:47:16.848Z"
+      "type": "triggered",
+      "updatedAt": "2025-06-18T14:12:09.462Z",
+      "timedConfig": {
+        "type": "timed",
+        "sendInterval": 1000,
+        "repeatCount": 1,
+        "isInfinite": false
+      },
+      "targetId": "network:conn_1749440546668_6trm91uxw:remote_1749452903711_io3wcx229",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "network:conn_1749440546668_6trm91uxw:remote_1749452903711_io3wcx229",
+        "triggerFrameId": "testreceive",
+        "conditions": [
+          {
+            "id": "condition_1750255928142",
+            "fieldId": "",
+            "condition": "equals",
+            "value": ""
+          }
+        ],
+        "continueListening": true
+      }
     },
-    "sendCount": 8,
-    "lastSentAt": "2025-06-16T09:52:26.636Z"
+    "sendCount": 74,
+    "lastSentAt": "2025-06-18T14:12:12.111Z"
   }
 ]

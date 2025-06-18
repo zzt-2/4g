@@ -9,6 +9,7 @@ import { pathAPI } from './path';
 import { receiveAPI } from './receive';
 import { highSpeedStorageAPI } from './highSpeedStorage';
 import { historyDataAPI } from './historyData';
+import { timerManagerAPI } from './timerManager';
 
 // 动态导入所有API模块
 const apiModules = {
@@ -23,6 +24,7 @@ const apiModules = {
   receive: receiveAPI,
   highSpeedStorage: highSpeedStorageAPI,
   historyData: historyDataAPI,
+  timerManager: timerManagerAPI,
 };
 
 // 导出组合的API对象

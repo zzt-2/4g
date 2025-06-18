@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useConnectionTargets } from '../../../composables/useConnectionTargets';
+import { useConnectionTargetsStore } from '../../../stores/connectionTargetsStore';
 
 // 组件属性
 defineProps<{
@@ -11,17 +11,17 @@ defineProps<{
 const modelValue = defineModel<string>({ required: true });
 
 // 使用连接目标管理
-const { availableTargets, refreshTargets } = useConnectionTargets('send-target-selector');
+const connectionTargetsStore = useConnectionTargetsStore();
 
 // 页面加载时刷新可用目标
-refreshTargets();
+// refreshTargets();
 </script>
 
 <template>
   <div class="send-target-selector">
     <q-select
       v-model="modelValue"
-      :options="availableTargets"
+      :options="connectionTargetsStore.availableTargets"
       option-value="id"
       option-label="name"
       dense

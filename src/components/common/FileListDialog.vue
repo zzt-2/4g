@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { useFileStorage } from '../../stores/common/fileStorageStore';
 import type { FileRecord } from '../../types/files';
-import { filesAPI } from '../../utils/electronApi';
+import { filesAPI } from '../../api/common';
 
 const props = defineProps<{
   title: string;

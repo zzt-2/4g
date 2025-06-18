@@ -15,7 +15,7 @@ import {
   extractInstancesFromConfig,
   validateInstanceReferences,
 } from '../../../utils/frames/taskConfigUtils';
-import { dataStorageAPI } from '../../../utils/electronApi';
+import { dataStorageAPI } from '../../../api/common';
 
 interface TaskConfigData {
   targets: InstanceTargetConfig[];

@@ -1,7 +1,7 @@
 import { createApp, h } from 'vue';
 import FileListDialog from '../../components/common/FileListDialog.vue';
 import type { FileRecord } from '../../types/files';
-import { filesAPI } from '../../utils/electronApi';
+import { filesAPI } from '../../api/common';
 
 /**
  * 隐藏所有以q-portal--dialog--开头的DOM元素
@@ -46,7 +46,7 @@ export function createFileDialog(options: {
   storageDir: string;
   operation: 'import' | 'export';
 }) {
-  return new Promise<{ canceled: boolean; filePath?: string; fileData?: any }>((resolve) => {
+  return new Promise<{ canceled: boolean; filePath?: string; fileData?: unknown }>((resolve) => {
     console.log(`创建${options.operation}文件对话框:`, options.title, options.storageDir);
 
     // 隐藏Quasar对话框
@@ -226,7 +226,7 @@ export const fileDialogManager = {
    * @param data 要导出的数据
    * @returns 包含导出结果的Promise
    */
-  async exportFile(title: string, directory: string, data: any) {
+  async exportFile(title: string, directory: string, data: unknown) {
     console.log('打开导出对话框:', title, directory);
     const result = await createFileDialog({
       title,

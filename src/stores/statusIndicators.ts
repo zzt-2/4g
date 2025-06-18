@@ -162,7 +162,10 @@ export const useStatusIndicatorStore = defineStore('statusIndicators', () => {
   const updateIndicator = (id: string, updates: Partial<StatusIndicatorConfig>): void => {
     const index = settings.value.indicators.findIndex((indicator) => indicator.id === id);
     if (index !== -1) {
-      settings.value.indicators[index] = { ...settings.value.indicators[index], ...updates };
+      settings.value.indicators[index] = {
+        ...settings.value.indicators[index],
+        ...updates,
+      } as StatusIndicatorConfig;
     }
   };
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useSerialStore } from '../../stores/serialStore';
 
 const serialStore = useSerialStore();
@@ -45,7 +45,7 @@ const isConnectedPort = (portPath: string) => {
 };
 
 // 获取串口的显示名称
-const getPortDisplayName = (port: any) => {
+const getPortDisplayName = (port: { friendlyName?: string; path: string }) => {
   return port.friendlyName || port.path;
 };
 

@@ -71,7 +71,7 @@ const handleReset = () => {
 // 自动保存设置
 watch(
   formState,
-  (newValue) => {
+  () => {
     if (!isConnected.value) {
       applySettings();
     }

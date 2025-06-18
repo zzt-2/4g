@@ -105,6 +105,8 @@ export interface CSVExportConfig {
   selectedItems: DataItemSelection[]; // 选中的数据项
   includeHeaders: boolean; // 是否包含表头
   includeTimestamp: boolean; // 是否包含时间戳
+  usePresetPath?: boolean; // 是否使用预设路径
+  outputDirectory?: string; // 输出目录（当使用预设路径时）
 }
 
 // CSV导出结果接口
@@ -135,4 +137,23 @@ export interface StorageStats {
     latest: string; // 最新日期
   };
   compressionRatio: number; // 压缩比
+}
+
+// 批量追加记录配置接口
+export interface BatchAppendConfig {
+  hourKey: string; // 小时键
+  records: HistoryDataRecord[]; // 要追加的记录列表
+  metadata?: {
+    version: string; // 版本号
+    groups: GroupMetadata[]; // 分组元数据（仅在文件不存在时使用）
+    totalDataItems: number; // 总数据项数量
+  };
+}
+
+// 批量追加记录结果接口
+export interface BatchAppendResult {
+  success: boolean; // 是否成功
+  appendedCount?: number; // 追加的记录数量
+  totalRecords?: number; // 文件中的总记录数
+  error?: string; // 错误信息
 }

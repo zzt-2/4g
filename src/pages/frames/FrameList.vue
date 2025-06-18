@@ -116,7 +116,7 @@ import { useFrameFilterStore, useFrameTemplateStore } from 'src/stores/framesSto
 import { applyAllFilters } from 'src/utils/frames/frameUtils';
 import { storeToRefs } from 'pinia';
 import { fileDialogManager } from '../../utils/common/fileDialogManager';
-import { dataStorageAPI, pathAPI } from '../../utils/electronApi';
+import { dataStorageAPI, pathAPI } from '../../api/common';
 
 // 详情帧接口
 interface DetailFrame {

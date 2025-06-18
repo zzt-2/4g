@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { fileDialogManager } from '../../utils/common/fileDialogManager';
-import { pathAPI } from '../../utils/electronApi';
+import { pathAPI } from '../../api/common';
 
 interface Props {
   getData: () => unknown; // 获取要导出的数据

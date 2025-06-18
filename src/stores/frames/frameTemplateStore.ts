@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Frame } from '../../types/frames';
-import { dataStorageAPI } from '../../utils/electronApi';
+import { dataStorageAPI } from '../../api/common';
 import { deepClone } from '../../utils/frames/frameUtils';
 import { createEmptyFrame } from '../../types/frames/factories';
 

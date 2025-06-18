@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, onUnmounted } from 'vue';
 import { useStorage } from '@vueuse/core';
-import { serialAPI } from '../utils/electronApi';
+import { serialAPI } from '../api/common';
 import { frameToBuffer } from '../utils/frames/frameInstancesUtils';
 import type {
   SerialPortInfo,

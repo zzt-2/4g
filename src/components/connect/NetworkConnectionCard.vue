@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useNetworkStore } from '../../stores/netWorkStore';
 import type { NetworkConnectionConfig } from '../../types/serial/network';
 
 const props = defineProps<{
@@ -17,7 +16,6 @@ const emit = defineEmits<{
   disconnect: [configId: string];
 }>();
 
-const networkStore = useNetworkStore();
 const isOperating = ref(false);
 
 // 计算连接状态

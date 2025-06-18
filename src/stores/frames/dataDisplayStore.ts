@@ -13,12 +13,20 @@ import type {
 } from '../../types/frames/dataDisplay';
 import type { HourlyDataFile, HistoryDataRecord } from '../../types/storage/historyData';
 import { useReceiveFramesStore } from './receiveFramesStore';
+import { useSettingsStore } from '../settingsStore';
+import { useTimerManager } from '../../composables/common/useTimerManager';
 import { convertToHex } from '../../utils/frames/hexCovertUtils';
 import { getHourKey, isNewHour } from '../../utils/common/dateUtils';
-import { historyDataAPI } from '../../utils/electronApi';
+import { historyDataAPI } from '../../api/common';
 import { useStorage } from '@vueuse/core';
+import type { TimerConfig } from '../../types/common/timerManager';
 
 export const useDataDisplayStore = defineStore('dataDisplay', () => {
+  const settingsStore = useSettingsStore();
+
+  // 定时器管理器
+  const timerManager = useTimerManager();
+
   // 表格配置
   const table1Config = useStorage<TableConfig>('table1Config', {
     selectedGroupId: null,
@@ -35,7 +43,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   // 显示设置
   const displaySettings = ref<DisplaySettings>({
     updateInterval: 1000, // 1秒更新间隔
-    csvSaveInterval: 5 * 60 * 1000, // 5分钟保存间隔
+    csvSaveInterval: settingsStore.csvSaveInterval * 60 * 1000, // 5分钟保存间隔
     maxHistoryHours: 24, // 24小时历史记录
     enableAutoSave: true,
     enableRecording: false,
@@ -57,16 +65,12 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     currentHour: '',
   });
 
-  // 定时器管理
-  const timers = ref<{
-    update: NodeJS.Timeout | null;
-    historySave: NodeJS.Timeout | null;
-    cleanup: NodeJS.Timeout | null;
-  }>({
-    update: null,
-    historySave: null,
-    cleanup: null,
-  });
+  // 定时器ID常量
+  const TIMER_IDS = {
+    DATA_COLLECTION: 'dataDisplay_dataCollection',
+    HISTORY_SAVE: 'dataDisplay_historySave',
+    CLEANUP: 'dataDisplay_cleanup',
+  } as const;
 
   // 获取接收帧Store
   const receiveFramesStore = useReceiveFramesStore();
@@ -218,61 +222,91 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   };
 
   // 方法：启动数据收集定时器（常开）
-  const startDataCollection = (): void => {
-    if (timers.value.update) return; // 避免重复启动
+  const startDataCollection = async (): Promise<void> => {
+    try {
+      // 检查定时器是否已经在运行
+      const existingTimer = await timerManager.getTimerInfo(TIMER_IDS.DATA_COLLECTION);
+      if (existingTimer && existingTimer.status === 'running') {
+        console.log('数据收集定时器已在运行中，无需重复启动');
+        return;
+      }
 
-    // 数据收集定时器（每秒执行，常开）
-    timers.value.update = setInterval(() => {
-      collectCurrentData();
-    }, displaySettings.value.updateInterval);
+      // 注册数据收集定时器
+      const dataCollectionConfig: TimerConfig = {
+        id: TIMER_IDS.DATA_COLLECTION,
+        type: 'interval',
+        interval: displaySettings.value.updateInterval,
+        autoStart: true,
+      };
 
-    console.log('数据收集定时器已启动（常开模式）');
+      const result = await timerManager.registerTimer(dataCollectionConfig, () => {
+        collectCurrentData();
+      });
+
+      if (result.success) {
+        console.log('数据收集定时器已启动（常开模式）');
+      } else {
+        console.error('启动数据收集定时器失败:', result.message);
+      }
+    } catch (error) {
+      console.error('启动数据收集定时器异常:', error);
+    }
   };
 
   // 方法：停止数据收集定时器
-  const stopDataCollection = (): void => {
-    if (timers.value.update) {
-      clearInterval(timers.value.update);
-      timers.value.update = null;
+  const stopDataCollection = async (): Promise<void> => {
+    const result = await timerManager.unregisterTimer(TIMER_IDS.DATA_COLLECTION);
+
+    if (result.success) {
       console.log('数据收集定时器已停止');
+    } else {
+      console.error('停止数据收集定时器失败:', result.message);
     }
   };
 
   // 方法：启动记录相关定时器
-  const startRecordingTimers = (): void => {
-    // 清理现有记录定时器
-    stopRecordingTimers();
+  const startRecordingTimers = async (): Promise<void> => {
+    // 先停止现有记录定时器
+    await stopRecordingTimers();
 
-    // JSON历史数据保存定时器（每5分钟执行）
+    // 注册历史数据保存定时器（每5分钟执行）
     if (displaySettings.value.enableHistoryStorage) {
-      timers.value.historySave = setInterval(() => {
+      const historySaveConfig: TimerConfig = {
+        id: TIMER_IDS.HISTORY_SAVE,
+        type: 'interval',
+        interval: displaySettings.value.csvSaveInterval,
+        autoStart: true,
+      };
+
+      await timerManager.registerTimer(historySaveConfig, () => {
         if (recordingStatus.value.isRecording) {
           saveAllHistoryBatches();
         }
-      }, displaySettings.value.csvSaveInterval); // 使用相同的保存间隔
+      });
     }
 
-    // 清理定时器（每小时执行）
-    timers.value.cleanup = setInterval(
-      () => {
-        cleanHistoryRecords();
-      },
-      60 * 60 * 1000,
-    );
+    // 注册清理定时器（每小时执行）
+    const cleanupConfig: TimerConfig = {
+      id: TIMER_IDS.CLEANUP,
+      type: 'interval',
+      interval: 60 * 60 * 1000, // 1小时
+      autoStart: true,
+    };
+
+    await timerManager.registerTimer(cleanupConfig, () => {
+      cleanHistoryRecords();
+    });
 
     console.log('记录相关定时器已启动');
   };
 
   // 方法：停止记录相关定时器
-  const stopRecordingTimers = (): void => {
-    if (timers.value.historySave) {
-      clearInterval(timers.value.historySave);
-      timers.value.historySave = null;
-    }
-    if (timers.value.cleanup) {
-      clearInterval(timers.value.cleanup);
-      timers.value.cleanup = null;
-    }
+  const stopRecordingTimers = async (): Promise<void> => {
+    await Promise.all([
+      timerManager.unregisterTimer(TIMER_IDS.HISTORY_SAVE),
+      timerManager.unregisterTimer(TIMER_IDS.CLEANUP),
+    ]);
+
     console.log('记录相关定时器已停止');
   };
 
@@ -292,7 +326,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   };
 
   // 方法：开始记录
-  const startRecording = (): void => {
+  const startRecording = async (): Promise<void> => {
     if (recordingStatus.value.isRecording) return;
 
     const now = Date.now();
@@ -303,25 +337,25 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     recordingStatus.value.currentHour = getHourKey(now);
 
     // 启动记录相关定时器
-    startRecordingTimers();
+    await startRecordingTimers();
 
     console.log('开始数据记录，当前小时：', recordingStatus.value.currentHour);
   };
 
   // 方法：停止记录
-  const stopRecording = (): void => {
+  const stopRecording = async (): Promise<void> => {
     if (!recordingStatus.value.isRecording) return;
 
     // 保存剩余的历史数据
     if (displaySettings.value.enableHistoryStorage) {
-      saveAllHistoryBatches();
+      await saveAllHistoryBatches();
     }
 
     recordingStatus.value.isRecording = false;
     recordingStatus.value.startTime = null;
 
     // 停止记录相关定时器（但保持数据收集定时器运行）
-    stopRecordingTimers();
+    await stopRecordingTimers();
 
     console.log('停止数据记录');
   };
@@ -366,7 +400,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     }
   };
 
-  // 方法：保存当前JSON历史数据批次
+  // 方法：保存当前JSON历史数据批次（使用增量保存）
   const saveCurrentHistoryBatch = async (hourKey: string): Promise<void> => {
     const batch = historyBatches.value.get(hourKey);
     if (!batch || batch.records.length === 0) {
@@ -375,19 +409,29 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     }
 
     try {
-      // 保存到文件
-      const result = await historyDataAPI.saveHourData(hourKey, batch);
+      // 使用新的批量增量保存API
+      const result = await historyDataAPI.appendBatchRecords({
+        hourKey,
+        records: batch.records,
+        metadata: {
+          version: batch.metadata.version,
+          groups: batch.metadata.groups,
+          totalDataItems: batch.metadata.totalDataItems,
+        },
+      });
 
       if (result.success) {
-        console.log(`历史数据批次保存成功：${hourKey}，记录数：${batch.records.length}`);
+        console.log(
+          `历史数据批次增量保存成功：${hourKey}，追加记录数：${result.appendedCount}，总记录数：${result.totalRecords}`,
+        );
 
-        // 清空已保存的批次数据
-        historyBatches.value.delete(hourKey);
+        // 清空已保存的批次数据（只清空records，保留metadata）
+        batch.records = [];
       } else {
-        console.error(`历史数据批次保存失败：${hourKey}，错误：${result.message}`);
+        console.error(`历史数据批次增量保存失败：${hourKey}，错误：${result.error}`);
       }
     } catch (error) {
-      console.error(`历史数据批次保存异常：${hourKey}`, error);
+      console.error(`历史数据批次增量保存异常：${hourKey}`, error);
     }
   };
 
@@ -435,7 +479,6 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     historyRecords,
     historyBatches,
     recordingStatus,
-    timers,
 
     // 计算属性
     availableGroups,

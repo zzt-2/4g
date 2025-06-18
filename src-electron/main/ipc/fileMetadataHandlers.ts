@@ -49,7 +49,7 @@ fileRegistry.register('ensureDirectory', async (_, dirPath: string) => {
 });
 
 // 新增：保存JSON数据到文件
-fileRegistry.register('saveJsonToFile', async (_, filePath: string, data: any) => {
+fileRegistry.register('saveJsonToFile', async (_, filePath: string, data: unknown) => {
   try {
     // 确保目录存在
     const dirPath = path.dirname(filePath);

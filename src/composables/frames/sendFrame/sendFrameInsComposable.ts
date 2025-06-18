@@ -22,7 +22,7 @@ import { convertToHex, initializeHexValues } from '../../../utils/frames/hexCove
 import type { SendFrameInstance, SendInstanceField } from '../../../types/frames/sendInstances';
 import { createSendFrameInstance } from '../../../types/frames/sendInstanceFactories';
 import type { Frame } from '../../../types/frames/frames';
-import { dataStorageAPI } from '../../../utils/electronApi';
+import { dataStorageAPI } from '../../../api/common';
 
 /**
  * 帧实例基本状态管理

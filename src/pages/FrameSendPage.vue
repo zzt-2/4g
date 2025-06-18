@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useFrameTemplateStore } from '../stores/frames/frameTemplateStore';
 import { useSendFrameInstancesStore } from '../stores/frames/sendFrameInstancesStore';
-import { useConnectionTargets } from '../composables/useConnectionTargets';
+
 import { useUnifiedSender } from '../composables/frames/sendFrame/useUnifiedSender';
 import FrameFormatList from '../components/frames/FrameSend/FrameFormatList.vue';
 import FrameInstanceList from '../components/frames/FrameSend/FrameInstanceList.vue';
@@ -14,6 +14,7 @@ import TriggerSendDialog from '../components/frames/FrameSend/TriggerSend/Trigge
 import EnhancedSequentialSendDialog from '../components/frames/FrameSend/EnhancedSequentialSend/EnhancedSequentialSendDialog.vue';
 import ActiveTasksMonitor from '../components/frames/FrameSend/ActiveTasksMonitor.vue';
 import ImportExportActions from '../components/common/ImportExportActions.vue';
+import { useStorage } from '@vueuse/core';
 // 导入将在稍后实现
 // import { frameToBuffer } from '../utils/frameUtils';
 
@@ -22,7 +23,7 @@ const frameTemplateStore = useFrameTemplateStore();
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 // 使用连接目标组合式函数，为此页面指定唯一的存储键
-const { selectedTargetId } = useConnectionTargets('frame-send-selected-target');
+const selectedTargetId = useStorage<string>('sendTargetId', '');
 
 // 使用统一发送器
 const { sendFrameInstance, isTargetAvailable } = useUnifiedSender();
@@ -206,7 +207,7 @@ async function toggleSortMode() {
   if (sortEnabled.value) {
     try {
       // 导入dataStorageAPI
-      const { dataStorageAPI } = await import('../utils/electronApi');
+      const { dataStorageAPI } = await import('../api/common');
 
       // 保存实例列表
       const result = await dataStorageAPI.sendInstances.saveAll(sendFrameInstancesStore.instances);

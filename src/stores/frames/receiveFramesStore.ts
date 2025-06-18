@@ -16,7 +16,7 @@ import type {
 } from '../../types/frames/receive';
 import type { Frame } from '../../types/frames/frames';
 import { useFrameTemplateStore } from './frameTemplateStore';
-import { dataStorageAPI, receiveAPI } from 'src/utils/electronApi';
+import { dataStorageAPI, receiveAPI } from '../../api/common';
 
 export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   // 核心状态

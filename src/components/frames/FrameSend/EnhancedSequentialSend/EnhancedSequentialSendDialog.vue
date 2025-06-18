@@ -36,7 +36,7 @@
       <!-- 实例列表区域 -->
       <InstanceSequenceTable
         :instances="selectedInstances"
-        :available-targets="availableTargets"
+        :available-targets="connectionTargetsStore.availableTargets"
         :available-instances="availableInstancesForTable"
         v-model:selected-instance-for-add="selectedInstanceForAdd"
         :is-loading="isSending || isProcessing"
@@ -132,7 +132,7 @@
 import { ref, computed } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
-import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
+import { useConnectionTargetsStore } from '../../../../stores/connectionTargetsStore';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
 import { useStrategyConfig } from '../../../../composables/frames/useStrategyConfig';
 import { useTaskConfigManager } from '../../../../composables/frames/sendFrame/useTaskConfigManager';
@@ -146,6 +146,7 @@ import type {
   TimedStrategyConfig,
   TriggerStrategyConfig,
 } from '../../../../types/frames/sendInstances';
+
 import { useStorage } from '@vueuse/core';
 import TimedConfigDialog from '../TimedSend/TimedConfigDialog.vue';
 import TriggerConfigDialog from '../TriggerSend/TriggerConfigDialog.vue';
@@ -158,11 +159,7 @@ import { TaskConfigFile } from 'src/types/frames/taskConfig';
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 const sendTasksStore = useSendTasksStore();
-
-// 使用连接目标管理
-const { availableTargets, refreshTargets } = useConnectionTargets(
-  'enhanced-sequential-send-targets',
-);
+const connectionTargetsStore = useConnectionTargetsStore();
 
 // 使用任务管理器
 const {
@@ -225,7 +222,7 @@ const availableInstancesForTable = computed(() =>
 
 // 连接来源选项（用于触发配置）
 const sourceOptions = computed(() =>
-  availableTargets.value.map((target) => ({
+  connectionTargetsStore.availableTargets.map((target) => ({
     id: target.id,
     name: target.name,
     ...(target.description ? { description: target.description } : {}),
@@ -316,8 +313,11 @@ function addInstanceToSequence(instanceId: string) {
   const instance = sendFrameInstancesStore.instances.find((i) => i.id === instanceId);
   if (!instance) return;
 
-  const connectedTarget = availableTargets.value.find((t) => t.status === 'connected');
-  const defaultTargetId = connectedTarget?.id || availableTargets.value[0]?.id || '';
+  const connectedTarget = connectionTargetsStore.availableTargets.find(
+    (t) => t.status === 'connected',
+  );
+  const defaultTargetId =
+    connectedTarget?.id || connectionTargetsStore.availableTargets[0]?.id || '';
 
   selectedInstances.value.push({
     id: `seq_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -639,7 +639,7 @@ function stopCurrentTask() {
 }
 
 // 页面加载时刷新可用目标
-refreshTargets();
+// refreshTargets();
 </script>
 
 <style scoped>

@@ -15,7 +15,7 @@ import type {
   HistoryDataRecord,
   GroupMetadata,
 } from '../types/storage/historyData';
-import { historyDataAPI } from '../utils/electronApi';
+import { historyDataAPI } from '../api/common';
 import { formatDateTime } from '../utils/common/dateUtils';
 
 export const useHistoryAnalysisStore = defineStore('historyAnalysis', () => {
@@ -52,15 +52,6 @@ export const useHistoryAnalysisStore = defineStore('historyAnalysis', () => {
         selectedDataItems: [],
       },
     ],
-  });
-
-  // CSV导出配置
-  const csvExportConfig = ref<CSVExportConfig>({
-    fileName: 'history_data',
-    timeRange: { startTime: 0, endTime: 0 },
-    selectedItems: [],
-    includeHeaders: true,
-    includeTimestamp: true,
   });
 
   // ===== 计算属性 =====
@@ -371,24 +362,15 @@ export const useHistoryAnalysisStore = defineStore('historyAnalysis', () => {
   };
 
   // 导出CSV
-  const exportCSV = async (): Promise<void> => {
+  const exportCSV = async (config: CSVExportConfig): Promise<void> => {
     try {
-      const selectedItems = dataItemSelections.value.filter((item) => item.selected);
-      if (selectedItems.length === 0) {
+      if (config.selectedItems.length === 0) {
         throw new Error('请先选择要导出的数据项');
       }
 
       if (filteredData.value.length === 0) {
         throw new Error('当前时间范围内没有数据');
       }
-
-      const config: CSVExportConfig = {
-        fileName: csvExportConfig.value.fileName || 'history_data',
-        timeRange: timeRange.value,
-        selectedItems,
-        includeHeaders: csvExportConfig.value.includeHeaders,
-        includeTimestamp: csvExportConfig.value.includeTimestamp,
-      };
 
       const result = await historyDataAPI.exportCSV(config);
 
@@ -452,7 +434,6 @@ export const useHistoryAnalysisStore = defineStore('historyAnalysis', () => {
     loadedMetadata,
     dataItemSelections,
     multiChartSettings,
-    csvExportConfig,
 
     // 计算属性
     selectedItemsCount,

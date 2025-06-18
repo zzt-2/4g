@@ -9,6 +9,8 @@ import type {
   StorageStats,
   CSVExportConfig,
   CSVExportResult,
+  BatchAppendConfig,
+  BatchAppendResult,
 } from '../../../src/types/storage/historyData';
 
 export const historyDataAPI = {
@@ -18,34 +20,11 @@ export const historyDataAPI = {
   getAvailableHours: () => ipcRenderer.invoke('historyData:getAvailableHours') as Promise<string[]>,
 
   /**
-   * 加载指定小时的数据
-   * @param hourKey 小时键 YYYY-MM-DD-HH
+   * 批量追加记录到指定小时文件
+   * @param config 批量追加配置
    */
-  loadHourData: (hourKey: string) =>
-    ipcRenderer.invoke('historyData:loadHourData', hourKey) as Promise<HourlyDataFile | null>,
-
-  /**
-   * 保存小时数据到文件
-   * @param hourKey 小时键
-   * @param data 小时数据
-   */
-  saveHourData: (hourKey: string, data: HourlyDataFile) =>
-    ipcRenderer.invoke('historyData:saveHourData', hourKey, data) as Promise<{
-      success: boolean;
-      message?: string;
-    }>,
-
-  /**
-   * 添加实时数据记录到指定小时文件
-   * @param hourKey 小时键
-   * @param timestamp 时间戳
-   * @param data 数据数组
-   */
-  appendRecord: (hourKey: string, timestamp: number, data: unknown[]) =>
-    ipcRenderer.invoke('historyData:appendRecord', hourKey, timestamp, data) as Promise<{
-      success: boolean;
-      message?: string;
-    }>,
+  appendBatchRecords: (config: BatchAppendConfig) =>
+    ipcRenderer.invoke('historyData:appendBatchRecords', config) as Promise<BatchAppendResult>,
 
   /**
    * 压缩指定小时的数据文件

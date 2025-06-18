@@ -3,10 +3,10 @@
  * 根据连接目标类型路由到相应的发送方法
  */
 
-import { serialAPI, networkAPI } from '../../../utils/electronApi';
+import { serialAPI, networkAPI } from '../../../api/common';
 import { frameToBuffer } from '../../../utils/frames/frameInstancesUtils';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
-import { useConnectionTargets } from '../../useConnectionTargets';
+import { useConnectionTargetsStore } from '../../../stores/connectionTargetsStore';
 import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 
 /**
@@ -78,10 +78,10 @@ export function useUnifiedSender() {
           const parts = targetId.split(':');
           const connectionId = parts[1] as string;
 
-          // 从useConnectionTargets获取目标信息
-          const connectionTargets = useConnectionTargets();
-          await connectionTargets.refreshTargets();
-          const target = connectionTargets.getTargetById(targetId);
+          // 从store获取目标信息
+          const connectionTargetsStore = useConnectionTargetsStore();
+          connectionTargetsStore.refreshTargets();
+          const target = connectionTargetsStore.getTargetById(targetId);
 
           if (target && target.address) {
             result = await sendToNetwork(connectionId, data, targetId, target.address);

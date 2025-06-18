@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { windowManager } from './window';
 import { setupIPC } from './ipc';
+import { cleanupTimers } from './ipc/timerManagerHandlers';
 import os from 'os';
 // import 'uno.css';
 const platform = process.platform || os.platform();
@@ -12,6 +13,7 @@ app
 
     try {
       setupIPC();
+      cleanupTimers();
     } catch (error) {
       console.error('Error during IPC setup:', error);
       app.quit();
@@ -23,6 +25,9 @@ app
   });
 
 app.on('window-all-closed', () => {
+  // 清理所有定时器
+  cleanupTimers();
+
   if (platform !== 'darwin') {
     app.quit();
   }

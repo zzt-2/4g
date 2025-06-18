@@ -4,8 +4,8 @@
  */
 
 import { defineStore } from 'pinia';
-import { ref, computed, onUnmounted, readonly } from 'vue';
-import { networkAPI } from '../utils/electronApi';
+import { ref, computed, readonly } from 'vue';
+import { networkAPI } from '../api/common';
 import { useReceiveFramesStore } from './frames/receiveFramesStore';
 import type {
   NetworkConnection,
@@ -290,13 +290,6 @@ export const useNetworkStore = defineStore('network', () => {
 
     await Promise.allSettled(disconnectPromises);
   };
-
-  // ==================== 生命周期管理 ====================
-
-  // 组件卸载时清理监听器
-  onUnmounted(() => {
-    cleanupListeners();
-  });
 
   // ==================== 初始化 ====================
 

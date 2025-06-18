@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useReceiveFramesStore } from '../../../../stores/frames/receiveFramesStore';
-import { useConnectionTargets } from '../../../../composables/useConnectionTargets';
+import { useConnectionTargetsStore } from '../../../../stores/connectionTargetsStore';
 import { useSendTaskManager } from '../../../../composables/frames/sendFrame/useSendTaskManager';
 import type {
   InstanceStrategyConfig,
@@ -10,7 +10,7 @@ import type {
   TriggerCondition,
   TriggerType,
 } from '../../../../types/frames/sendInstances';
-import type { ConnectionTarget } from '../../../../types/common/connectionTarget';
+
 import type { FrameFieldMapping } from '../../../../types/frames/receive';
 
 const props = defineProps<{
@@ -24,13 +24,10 @@ const emit = defineEmits<{
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 const receiveFramesStore = useReceiveFramesStore();
+const connectionTargetsStore = useConnectionTargetsStore();
 
-// 连接目标相关状态 - 使用ref手动管理以响应instanceId变化
-const sourceTargets = ref<ConnectionTarget[]>([]);
-const targetTargets = ref<ConnectionTarget[]>([]);
+// 连接目标相关状态
 const selectedTargetId = ref<string>('');
-const refreshSourceTargets = ref<(() => void) | null>(null);
-const refreshTargets = ref<(() => void) | null>(null);
 
 // 使用任务管理器composable
 const {
@@ -89,35 +86,10 @@ watch(
   (newInstanceId) => {
     if (!newInstanceId) return;
 
-    // 当instanceId变化时，重新创建连接目标管理
-    const { availableTargets: newSourceTargets, refreshTargets: newRefreshSourceTargets } =
-      useConnectionTargets(`trigger-send-source-targets-${newInstanceId}`);
-
-    const {
-      availableTargets: newTargetTargets,
-      selectedTargetId: newSelectedTargetId,
-      refreshTargets: newRefreshTargets,
-    } = useConnectionTargets(`trigger-send-dest-targets-${newInstanceId}`);
-
-    // 更新本地引用
-    sourceTargets.value = newSourceTargets.value;
-    targetTargets.value = newTargetTargets.value;
-    selectedTargetId.value = newSelectedTargetId.value;
-    refreshSourceTargets.value = newRefreshSourceTargets;
-    refreshTargets.value = newRefreshTargets;
-
-    // 监听目标列表变化
-    watch(newSourceTargets, (targets) => {
-      sourceTargets.value = targets;
-    });
-
-    watch(newTargetTargets, (targets) => {
-      targetTargets.value = targets;
-    });
-
-    // 初始刷新
-    if (newRefreshSourceTargets) newRefreshSourceTargets();
-    if (newRefreshTargets) newRefreshTargets();
+    // 如果没有选择目标且有可用目标，选择第一个
+    if (!selectedTargetId.value && connectionTargetsStore.availableTargets.length > 0) {
+      selectedTargetId.value = connectionTargetsStore.availableTargets[0]?.id || '';
+    }
   },
   { immediate: true },
 );
@@ -168,8 +140,8 @@ watch(
       endTime.value = '';
 
       // 清空目标选择或使用默认目标
-      if (!selectedTargetId.value && targetTargets.value.length > 0) {
-        selectedTargetId.value = targetTargets.value[0]?.id || '';
+      if (!selectedTargetId.value && connectionTargetsStore.availableTargets.length > 0) {
+        selectedTargetId.value = connectionTargetsStore.availableTargets[0]?.id || '';
       }
     }
 
@@ -263,7 +235,7 @@ watch(
 
 // 连接来源选项（用于触发配置）
 const sourceOptions = computed(() =>
-  sourceTargets.value.map((target) => ({
+  connectionTargetsStore.availableTargets.map((target) => ({
     id: target.id,
     name: target.name,
     ...(target.description ? { description: target.description } : {}),
@@ -818,7 +790,7 @@ function removeCondition(index: number) {
 
             <q-select
               v-model="selectedTargetId"
-              :options="targetTargets"
+              :options="connectionTargetsStore.availableTargets"
               option-value="id"
               option-label="name"
               dense

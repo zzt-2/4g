@@ -3,14 +3,13 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
 import type { TimeRange } from '../../types/storage/historyData';
 import { useHistoryAnalysisStore } from '../../stores/historyAnalysis';
-import { formatDateTime } from '../../utils/common/dateUtils';
 
 // Props
 interface Props {
   disabled?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   disabled: false,
 });
 
@@ -60,12 +59,6 @@ const availableDateRange = computed(() => {
   };
 });
 
-// 时间范围文本显示
-const timeRangeText = computed(() => {
-  const range = currentTimeRange.value;
-  return `${formatDateTime(range.startTime)} - ${formatDateTime(range.endTime)}`;
-});
-
 // 防止循环更新的标志
 const isUpdatingFromStore = ref(false);
 
@@ -88,7 +81,8 @@ const initTimeInputs = (): void => {
   const formatLocalTime = (date: Date) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   };
 
   startDate.value = formatLocalDate(startDateTime);
@@ -236,8 +230,8 @@ historyStore.fetchAvailableHours();
     <!-- 自定义时间范围 -->
     <div class="space-y-1">
       <!-- 开始时间 -->
-      <div class="flex items-center gap-1 text-xs">
-        <label class="text-industrial-tertiary w-8 flex-shrink-0">开始</label>
+      <div class="flex items-center gap-0.5 text-xs">
+        <label class="text-industrial-tertiary w-6 flex-shrink-0">开始</label>
         <q-input
           v-model="startDate"
           type="date"
@@ -254,15 +248,15 @@ historyStore.fetchAvailableHours();
           type="time"
           dense
           outlined
-          class="w-24"
+          class="w-30"
           input-class="text-industrial-primary bg-industrial-secondary text-xs"
           :disabled="disabled || isLoading"
         />
       </div>
 
       <!-- 结束时间 -->
-      <div class="flex items-center gap-1 text-xs">
-        <label class="text-industrial-tertiary w-8 flex-shrink-0">结束</label>
+      <div class="flex items-center gap-0.5 text-xs">
+        <label class="text-industrial-tertiary w-6 flex-shrink-0">结束</label>
         <q-input
           v-model="endDate"
           type="date"
@@ -279,7 +273,7 @@ historyStore.fetchAvailableHours();
           type="time"
           dense
           outlined
-          class="w-24"
+          class="w-30"
           input-class="text-industrial-primary bg-industrial-secondary text-xs"
           :disabled="disabled || isLoading"
         />

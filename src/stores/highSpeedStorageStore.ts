@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed, readonly } from 'vue';
-import { highSpeedStorageAPI } from '../utils/electronApi';
+import { highSpeedStorageAPI } from '../api/common';
 import type {
   StorageConfig,
   StorageStats,

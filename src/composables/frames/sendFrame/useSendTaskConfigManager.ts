@@ -10,7 +10,7 @@ import {
   TriggerTaskConfig,
 } from '../../../stores/frames/sendTasksStore';
 import { fileDialogManager } from '../../../utils/common/fileDialogManager';
-import { pathAPI } from '../../../utils/electronApi';
+import { pathAPI } from '../../../api/common';
 import { useSendTaskCreator } from './useSendTaskCreator';
 
 /**

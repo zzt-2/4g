@@ -2,11 +2,12 @@
  * 历史数据处理器
  */
 
-import { ipcMain, dialog } from 'electron';
+import { dialog } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
+import { createHandlerRegistry } from '../../../src/utils/common/ipcUtils';
 import type {
   HourlyDataFile,
   HistoryFileInfo,
@@ -14,6 +15,9 @@ import type {
   CSVExportConfig,
   CSVExportResult,
   HistoryDataRecord,
+  GroupMetadata,
+  BatchAppendConfig,
+  BatchAppendResult,
 } from '../../../src/types/storage/historyData';
 import { pathAPI } from 'app/src-electron/preload/api/path';
 
@@ -54,10 +58,27 @@ const isCompressed = (hourKey: string): boolean => {
   return fs.existsSync(compressedPath) && !fs.existsSync(uncompressedPath);
 };
 
+// 获取默认导出目录
+const getDefaultExportDirectory = (): string => {
+  const userDataPath = pathAPI.getDataPath();
+  return path.join(userDataPath, 'exports', 'csv');
+};
+
+// 格式化时间戳为可读格式
+const formatTimestamp = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  return date
+    .toISOString()
+    .replace('T', ' ')
+    .replace(/\.\d{3}Z$/, '');
+};
+
 // 注册IPC处理器
 export const registerHistoryDataHandlers = (): void => {
+  const historyRegistry = createHandlerRegistry('historyData');
+
   // 获取可用小时键列表
-  ipcMain.handle('historyData:getAvailableHours', async (): Promise<string[]> => {
+  historyRegistry.register('getAvailableHours', async (): Promise<string[]> => {
     try {
       const baseDir = getHistoryDataDirectory();
       if (!fs.existsSync(baseDir)) {
@@ -77,68 +98,12 @@ export const registerHistoryDataHandlers = (): void => {
     }
   });
 
-  // 加载指定小时的数据
-  ipcMain.handle(
-    'historyData:loadHourData',
-    async (event, hourKey: string): Promise<HourlyDataFile | null> => {
+  // 批量追加记录（新增API）
+  historyRegistry.register(
+    'appendBatchRecords',
+    async (_, config: BatchAppendConfig): Promise<BatchAppendResult> => {
       try {
-        const compressed = isCompressed(hourKey);
-        const filePath = getFilePath(hourKey, compressed);
-
-        if (!fs.existsSync(filePath)) {
-          return null;
-        }
-
-        let content: Buffer;
-        if (compressed) {
-          const compressedData = await readFile(filePath);
-          content = await gunzip(compressedData);
-        } else {
-          content = await readFile(filePath);
-        }
-
-        return JSON.parse(content.toString('utf-8'));
-      } catch (error) {
-        console.error(`加载小时数据失败 (${hourKey}):`, error);
-        return null;
-      }
-    },
-  );
-
-  // 保存小时数据到文件
-  ipcMain.handle(
-    'historyData:saveHourData',
-    async (
-      event,
-      hourKey: string,
-      data: HourlyDataFile,
-    ): Promise<{ success: boolean; message?: string }> => {
-      try {
-        const filePath = getFilePath(hourKey, false);
-        const jsonContent = JSON.stringify(data, null, 2);
-        await writeFile(filePath, jsonContent, 'utf-8');
-
-        return { success: true };
-      } catch (error) {
-        console.error(`保存小时数据失败 (${hourKey}):`, error);
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : '未知错误',
-        };
-      }
-    },
-  );
-
-  // 添加实时数据记录
-  ipcMain.handle(
-    'historyData:appendRecord',
-    async (
-      event,
-      hourKey: string,
-      timestamp: number,
-      data: unknown[],
-    ): Promise<{ success: boolean; message?: string }> => {
-      try {
+        const { hourKey, records, metadata } = config;
         const filePath = getFilePath(hourKey, false);
         let hourlyData: HourlyDataFile;
 
@@ -147,48 +112,54 @@ export const registerHistoryDataHandlers = (): void => {
           const content = await readFile(filePath, 'utf-8');
           hourlyData = JSON.parse(content);
         } else {
-          // 创建新的小时数据文件结构（需要从外部传入元数据）
+          // 创建新的小时数据文件结构，使用传入的元数据
+          if (!metadata) {
+            return {
+              success: false,
+              error: '文件不存在且未提供元数据，无法创建新文件',
+            };
+          }
+
           hourlyData = {
             metadata: {
-              version: '1.0.0',
+              version: metadata.version,
               hourKey,
-              groups: [], // 这里需要从调用方传入
-              totalDataItems: data.length,
-              createdAt: timestamp,
-              updatedAt: timestamp,
+              groups: metadata.groups,
+              totalDataItems: metadata.totalDataItems,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
             },
             records: [],
           };
         }
 
-        // 添加新记录
-        const newRecord: HistoryDataRecord = {
-          timestamp,
-          data,
-        };
-
-        hourlyData.records.push(newRecord);
-        hourlyData.metadata.updatedAt = timestamp;
+        // 批量添加记录
+        hourlyData.records.push(...records);
+        hourlyData.metadata.updatedAt = Date.now();
 
         // 保存文件
         const jsonContent = JSON.stringify(hourlyData, null, 2);
         await writeFile(filePath, jsonContent, 'utf-8');
 
-        return { success: true };
+        return {
+          success: true,
+          appendedCount: records.length,
+          totalRecords: hourlyData.records.length,
+        };
       } catch (error) {
-        console.error(`添加记录失败 (${hourKey}):`, error);
+        console.error(`批量添加记录失败 (${config.hourKey}):`, error);
         return {
           success: false,
-          message: error instanceof Error ? error.message : '未知错误',
+          error: error instanceof Error ? error.message : '未知错误',
         };
       }
     },
   );
 
   // 压缩小时数据文件
-  ipcMain.handle(
-    'historyData:compressHourData',
-    async (event, hourKey: string): Promise<{ success: boolean; message?: string }> => {
+  historyRegistry.register(
+    'compressHourData',
+    async (_, hourKey: string): Promise<{ success: boolean; message?: string }> => {
       try {
         const uncompressedPath = getFilePath(hourKey, false);
         const compressedPath = getFilePath(hourKey, true);
@@ -221,9 +192,9 @@ export const registerHistoryDataHandlers = (): void => {
   );
 
   // 获取文件信息
-  ipcMain.handle(
-    'historyData:getFileInfo',
-    async (event, hourKey: string): Promise<HistoryFileInfo | null> => {
+  historyRegistry.register(
+    'getFileInfo',
+    async (_, hourKey: string): Promise<HistoryFileInfo | null> => {
       try {
         const compressed = isCompressed(hourKey);
         const filePath = getFilePath(hourKey, compressed);
@@ -267,7 +238,7 @@ export const registerHistoryDataHandlers = (): void => {
   );
 
   // 获取存储统计信息
-  ipcMain.handle('historyData:getStorageStats', async (): Promise<StorageStats> => {
+  historyRegistry.register('getStorageStats', async (): Promise<StorageStats> => {
     try {
       const baseDir = getHistoryDataDirectory();
       if (!fs.existsSync(baseDir)) {
@@ -331,34 +302,166 @@ export const registerHistoryDataHandlers = (): void => {
   });
 
   // 导出CSV文件
-  ipcMain.handle(
-    'historyData:exportCSV',
-    async (event, config: CSVExportConfig): Promise<CSVExportResult> => {
+  historyRegistry.register(
+    'exportCSV',
+    async (_, config: CSVExportConfig): Promise<CSVExportResult> => {
       try {
-        // 显示保存对话框
-        const result = await dialog.showSaveDialog({
-          title: '导出CSV文件',
-          defaultPath: `${config.fileName}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`,
-          filters: [
-            { name: 'CSV文件', extensions: ['csv'] },
-            { name: '所有文件', extensions: ['*'] },
-          ],
-        });
+        let filePath: string;
 
-        if (result.canceled || !result.filePath) {
-          return { success: false, error: '用户取消导出' };
+        // 根据配置决定文件路径
+        if (config.usePresetPath) {
+          // 使用预设路径
+          const exportDir = config.outputDirectory || getDefaultExportDirectory();
+          ensureDirectoryExists(exportDir);
+
+          const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+          const fileName = `${config.fileName}_${timestamp}.csv`;
+          filePath = path.join(exportDir, fileName);
+        } else {
+          // 显示保存对话框
+          const result = await dialog.showSaveDialog({
+            title: '导出CSV文件',
+            defaultPath: `${config.fileName}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`,
+            filters: [
+              { name: 'CSV文件', extensions: ['csv'] },
+              { name: '所有文件', extensions: ['*'] },
+            ],
+          });
+
+          if (result.canceled || !result.filePath) {
+            return { success: false, error: '用户取消导出' };
+          }
+
+          filePath = result.filePath;
         }
 
-        // 这里需要实现CSV内容生成逻辑
-        // 暂时返回成功，实际实现需要根据config生成CSV内容
-        const csvContent = 'timestamp,data\n'; // 占位符
+        // 获取时间范围内的小时键
+        const startTime = new Date(config.timeRange.startTime);
+        const endTime = new Date(config.timeRange.endTime);
+        const hourKeys: string[] = [];
 
-        await writeFile(result.filePath, csvContent, 'utf-8');
+        const current = new Date(startTime);
+        current.setMinutes(0, 0, 0); // 对齐到小时
+
+        while (current <= endTime) {
+          const year = current.getFullYear();
+          const month = (current.getMonth() + 1).toString().padStart(2, '0');
+          const day = current.getDate().toString().padStart(2, '0');
+          const hour = current.getHours().toString().padStart(2, '0');
+
+          const hourKey = `${year}-${month}-${day}-${hour}`;
+          hourKeys.push(hourKey);
+
+          current.setHours(current.getHours() + 1);
+        }
+
+        // 加载数据
+        const allRecords: HistoryDataRecord[] = [];
+        let metadata: GroupMetadata[] | null = null;
+
+        for (const hourKey of hourKeys) {
+          try {
+            const compressed = isCompressed(hourKey);
+            const dataFilePath = getFilePath(hourKey, compressed);
+
+            if (!fs.existsSync(dataFilePath)) {
+              continue;
+            }
+
+            let content: Buffer;
+            if (compressed) {
+              const compressedData = await readFile(dataFilePath);
+              content = await gunzip(compressedData);
+            } else {
+              content = await readFile(dataFilePath);
+            }
+
+            const hourlyData: HourlyDataFile = JSON.parse(content.toString('utf-8'));
+            allRecords.push(...hourlyData.records);
+
+            if (!metadata) {
+              metadata = hourlyData.metadata.groups;
+            }
+          } catch (error) {
+            console.warn(`加载小时数据失败 (${hourKey}):`, error);
+          }
+        }
+
+        // 按时间戳排序并筛选时间范围
+        const filteredRecords = allRecords
+          .filter(
+            (record) =>
+              record.timestamp >= config.timeRange.startTime &&
+              record.timestamp <= config.timeRange.endTime,
+          )
+          .sort((a, b) => a.timestamp - b.timestamp);
+
+        if (filteredRecords.length === 0) {
+          return { success: false, error: '当前时间范围内没有数据' };
+        }
+
+        // 生成CSV内容
+        const csvLines: string[] = [];
+
+        // 生成表头
+        if (config.includeHeaders) {
+          const headers: string[] = [];
+
+          if (config.includeTimestamp) {
+            headers.push('timestamp');
+          }
+
+          // 为每个选中的数据项添加表头
+          config.selectedItems.forEach((item) => {
+            const group = metadata?.find((g) => g.id === item.groupId);
+            if (group) {
+              const dataItem = group.dataItems?.find((d) => d.id === item.dataItemId);
+              if (dataItem) {
+                headers.push(`${group.label}_${dataItem.label}`);
+              }
+            }
+          });
+
+          csvLines.push(headers.join(','));
+        }
+
+        // 生成数据行
+        filteredRecords.forEach((record) => {
+          const row: string[] = [];
+
+          if (config.includeTimestamp) {
+            row.push(formatTimestamp(record.timestamp));
+          }
+
+          // 为每个选中的数据项添加数据
+          config.selectedItems.forEach((item) => {
+            const group = metadata?.find((g) => g.id === item.groupId);
+            if (group) {
+              const dataItem = group.dataItems?.find((d) => d.id === item.dataItemId);
+              if (dataItem && dataItem.index < record.data.length) {
+                const value = record.data[dataItem.index];
+                // 确保CSV值正确转义
+                row.push(String(value ?? ''));
+              } else {
+                row.push('');
+              }
+            } else {
+              row.push('');
+            }
+          });
+
+          csvLines.push(row.join(','));
+        });
+
+        const csvContent = csvLines.join('\n');
+
+        // 写入文件
+        await writeFile(filePath, csvContent, 'utf-8');
 
         return {
           success: true,
-          filePath: result.filePath,
-          recordCount: 0, // 实际记录数
+          filePath,
+          recordCount: filteredRecords.length,
         };
       } catch (error) {
         console.error('导出CSV失败:', error);
@@ -371,9 +474,9 @@ export const registerHistoryDataHandlers = (): void => {
   );
 
   // 删除小时数据文件
-  ipcMain.handle(
-    'historyData:deleteHourData',
-    async (event, hourKey: string): Promise<{ success: boolean; message?: string }> => {
+  historyRegistry.register(
+    'deleteHourData',
+    async (_, hourKey: string): Promise<{ success: boolean; message?: string }> => {
       try {
         const uncompressedPath = getFilePath(hourKey, false);
         const compressedPath = getFilePath(hourKey, true);
@@ -406,10 +509,10 @@ export const registerHistoryDataHandlers = (): void => {
   );
 
   // 清理过期数据
-  ipcMain.handle(
-    'historyData:cleanupOldData',
+  historyRegistry.register(
+    'cleanupOldData',
     async (
-      event,
+      _,
       daysToKeep: number,
     ): Promise<{ success: boolean; deletedFiles: number; message?: string }> => {
       try {
@@ -451,10 +554,10 @@ export const registerHistoryDataHandlers = (): void => {
   );
 
   // 批量加载多个小时的数据
-  ipcMain.handle(
-    'historyData:loadMultipleHours',
+  historyRegistry.register(
+    'loadMultipleHours',
     async (
-      event,
+      _,
       hourKeys: string[],
     ): Promise<{
       success: boolean;
@@ -515,4 +618,7 @@ export const registerHistoryDataHandlers = (): void => {
       }
     },
   );
+
+  // 注册所有处理器
+  historyRegistry.registerAll();
 };
