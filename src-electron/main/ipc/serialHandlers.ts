@@ -97,7 +97,7 @@ async function listPortsFromRegistry() {
     for (const [key, value] of Object.entries(registryData)) {
       if (typeof value === 'string' && value.startsWith('COM')) {
         const comPort = value;
-        console.log('从注册表发现COM端口:', comPort, '设备路径:', key);
+        // console.log('从注册表发现COM端口:', comPort, '设备路径:', key);
 
         // 检查串口是否已连接
         const isOpen = portConnections.has(comPort) && portConnections.get(comPort)?.port.isOpen;
@@ -114,7 +114,7 @@ async function listPortsFromRegistry() {
       }
     }
 
-    console.log(`注册表共发现 ${comPorts.length} 个串口`);
+    // console.log(`注册表共发现 ${comPorts.length} 个串口`);
     return comPorts;
   } catch (err) {
     console.log('从注册表获取串口列表失败:', err);

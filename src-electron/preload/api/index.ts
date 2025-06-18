@@ -6,8 +6,9 @@ import { networkAPI } from './network';
 import { filesAPI } from './files';
 import { dataStorageAPI } from './dataStorage';
 import { pathAPI } from './path';
-import { csvAPI } from './csv';
 import { receiveAPI } from './receive';
+import { highSpeedStorageAPI } from './highSpeedStorage';
+import { historyDataAPI } from './historyData';
 
 // 动态导入所有API模块
 const apiModules = {
@@ -19,8 +20,9 @@ const apiModules = {
   files: filesAPI,
   dataStorage: dataStorageAPI,
   path: pathAPI,
-  csv: csvAPI,
   receive: receiveAPI,
+  highSpeedStorage: highSpeedStorageAPI,
+  historyData: historyDataAPI,
 };
 
 // 导出组合的API对象

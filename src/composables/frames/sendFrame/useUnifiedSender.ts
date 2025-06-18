@@ -7,6 +7,7 @@ import { serialAPI, networkAPI } from '../../../utils/electronApi';
 import { frameToBuffer } from '../../../utils/frames/frameInstancesUtils';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
 import { useConnectionTargets } from '../../useConnectionTargets';
+import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 
 /**
  * 统一发送结果
@@ -49,6 +50,9 @@ function parseTargetId(targetId: string): {
  * 统一发送路由器组合式函数
  */
 export function useUnifiedSender() {
+  // 获取发送实例store用于更新统计
+  const sendFrameInstancesStore = useSendFrameInstancesStore();
+
   /**
    * 发送帧实例到指定目标
    * @param targetId 目标连接ID
@@ -63,8 +67,10 @@ export function useUnifiedSender() {
       const data = frameToBuffer(frameInstance);
       const { type, identifier } = parseTargetId(targetId);
 
+      let result: UnifiedSendResult;
+
       if (type === 'serial') {
-        return await sendToSerial(identifier, data, targetId);
+        result = await sendToSerial(identifier, data, targetId);
       } else if (type === 'network') {
         // 检查是否是远程主机目标
         if (targetId.includes(':') && targetId.split(':').length >= 3) {
@@ -78,9 +84,9 @@ export function useUnifiedSender() {
           const target = connectionTargets.getTargetById(targetId);
 
           if (target && target.address) {
-            return await sendToNetwork(connectionId, data, targetId, target.address);
+            result = await sendToNetwork(connectionId, data, targetId, target.address);
           } else {
-            return {
+            result = {
               success: false,
               error: '找不到远程主机目标信息',
               targetId,
@@ -89,16 +95,26 @@ export function useUnifiedSender() {
           }
         } else {
           // 传统主连接目标
-          return await sendToNetwork(identifier, data, targetId);
+          result = await sendToNetwork(identifier, data, targetId);
         }
       } else {
-        return {
+        result = {
           success: false,
           error: `不支持的连接类型: ${type}`,
           targetId,
           targetType: type,
         };
       }
+
+      // 如果发送成功，异步更新发送统计（不阻塞发送流程）
+      if (result.success) {
+        // 使用 setTimeout 异步执行，避免阻塞发送响应
+        setTimeout(() => {
+          sendFrameInstancesStore.updateSendStats(frameInstance.id);
+        }, 0);
+      }
+
+      return result;
     } catch (error) {
       return {
         success: false,

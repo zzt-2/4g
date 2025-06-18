@@ -15,7 +15,7 @@ import {
   withErrorHandling,
   initializeFieldOptions,
   generateNextAvailableId,
-  getBaseNameAndMaxNumber,
+  getNextAvailableNumber,
   calculateChecksum,
 } from '../../../utils/frames/frameInstancesUtils';
 import { convertToHex, initializeHexValues } from '../../../utils/frames/hexCovertUtils';
@@ -32,7 +32,6 @@ export function useInstancesState() {
   const currentInstanceId = ref<string | null>(null);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
-  const instanceCounter = ref<Record<string, number>>({});
 
   // 计算属性
   const currentInstance = computed(
@@ -59,7 +58,6 @@ export function useInstancesState() {
     currentInstanceId,
     isLoading,
     error,
-    instanceCounter,
     currentInstance,
     instancesByFrameId,
     favoriteInstances,
@@ -94,7 +92,7 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
 
       if (Array.isArray(result)) {
         // 如果直接返回数组
-        instancesData = result;
+        instancesData = result as SendFrameInstance[];
       } else if (result && typeof result === 'object') {
         // 如果返回对象格式，尝试提取data字段
         const response = result as unknown as ApiResponse<SendFrameInstance[]>;
@@ -104,25 +102,6 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
       }
 
       state.instances.value = instancesData;
-
-      // 初始化计数器
-      const counter: Record<string, number> = {};
-      instancesData.forEach((instance: SendFrameInstance) => {
-        const frameId = instance.frameId;
-        if (!counter[frameId]) {
-          counter[frameId] = 0;
-        }
-        // 尝试从名称中提取数字
-        const match = instance.label.match(/#(\d+)$/);
-        if (match && match[1]) {
-          const num = parseInt(match[1], 10);
-          if (num > counter[frameId]) {
-            counter[frameId] = num;
-          }
-        }
-      });
-      state.instanceCounter.value = counter;
-
       return instancesData;
     }, '加载发送实例失败');
   }
@@ -141,22 +120,17 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
         throw new Error('找不到对应的帧定义');
       }
 
-      // 更新计数器
-      if (!state.instanceCounter.value[frameId]) {
-        state.instanceCounter.value[frameId] = 0;
-      }
-      state.instanceCounter.value[frameId]++;
-
-      const counter = state.instanceCounter.value[frameId];
-
       // 生成下一个可用的数字ID
       const nextId = generateNextAvailableId(state.instances.value);
 
       // 使用生成的ID创建实例
       const newInstance = createSendFrameInstance(frame, nextId);
 
+      // 获取下一个可用编号
+      const nextNumber = getNextAvailableNumber(frameId, frame.name, state.instances.value);
+
       // 更新实例属性
-      newInstance.label = label || `${frame.name} #${counter}`;
+      newInstance.label = label || `${frame.name} #${nextNumber}`;
       if (description) newInstance.description = description;
 
       await dataStorageAPI.sendInstances.save(newInstance);
@@ -217,9 +191,17 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
       // 生成新ID
       const nextId = generateNextAvailableId(state.instances.value);
 
-      // 获取基础名称和最大编号
-      const { baseName, maxNumber } = getBaseNameAndMaxNumber(
-        sourceInstance,
+      // 提取基础名称（移除#数字后缀）
+      let baseName = sourceInstance.label;
+      const hashNumMatch = baseName.match(/^(.+?)\s*#\d+$/);
+      if (hashNumMatch && hashNumMatch[1]) {
+        baseName = hashNumMatch[1].trim();
+      }
+
+      // 获取下一个可用编号
+      const nextNumber = getNextAvailableNumber(
+        sourceInstance.frameId,
+        baseName,
         state.instances.value,
       );
 
@@ -227,7 +209,7 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
       const copyInstance: SendFrameInstance = {
         ...JSON.parse(JSON.stringify(sourceInstance)), // 深拷贝
         id: nextId,
-        label: `${baseName} #${maxNumber + 1}`,
+        label: `${baseName} #${nextNumber}`,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -249,6 +231,30 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
     await updateInstance(instance).catch((err) => console.error('切换收藏状态失败', err));
   }
 
+  // 移动实例位置
+  async function moveInstance(fromIndex: number, toIndex: number): Promise<boolean> {
+    if (
+      fromIndex < 0 ||
+      fromIndex >= state.instances.value.length ||
+      toIndex < 0 ||
+      toIndex >= state.instances.value.length ||
+      fromIndex === toIndex
+    ) {
+      return false;
+    }
+
+    // 移动实例
+    const instanceToMove = state.instances.value[fromIndex];
+    if (!instanceToMove) {
+      return false;
+    }
+
+    state.instances.value.splice(fromIndex, 1);
+    state.instances.value.splice(toIndex, 0, instanceToMove);
+
+    return true;
+  }
+
   return {
     fetchInstances,
     createInstance,
@@ -256,6 +262,7 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
     deleteInstance,
     copyInstance,
     toggleFavorite,
+    moveInstance,
   };
 }
 

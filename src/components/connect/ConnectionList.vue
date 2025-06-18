@@ -15,7 +15,7 @@ const refreshAllConnections = () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-industrial-panel">
+  <div class="flex flex-col no-wrap h-full max-w-[25vw] bg-industrial-panel">
     <!-- 网络连接部分 -->
     <div class="mb-4">
       <div
@@ -45,7 +45,7 @@ const refreshAllConnections = () => {
     </div>
 
     <!-- 串口连接部分 -->
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col max-h-[70vh]">
       <div
         class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-secondary"
       >

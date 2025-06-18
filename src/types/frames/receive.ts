@@ -124,3 +124,25 @@ export type StatisticType =
   | 'fieldSum' // 字段累加
   | 'runtime' // 运行时间
   | 'custom'; // 自定义统计
+
+// 值颜色映射接口
+export interface ValueColorMapping {
+  value: string; // 值（支持单值或范围，如 "10" 或 "10-20"）
+  color: string; // 对应颜色（hex格式，如 #00ff00）
+}
+
+// 状态指示灯配置接口（支持多值映射）
+export interface StatusIndicatorConfig {
+  id: string; // 指示灯唯一ID
+  label: string; // 指示灯显示标签
+  groupId: number; // 关联的数据分组ID
+  dataItemId: number; // 关联的数据项ID
+  valueMappings: ValueColorMapping[]; // 值-颜色映射列表
+  defaultColor: string; // 默认颜色（未匹配时显示）
+}
+
+// 状态指示灯管理配置（简化版）
+export interface StatusIndicatorSettings {
+  indicators: StatusIndicatorConfig[]; // 指示灯配置列表
+  isEnabled: boolean; // 是否启用状态指示灯功能
+}

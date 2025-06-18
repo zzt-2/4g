@@ -2,6 +2,8 @@
  * 数据显示相关类型定义
  */
 
+import type { YAxisConfig } from '../storage/historyData';
+
 // 数据记录点（用于历史数据和CSV存储）
 export interface DataRecord {
   timestamp: number; // 记录时间戳
@@ -20,22 +22,17 @@ export interface TableConfig {
   selectedGroupId: number | null; // 选中的分组ID
   displayMode: 'table' | 'chart'; // 显示模式
   chartSelectedItems: number[]; // 图表选中的数据项ID（为后续图表功能预留）
-}
-
-// CSV批次数据
-export interface CSVBatchData {
-  hourKey: string; // 小时键 格式: YYYY-MM-DD-HH
-  records: DataRecord[]; // 记录数组
-  lastSaveTime: number; // 上次保存时间
+  yAxisConfig?: YAxisConfig; // Y轴配置
 }
 
 // 显示设置
 export interface DisplaySettings {
   updateInterval: number; // 数据更新间隔（毫秒）
-  csvSaveInterval: number; // CSV保存间隔（毫秒）
+  csvSaveInterval: number; // 保存间隔（毫秒）
   maxHistoryHours: number; // 最大历史记录小时数
   enableAutoSave: boolean; // 是否启用自动保存
   enableRecording: boolean; // 是否启用数据记录
+  enableHistoryStorage: boolean; // 是否启用历史数据存储
 }
 
 // 表格行数据（用于表格显示）

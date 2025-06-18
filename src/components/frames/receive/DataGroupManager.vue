@@ -90,6 +90,41 @@ const cancelAdd = (): void => {
 const toggleContentMode = (mode: ContentMode): void => {
   emit('toggle-mode', mode);
 };
+
+// 方法：清理孤立数据项
+const cleanupOrphanedDataItems = (): void => {
+  // 先检查有多少孤立数据项
+  const orphanedItems = receiveFramesStore.findOrphanedDataItems();
+
+  if (orphanedItems.length === 0) {
+    alert('没有发现孤立的数据项。');
+    return;
+  }
+
+  // 显示确认对话框
+  const itemsList = orphanedItems
+    .map((item) => `• ${item.groupLabel} - ${item.dataItem.label}`)
+    .join('\n');
+
+  const confirmMessage = `发现 ${orphanedItems.length} 个没有对应接收帧的孤立数据项：\n\n${itemsList}\n\n确定要删除这些数据项吗？`;
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  // 执行清理
+  const result = receiveFramesStore.removeOrphanedDataItems();
+
+  if (result.removedCount > 0) {
+    const removedList = result.removedItems
+      .map((item) => `• ${item.groupLabel} - ${item.dataItemLabel}`)
+      .join('\n');
+
+    alert(`成功删除 ${result.removedCount} 个孤立数据项：\n\n${removedList}`);
+  } else {
+    alert('没有删除任何数据项。');
+  }
+};
 </script>
 
 <template>
@@ -105,26 +140,44 @@ const toggleContentMode = (mode: ContentMode): void => {
         数据分组
       </h6>
 
-      <!-- 编辑/显示模式切换按钮 -->
-      <div class="flex bg-industrial-secondary rounded">
+      <div class="flex items-center space-x-2">
+        <!-- 清理孤立数据项按钮 -->
         <q-btn
+          v-if="contentMode === 'display'"
           flat
           dense
           size="sm"
-          :color="contentMode === 'edit' ? 'blue' : 'grey'"
-          label="编辑"
-          class="text-xs px-3 py-1"
-          @click="toggleContentMode('edit')"
-        />
-        <q-btn
-          flat
-          dense
-          size="sm"
-          :color="contentMode === 'display' ? 'blue' : 'grey'"
-          label="显示"
-          class="text-xs px-3 py-1"
-          @click="toggleContentMode('display')"
-        />
+          icon="cleaning_services"
+          color="orange"
+          class="text-xs"
+          @click="cleanupOrphanedDataItems"
+        >
+          <q-tooltip class="bg-industrial-panel text-industrial-primary">
+            清理没有对应接收帧的孤立数据项
+          </q-tooltip>
+        </q-btn>
+
+        <!-- 编辑/显示模式切换按钮 -->
+        <div class="flex bg-industrial-secondary rounded">
+          <q-btn
+            flat
+            dense
+            size="sm"
+            :color="contentMode === 'edit' ? 'blue' : 'grey'"
+            label="编辑"
+            class="text-xs px-3 py-1"
+            @click="toggleContentMode('edit')"
+          />
+          <q-btn
+            flat
+            dense
+            size="sm"
+            :color="contentMode === 'display' ? 'blue' : 'grey'"
+            label="显示"
+            class="text-xs px-3 py-1"
+            @click="toggleContentMode('display')"
+          />
+        </div>
       </div>
     </div>
 

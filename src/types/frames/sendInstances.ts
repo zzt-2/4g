@@ -57,6 +57,9 @@ export interface SendFrameInstance {
   isFavorite: boolean; // 是否收藏
   // 新增：实例级策略配置
   strategyConfig?: InstanceStrategyConfig;
+  // 新增：发送统计
+  sendCount?: number; // 发送次数
+  lastSentAt?: Date; // 上次发送时间
 }
 
 /**

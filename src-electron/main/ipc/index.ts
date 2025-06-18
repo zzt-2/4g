@@ -4,8 +4,9 @@ import { setupSerialIPC } from './serialHandlers';
 import { registerNetworkHandlers } from './networkHandlers';
 import { registerFileMetadataHandlers } from './fileMetadataHandlers';
 import { registerStorageHandlers } from './dataStorageHandlers';
-import { registerCSVHandlers } from './csvHandlers';
 import { registerReceiveHandlers } from './receiveHandlers';
+import { registerHighSpeedStorageHandlers } from './highSpeedStorageHandlers';
+import { registerHistoryDataHandlers } from './historyDataHandlers';
 
 export function setupIPC() {
   setupWindowIPC();
@@ -14,6 +15,7 @@ export function setupIPC() {
   setupSerialIPC(); // 注册串口处理程序
   registerNetworkHandlers(); // 注册网络处理程序
   registerFileMetadataHandlers();
-  registerCSVHandlers(); // 注册CSV处理程序
   registerReceiveHandlers(); // 注册接收数据处理程序
+  registerHighSpeedStorageHandlers(); // 注册高速存储处理程序
+  registerHistoryDataHandlers(); // 注册历史数据处理程序
 }

@@ -31,6 +31,7 @@ const { sendFrameInstance, isTargetAvailable } = useUnifiedSender();
 const searchQuery = ref('');
 const isSending = ref(false);
 const sendError = ref('');
+const sortEnabled = ref(false);
 
 // 对话框状态
 const showTimedSendDialog = ref(false);
@@ -199,6 +200,29 @@ const handleGetInstancesData = () => {
   return sendFrameInstancesStore.instances;
 };
 
+// 切换排序模式
+async function toggleSortMode() {
+  // 如果当前是排序模式，退出时需要保存
+  if (sortEnabled.value) {
+    try {
+      // 导入dataStorageAPI
+      const { dataStorageAPI } = await import('../utils/electronApi');
+
+      // 保存实例列表
+      const result = await dataStorageAPI.sendInstances.saveAll(sendFrameInstancesStore.instances);
+      if (result.success) {
+        console.log('实例排序已保存');
+      } else {
+        console.error('保存实例排序失败:', result.message);
+      }
+    } catch (error) {
+      console.error('保存实例排序失败:', error);
+    }
+  }
+
+  sortEnabled.value = !sortEnabled.value;
+}
+
 const handleSetInstancesData = async (data: unknown) => {
   await sendFrameInstancesStore.importFromJSON(JSON.stringify(data));
 };
@@ -291,12 +315,13 @@ const handleSetInstancesData = async (data: unknown) => {
             <q-btn
               flat
               dense
-              icon="sort"
+              :icon="sortEnabled ? 'done' : 'sort'"
               size="sm"
-              disable
-              class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
+              :color="sortEnabled ? 'positive' : 'blue-4'"
+              class="rounded-md hover:bg-blue-900 hover:bg-opacity-30"
+              @click="toggleSortMode"
             >
-              <q-tooltip>排序（暂未实现）</q-tooltip>
+              <q-tooltip>{{ sortEnabled ? '完成排序' : '启用排序' }}</q-tooltip>
             </q-btn>
 
             <!-- 批量编辑按钮 -->
@@ -313,7 +338,11 @@ const handleSetInstancesData = async (data: unknown) => {
           </div>
         </div>
         <div class="flex-1 overflow-auto w-full">
-          <FrameInstanceList class="w-full h-full" />
+          <FrameInstanceList
+            class="w-full h-full"
+            :sort-enabled="sortEnabled"
+            @toggle-sort="toggleSortMode"
+          />
         </div>
       </div>
 

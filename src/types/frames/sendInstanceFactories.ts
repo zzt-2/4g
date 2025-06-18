@@ -70,5 +70,7 @@ export function createSendFrameInstance(frame: Frame, id?: string): SendFrameIns
       type: 'none',
       updatedAt: new Date().toISOString(),
     },
+    // 初始化发送统计
+    sendCount: 0,
   };
 }

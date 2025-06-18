@@ -43,6 +43,7 @@ const navItems = ref([
   { label: '配置', path: '/frames/list', icon: 'view_list' },
   { label: '发送', path: '/frames/send', icon: 'send' },
   { label: '接收', path: '/frames/receive', icon: 'download' },
+  { label: '存储', path: '/storage', icon: 'storage' },
   { label: '历史', path: '/history', icon: 'history' },
   { label: '设置', path: '/settings', icon: 'settings' },
 ]);

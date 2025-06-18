@@ -30,6 +30,14 @@ const routes: RouteRecordRaw[] = [
         path: '/settings',
         component: () => import('../pages/settings/Index.vue'),
       },
+      {
+        path: '/storage',
+        component: () => import('../pages/storage/HighSpeedStoragePage.vue'),
+      },
+      {
+        path: '/history',
+        component: () => import('../pages/HistoryAnalysisPage.vue'),
+      },
     ],
   },
 

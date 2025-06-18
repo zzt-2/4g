@@ -1,28 +1,34 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import type { TableRowData } from '../../../../types/frames/dataDisplay';
 import OrderControls from './OrderControls.vue';
-import { useReceiveFramesStore } from '../../../../stores/frames/receiveFramesStore';
-import { convertToHex } from '../../../../utils/frames/hexCovertUtils';
+import { useDataDisplayStore } from '../../../../stores/frames/dataDisplayStore';
 
-// Props
+// Props - 只需要知道是哪个表格
 const props = defineProps<{
-  groupId: number | null;
-  tableId: string;
+  tableId: 'table1' | 'table2';
 }>();
 
 // Store
-const receiveFramesStore = useReceiveFramesStore();
+const dataDisplayStore = useDataDisplayStore();
 
 // 本地状态
-const updateTimer = ref<NodeJS.Timeout | null>(null);
 const tableReady = ref(false);
 const tableRef = ref<{ $el?: HTMLElement } | null>(null);
+// 本地数据状态 - 用于定时更新
+const tableData = ref<TableRowData[]>([]);
+// 更新定时器
+let updateTimer: NodeJS.Timeout | null = null;
 
-// 动态值存储（以dataItemId为键）
-const dynamicValues = ref<Map<number, { displayValue: string; hexValue: string }>>(new Map());
+// 计算属性：当前表格配置
+const currentConfig = computed(() => {
+  return props.tableId === 'table1' ? dataDisplayStore.table1Config : dataDisplayStore.table2Config;
+});
 
-// 表格列定义 - 对标DataItemList.vue格式
+// 计算属性：当前分组ID
+const groupId = computed(() => currentConfig.value.selectedGroupId);
+
+// 表格列定义
 const columns = [
   {
     name: 'index',
@@ -82,80 +88,37 @@ const pagination = ref({
   rowsPerPage: 0, // 0表示不分页，显示所有数据
 });
 
-// 计算属性：基础表格数据（静态属性）
-const baseTableData = computed(() => {
-  if (!props.groupId) return [];
-
-  const group = receiveFramesStore.groups.find((g) => g.id === props.groupId);
-  if (!group) return [];
-
-  // 只返回可见的数据项，仅包含静态属性
-  const visibleItems = group.dataItems.filter((item) => item.isVisible);
-
-  return visibleItems.map((item, index) => ({
-    index: index + 1, // 重新编号，从1开始
-    label: item.label,
-    dataItemId: item.id,
-    isVisible: item.isVisible,
-    isFavorite: item.isFavorite,
-  }));
-});
-
-// 计算属性：完整表格数据（合并静态和动态数据）
-const tableData = computed((): TableRowData[] => {
-  return baseTableData.value.map((baseRow) => {
-    const dynamicValue = dynamicValues.value.get(baseRow.dataItemId);
-    return {
-      ...baseRow,
-      displayValue: dynamicValue?.displayValue || '-',
-      hexValue: dynamicValue?.hexValue || '0x00',
-    };
-  });
-});
-
-// 方法：更新动态值
-const updateDynamicValues = (): void => {
-  if (!props.groupId) {
-    dynamicValues.value.clear();
+// 更新表格数据的方法
+const updateTableData = () => {
+  if (!groupId.value) {
+    tableData.value = [];
     return;
   }
-
-  const group = receiveFramesStore.groups.find((g) => g.id === props.groupId);
-  if (!group) {
-    dynamicValues.value.clear();
-    return;
-  }
-
-  // 只更新可见数据项的动态值
-  const visibleItems = group.dataItems.filter((item) => item.isVisible);
-
-  // 清理不再需要的动态值
-  const currentDataItemIds = new Set(visibleItems.map((item) => item.id));
-  for (const [dataItemId] of dynamicValues.value) {
-    if (!currentDataItemIds.has(dataItemId)) {
-      dynamicValues.value.delete(dataItemId);
-    }
-  }
-
-  // 更新或添加动态值
-  visibleItems.forEach((item) => {
-    dynamicValues.value.set(item.id, {
-      displayValue: item.displayValue || '-',
-      hexValue: '0x' + convertToHex(String(item.value || '0'), item.dataType),
-    });
-  });
+  tableData.value = dataDisplayStore.getTableData(groupId.value);
 };
 
-// 监听groupId变化，清理动态值
-watch(
-  () => props.groupId,
-  () => {
-    dynamicValues.value.clear();
-    updateDynamicValues();
-  },
-);
+// 启动定时更新
+const startUpdateTimer = () => {
+  if (updateTimer) return; // 避免重复启动
 
-// 确保表格布局稳定 - 对标DataItemList.vue
+  // 立即更新一次
+  updateTableData();
+
+  // 启动定时器，每1秒更新一次
+  updateTimer = setInterval(() => {
+    updateTableData();
+  }, 1000);
+};
+
+// 停止定时更新
+const stopUpdateTimer = () => {
+  if (updateTimer) {
+    clearInterval(updateTimer);
+    updateTimer = null;
+  }
+};
+
+// 确保表格布局稳定
 const initializeTable = async () => {
   await new Promise((resolve) => setTimeout(resolve, 100));
   tableReady.value = true;
@@ -169,19 +132,12 @@ const initializeTable = async () => {
 
 // 生命周期
 onMounted(() => {
-  updateDynamicValues(); // 初始更新动态值
   initializeTable(); // 初始化表格
-  // 启动定时器，只更新动态值
-  updateTimer.value = setInterval(() => {
-    updateDynamicValues();
-  }, 1000);
+  startUpdateTimer(); // 启动定时更新
 });
 
 onUnmounted(() => {
-  if (updateTimer.value) {
-    clearInterval(updateTimer.value);
-    updateTimer.value = null;
-  }
+  stopUpdateTimer(); // 清理定时器
 });
 </script>
 

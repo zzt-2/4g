@@ -180,6 +180,52 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
     endTime.value = '';
   }
 
+  // 新增：更新发送统计
+  function updateSendStats(instanceId: string, incrementCount: boolean = true) {
+    const instance = state.instances.value.find((i) => i.id === instanceId);
+    if (!instance) {
+      console.warn(`实例 ${instanceId} 不存在，无法更新发送统计`);
+      return;
+    }
+
+    // 确保统计字段存在
+    if (typeof instance.sendCount !== 'number') {
+      instance.sendCount = 0;
+    }
+
+    // 更新统计
+    if (incrementCount) {
+      instance.sendCount++;
+    }
+    instance.lastSentAt = new Date();
+    instance.updatedAt = new Date();
+
+    // 保存到存储
+    crud.updateInstance(instance);
+  }
+
+  // 新增：重置发送统计
+  function resetSendStats(instanceId?: string) {
+    if (instanceId) {
+      const instance = state.instances.value.find((i) => i.id === instanceId);
+      if (instance) {
+        instance.sendCount = 0;
+        delete instance.lastSentAt;
+        instance.updatedAt = new Date();
+        crud.updateInstance(instance);
+      }
+    } else {
+      // 重置所有实例的发送统计
+      state.instances.value.forEach((instance) => {
+        instance.sendCount = 0;
+        delete instance.lastSentAt;
+        instance.updatedAt = new Date();
+      });
+      // 批量保存
+      Promise.all(state.instances.value.map((instance) => crud.updateInstance(instance)));
+    }
+  }
+
   // 返回所有需要暴露的状态和方法
   return {
     // 状态
@@ -225,6 +271,7 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
     deleteInstance: crud.deleteInstance,
     copyInstance: crud.copyInstance,
     toggleFavorite: crud.toggleFavorite,
+    moveInstance: crud.moveInstance,
 
     // 编辑方法
     setCurrentInstance: editing.setCurrentInstance,
@@ -244,5 +291,11 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
     setTimeConfig,
     loadFromStrategyConfig,
     resetTriggerConfig,
+
+    // 新增：更新发送统计
+    updateSendStats,
+
+    // 新增：重置发送统计
+    resetSendStats,
   };
 });

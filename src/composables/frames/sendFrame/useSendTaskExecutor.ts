@@ -147,6 +147,11 @@ export function useSendTaskExecutor() {
       // 添加实例间延时
       await addInstanceDelay(instanceConfig, isLastInstance);
 
+      // 异步更新发送统计（不阻塞发送流程）
+      setTimeout(() => {
+        sendFrameInstancesStore.updateSendStats(instanceConfig.instanceId);
+      }, 0);
+
       return true;
     } catch (error) {
       console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);

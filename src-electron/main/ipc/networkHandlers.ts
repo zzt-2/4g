@@ -16,6 +16,7 @@ import type {
 } from '../../../src/types/serial/network';
 import * as net from 'net';
 import * as dgram from 'dgram';
+import { storageManager } from './highSpeedStorageHandlers';
 
 // 连接管理器
 class NetworkConnectionManager {
@@ -84,9 +85,9 @@ class NetworkConnectionManager {
     return new Promise((resolve) => {
       const socket = new net.Socket();
 
-      // 设置选项
+      // 设置选项 - 默认禁用Nagle算法以减少延迟
       if (options?.keepAlive) socket.setKeepAlive(true);
-      if (options?.noDelay) socket.setNoDelay(true);
+      socket.setNoDelay(options?.noDelay !== false); // 默认为true，除非明确设置为false
 
       const timeout = options?.timeout || config.timeout || 5000;
       socket.setTimeout(timeout);
@@ -176,8 +177,7 @@ class NetworkConnectionManager {
         // 设置选项
         if (options?.broadcast) socket.setBroadcast(true);
 
-        socket.on('message', (data: Buffer, rinfo) => {
-          console.log(`UDP收到来自 ${rinfo.address}:${rinfo.port} 的数据`);
+        socket.on('message', (data: Buffer) => {
           this.handleDataReceived(config.id, new Uint8Array(data));
         });
 
@@ -253,6 +253,8 @@ class NetworkConnectionManager {
         return { success: false, error: '连接不存在或未连接' };
       }
 
+      const startTime = Date.now(); // 记录开始时间
+
       let targetAddress = { host: connection.host, port: connection.port };
 
       // 如果指定了目标主机，解析目标地址
@@ -276,25 +278,30 @@ class NetworkConnectionManager {
             messagesSent: 1,
             lastActivity: new Date(),
           });
-          return { success: true };
+          const duration = Date.now() - startTime;
+          return { success: true, message: `TCP发送完成，耗时: ${duration}ms` };
         }
       } else {
         const socket = this.udpSockets.get(connectionId);
         if (socket) {
-          socket.send(Buffer.from(data), targetAddress.port, targetAddress.host, (error) => {
-            if (error) {
-              console.error('[UDP发送] 发送失败:', error);
-            } else {
-              console.log('[UDP发送] 发送成功');
-            }
+          // 使用Promise等待UDP发送完成
+          return new Promise((resolve) => {
+            socket.send(Buffer.from(data), targetAddress.port, targetAddress.host, (error) => {
+              const duration = Date.now() - startTime;
+              if (error) {
+                console.error('[UDP发送] 发送失败:', error);
+                resolve({ success: false, error: error.message });
+              } else {
+                // console.log(`[UDP发送] 发送成功，耗时: ${duration}ms`);
+                this.updateConnectionStats(connectionId, {
+                  bytesSent: data.length,
+                  messagesSent: 1,
+                  lastActivity: new Date(),
+                });
+                resolve({ success: true, message: `UDP发送完成，耗时: ${duration}ms` });
+              }
+            });
           });
-
-          this.updateConnectionStats(connectionId, {
-            bytesSent: data.length,
-            messagesSent: 1,
-            lastActivity: new Date(),
-          });
-          return { success: true };
         }
       }
 
@@ -331,7 +338,21 @@ class NetworkConnectionManager {
       lastActivity: new Date(),
     });
 
-    // 发送数据事件到渲染进程
+    // 检查是否为业务数据需要高速存储
+    // console.log('connectionId为', connectionId, 'data为', data);
+    const storageRule = storageManager.shouldStore(connectionId, data);
+    // console.log('storageRule为', storageRule);
+    if (storageRule) {
+      // 异步存储，不阻塞数据处理
+      storageManager.storeData(data, storageRule).catch((error) => {
+        console.error('高速存储失败:', error);
+      });
+
+      // 业务数据不发送到渲染进程，避免资源浪费
+      return;
+    }
+
+    // 非业务数据才发送数据事件到渲染进程
     this.emitDataEvent(connectionId, data);
   }
 

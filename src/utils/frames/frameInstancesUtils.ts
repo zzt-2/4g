@@ -73,28 +73,23 @@ export function escapeRegExp(string: string): string {
 }
 
 /**
- * 从实例名称中提取基础名称和最大编号
- * @param instance 源实例
+ * 获取指定frameId和baseName下的下一个可用编号
+ * @param frameId 帧ID
+ * @param baseName 基础名称
  * @param allInstances 所有实例数组
- * @returns 基础名称和最大编号
+ * @returns 下一个可用的编号
  */
-export function getBaseNameAndMaxNumber(
-  instance: SendFrameInstance,
+export function getNextAvailableNumber(
+  frameId: string,
+  baseName: string,
   allInstances: SendFrameInstance[],
-): { baseName: string; maxNumber: number } {
-  // 提取基础名称（移除#数字后缀）
-  let baseName = instance.label;
-  const hashNumMatch = baseName.match(/^(.+?)\s*#\d+$/);
-  if (hashNumMatch && hashNumMatch[1]) {
-    baseName = hashNumMatch[1].trim();
-  }
-
-  // 查找最大编号
-  let maxNumber = 0;
+): number {
+  // 收集相同frameId和baseName的所有编号
+  const existingNumbers: number[] = [];
 
   // 遍历所有实例，查找相同帧ID且名称格式为"baseLabel #数字"的实例
   for (const inst of allInstances) {
-    if (inst.frameId === instance.frameId) {
+    if (inst.frameId === frameId) {
       // 尝试提取名称中的数字部分
       const match = inst.label.match(/#(\d+)$/);
       if (match && match[1]) {
@@ -102,15 +97,24 @@ export function getBaseNameAndMaxNumber(
         const prefix = inst.label.substring(0, inst.label.length - match[0].length).trim();
         if (prefix === baseName) {
           const num = parseInt(match[1], 10);
-          if (num > maxNumber) {
-            maxNumber = num;
-          }
+          existingNumbers.push(num);
         }
       }
     }
   }
 
-  return { baseName, maxNumber };
+  // 排序编号数组
+  existingNumbers.sort((a, b) => a - b);
+
+  // 找到第一个可用的编号（从1开始）
+  for (let i = 1; i <= existingNumbers.length + 1; i++) {
+    if (!existingNumbers.includes(i)) {
+      return i;
+    }
+  }
+
+  // 如果没有找到，返回1（理论上不会到这里）
+  return 1;
 }
 
 /**
@@ -119,33 +123,22 @@ export function getBaseNameAndMaxNumber(
  * @returns 下一个可用的ID
  */
 export function generateNextAvailableId(existingInstances: SendFrameInstance[]): string {
-  // 获取已有实例的所有ID
+  // 获取所有数字ID并排序
   const existingIds = existingInstances
     .map((instance) => instance.id)
     .filter((id) => /^\d+$/.test(id)) // 只考虑数字ID
     .map((id) => parseInt(id, 10))
     .sort((a, b) => a - b);
 
-  // 从1开始找到第一个未使用的ID
-  let nextId = 1;
-
-  // 遍历已存在的ID，查找空缺
-  for (let i = 0; i < existingIds.length; i++) {
-    const currentId = existingIds[i];
-    // 确保currentId存在
-    if (currentId !== undefined) {
-      // 如果当前位置的ID等于nextId，增加nextId继续查找
-      if (currentId === nextId) {
-        nextId++;
-      }
-      // 如果出现了空隙，就使用这个空隙的ID
-      else if (currentId > nextId) {
-        break;
-      }
+  // 从1开始找第一个空缺的ID
+  for (let i = 1; i <= existingIds.length + 1; i++) {
+    if (!existingIds.includes(i)) {
+      return i.toString();
     }
   }
 
-  return nextId.toString();
+  // 如果没有空缺，返回最大值+1（理论上不会到这里）
+  return '1';
 }
 
 /**

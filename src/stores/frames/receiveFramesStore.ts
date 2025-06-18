@@ -412,6 +412,112 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   };
 
   /**
+   * 查找没有对应接收帧映射的孤立数据项
+   * @returns 孤立数据项列表
+   */
+  const findOrphanedDataItems = (): Array<{
+    groupId: number;
+    groupLabel: string;
+    dataItem: DataItem;
+  }> => {
+    const orphanedItems: Array<{
+      groupId: number;
+      groupLabel: string;
+      dataItem: DataItem;
+    }> = [];
+
+    // 获取所有接收帧的ID
+    const receiveFrameIds = new Set(receiveFrames.value.map((frame) => frame.id));
+
+    groups.value.forEach((group) => {
+      group.dataItems.forEach((dataItem) => {
+        // 检查该数据项是否有对应的映射关系
+        const hasMapping = mappings.value.some((mapping) => {
+          // 检查映射关系是否指向该数据项
+          const isTargetDataItem =
+            mapping.groupId === group.id && mapping.dataItemId === dataItem.id;
+
+          // 检查映射关系指向的帧是否存在且为接收帧
+          const hasValidFrame = receiveFrameIds.has(mapping.frameId);
+
+          return isTargetDataItem && hasValidFrame;
+        });
+
+        if (!hasMapping) {
+          orphanedItems.push({
+            groupId: group.id,
+            groupLabel: group.label,
+            dataItem,
+          });
+        }
+      });
+    });
+
+    return orphanedItems;
+  };
+
+  /**
+   * 删除没有对应接收帧映射的孤立数据项
+   * @returns 删除结果统计
+   */
+  const removeOrphanedDataItems = (): {
+    removedCount: number;
+    removedItems: Array<{
+      groupLabel: string;
+      dataItemLabel: string;
+    }>;
+  } => {
+    const orphanedItems = findOrphanedDataItems();
+    const removedItems: Array<{
+      groupLabel: string;
+      dataItemLabel: string;
+    }> = [];
+
+    // 按分组分类孤立数据项
+    const itemsByGroup = new Map<number, DataItem[]>();
+    orphanedItems.forEach(({ groupId, dataItem }) => {
+      if (!itemsByGroup.has(groupId)) {
+        itemsByGroup.set(groupId, []);
+      }
+      itemsByGroup.get(groupId)!.push(dataItem);
+    });
+
+    // 删除孤立数据项
+    itemsByGroup.forEach((dataItems, groupId) => {
+      const group = groups.value.find((g) => g.id === groupId);
+      if (!group) return;
+
+      dataItems.forEach((dataItem) => {
+        const index = group.dataItems.findIndex((item) => item.id === dataItem.id);
+        if (index !== -1) {
+          group.dataItems.splice(index, 1);
+          removedItems.push({
+            groupLabel: group.label,
+            dataItemLabel: dataItem.label,
+          });
+        }
+      });
+    });
+
+    return {
+      removedCount: removedItems.length,
+      removedItems,
+    };
+  };
+
+  // 数据处理锁，防止并发处理导致的竞态条件
+  const processingLock = ref(false);
+  const pendingProcessQueue = ref<
+    Array<{
+      source: 'serial' | 'network';
+      sourceId: string;
+      data: Uint8Array;
+      resolve: () => void;
+      reject: (error: unknown) => void;
+    }>
+  >([]);
+
+  /**
    * 统一数据接收处理入口
    * @param source 数据来源
    * @param sourceId 来源标识
@@ -422,15 +528,60 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     sourceId: string,
     data: Uint8Array,
   ): Promise<void> => {
+    // 如果正在处理数据，将当前请求加入队列
+    if (processingLock.value) {
+      return new Promise((resolve, reject) => {
+        pendingProcessQueue.value.push({
+          source,
+          sourceId,
+          data,
+          resolve,
+          reject,
+        });
+      });
+    }
+
+    // 设置处理锁
+    processingLock.value = true;
+
     try {
-      // 调用主进程的统一数据处理接口
+      await processDataInternal(source, sourceId, data);
+
+      // 处理队列中的待处理请求
+      while (pendingProcessQueue.value.length > 0) {
+        const nextRequest = pendingProcessQueue.value.shift();
+        if (nextRequest) {
+          try {
+            await processDataInternal(nextRequest.source, nextRequest.sourceId, nextRequest.data);
+            nextRequest.resolve();
+          } catch (error) {
+            nextRequest.reject(error);
+          }
+        }
+      }
+    } finally {
+      // 释放处理锁
+      processingLock.value = false;
+    }
+  };
+
+  /**
+   * 内部数据处理方法
+   */
+  const processDataInternal = async (
+    source: 'serial' | 'network',
+    sourceId: string,
+    data: Uint8Array,
+  ): Promise<void> => {
+    try {
+      // 调用主进程的统一数据处理接口，传入当前最新的groups状态
       const result = await receiveAPI.handleReceivedData(
         source,
         sourceId,
         data,
         frameTemplateStore.frames,
         mappings.value,
-        groups.value,
+        groups.value, // 确保使用最新的groups状态
       );
 
       // 处理返回结果
@@ -471,7 +622,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         }
       }
 
-      // 更新数据分组
+      // 原子性更新数据分组
       if (result.updatedGroups) {
         groups.value = result.updatedGroups;
       }
@@ -546,6 +697,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       receiveStats.value.bytesReceived += data.length;
       receiveStats.value.lastReceiveTime = new Date();
       console.error('数据接收处理异常:', error);
+      throw error; // 重新抛出错误，让调用者处理
     }
   };
 
@@ -679,5 +831,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     // 新方法
     clearDataItemValues,
     debouncedSaveConfig,
+    findOrphanedDataItems,
+    removeOrphanedDataItems,
   };
 });

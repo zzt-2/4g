@@ -21,6 +21,20 @@ import type {
   NetworkOperationResult,
   NetworkConnectionOptions,
 } from '../types/serial/network';
+import type {
+  StorageConfig,
+  StorageStats,
+  StorageOperationResult,
+  FrameHeaderRule,
+  RuleValidationResult,
+} from '../types/serial/highSpeedStorage';
+import type {
+  HourlyDataFile,
+  HistoryFileInfo,
+  StorageStats as HistoryStorageStats,
+  CSVExportConfig,
+  CSVExportResult,
+} from '../types/storage/historyData';
 import { DATA_PATH_MAP } from '../config/configDefaults';
 
 // 简单实现获取路径的最后一部分（basename）
@@ -477,68 +491,6 @@ export const pathAPI = {
   },
 };
 
-// 导出CSV API
-export const csvAPI = {
-  // 保存CSV数据到文件
-  save: (hourKey: string, csvContent: string, append = true) => {
-    if (window.electron?.csv?.save) {
-      return window.electron.csv.save(hourKey, csvContent, append);
-    }
-    return Promise.resolve({
-      success: false,
-      filePath: '',
-      error: 'Electron CSV API(save) 不可用',
-    });
-  },
-
-  // 读取CSV文件内容
-  read: (hourKey: string) => {
-    if (window.electron?.csv?.read) {
-      return window.electron.csv.read(hourKey);
-    }
-    return Promise.resolve({
-      success: false,
-      content: '',
-      error: 'Electron CSV API(read) 不可用',
-    });
-  },
-
-  // 获取CSV文件信息
-  getInfo: (hourKey: string) => {
-    if (window.electron?.csv?.getInfo) {
-      return window.electron.csv.getInfo(hourKey);
-    }
-    return Promise.resolve({
-      success: false,
-      exists: false,
-      error: 'Electron CSV API(getInfo) 不可用',
-    });
-  },
-
-  // 列出所有CSV文件
-  list: () => {
-    if (window.electron?.csv?.list) {
-      return window.electron.csv.list();
-    }
-    return Promise.resolve({
-      success: false,
-      files: [],
-      error: 'Electron CSV API(list) 不可用',
-    });
-  },
-
-  // 删除CSV文件
-  delete: (hourKey: string) => {
-    if (window.electron?.csv?.delete) {
-      return window.electron.csv.delete(hourKey);
-    }
-    return Promise.resolve({
-      success: false,
-      error: 'Electron CSV API(delete) 不可用',
-    });
-  },
-};
-
 // 导出网络连接API
 export const networkAPI = {
   // 连接网络
@@ -624,5 +576,208 @@ export const networkAPI = {
       return window.electron.network.onStatusChange(callback);
     }
     return () => {}; // 返回空的清理函数
+  },
+};
+
+// 导出高速存储API
+export const highSpeedStorageAPI = {
+  // 更新存储配置
+  updateConfig: (config: StorageConfig): Promise<StorageOperationResult> => {
+    if (window.electron?.highSpeedStorage?.updateConfig) {
+      return window.electron.highSpeedStorage.updateConfig(deepClone(config));
+    }
+    return Promise.resolve({
+      success: false,
+      error: 'Electron highSpeedStorage API(updateConfig) 不可用',
+    });
+  },
+
+  // 获取存储配置
+  getConfig: (): Promise<StorageConfig> => {
+    if (window.electron?.highSpeedStorage?.getConfig) {
+      return window.electron.highSpeedStorage.getConfig();
+    }
+    return Promise.resolve({
+      enabled: false,
+      rules: [],
+      filePath: '',
+      maxFileSize: 100,
+      enableRotation: true,
+      rotationCount: 5,
+    });
+  },
+
+  // 获取存储统计信息
+  getStats: (): Promise<StorageStats> => {
+    if (window.electron?.highSpeedStorage?.getStats) {
+      return window.electron.highSpeedStorage.getStats();
+    }
+    return Promise.resolve({
+      totalFramesStored: 0,
+      totalBytesStored: 0,
+      currentFileSize: 0,
+      storageStartTime: null,
+      lastStorageTime: null,
+      frameTypeStats: {},
+      currentFilePath: '',
+      isStorageActive: false,
+    });
+  },
+
+  // 验证规则
+  validateRule: (rule: FrameHeaderRule): Promise<RuleValidationResult> => {
+    if (window.electron?.highSpeedStorage?.validateRule) {
+      return window.electron.highSpeedStorage.validateRule(deepClone(rule));
+    }
+    return Promise.resolve({
+      isValid: false,
+      errors: ['Electron highSpeedStorage API(validateRule) 不可用'],
+    });
+  },
+
+  // 重置统计信息
+  resetStats: (): Promise<StorageOperationResult> => {
+    if (window.electron?.highSpeedStorage?.resetStats) {
+      return window.electron.highSpeedStorage.resetStats();
+    }
+    return Promise.resolve({
+      success: false,
+      error: 'Electron highSpeedStorage API(resetStats) 不可用',
+    });
+  },
+};
+
+// 导出历史数据API
+export const historyDataAPI = {
+  // 获取可用小时键列表
+  getAvailableHours: (): Promise<string[]> => {
+    if (window.electron?.historyData?.getAvailableHours) {
+      return window.electron.historyData.getAvailableHours();
+    }
+    return Promise.resolve([]);
+  },
+
+  // 加载指定小时的数据
+  loadHourData: (hourKey: string): Promise<HourlyDataFile | null> => {
+    if (window.electron?.historyData?.loadHourData) {
+      return window.electron.historyData.loadHourData(hourKey);
+    }
+    return Promise.resolve(null);
+  },
+
+  // 保存小时数据到文件
+  saveHourData: (
+    hourKey: string,
+    data: HourlyDataFile,
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (window.electron?.historyData?.saveHourData) {
+      return window.electron.historyData.saveHourData(hourKey, deepClone(data));
+    }
+    return Promise.resolve({
+      success: false,
+      message: 'Electron historyData API(saveHourData) 不可用',
+    });
+  },
+
+  // 添加实时数据记录
+  appendRecord: (
+    hourKey: string,
+    timestamp: number,
+    data: unknown[],
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (window.electron?.historyData?.appendRecord) {
+      return window.electron.historyData.appendRecord(hourKey, timestamp, deepClone(data));
+    }
+    return Promise.resolve({
+      success: false,
+      message: 'Electron historyData API(appendRecord) 不可用',
+    });
+  },
+
+  // 压缩小时数据文件
+  compressHourData: (hourKey: string): Promise<{ success: boolean; message?: string }> => {
+    if (window.electron?.historyData?.compressHourData) {
+      return window.electron.historyData.compressHourData(hourKey);
+    }
+    return Promise.resolve({
+      success: false,
+      message: 'Electron historyData API(compressHourData) 不可用',
+    });
+  },
+
+  // 获取文件信息
+  getFileInfo: (hourKey: string): Promise<HistoryFileInfo | null> => {
+    if (window.electron?.historyData?.getFileInfo) {
+      return window.electron.historyData.getFileInfo(hourKey);
+    }
+    return Promise.resolve(null);
+  },
+
+  // 获取存储统计信息
+  getStorageStats: (): Promise<HistoryStorageStats> => {
+    if (window.electron?.historyData?.getStorageStats) {
+      return window.electron.historyData.getStorageStats();
+    }
+    return Promise.resolve({
+      totalFiles: 0,
+      totalSize: 0,
+      totalRecords: 0,
+      dateRange: { earliest: '', latest: '' },
+      compressionRatio: 0,
+    });
+  },
+
+  // 导出CSV文件
+  exportCSV: (config: CSVExportConfig): Promise<CSVExportResult> => {
+    if (window.electron?.historyData?.exportCSV) {
+      return window.electron.historyData.exportCSV(deepClone(config));
+    }
+    return Promise.resolve({
+      success: false,
+      error: 'Electron historyData API(exportCSV) 不可用',
+    });
+  },
+
+  // 删除小时数据文件
+  deleteHourData: (hourKey: string): Promise<{ success: boolean; message?: string }> => {
+    if (window.electron?.historyData?.deleteHourData) {
+      return window.electron.historyData.deleteHourData(hourKey);
+    }
+    return Promise.resolve({
+      success: false,
+      message: 'Electron historyData API(deleteHourData) 不可用',
+    });
+  },
+
+  // 清理过期数据
+  cleanupOldData: (
+    daysToKeep: number,
+  ): Promise<{ success: boolean; deletedFiles: number; message?: string }> => {
+    if (window.electron?.historyData?.cleanupOldData) {
+      return window.electron.historyData.cleanupOldData(daysToKeep);
+    }
+    return Promise.resolve({
+      success: false,
+      deletedFiles: 0,
+      message: 'Electron historyData API(cleanupOldData) 不可用',
+    });
+  },
+
+  // 批量加载多个小时的数据
+  loadMultipleHours: (
+    hourKeys: string[],
+  ): Promise<{
+    success: boolean;
+    data: Record<string, HourlyDataFile>;
+    errors?: string[];
+  }> => {
+    if (window.electron?.historyData?.loadMultipleHours) {
+      return window.electron.historyData.loadMultipleHours(hourKeys);
+    }
+    return Promise.resolve({
+      success: false,
+      data: {},
+      errors: ['Electron historyData API(loadMultipleHours) 不可用'],
+    });
   },
 };

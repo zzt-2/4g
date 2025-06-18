@@ -12,6 +12,9 @@
 
       <q-space />
 
+      <!-- 状态指示灯 -->
+      <StatusIndicators />
+
       <!-- 窗口操作按钮 -->
       <div class="flex items-center" style="-webkit-app-region: no-drag">
         <q-btn
@@ -48,6 +51,7 @@
 
 <script setup lang="ts">
 import { useWindowControls } from '../../composables/window/useWindowControls';
+import StatusIndicators from '../common/StatusIndicators.vue';
 
 // 获取窗口控制函数
 const controls = useWindowControls();

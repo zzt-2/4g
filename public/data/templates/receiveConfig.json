@@ -6,79 +6,195 @@
         "label": "1",
         "dataItems": [
           {
-            "label": "继电器状态",
+            "label": "有效bit数",
             "isVisible": true,
             "isFavorite": false,
-            "dataType": "bytes",
-            "value": {
-              "0": 170,
-              "1": 170,
-              "2": 170,
-              "3": 170,
-              "4": 170
-            },
-            "displayValue": "aa aa aa aa aa",
+            "dataType": "uint32",
+            "value": 16,
+            "displayValue": "16",
             "useLabel": false,
             "labelOptions": [],
             "id": 1
           },
           {
-            "label": "某模拟量数值",
+            "label": "误码bit数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 109226,
-            "displayValue": "109226",
+            "value": 286331153,
+            "displayValue": "286331153",
             "useLabel": false,
             "labelOptions": [],
             "id": 2
           },
           {
-            "label": "帧头",
+            "label": "接收包计数",
             "isVisible": true,
             "isFavorite": false,
-            "dataType": "bytes",
-            "value": {
-              "0": 18,
-              "1": 52,
-              "2": 86,
-              "3": 120,
-              "4": 18,
-              "5": 52
-            },
-            "displayValue": "12 34 56 78 12 34",
+            "dataType": "uint32",
+            "value": 286331153,
+            "displayValue": "286331153",
             "useLabel": false,
             "labelOptions": [],
             "id": 3
+          },
+          {
+            "label": "错误包计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "数据不足",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 4
+          },
+          {
+            "label": "有效bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 69905,
+            "displayValue": "69905",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 5
+          },
+          {
+            "label": "误码bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 286331153,
+            "displayValue": "286331153",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 6
+          },
+          {
+            "label": "接收包计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 286331137,
+            "displayValue": "286331137",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 7
+          },
+          {
+            "label": "错误包计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "数据不足",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 8
+          },
+          {
+            "label": "新字段",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "-",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "选项 A"
+              },
+              {
+                "value": "1",
+                "label": "选项 B"
+              }
+            ],
+            "id": 9
           }
         ]
+      },
+      {
+        "id": 2,
+        "label": "测试分组",
+        "dataItems": []
       }
     ],
     "mappings": [
       {
-        "frameId": "back0001",
-        "fieldId": "inBn5UdgaI9lqCqUKh7aU",
-        "fieldName": "继电器状态",
+        "frameId": "zcy005",
+        "fieldId": "rNI9EboJe95pTDoyg3rwg",
+        "fieldName": "有效bit数",
         "groupId": 1,
         "dataItemId": 1
       },
       {
-        "frameId": "back0001",
-        "fieldId": "EpAKENnSHlJsJZ4lktODn",
-        "fieldName": "某模拟量数值",
+        "frameId": "zcy005",
+        "fieldId": "5OqesYSuLuft_OuSmJUDH",
+        "fieldName": "误码bit数",
         "groupId": 1,
         "dataItemId": 2
       },
       {
-        "frameId": "testreceive",
-        "fieldId": "LKfrNsz7ISAtYPwGpwM3U",
-        "fieldName": "帧头",
+        "frameId": "zcy005",
+        "fieldId": "_EejzGCKnRp-h4MbNzTT0",
+        "fieldName": "接收包计数",
         "groupId": 1,
         "dataItemId": 3
+      },
+      {
+        "frameId": "zcy005",
+        "fieldId": "gIYn1NpCfNSX2Gi0ZwipF",
+        "fieldName": "错误包计数",
+        "groupId": 1,
+        "dataItemId": 4
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "rNI9EboJe95pTDoyg3rwg",
+        "fieldName": "有效bit数",
+        "groupId": 1,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "5OqesYSuLuft_OuSmJUDH",
+        "fieldName": "误码bit数",
+        "groupId": 1,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "_EejzGCKnRp-h4MbNzTT0",
+        "fieldName": "接收包计数",
+        "groupId": 1,
+        "dataItemId": 7
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "gIYn1NpCfNSX2Gi0ZwipF",
+        "fieldName": "错误包计数",
+        "groupId": 1,
+        "dataItemId": 8
+      },
+      {
+        "frameId": "t7CRbZb174ATzxs94xQSe",
+        "fieldId": "5OqesYSuLuft_OuSmJUDH",
+        "fieldName": "误码bit数",
+        "groupId": 1,
+        "dataItemId": 9
+      },
+      {
+        "frameId": "testreceive",
+        "fieldId": "rOhIaQKGl3Z19Gqwjmy6t",
+        "fieldName": "新字段",
+        "groupId": 1,
+        "dataItemId": 9
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-06-09T09:31:40.520Z",
-    "updatedAt": "2025-06-09T09:31:40.520Z"
+    "createdAt": "2025-06-17T17:43:50.174Z",
+    "updatedAt": "2025-06-17T17:43:50.174Z"
   }
 ]

@@ -1,0 +1,1093 @@
+[
+  {
+    "id": "1",
+    "label": "综测仪上位机复位 #1",
+    "frameId": "zcy001",
+    "description": "",
+    "paramCount": 1,
+    "createdAt": "2025-06-16T09:47:11.312Z",
+    "updatedAt": "2025-06-16T09:52:25.832Z",
+    "fields": [
+      {
+        "id": "TSD9mjEf7AedRvtzvDLH4",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0x10000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "BvEMqj-LjM6Yq9oty_6ys",
+        "label": "全局复位",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0xffffffff",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "PHlYXcMWjKlvGgcKudq-8",
+        "label": "填充",
+        "dataType": "bytes",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 24,
+        "configurable": true,
+        "options": []
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-06-16T09:47:11.312Z"
+    },
+    "sendCount": 17,
+    "lastSentAt": "2025-06-16T09:52:25.832Z"
+  },
+  {
+    "id": "2",
+    "label": "综测仪上位机基本配置 #1",
+    "frameId": "zcy002",
+    "description": "",
+    "paramCount": 3,
+    "createdAt": "2025-06-16T09:47:13.416Z",
+    "updatedAt": "2025-06-16T09:52:26.094Z",
+    "fields": [
+      {
+        "id": "TSD9mjEf7AedRvtzvDLH4",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0x00000001",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00000001",
+            "label": "s1"
+          },
+          {
+            "value": "0x00000010",
+            "label": "s2"
+          }
+        ]
+      },
+      {
+        "id": "BvEMqj-LjM6Yq9oty_6ys",
+        "label": "数据源基本配置",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0xffaa0003",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0xffaa0003",
+            "label": "s1"
+          },
+          {
+            "value": "0xeeaa0001",
+            "label": "s2"
+          }
+        ]
+      },
+      {
+        "id": "PHlYXcMWjKlvGgcKudq-8",
+        "label": "填充",
+        "dataType": "bytes",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 24,
+        "configurable": true,
+        "options": []
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-06-16T09:47:13.416Z"
+    },
+    "sendCount": 8,
+    "lastSentAt": "2025-06-16T09:52:26.094Z"
+  },
+  {
+    "id": "3",
+    "label": "综测仪上位机参数配置 #1",
+    "frameId": "zcy003",
+    "description": "",
+    "paramCount": 33,
+    "createdAt": "2025-06-16T09:47:14.912Z",
+    "updatedAt": "2025-06-16T09:52:26.368Z",
+    "fields": [
+      {
+        "id": "TSD9mjEf7AedRvtzvDLH4",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0x00000100",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00000100",
+            "label": "s1"
+          },
+          {
+            "value": "0x00001000",
+            "label": "s2"
+          }
+        ]
+      },
+      {
+        "id": "BvEMqj-LjM6Yq9oty_6ys",
+        "label": "光口选择",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0xbbbbbbbb",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0xbbbbbbbb",
+            "label": "s1"
+          },
+          {
+            "value": "0xaaaaaaaa",
+            "label": "s2"
+          }
+        ]
+      },
+      {
+        "id": "PHlYXcMWjKlvGgcKudq-8",
+        "label": "标志选择2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "_O8clLPm_b2nPx1sAmgIU",
+        "label": "标志选择3",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "436h3cj3ULNCg9wDsqqct",
+        "label": "标志选择4",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "VXZ3D6IrteKf8lMHHVWL0",
+        "label": "标志选择5",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "mx1sz-zozcePOuL-PWR82",
+        "label": "标志选择6",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "DG_ssQA1KsvdKo5n-RSpy",
+        "label": "标志选择7",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "Z2kfwqHt7VEUUvdJRj6GQ",
+        "label": "标志选择8",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "ovcUHWrTaBGG3A4VY6Fxa",
+        "label": "标志选择9",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "jYZZMf302jVa2HNUYZOGs",
+        "label": "标志选择10",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "WJXjPQtNcJusIfksm_VkI",
+        "label": "标志选择11",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "PiXiRqAidwpXhH2aUvJ5k",
+        "label": "标志选择12",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "FCLM-qRhepxUMk8wXD1x4",
+        "label": "标志选择13",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "2tSlHrqHCfK2QenpPGeZF",
+        "label": "标志选择14",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "f6Rnqq7BGVhWk8Upepdg1",
+        "label": "标志选择15",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "bbi_xx1clcWs5-WcDhhPp",
+        "label": "标志选择16",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "BdDwwkIDCmaq9gFlNjk7x",
+        "label": "标志选择17",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "BTFfW4ls7oMDhEoxgNjyi",
+        "label": "标志选择18",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "QZmHHnljglKXNdWWzgqmV",
+        "label": "标志选择19",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "p1slfL5NWuNqUdjo_3FrZ",
+        "label": "标志选择20",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "iCG29JPyN6kdAt6Z-ptgx",
+        "label": "标志选择21",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "RMowqN_-Iosi1zvdZGrWE",
+        "label": "标志选择22",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "i4Tmmq41cXmSpbwHjwQvn",
+        "label": "标志选择23",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "RUg1-PSyAVqiARVaP2Crx",
+        "label": "标志选择24",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "0ArNMdhsOgReUlWeR6hXZ",
+        "label": "标志选择25",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "idZDxT32cpgSM5WmYrJXc",
+        "label": "标志选择26",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "oMhPcTxtENWq3LdWkG8Zw",
+        "label": "标志选择27",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "xNERE5VRPRNrN_35HJKze",
+        "label": "标志选择28",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "5kQ9c4xzPKSxzAxD9EFUf",
+        "label": "标志选择29",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "8ywM1vvwsSjvVd2PIHYSd",
+        "label": "标志选择30",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "lIvCcGfQUTey4iQ87oX3B",
+        "label": "标志选择31",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "QSqsK8tKKjkAlSAK76Bdn",
+        "label": "标志选择32",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-06-16T09:47:14.912Z"
+    },
+    "sendCount": 8,
+    "lastSentAt": "2025-06-16T09:52:26.368Z"
+  },
+  {
+    "id": "4",
+    "label": "综测仪上位机控制指令 #1",
+    "frameId": "zcy004",
+    "description": "",
+    "paramCount": 6,
+    "createdAt": "2025-06-16T09:47:16.848Z",
+    "updatedAt": "2025-06-16T09:52:26.636Z",
+    "fields": [
+      {
+        "id": "TSD9mjEf7AedRvtzvDLH4",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0x00010000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00010000",
+            "label": "s1"
+          },
+          {
+            "value": "0x00100000",
+            "label": "s2"
+          }
+        ]
+      },
+      {
+        "id": "PHlYXcMWjKlvGgcKudq-8",
+        "label": "填充",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0x40000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "Uex3Cg5DqYptU1hUuJhBJ",
+        "label": "速率",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0x00028000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "BEk7EEi-ccIB0rWjn-Rgu",
+        "label": "最大长度",
+        "dataType": "uint16",
+        "inputType": "input",
+        "value": "0x0478",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 2,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "9eVOUmf2UBX1RL8rJWaPw",
+        "label": "最小长度",
+        "dataType": "uint16",
+        "inputType": "input",
+        "value": "0x0064",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 2,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "BvEMqj-LjM6Yq9oty_6ys",
+        "label": "配置",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0xc0000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0xc0000000",
+            "label": "开启"
+          },
+          {
+            "value": "0x00000000",
+            "label": "关闭"
+          }
+        ]
+      },
+      {
+        "id": "x_lKTjbyW6ddyg_Cp3oaQ",
+        "label": "工程数据使能",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0x30000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x30000000",
+            "label": "开"
+          },
+          {
+            "value": "0x00000000",
+            "label": "关"
+          }
+        ]
+      },
+      {
+        "id": "Qc6ZAZyWshzJ0THk_nFcY",
+        "label": "填充5",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0xc0a81111",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "dPqqc8_GPejDrPj8k4Bje",
+        "label": "填充6",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0xc0a82222",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-06-16T09:47:16.848Z"
+    },
+    "sendCount": 8,
+    "lastSentAt": "2025-06-16T09:52:26.636Z"
+  },
+  {
+    "id": "5",
+    "label": "综测仪上位机控制指令 #2",
+    "frameId": "zcy004",
+    "description": "",
+    "paramCount": 6,
+    "createdAt": "2025-06-17T02:38:10.099Z",
+    "updatedAt": "2025-06-17T02:38:11.724Z",
+    "fields": [
+      {
+        "id": "TSD9mjEf7AedRvtzvDLH4",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0x00010000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x00010000",
+            "label": "s1"
+          },
+          {
+            "value": "0x00100000",
+            "label": "s2"
+          }
+        ]
+      },
+      {
+        "id": "PHlYXcMWjKlvGgcKudq-8",
+        "label": "填充",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0x40000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "Uex3Cg5DqYptU1hUuJhBJ",
+        "label": "速率",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0x00028000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "BEk7EEi-ccIB0rWjn-Rgu",
+        "label": "最大长度",
+        "dataType": "uint16",
+        "inputType": "input",
+        "value": "0x0478",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 2,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "9eVOUmf2UBX1RL8rJWaPw",
+        "label": "最小长度",
+        "dataType": "uint16",
+        "inputType": "input",
+        "value": "0x0064",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 2,
+        "configurable": true,
+        "options": []
+      },
+      {
+        "id": "BvEMqj-LjM6Yq9oty_6ys",
+        "label": "配置",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0xc0000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0xc0000000",
+            "label": "开启"
+          },
+          {
+            "value": "0x00000000",
+            "label": "关闭"
+          }
+        ]
+      },
+      {
+        "id": "x_lKTjbyW6ddyg_Cp3oaQ",
+        "label": "工程数据使能",
+        "dataType": "uint32",
+        "inputType": "radio",
+        "value": "0x30000000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0x30000000",
+            "label": "开"
+          },
+          {
+            "value": "0x00000000",
+            "label": "关"
+          }
+        ]
+      },
+      {
+        "id": "Qc6ZAZyWshzJ0THk_nFcY",
+        "label": "填充5",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0xc0a81111",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      },
+      {
+        "id": "dPqqc8_GPejDrPj8k4Bje",
+        "label": "填充6",
+        "dataType": "uint32",
+        "inputType": "input",
+        "value": "0xc0a82222",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "length": 4,
+        "configurable": false,
+        "options": []
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-06-17T02:38:10.099Z"
+    },
+    "sendCount": 0
+  }
+]

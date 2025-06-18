@@ -207,7 +207,7 @@ export function useConnectionTargets(storageKey = 'selected-connection-target') 
   }
 
   // 初始化
-  refreshTargets();
+  // refreshTargets();
 
   // 监听串口连接状态变化，及时更新目标列表
   watchEffect(() => {

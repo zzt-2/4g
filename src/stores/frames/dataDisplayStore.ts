@@ -8,15 +8,14 @@ import type {
   TableConfig,
   DisplaySettings,
   DataRecord,
-  CSVBatchData,
   RecordingStatus,
   TableRowData,
 } from '../../types/frames/dataDisplay';
+import type { HourlyDataFile, HistoryDataRecord } from '../../types/storage/historyData';
 import { useReceiveFramesStore } from './receiveFramesStore';
 import { convertToHex } from '../../utils/frames/hexCovertUtils';
 import { getHourKey, isNewHour } from '../../utils/common/dateUtils';
-import { generateCSVContent } from '../../utils/csv/csvUtils';
-import { csvAPI } from '../../utils/electronApi';
+import { historyDataAPI } from '../../utils/electronApi';
 import { useStorage } from '@vueuse/core';
 
 export const useDataDisplayStore = defineStore('dataDisplay', () => {
@@ -34,19 +33,20 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   });
 
   // 显示设置
-  const displaySettings = useStorage<DisplaySettings>('displaySettings', {
+  const displaySettings = ref<DisplaySettings>({
     updateInterval: 1000, // 1秒更新间隔
     csvSaveInterval: 5 * 60 * 1000, // 5分钟保存间隔
     maxHistoryHours: 24, // 24小时历史记录
     enableAutoSave: true,
     enableRecording: false,
+    enableHistoryStorage: true, // 启用历史数据存储
   });
 
   // 历史数据（用于折线图，内存中保持连续）
   const historyRecords = ref<DataRecord[]>([]);
 
-  // CSV批量数据（按小时分组）
-  const csvBatches = ref<Map<string, CSVBatchData>>(new Map());
+  // JSON历史数据批量（按小时分组）
+  const historyBatches = ref<Map<string, HourlyDataFile>>(new Map());
 
   // 记录状态
   const recordingStatus = ref<RecordingStatus>({
@@ -60,11 +60,11 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   // 定时器管理
   const timers = ref<{
     update: NodeJS.Timeout | null;
-    csvSave: NodeJS.Timeout | null;
+    historySave: NodeJS.Timeout | null;
     cleanup: NodeJS.Timeout | null;
   }>({
     update: null,
-    csvSave: null,
+    historySave: null,
     cleanup: null,
   });
 
@@ -92,11 +92,61 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
       index: index + 1, // 重新编号，从1开始
       label: item.label,
       displayValue: item.displayValue || '-',
-      hexValue: convertToHex(String(item.value || ''), item.dataType),
+      hexValue: '0x' + convertToHex(String(item.value || '0'), item.dataType),
       dataItemId: item.id,
       isVisible: item.isVisible,
       isFavorite: item.isFavorite || false,
     }));
+  };
+
+  // 方法：获取当前数据项元数据
+  const getCurrentDataItemsMetadata = () => {
+    const now = Date.now();
+    const currentHour = getHourKey(now);
+
+    // 计算总数据项数量和创建索引映射
+    let totalDataItems = 0;
+    const groups = receiveFramesStore.groups.map((group) => {
+      const groupDataItems = group.dataItems.map((item) => ({
+        id: item.id,
+        label: item.label,
+        dataType: item.dataType,
+        groupId: group.id,
+        index: totalDataItems++, // 全局索引
+      }));
+
+      return {
+        id: group.id,
+        label: group.label,
+        dataItems: groupDataItems,
+      };
+    });
+
+    return {
+      version: '1.0.0',
+      hourKey: currentHour,
+      groups,
+      totalDataItems,
+      createdAt: now,
+      updatedAt: now,
+    };
+  };
+
+  // 方法：创建历史数据记录（所有分组的数据合并为一条记录）
+  const createHistoryDataRecord = (timestamp: number): HistoryDataRecord => {
+    // 创建一个按索引排序的数据数组
+    const data: unknown[] = [];
+
+    receiveFramesStore.groups.forEach((group) => {
+      group.dataItems.forEach((item) => {
+        data.push(item.value || 0);
+      });
+    });
+
+    return {
+      timestamp,
+      data,
+    };
   };
 
   // 方法：收集当前数据
@@ -111,9 +161,9 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     ) {
       console.log(`小时边界检测：从 ${recordingStatus.value.currentHour} 切换到 ${currentHour}`);
 
-      // 保存上一小时的剩余数据到CSV文件
-      if (recordingStatus.value.isRecording) {
-        saveCurrentCSVBatch(recordingStatus.value.currentHour);
+      // 保存上一小时的剩余数据
+      if (recordingStatus.value.isRecording && displaySettings.value.enableHistoryStorage) {
+        saveCurrentHistoryBatch(recordingStatus.value.currentHour);
       }
     }
 
@@ -144,20 +194,21 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
 
       // 总是添加到历史记录（用于折线图显示）
       historyRecords.value.push(dataRecord);
-
-      // 只有在记录时才添加到CSV批次数据
-      if (recordingStatus.value.isRecording) {
-        if (!csvBatches.value.has(currentHour)) {
-          csvBatches.value.set(currentHour, {
-            hourKey: currentHour,
-            records: [],
-            lastSaveTime: timestamp,
-          });
-        }
-
-        csvBatches.value.get(currentHour)!.records.push(dataRecord);
-      }
     });
+
+    // 只有在记录时才添加到JSON历史数据批次（每秒一条记录，包含所有分组的数据）
+    if (recordingStatus.value.isRecording && displaySettings.value.enableHistoryStorage) {
+      if (!historyBatches.value.has(currentHour)) {
+        historyBatches.value.set(currentHour, {
+          metadata: getCurrentDataItemsMetadata(),
+          records: [],
+        });
+      }
+
+      const batch = historyBatches.value.get(currentHour)!;
+      batch.metadata.updatedAt = timestamp;
+      batch.records.push(createHistoryDataRecord(timestamp));
+    }
 
     if (recordingStatus.value.isRecording) {
       console.log(
@@ -192,30 +243,31 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     // 清理现有记录定时器
     stopRecordingTimers();
 
-    // CSV保存定时器（每5分钟执行）
-    timers.value.csvSave = setInterval(() => {
-      if (recordingStatus.value.isRecording) {
-        // 批量保存CSV数据
-        saveAllCSVBatches();
-      }
-    }, displaySettings.value.csvSaveInterval);
+    // JSON历史数据保存定时器（每5分钟执行）
+    if (displaySettings.value.enableHistoryStorage) {
+      timers.value.historySave = setInterval(() => {
+        if (recordingStatus.value.isRecording) {
+          saveAllHistoryBatches();
+        }
+      }, displaySettings.value.csvSaveInterval); // 使用相同的保存间隔
+    }
 
-    // 清理定时器（每小时执行一次，清理过期数据）
+    // 清理定时器（每小时执行）
     timers.value.cleanup = setInterval(
       () => {
         cleanHistoryRecords();
       },
       60 * 60 * 1000,
-    ); // 1小时
+    );
 
     console.log('记录相关定时器已启动');
   };
 
   // 方法：停止记录相关定时器
   const stopRecordingTimers = (): void => {
-    if (timers.value.csvSave) {
-      clearInterval(timers.value.csvSave);
-      timers.value.csvSave = null;
+    if (timers.value.historySave) {
+      clearInterval(timers.value.historySave);
+      timers.value.historySave = null;
     }
     if (timers.value.cleanup) {
       clearInterval(timers.value.cleanup);
@@ -260,8 +312,10 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   const stopRecording = (): void => {
     if (!recordingStatus.value.isRecording) return;
 
-    // 保存剩余的CSV数据
-    saveAllCSVBatches();
+    // 保存剩余的历史数据
+    if (displaySettings.value.enableHistoryStorage) {
+      saveAllHistoryBatches();
+    }
 
     recordingStatus.value.isRecording = false;
     recordingStatus.value.startTime = null;
@@ -312,59 +366,50 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     }
   };
 
-  // 方法：保存当前CSV批次数据
-  const saveCurrentCSVBatch = async (hourKey: string): Promise<void> => {
-    const batch = csvBatches.value.get(hourKey);
+  // 方法：保存当前JSON历史数据批次
+  const saveCurrentHistoryBatch = async (hourKey: string): Promise<void> => {
+    const batch = historyBatches.value.get(hourKey);
     if (!batch || batch.records.length === 0) {
-      console.log(`没有数据需要保存：${hourKey}`);
+      console.log(`没有历史数据需要保存：${hourKey}`);
       return;
     }
 
     try {
-      // 创建分组标签映射
-      const groupLabels = new Map<number, string>();
-      receiveFramesStore.groups.forEach((group) => {
-        groupLabels.set(group.id, group.label);
-      });
-
-      // 生成CSV内容
-      const csvContent = generateCSVContent(batch.records, groupLabels);
-
       // 保存到文件
-      const result = await csvAPI.save(hourKey, csvContent, true);
+      const result = await historyDataAPI.saveHourData(hourKey, batch);
 
       if (result.success) {
-        console.log(`CSV批次保存成功：${hourKey}，记录数：${batch.records.length}`);
+        console.log(`历史数据批次保存成功：${hourKey}，记录数：${batch.records.length}`);
 
         // 清空已保存的批次数据
-        csvBatches.value.delete(hourKey);
+        historyBatches.value.delete(hourKey);
       } else {
-        console.error(`CSV批次保存失败：${hourKey}，错误：${result.error}`);
+        console.error(`历史数据批次保存失败：${hourKey}，错误：${result.message}`);
       }
     } catch (error) {
-      console.error(`CSV批次保存异常：${hourKey}`, error);
+      console.error(`历史数据批次保存异常：${hourKey}`, error);
     }
   };
 
-  // 方法：批量保存所有CSV数据
-  const saveAllCSVBatches = async (): Promise<void> => {
-    const hourKeys = Array.from(csvBatches.value.keys());
+  // 方法：批量保存所有JSON历史数据
+  const saveAllHistoryBatches = async (): Promise<void> => {
+    const hourKeys = Array.from(historyBatches.value.keys());
 
     if (hourKeys.length === 0) {
-      console.log('没有CSV批次数据需要保存');
+      console.log('没有历史数据批次需要保存');
       return;
     }
 
-    console.log(`开始批量保存CSV数据，批次数：${hourKeys.length}`);
+    console.log(`开始批量保存历史数据，批次数：${hourKeys.length}`);
 
     // 并行保存所有批次
-    const savePromises = hourKeys.map((hourKey) => saveCurrentCSVBatch(hourKey));
+    const savePromises = hourKeys.map((hourKey) => saveCurrentHistoryBatch(hourKey));
 
     try {
       await Promise.all(savePromises);
-      console.log('CSV批量保存完成');
+      console.log('历史数据批量保存完成');
     } catch (error) {
-      console.error('CSV批量保存异常', error);
+      console.error('历史数据批量保存异常', error);
     }
   };
 
@@ -372,7 +417,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   const getRecordingStats = () => {
     return computed(() => ({
       totalRecords: historyRecords.value.length,
-      csvBatchCount: csvBatches.value.size,
+      historyBatchCount: historyBatches.value.size,
       isRecording: recordingStatus.value.isRecording,
       recordCount: recordingStatus.value.recordCount,
       currentHour: recordingStatus.value.currentHour,
@@ -388,7 +433,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     table2Config,
     displaySettings,
     historyRecords,
-    csvBatches,
+    historyBatches,
     recordingStatus,
     timers,
 
@@ -406,8 +451,8 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     getTableData,
     collectCurrentData,
     getRecordingStats,
-    saveCurrentCSVBatch,
-    saveAllCSVBatches,
+    saveCurrentHistoryBatch,
+    saveAllHistoryBatches,
     startDataCollection,
     stopDataCollection,
     clearGroupHistoryRecords,

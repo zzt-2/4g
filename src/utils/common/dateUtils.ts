@@ -116,3 +116,37 @@ export const formatDuration = (milliseconds: number): string => {
     return `${seconds}s`;
   }
 };
+
+/**
+ * 格式化时间为时:分:秒格式
+ * @param date 日期对象、时间戳、字符串或空值
+ * @returns 格式化后的时间字符串，格式：HH:MM:SS，无效时返回 '-'
+ */
+export const formatTimeOnly = (date: Date | string | number | undefined | null): string => {
+  if (!date) return '-';
+
+  // 确保传入的参数是有效的Date对象
+  let dateObj: Date;
+  try {
+    if (date instanceof Date) {
+      dateObj = date;
+    } else if (typeof date === 'string' || typeof date === 'number') {
+      dateObj = new Date(date);
+    } else {
+      return '-';
+    }
+
+    // 检查日期是否有效
+    if (isNaN(dateObj.getTime())) {
+      return '-';
+    }
+
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+    const seconds = dateObj.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.warn('formatTimeOnly: 无效的日期参数', date, error);
+    return '-';
+  }
+};

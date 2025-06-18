@@ -27,7 +27,7 @@ onMounted(async () => {
 
 <template>
   <q-page class="p-4 h-full overflow-hidden bg-industrial-primary">
-    <div class="grid grid-cols-[300px_1fr] h-full gap-4">
+    <div class="grid grid-cols-[24vw_1fr] h-full gap-2">
       <!-- 左侧连接列表面板 -->
       <div
         class="flex flex-col rounded-lg overflow-hidden border border-industrial bg-industrial-panel shadow-lg"
