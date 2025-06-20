@@ -318,9 +318,17 @@ export function useInstanceEditing(state: ReturnType<typeof useInstancesState>) 
 
       // 更新十六进制显示
       if (
-        ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
-          targetField.dataType,
-        )
+        [
+          'uint8',
+          'int8',
+          'uint16',
+          'int16',
+          'uint32',
+          'int32',
+          'float',
+          'double',
+          'bytes',
+        ].includes(targetField.dataType)
       ) {
         hexValues.value[fieldId] = `0x${convertToHex(
           value || '0',

@@ -33,17 +33,26 @@ export function createSendInstanceField(field: FrameField): SendInstanceField {
     }
   }
 
-  return {
+  const result: SendInstanceField = {
     id: field.id,
     label: field.name,
     dataType: field.dataType,
     inputType: field.inputType,
+    description: field.description || '',
     value: field.defaultValue || '',
     validOption: field.validOption || DEFAULT_VALID_OPTION,
     length: field.length,
     configurable: field.configurable,
     options: options,
+    dataParticipationType: field.dataParticipationType || 'direct',
   };
+
+  // 只有当expressionConfig存在时才添加
+  if (field.expressionConfig) {
+    result.expressionConfig = field.expressionConfig;
+  }
+
+  return result;
 }
 
 /**
@@ -60,7 +69,7 @@ export function createSendFrameInstance(frame: Frame, id?: string): SendFrameIns
     id: id || nanoid(),
     label: frame.name,
     frameId: frame.id,
-    description: '',
+    description: frame.description || '',
     paramCount: configurableFields.length,
     createdAt: new Date(),
     updatedAt: new Date(),

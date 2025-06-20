@@ -44,6 +44,7 @@ import { useFrameTemplateStore, useSendFrameInstancesStore } from 'src/stores/fr
 import { useSerialStore } from 'src/stores/serialStore';
 import { useDataDisplayStore } from 'src/stores/frames/dataDisplayStore';
 import { useSettingsStore } from 'src/stores/settingsStore';
+import { useGlobalStatsStore } from 'src/stores/globalStatsStore';
 
 const leftDrawerOpen = ref(true);
 const drawerWidth = ref(120); // 默认宽度，单位是像素
@@ -54,6 +55,7 @@ const sendFrameInstancesStore = useSendFrameInstancesStore();
 const serialStore = useSerialStore();
 const dataDisplayStore = useDataDisplayStore();
 const settingsStore = useSettingsStore();
+const globalStatsStore = useGlobalStatsStore();
 
 // 方法：清理数据项值
 const clearDataItemValues = async (): Promise<void> => {
@@ -84,7 +86,11 @@ onMounted(async () => {
     await sendFrameInstancesStore.fetchInstances();
     await receiveFramesStore.loadConfig();
     await serialStore.refreshPorts();
+    sendFrameInstancesStore.resetSendStats();
     connectionTargetsStore.refreshTargets(); // 刷新可用的连接目标
+
+    // 初始化全局统计数据
+    globalStatsStore.initialize();
 
     // 启动数据收集定时器（常开模式）
     dataDisplayStore.startDataCollection();
@@ -114,6 +120,9 @@ onUnmounted(() => {
 
   // 停止数据收集定时器
   dataDisplayStore.stopDataCollection();
+
+  // 清理全局统计数据
+  globalStatsStore.cleanup();
 
   clearDataItemValues();
 });

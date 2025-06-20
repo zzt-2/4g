@@ -3,6 +3,7 @@
  */
 import type { FrameField, Frame, FilterOptions, FieldType } from '../../types/frames/index';
 import { FIELD_TYPE_CONFIGS } from '../../config/frameDefaults';
+import { validateExpressionConfig } from './defaultConfigs';
 
 /**
  * 深拷贝对象
@@ -215,7 +216,7 @@ export function getFieldHexPreview(field: FrameField): string {
 }
 
 /**
- * 验证单个字段
+ * 验证字段
  * @param field 要验证的字段
  * @returns 验证结果
  */
@@ -237,6 +238,19 @@ export function validateField(field: Partial<FrameField>): { valid: boolean; err
   if (typeConfig.needsLength) {
     if (!field.length || field.length <= 0) {
       errors.push('字段长度必须大于0');
+    }
+  }
+
+  // 表达式字段特殊验证
+  if (field.inputType === 'expression') {
+    // 表达式配置验证
+    if (!field.expressionConfig) {
+      errors.push('表达式字段必须配置表达式');
+    } else {
+      const expressionValidation = validateExpressionConfig(field.expressionConfig);
+      if (!expressionValidation.isValid) {
+        errors.push(...expressionValidation.errors.map((error) => `表达式配置: ${error}`));
+      }
     }
   }
 

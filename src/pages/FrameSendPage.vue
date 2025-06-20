@@ -40,16 +40,6 @@ const showTriggerSendDialog = ref(false);
 const showSequentialSendDialog = ref(false);
 const showTaskMonitorDialog = ref(false);
 
-// 从store获取状态
-const selectedInstance = computed(() => {
-  if (!sendFrameInstancesStore.currentInstanceId) return null;
-  return (
-    sendFrameInstancesStore.instances.find(
-      (instance) => instance.id === sendFrameInstancesStore.currentInstanceId,
-    ) || null
-  );
-});
-
 // 筛选查询的帧模板
 const filteredTemplates = computed(() => {
   const frames = frameTemplateStore.frames.filter((frame) => frame.direction === 'send');
@@ -66,30 +56,10 @@ const filteredTemplates = computed(() => {
 
 // 是否可以发送当前实例
 const canSendInstance = computed(() => {
-  const hasInstance = selectedInstance.value !== null;
+  const hasInstance = sendFrameInstancesStore.currentInstance !== null;
   const hasTarget = !!selectedTargetId.value;
   return hasInstance && hasTarget && !isSending.value;
 });
-
-// 加载数据
-// onMounted(async () => {
-//   isLoading.value = true;
-//   try {
-//     await frameTemplateStore.fetchFrames();
-//     await sendFrameInstancesStore.fetchInstances();
-//     await serialStore.refreshPorts();
-//     await refreshTargets(); // 刷新可用的连接目标
-//   } catch (error) {
-//     console.error('加载数据失败:', error);
-//   } finally {
-//     isLoading.value = false;
-
-//     // 确保布局计算完成
-//     setTimeout(() => {
-//       layoutReady.value = true;
-//     }, 50);
-//   }
-// });
 
 // 关闭编辑对话框
 function closeEditorDialog() {
@@ -124,13 +94,19 @@ async function saveEditorDialog() {
 
 // 发送当前帧实例
 async function sendCurrentInstance() {
-  if (!selectedInstance.value || isSending.value || !selectedTargetId.value) return;
+  if (!sendFrameInstancesStore.currentInstance || isSending.value || !selectedTargetId.value)
+    return;
 
   isSending.value = true;
   sendError.value = '';
 
   try {
-    console.log('准备发送帧实例:', selectedInstance.value, '到目标:', selectedTargetId.value);
+    console.log(
+      '准备发送帧实例:',
+      sendFrameInstancesStore.currentInstance,
+      '到目标:',
+      selectedTargetId.value,
+    );
 
     // 检查目标是否可用
     const available = await isTargetAvailable(selectedTargetId.value);
@@ -139,7 +115,10 @@ async function sendCurrentInstance() {
     }
 
     // 使用统一发送器发送帧实例
-    const result = await sendFrameInstance(selectedTargetId.value, selectedInstance.value);
+    const result = await sendFrameInstance(
+      selectedTargetId.value,
+      sendFrameInstancesStore.currentInstance,
+    );
 
     if (!result.success) {
       throw new Error(result.error || '帧发送失败');
@@ -156,7 +135,7 @@ async function sendCurrentInstance() {
 
 // 打开定时发送对话框
 function openTimedSendDialog() {
-  if (!selectedInstance.value) return;
+  if (!sendFrameInstancesStore.currentInstance) return;
   showTimedSendDialog.value = true;
 }
 
@@ -167,7 +146,7 @@ function closeTimedSendDialog() {
 
 // 打开触发发送对话框
 function openTriggerSendDialog() {
-  if (!selectedInstance.value) return;
+  if (!sendFrameInstancesStore.currentInstance) return;
   showTriggerSendDialog.value = true;
 }
 
@@ -362,7 +341,7 @@ const handleSetInstancesData = async (data: unknown) => {
           </h6>
 
           <!-- 高级发送选项 -->
-          <div class="flex items-center" v-if="selectedInstance">
+          <div class="flex items-center" v-if="sendFrameInstancesStore.currentInstance">
             <q-btn
               flat
               dense
@@ -387,13 +366,13 @@ const handleSetInstancesData = async (data: unknown) => {
           </div>
         </div>
         <div class="flex-1 overflow-auto flex flex-col">
-          <FramePreview :instance="selectedInstance" />
+          <FramePreview />
         </div>
 
         <!-- 发送按钮区域 -->
         <div
           class="p-3 bg-industrial-secondary border-t border-solid border-industrial"
-          v-if="selectedInstance"
+          v-if="sendFrameInstancesStore.currentInstance"
         >
           <div class="flex flex-col">
             <!-- 错误提示 -->
@@ -430,7 +409,7 @@ const handleSetInstancesData = async (data: unknown) => {
 
     <!-- 帧编辑对话框 -->
     <q-dialog v-model="sendFrameInstancesStore.showEditorDialog" persistent>
-      <q-card style="width: 80vw; max-width: 80vw">
+      <q-card style="width: 80vw; max-width: 90vw">
         <q-card-section class="overflow-auto p-0 bg-industrial-panel" style="max-height: 80vh">
           <FrameInstanceEditor />
         </q-card-section>

@@ -3,7 +3,12 @@
  */
 
 import type { FieldType } from './basic';
-import type { FieldInputType, ValidationParam } from './fields';
+import type {
+  FieldInputType,
+  ValidationParam,
+  DataParticipationType,
+  ExpressionConfig,
+} from './fields';
 
 /**
  * 发送帧实例字段值
@@ -18,10 +23,14 @@ export interface SendInstanceField {
   validOption?: ValidationParam;
   length: number;
   configurable?: boolean; // 是否可配置
+  description?: string; // 字段说明/描述
   options: {
     value: string;
     label: string;
   }[];
+  // 新增表达式相关字段 - 确保向后兼容性
+  dataParticipationType?: DataParticipationType; // 数据参与类型，默认为'direct'
+  expressionConfig?: ExpressionConfig; // 表达式配置
 }
 
 /**

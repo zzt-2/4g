@@ -12,11 +12,63 @@ import type {
   ValidationResult,
   DataItem,
   ReceivedDataPacket,
-  DataReceiveStats,
 } from '../../types/frames/receive';
 import type { Frame } from '../../types/frames/frames';
 import { useFrameTemplateStore } from './frameTemplateStore';
 import { dataStorageAPI, receiveAPI } from '../../api/common';
+import { useGlobalStatsStore } from '../globalStatsStore';
+import { useFrameExpressionManager } from '../../composables/frames/useFrameExpressionManager';
+
+// 辅助函数：数据项查找
+const findGroupById = (groups: DataGroup[], groupId: number): DataGroup | undefined => {
+  return groups.find((g) => g.id === groupId);
+};
+
+const findDataItemInGroup = (group: DataGroup, dataItemId: number): DataItem | undefined => {
+  return group.dataItems.find((item) => item.id === dataItemId);
+};
+
+const findDataItem = (
+  groups: DataGroup[],
+  groupId: number,
+  dataItemId: number,
+): { group: DataGroup; dataItem: DataItem } | null => {
+  const group = findGroupById(groups, groupId);
+  if (!group) return null;
+
+  const dataItem = findDataItemInGroup(group, dataItemId);
+  if (!dataItem) return null;
+
+  return { group, dataItem };
+};
+
+// 辅助函数：ID生成
+const generateNewGroupId = (groups: DataGroup[]): number => {
+  return Math.max(...groups.map((g) => g.id), 0) + 1;
+};
+
+const generateNewDataItemId = (group: DataGroup): number => {
+  return Math.max(...group.dataItems.map((item) => item.id), 0) + 1;
+};
+
+// 辅助函数：配置构建
+const buildConfig = (groups: DataGroup[], mappings: FrameFieldMapping[]): ReceiveConfig => {
+  return {
+    groups,
+    mappings,
+    version: '1.0.0',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+};
+
+// 辅助函数：映射查找
+const findMappingsByFrame = (
+  mappings: FrameFieldMapping[],
+  frameId: string,
+): FrameFieldMapping[] => {
+  return mappings.filter((mapping) => mapping.frameId === frameId);
+};
 
 export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   // 核心状态
@@ -27,18 +79,33 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   const selectedGroupId = ref<number>(0);
   const isLoading = ref<boolean>(false);
 
-  // 数据接收统计
-  const receiveStats = ref<DataReceiveStats>({
-    totalPackets: 0,
-    matchedPackets: 0,
-    unmatchedPackets: 0,
-    errorPackets: 0,
-    bytesReceived: 0,
-  });
+  // 获取全局统计store
+  const globalStatsStore = useGlobalStatsStore();
+
+  // 获取帧表达式管理器
+  const frameExpressionManager = useFrameExpressionManager();
 
   // 最近接收的数据包（用于调试和监控）
   const recentPackets = ref<ReceivedDataPacket[]>([]);
   const maxRecentPackets = 100; // 最多保留100个最近数据包
+
+  // 内部辅助函数：添加最近数据包
+  const addRecentPacket = (packet: ReceivedDataPacket): void => {
+    recentPackets.value.unshift(packet);
+    if (recentPackets.value.length > maxRecentPackets) {
+      recentPackets.value.splice(maxRecentPackets);
+    }
+  };
+
+  // 内部辅助函数：加载状态管理
+  const withLoading = async <T>(operation: () => Promise<T>): Promise<T> => {
+    try {
+      isLoading.value = true;
+      return await operation();
+    } finally {
+      isLoading.value = false;
+    }
+  };
 
   // 获取帧模板Store
   const frameTemplateStore = useFrameTemplateStore();
@@ -100,13 +167,11 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   const selectedFrameDataItems = computed(() => {
     if (!selectedFrameId.value) return [];
 
-    const frameMapping = mappings.value.filter(
-      (mapping: FrameFieldMapping) => mapping.frameId === selectedFrameId.value,
-    );
+    const frameMapping = findMappingsByFrame(mappings.value, selectedFrameId.value);
 
     return frameMapping.map((mapping: FrameFieldMapping) => {
-      const group = groups.value.find((g: DataGroup) => g.id === mapping.groupId);
-      const dataItem = group?.dataItems.find((item) => item.id === mapping.dataItemId);
+      const group = findGroupById(groups.value, mapping.groupId);
+      const dataItem = group ? findDataItemInGroup(group, mapping.dataItemId) : undefined;
       return {
         mapping,
         dataItem,
@@ -120,73 +185,93 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     return groups.value.find((group: DataGroup) => group.id === selectedGroupId.value);
   });
 
+  // 计算属性：获取可用的接收帧选项（用于表达式配置等）
+  const availableReceiveFrameOptions = computed(() =>
+    receiveFrames.value.map((frame) => ({
+      label: frame.name,
+      value: frame.id,
+    })),
+  );
+
+  // 计算属性：根据帧ID获取可用字段选项（只返回有映射关系的字段）
+  const getAvailableFrameFieldOptions = computed(() => (frameId: string) => {
+    if (!frameId) return [];
+
+    // 获取该帧的所有映射关系
+    const frameMappings = mappings.value.filter((mapping) => mapping.frameId === frameId);
+
+    // 获取该帧的字段定义
+    const frame = receiveFrames.value.find((f) => f.id === frameId);
+    if (!frame || !frame.fields) return [];
+
+    // 只返回存在映射关系的字段
+    return frame.fields
+      .filter((field) => frameMappings.some((mapping) => mapping.fieldId === field.id))
+      .map((field) => ({
+        label: `${field.name} (${field.dataType})`,
+        value: field.id,
+        frameId: frameId,
+      }));
+  });
+
+  // 计算属性：获取所有接收帧的当前数据值（用于表达式计算）
+  const allReceiveFrameData = computed(() => {
+    const result = new Map<string, Map<string, unknown>>();
+
+    // 遍历所有接收帧
+    receiveFrames.value.forEach((frame) => {
+      const frameData = new Map<string, unknown>();
+
+      // 获取该帧的映射关系
+      const frameMappings = mappings.value.filter((mapping) => mapping.frameId === frame.id);
+
+      // 根据映射关系获取字段值
+      frameMappings.forEach((mapping) => {
+        const dataItem = findDataItem(groups.value, mapping.groupId, mapping.dataItemId);
+        if (dataItem?.dataItem) {
+          frameData.set(mapping.fieldId, dataItem.dataItem.value);
+        }
+      });
+
+      result.set(frame.id, frameData);
+    });
+
+    return result;
+  });
+
   // 方法：加载配置
   const loadConfig = async (): Promise<void> => {
-    try {
-      isLoading.value = true;
-      // TODO: 使用dataStorageAPI.receiveConfig.list()
+    await withLoading(async () => {
       const result = (await dataStorageAPI.receiveConfig.list())[0] as ReceiveConfig | undefined;
 
       // 临时模拟数据
-      const mockConfig: ReceiveConfig = {
-        groups: [],
-        mappings: [],
-        version: '1.0.0',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const mockConfig = buildConfig([], []);
 
       groups.value = result?.groups ? result.groups : mockConfig.groups;
       mappings.value = result?.mappings ? result.mappings : mockConfig.mappings;
 
       // 验证映射关系
-      validateMappings();
-    } catch (error) {
-      console.error('加载接收配置失败:', error);
-    } finally {
-      isLoading.value = false;
-    }
+      await validateMappings();
+    });
   };
 
   // 方法：保存配置
   const saveConfig = async (): Promise<void> => {
-    try {
-      isLoading.value = true;
-      const config: ReceiveConfig = {
-        groups: groups.value,
-        mappings: mappings.value,
-        version: '1.0.0',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // TODO: 使用dataStorageAPI.receiveConfig.save()
+    await withLoading(async () => {
+      const config = buildConfig(groups.value, mappings.value);
       await dataStorageAPI.receiveConfig.save(config);
-
       console.log('接收配置已保存:', config);
-    } catch (error) {
-      console.error('保存接收配置失败:', error);
-    } finally {
-      isLoading.value = false;
-    }
+    });
   };
 
   // 方法：导出配置（用于文件导出）
   const exportConfig = (): ReceiveConfig => {
-    return {
-      groups: groups.value,
-      mappings: mappings.value,
-      version: '1.0.0',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    return buildConfig(groups.value, mappings.value);
   };
 
   // 方法：导入配置（用于文件导入）
   const importConfig = async (config: ReceiveConfig): Promise<void> => {
-    try {
-      isLoading.value = true;
-
+    await withLoading(async () => {
       // 验证导入的配置数据
       if (!config || typeof config !== 'object') {
         throw new Error('无效的配置数据格式');
@@ -217,15 +302,10 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       mappings.value = [...config.mappings];
 
       // 验证映射关系
-      validateMappings();
+      await validateMappings();
 
       console.log('接收配置导入成功:', config);
-    } catch (error) {
-      console.error('导入接收配置失败:', error);
-      throw error; // 重新抛出错误，让调用方处理
-    } finally {
-      isLoading.value = false;
-    }
+    });
   };
 
   // 方法：验证映射关系
@@ -257,7 +337,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
   // 方法：添加数据分组
   const addGroup = (label: string): DataGroup => {
-    const newId = Math.max(...groups.value.map((g: DataGroup) => g.id), 0) + 1;
+    const newId = generateNewGroupId(groups.value);
     const newGroup: DataGroup = {
       id: newId,
       label,
@@ -292,12 +372,12 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
   // 方法：添加数据项到分组
   const addDataItemToGroup = (groupId: number, dataItem: Omit<DataItem, 'id'>): DataItem => {
-    const group = groups.value.find((g: DataGroup) => g.id === groupId);
+    const group = findGroupById(groups.value, groupId);
     if (!group) {
       throw new Error(`分组ID ${groupId} 不存在`);
     }
 
-    const newId = Math.max(...group.dataItems.map((item) => item.id), 0) + 1;
+    const newId = generateNewDataItemId(group);
     const newDataItem: DataItem = {
       ...dataItem,
       id: newId,
@@ -313,18 +393,26 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     dataItemId: number,
     updates: Partial<DataItem>,
   ): void => {
-    const group = groups.value.find((g: DataGroup) => g.id === groupId);
-    if (!group) return;
+    console.log(`📝 updateDataItem被调用: groupId=${groupId}, dataItemId=${dataItemId}`, updates);
 
-    const dataItem = group.dataItems.find((item) => item.id === dataItemId);
-    if (!dataItem) return;
+    const result = findDataItem(groups.value, groupId, dataItemId);
+    if (!result) {
+      console.error(`❌ 找不到数据项: groupId=${groupId}, dataItemId=${dataItemId}`);
+      return;
+    }
 
-    Object.assign(dataItem, updates);
+    const beforeValue = result.dataItem.value;
+    Object.assign(result.dataItem, updates);
+    const afterValue = result.dataItem.value;
+
+    console.log(
+      `📝 数据项更新完成: ${result.dataItem.label} 从 ${beforeValue} 更新为 ${afterValue}`,
+    );
   };
 
   // 方法：删除数据项
   const removeDataItem = (groupId: number, dataItemId: number): void => {
-    const group = groups.value.find((g: DataGroup) => g.id === groupId);
+    const group = findGroupById(groups.value, groupId);
     if (!group) return;
 
     const index = group.dataItems.findIndex((item) => item.id === dataItemId);
@@ -379,24 +467,18 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
   // 方法：切换数据项可见性
   const toggleDataItemVisibility = (groupId: number, dataItemId: number): void => {
-    const group = groups.value.find((g: DataGroup) => g.id === groupId);
-    if (!group) return;
+    const result = findDataItem(groups.value, groupId, dataItemId);
+    if (!result) return;
 
-    const dataItem = group.dataItems.find((item) => item.id === dataItemId);
-    if (!dataItem) return;
-
-    dataItem.isVisible = !dataItem.isVisible;
+    result.dataItem.isVisible = !result.dataItem.isVisible;
   };
 
   // 方法：切换数据项收藏状态
   const toggleDataItemFavorite = (groupId: number, dataItemId: number): void => {
-    const group = groups.value.find((g: DataGroup) => g.id === groupId);
-    if (!group) return;
+    const result = findDataItem(groups.value, groupId, dataItemId);
+    if (!result) return;
 
-    const dataItem = group.dataItems.find((item) => item.id === dataItemId);
-    if (!dataItem) return;
-
-    dataItem.isFavorite = !dataItem.isFavorite;
+    result.dataItem.isFavorite = !result.dataItem.isFavorite;
   };
 
   /**
@@ -518,6 +600,35 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   >([]);
 
   /**
+   * 过滤出包含直接数据字段的接收帧（computed缓存优化）
+   * 间接数据字段不参与帧匹配，因为它们通过表达式计算得出
+   * 返回只包含直接数据字段的帧副本，移除间接数据字段
+   * 只有当帧模板发生变化时才重新计算，提高性能
+   */
+  const directDataFrames = computed(() => {
+    return frameTemplateStore.frames
+      .filter((frame) => frame.direction === 'receive')
+      .map((frame) => {
+        // 过滤出直接数据字段
+        const directFields = frame.fields?.filter(
+          (field) => (field.dataParticipationType || 'direct') === 'direct',
+        );
+
+        // 如果没有直接数据字段，排除此帧
+        if (!directFields || directFields.length === 0) {
+          return null;
+        }
+
+        // 返回只包含直接数据字段的帧副本
+        return {
+          ...frame,
+          fields: directFields,
+        };
+      })
+      .filter((frame): frame is Frame => frame !== null); // 移除null值并提供类型保护
+  });
+
+  /**
    * 统一数据接收处理入口
    * @param source 数据来源
    * @param sourceId 来源标识
@@ -566,7 +677,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   };
 
   /**
-   * 内部数据处理方法
+   * 内部数据处理函数
    */
   const processDataInternal = async (
     source: 'serial' | 'network',
@@ -574,35 +685,33 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     data: Uint8Array,
   ): Promise<void> => {
     try {
-      // 调用主进程的统一数据处理接口，传入当前最新的groups状态
+      // 更新全局接收统计
+      globalStatsStore.incrementReceivedPackets();
+      globalStatsStore.addReceivedBytes(data.length);
+
+      // 调用主进程的统一数据处理接口，只传递包含直接数据字段的帧
       const result = await receiveAPI.handleReceivedData(
         source,
         sourceId,
         data,
-        frameTemplateStore.frames,
+        directDataFrames.value, // 使用computed缓存的过滤帧列表
         mappings.value,
         groups.value, // 确保使用最新的groups状态
       );
 
       // 处理返回结果
       if (!result.success) {
-        // 处理失败的情况
-        if (result.recentPacket) {
-          // 添加到最近数据包列表
-          recentPackets.value.unshift(result.recentPacket);
-          if (recentPackets.value.length > maxRecentPackets) {
-            recentPackets.value.splice(maxRecentPackets);
-          }
+        // 更新全局统计：未匹配帧
+        globalStatsStore.incrementUnmatchedFrames();
+
+        // 检查是否是解析错误
+        if (result.errors?.some((error) => error.includes('解析') || error.includes('parse'))) {
+          globalStatsStore.incrementFrameParseErrors();
         }
 
-        // 更新接收统计
-        if (result.receiveStats) {
-          receiveStats.value.totalPackets += result.receiveStats.totalPackets || 0;
-          receiveStats.value.unmatchedPackets += result.receiveStats.unmatchedPackets || 0;
-          receiveStats.value.matchedPackets += result.receiveStats.matchedPackets || 0;
-          receiveStats.value.errorPackets += result.receiveStats.errorPackets || 0;
-          receiveStats.value.bytesReceived += result.receiveStats.bytesReceived || 0;
-          receiveStats.value.lastReceiveTime = new Date();
+        // 处理失败的情况
+        if (result.recentPacket) {
+          addRecentPacket(result.recentPacket);
         }
 
         // 输出错误信息
@@ -614,17 +723,74 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
       // 处理成功的情况
 
+      // 更新全局统计：匹配成功的帧
+      globalStatsStore.incrementMatchedFrames();
+
       // 添加最近数据包
       if (result.recentPacket) {
-        recentPackets.value.unshift(result.recentPacket);
-        if (recentPackets.value.length > maxRecentPackets) {
-          recentPackets.value.splice(maxRecentPackets);
+        addRecentPacket(result.recentPacket);
+      }
+
+      // 智能更新数据分组（保留表达式计算结果）
+      if (result.updatedGroups) {
+        // 保存当前所有表达式字段的计算结果
+        const preservedExpressionValues = new Map<
+          string,
+          { value: unknown; displayValue: string }
+        >();
+        groups.value.forEach((group) => {
+          group.dataItems.forEach((item) => {
+            // 找到对应的映射，检查字段是否是表达式字段
+            const mapping = mappings.value.find(
+              (m) => m.groupId === group.id && m.dataItemId === item.id,
+            );
+            if (mapping) {
+              const frame = frameTemplateStore.frames.find((f) => f.id === mapping.frameId);
+              const field = frame?.fields?.find((f) => f.id === mapping.fieldId);
+
+              // 如果是表达式字段且有值，则保存
+              if (
+                field?.expressionConfig &&
+                field.expressionConfig.expressions.length > 0 &&
+                item.value !== null &&
+                item.value !== undefined
+              ) {
+                const key = `${group.id}-${item.id}`;
+                preservedExpressionValues.set(key, {
+                  value: item.value,
+                  displayValue: item.displayValue,
+                });
+              }
+            }
+          });
+        });
+
+        // 更新groups
+        groups.value = result.updatedGroups;
+
+        // 恢复表达式字段的计算结果
+        if (preservedExpressionValues.size > 0) {
+          groups.value.forEach((group) => {
+            group.dataItems.forEach((item) => {
+              const key = `${group.id}-${item.id}`;
+              const preserved = preservedExpressionValues.get(key);
+              if (preserved) {
+                item.value = preserved.value;
+                item.displayValue = preserved.displayValue;
+              }
+            });
+          });
         }
       }
 
-      // 原子性更新数据分组
-      if (result.updatedGroups) {
-        groups.value = result.updatedGroups;
+      // 立即计算表达式（同步执行，确保数据一致性）
+      if (result.frameStats?.frameId) {
+        const frameId = result.frameStats.frameId;
+        try {
+          frameExpressionManager.calculateAndApplyReceiveFrame(frameId);
+        } catch (error) {
+          console.error('接收帧表达式计算失败:', error);
+        }
       }
 
       // 更新帧统计
@@ -646,19 +812,6 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
           }),
         });
       }
-
-      // 更新接收统计
-      if (result.receiveStats) {
-        receiveStats.value.totalPackets += result.receiveStats.totalPackets || 0;
-        receiveStats.value.matchedPackets += result.receiveStats.matchedPackets || 0;
-        receiveStats.value.bytesReceived += result.receiveStats.bytesReceived || 0;
-        receiveStats.value.lastReceiveTime = new Date();
-      }
-
-      console.log('数据处理成功:', {
-        frameId: result.frameStats?.frameId,
-        updatedGroups: result.updatedGroups ? result.updatedGroups.length : 0,
-      });
 
       // 检查触发条件（异步处理，不阻塞当前流程）
       if (result.frameStats?.frameId && result.updatedGroups) {
@@ -692,10 +845,6 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         }
       }
     } catch (error) {
-      receiveStats.value.errorPackets++;
-      receiveStats.value.totalPackets++;
-      receiveStats.value.bytesReceived += data.length;
-      receiveStats.value.lastReceiveTime = new Date();
       console.error('数据接收处理异常:', error);
       throw error; // 重新抛出错误，让调用者处理
     }
@@ -752,16 +901,9 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   };
 
   /**
-   * 清空接收统计
+   * 清空数据包记录和帧统计
    */
   const clearReceiveStats = (): void => {
-    receiveStats.value = {
-      totalPackets: 0,
-      matchedPackets: 0,
-      unmatchedPackets: 0,
-      errorPackets: 0,
-      bytesReceived: 0,
-    };
     recentPackets.value = [];
     frameStats.value.clear();
   };
@@ -795,13 +937,16 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     selectedFrameId,
     selectedGroupId,
     isLoading,
-    receiveStats,
     recentPackets,
 
     // 计算属性
     receiveFrames,
     selectedFrameDataItems,
     selectedGroup,
+    availableReceiveFrameOptions,
+    getAvailableFrameFieldOptions,
+    allReceiveFrameData,
+    directDataFrames,
 
     // 方法
     loadConfig,

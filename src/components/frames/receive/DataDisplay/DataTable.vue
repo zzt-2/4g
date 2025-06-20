@@ -36,7 +36,7 @@ const columns = [
     field: 'index',
     align: 'center' as const,
     sortable: false,
-    style: 'width: 60px; min-width: 60px',
+    style: 'width: 40px; min-width: 40px',
     classes: 'text-blue-grey-4',
   },
   {
@@ -45,7 +45,7 @@ const columns = [
     field: 'label',
     align: 'left' as const,
     sortable: false,
-    style: 'width: 100%; min-width: 100%',
+    style: 'width: 140px; max-width: 140px',
   },
   {
     name: 'displayValue',
@@ -53,7 +53,7 @@ const columns = [
     field: 'displayValue',
     align: 'center' as const,
     sortable: false,
-    style: 'width: 140px; min-width: 140px',
+    style: 'width: 140px; max-width: 140px',
     classes: 'text-blue-grey-5',
   },
   {
@@ -62,7 +62,7 @@ const columns = [
     field: 'hexValue',
     align: 'center' as const,
     sortable: false,
-    style: 'width: 110px; min-width: 110px',
+    style: 'width: 110px; max-width: 110px',
     classes: 'text-blue-300',
   },
   {
@@ -107,7 +107,7 @@ const startUpdateTimer = () => {
   // 启动定时器，每1秒更新一次
   updateTimer = setInterval(() => {
     updateTableData();
-  }, 1000);
+  }, 500);
 };
 
 // 停止定时更新

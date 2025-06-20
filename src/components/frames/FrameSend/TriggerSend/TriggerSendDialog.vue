@@ -257,26 +257,17 @@ const frameOptions = computed(() =>
 
 // 获取指定帧中存在映射关系的字段选项
 const getMappedFieldOptions = computed(() => (frameId: string) => {
-  if (!frameId) return [];
+  const options = receiveFramesStore.getAvailableFrameFieldOptions(frameId);
 
-  // 获取该帧的所有映射关系
-  const frameMappings = receiveFramesStore.mappings.filter(
-    (mapping) => mapping.frameId === frameId,
-  );
-
-  // 获取该帧的字段定义
-  const frame = receiveFramesStore.receiveFrames.find((f) => f.id === frameId);
-  if (!frame || !frame.fields) return [];
-
-  // 只返回存在映射关系的字段
-  return frame.fields
-    .filter((field) => frameMappings.some((mapping) => mapping.fieldId === field.id))
-    .map((field) => ({
-      id: field.id,
-      name: field.name,
-      // 可以添加映射信息用于显示
-      mappingInfo: frameMappings.find((mapping) => mapping.fieldId === field.id),
-    }));
+  // 转换格式以匹配原有接口
+  return options.map((option) => ({
+    id: option.value,
+    name: option.label.split(' (')[0], // 移除数据类型部分
+    // 可以添加映射信息用于显示
+    mappingInfo: receiveFramesStore.mappings.find(
+      (mapping) => mapping.frameId === frameId && mapping.fieldId === option.value,
+    ),
+  }));
 });
 
 // 获取映射数据项的显示信息

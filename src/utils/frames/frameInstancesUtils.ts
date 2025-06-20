@@ -343,14 +343,21 @@ export function frameToBuffer(instance: SendFrameInstance): Uint8Array {
     return new Uint8Array(0);
   }
 
-  // 首先检查是否需要更新校验和
-  const checksumFields = instance.fields.filter(
+  // 过滤出参与组帧的字段（只有直接数据参与类型的字段）
+  const frameFields = instance.fields.filter(
+    (field) => (field.dataParticipationType || 'direct') === 'direct',
+  );
+
+  // 首先检查是否需要更新校验和（只考虑参与组帧的字段）
+  const checksumFields = frameFields.filter(
     (field) => field && field.validOption && field.validOption.isChecksum === true,
   );
 
-  // 如果有校验字段，首先计算校验值
+  // 如果有校验字段，首先计算校验值（基于参与组帧的字段）
   if (checksumFields.length > 0) {
-    const checksumResults = calculateChecksum(instance);
+    // 创建一个临时实例，只包含参与组帧的字段用于校验计算
+    const tempInstance = { ...instance, fields: frameFields };
+    const checksumResults = calculateChecksum(tempInstance);
 
     // 为每个校验字段设置计算出的校验值
     checksumFields.forEach((field, index) => {
@@ -360,9 +367,9 @@ export function frameToBuffer(instance: SendFrameInstance): Uint8Array {
     });
   }
 
-  // 计算总字节数
+  // 计算总字节数（只计算参与组帧的字段）
   let totalBytes = 0;
-  for (const field of instance.fields) {
+  for (const field of frameFields) {
     // 根据字段类型和长度计算字节数
     if (['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'float'].includes(field.dataType)) {
       // 数值类型根据类型确定长度
@@ -394,8 +401,8 @@ export function frameToBuffer(instance: SendFrameInstance): Uint8Array {
   const buffer = new Uint8Array(totalBytes);
   let offset = 0;
 
-  // 填充数据
-  for (const field of instance.fields) {
+  // 填充数据（只填充参与组帧的字段）
+  for (const field of frameFields) {
     // 将字段值转换为字节并写入缓冲区
     offset = writeFieldToBuffer(buffer, field, offset);
   }

@@ -4,6 +4,7 @@
 
 import type { FieldType } from './basic';
 import type { Frame } from './frames';
+import type { DataParticipationType, ExpressionConfig } from './fields';
 
 // 数据项接口
 export interface DataItem {
@@ -22,6 +23,10 @@ export interface DataItem {
     value: string; // 实际值
     label: string; // 显示标签
   }[];
+
+  // 新增表达式相关字段 - 确保向后兼容性
+  dataParticipationType?: DataParticipationType; // 数据参与类型，默认为'direct'
+  expressionConfig?: ExpressionConfig; // 表达式配置
 }
 
 // 数据分组结构

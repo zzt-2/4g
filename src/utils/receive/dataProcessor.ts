@@ -206,11 +206,32 @@ export function extractFieldValue(
         }
         break;
 
+      case 'double':
+        if (fieldData.length >= 8) {
+          const buffer = new ArrayBuffer(8);
+          const view = new DataView(buffer);
+          view.setUint8(0, fieldData[0]!);
+          view.setUint8(1, fieldData[1]!);
+          view.setUint8(2, fieldData[2]!);
+          view.setUint8(3, fieldData[3]!);
+          view.setUint8(4, fieldData[4]!);
+          view.setUint8(5, fieldData[5]!);
+          view.setUint8(6, fieldData[6]!);
+          view.setUint8(7, fieldData[7]!);
+          value = view.getFloat64(0, false); // big-endian
+          displayValue = (value as number).toFixed(4);
+        } else {
+          value = 0.0;
+          displayValue = '0.0000';
+        }
+        break;
+
       case 'bytes':
         value = fieldData;
-        displayValue = Array.from(fieldData)
-          .map((byte) => byte.toString(16).padStart(2, '0'))
-          .join(' ');
+        displayValue = '';
+        // displayValue = Array.from(fieldData)
+        //   .map((byte) => byte.toString(16).padStart(2, '0'))
+        //   .join(' ');
         break;
 
       default:

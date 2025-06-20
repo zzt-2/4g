@@ -210,8 +210,6 @@ const resetSelectedFrameStats = (): void => {
                 <div class="grid grid-cols-2 gap-2 text-industrial-secondary">
                   <div>运行时间: {{ formatDuration(recordingStats.runningTime) }}</div>
                   <div>记录数: {{ recordingStats.recordCount }}</div>
-                  <div>历史记录: {{ recordingStats.totalRecords }}</div>
-                  <div>CSV批次: {{ recordingStats.csvBatchCount }}</div>
                 </div>
               </div>
 

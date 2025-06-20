@@ -227,8 +227,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
       // 检查定时器是否已经在运行
       const existingTimer = await timerManager.getTimerInfo(TIMER_IDS.DATA_COLLECTION);
       if (existingTimer && existingTimer.status === 'running') {
-        console.log('数据收集定时器已在运行中，无需重复启动');
-        return;
+        await stopDataCollection();
       }
 
       // 注册数据收集定时器

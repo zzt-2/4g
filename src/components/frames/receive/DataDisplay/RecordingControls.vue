@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useDataDisplayStore } from '../../../../stores/frames/dataDisplayStore';
 
 const dataDisplayStore = useDataDisplayStore();
@@ -77,14 +76,6 @@ const handleStopRecording = () => {
       <!-- 运行时间 -->
       <span v-if="recordingStats.isRecording && recordingStats.runningTime > 0">
         时长: {{ formatRunningTime(recordingStats.runningTime) }}
-      </span>
-
-      <!-- 历史数据总数 -->
-      <span v-if="recordingStats.totalRecords > 0"> 历史: {{ recordingStats.totalRecords }} </span>
-
-      <!-- CSV批次数 -->
-      <span v-if="recordingStats.csvBatchCount > 0">
-        批次: {{ recordingStats.csvBatchCount }}
       </span>
     </div>
   </div>

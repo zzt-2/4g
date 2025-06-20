@@ -65,7 +65,7 @@
                 class="input-bg"
                 map-options
                 emit-value
-                @update:model-value="fieldStore.updateTempField('inputType')"
+                @update:model-value="handleInputTypeChange"
                 hide-bottom-space
               >
                 <template v-slot:hint>
@@ -87,6 +87,33 @@
                 <q-tooltip> 可使用十六进制(0x前缀)或十进制 </q-tooltip>
               </q-input>
             </div>
+          </div>
+
+          <!-- 数据参与类型选择器 -->
+          <div class="flex flex-col space-y-2">
+            <q-select
+              v-model="fieldStore.tempField.dataParticipationType"
+              :options="DATA_PARTICIPATION_TYPE_OPTIONS"
+              option-value="value"
+              option-label="label"
+              emit-value
+              map-options
+              label="数据参与类型"
+              dense
+              outlined
+              class="input-bg w-full"
+              @update:model-value="handleDataParticipationTypeChange"
+              hide-bottom-space
+            >
+              <template v-slot:option="scope">
+                <q-item v-bind="scope.itemProps">
+                  <q-item-section>
+                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption>{{ scope.opt.description }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
           </div>
 
           <!-- 可配置选项 -->
@@ -182,95 +209,24 @@
         </div>
       </div>
 
-      <!-- 右侧选项列表 -->
+      <!-- 右侧配置面板 -->
       <div class="w-2/5 pl-4">
-        <q-card
-          v-if="
-            fieldStore.tempField.inputType &&
-            ['select', 'radio'].includes(fieldStore.tempField.inputType)
-          "
-          bordered
-          flat
-          class="bg-panel w-full h-full flex flex-col"
+        <!-- 右侧面板根据inputType动态显示 -->
+        <div v-if="showInputConfigPanel" class="h-[75vh]">
+          <FieldInputConfigPanel
+            :field="fieldStore.tempField as FrameField"
+            @update:field="updateTempField"
+          />
+        </div>
+        <div
+          v-else
+          class="flex items-center justify-center h-full text-center text-industrial-secondary"
         >
-          <q-card-section class="p-3 flex-none">
-            <div class="flex justify-between items-center mb-2">
-              <div class="text-xs text-secondary-color">选项列表</div>
-              <q-btn
-                dense
-                flat
-                color="primary"
-                icon="add"
-                size="xs"
-                @click="addOption"
-                label="添加选项"
-                class="text-xs op-75"
-              />
-            </div>
-          </q-card-section>
-
-          <q-card-section class="p-3 max-h-[60vh] flex-grow overflow-hidden">
-            <div class="h-full w-full overflow-auto px-1">
-              <div
-                v-for="(option, index) in fieldStore.tempField.options"
-                :key="index"
-                class="flex gap-2 items-center mb-2"
-              >
-                <q-input
-                  v-model="option.value"
-                  dense
-                  outlined
-                  class="input-bg flex-1"
-                  placeholder="值"
-                  hide-bottom-space
-                />
-                <q-input
-                  v-model="option.label"
-                  dense
-                  outlined
-                  class="input-bg flex-1"
-                  placeholder="标签"
-                  hide-bottom-space
-                />
-                <q-checkbox
-                  v-model="option.isDefault"
-                  dense
-                  color="grey-7"
-                  @update:model-value="updateDefaultOption(index)"
-                  class="mx-1"
-                />
-                <q-btn
-                  flat
-                  round
-                  color="negative"
-                  icon="delete"
-                  size="xs"
-                  dense
-                  @click="removeOption(index)"
-                />
-              </div>
-              <div
-                v-if="!fieldStore.tempField.options || fieldStore.tempField.options.length === 0"
-                class="text-center text-secondary-color text-xs op-75 py-4"
-              >
-                暂无选项
-              </div>
-            </div>
-          </q-card-section>
-
-          <q-card-section class="p-3 border-t border-gray-700">
-            <div class="text-xs op-75 text-secondary-color">
-              <div>设置字段可选值，值用于数据处理，标签用于显示</div>
-              <div v-if="fieldStore.tempField.inputType === 'select'">
-                下拉菜单需要至少 {{ INPUT_TYPE_CONFIG.select.minOptions }} 个选项
-              </div>
-              <div v-if="fieldStore.tempField.inputType === 'radio'">
-                单选按钮需要至少 {{ INPUT_TYPE_CONFIG.radio.minOptions }} 个选项
-              </div>
-              <div>勾选框表示默认选项，只能有一个默认选项</div>
-            </div>
-          </q-card-section>
-        </q-card>
+          <div>
+            <q-icon name="info" size="2rem" class="opacity-50 mb-2" />
+            <div class="text-sm">该输入类型无需额外配置</div>
+          </div>
+        </div>
       </div>
     </div>
   </q-card>
@@ -281,83 +237,47 @@ import { useFrameFieldsStore } from '../../../stores/frames/frameFieldsStore';
 import {
   FIELD_TYPE_OPTIONS,
   UI_LABELS,
-  INPUT_TYPE_CONFIG,
-  CHECKSUM_METHOD_OPTIONS,
   INPUT_TYPE_OPTIONS,
+  CHECKSUM_METHOD_OPTIONS,
+  DATA_PARTICIPATION_TYPE_OPTIONS,
 } from '../../../config/frameDefaults';
-import { useNotification } from 'src/composables/frames/useNotification';
+import FieldInputConfigPanel from './FieldInputConfigPanel.vue';
+import type {
+  FrameField,
+  FieldInputType,
+  DataParticipationType,
+} from '../../../types/frames/fields';
+import { computed } from 'vue';
 
 // 获取store和composable
 const fieldStore = useFrameFieldsStore();
-const { notifyError } = useNotification();
 
-// 简化的选项操作方法，直接使用store中的方法
-const addOption = () => {
-  // 直接使用store的addEnumOption方法添加新选项
-  fieldStore.addEnumOption({
-    value: '',
-    label: '',
-    isDefault:
-      fieldStore.tempField.options?.length === 0 ||
-      !fieldStore.tempField.options?.some((opt) => opt.isDefault),
-  });
-};
-
-// 精简后的移除选项方法
-const removeOption = (index: number) => {
-  if (!fieldStore.tempField.options) return;
-
-  // 获取当前输入类型的配置并检查是否达到最小选项数限制
+// 右侧面板内容决定逻辑 - 显示表达式或选项配置
+const showInputConfigPanel = computed(() => {
   const inputType = fieldStore.tempField.inputType;
-  if (!inputType) return;
+  return inputType === 'expression' || ['select', 'radio'].includes(inputType || '');
+});
 
-  const config = INPUT_TYPE_CONFIG[inputType as keyof typeof INPUT_TYPE_CONFIG];
-  if (fieldStore.tempField.options.length <= config.minOptions) {
-    notifyError(
-      `${inputType === 'select' ? '下拉框' : '单选框'}至少需要 ${config.minOptions} 个选项`,
-    );
-    return;
+// 处理输入类型变化
+function handleInputTypeChange(newType: FieldInputType) {
+  fieldStore.tempField.inputType = newType;
+  fieldStore.updateTempField('inputType');
+
+  // 当输入类型变为表达式时，自动设置为间接数据参与类型
+  if (newType === 'expression') {
+    fieldStore.tempField.dataParticipationType = 'indirect';
   }
+}
 
-  // 检查是否删除的是默认选项
-  const isRemovingDefault = fieldStore.tempField.options[index]?.isDefault;
+// 处理数据参与类型变化
+function handleDataParticipationTypeChange(newType: DataParticipationType) {
+  fieldStore.tempField.dataParticipationType = newType;
+}
 
-  // 使用store方法删除选项
-  fieldStore.removeEnumOption(index);
-
-  // 如果删除的是默认选项，确保仍然有一个默认选项
-  if (isRemovingDefault && fieldStore.tempField.options.length > 0) {
-    fieldStore.tempField.options[0]!.isDefault = true;
-  }
-};
-
-// 精简后的更新默认选项方法
-const updateDefaultOption = (selectedIndex: number) => {
-  if (!fieldStore.tempField.options || selectedIndex < 0) return;
-
-  const currentOption = fieldStore.tempField.options[selectedIndex];
-  if (!currentOption) return;
-
-  // 如果取消了默认选项，确保有其他默认选项
-  if (!currentOption.isDefault) {
-    const hasAnyDefault = fieldStore.tempField.options.some(
-      (opt, idx) => idx !== selectedIndex && opt.isDefault,
-    );
-
-    if (!hasAnyDefault) {
-      // 如果没有其他默认值，强制将当前选项设为默认
-      currentOption.isDefault = true;
-      return;
-    }
-  } else {
-    // 如果设置了默认选项，取消其他选项的默认状态
-    fieldStore.tempField.options.forEach((opt, idx) => {
-      if (idx !== selectedIndex) {
-        opt.isDefault = false;
-      }
-    });
-  }
-};
+// 更新临时字段
+function updateTempField(updatedField: FrameField) {
+  Object.assign(fieldStore.tempField, updatedField);
+}
 </script>
 
 <style scoped></style>

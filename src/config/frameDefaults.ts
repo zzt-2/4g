@@ -58,7 +58,8 @@ export const FIELD_TYPE_OPTIONS = [
   { label: '有符号16位整数 (2字节)', value: 'int16' },
   { label: '无符号32位整数 (4字节)', value: 'uint32' },
   { label: '有符号32位整数 (4字节)', value: 'int32' },
-  { label: '32位浮点数 (4字节)', value: 'float' },
+  { label: '单精度浮点数 (4字节)', value: 'float' },
+  { label: '双精度浮点数 (8字节)', value: 'double' },
   { label: '字节数组', value: 'bytes' },
 ] as const;
 
@@ -200,6 +201,13 @@ export const INPUT_TYPE_CONFIG = {
     hasDefaultOption: true,
     description: '单选按钮组，适用于需要明确显示所有选项的场景',
   },
+  expression: {
+    needsOptions: false,
+    maxOptions: 0,
+    minOptions: 0,
+    hasDefaultOption: false,
+    description: '自定义表达式，通过表达式计算得出字段值',
+  },
 } as const;
 
 /**
@@ -209,6 +217,15 @@ export const INPUT_TYPE_OPTIONS = [
   { label: '输入框', value: 'input' },
   { label: '下拉框', value: 'select' },
   { label: '单选框', value: 'radio' },
+  { label: '自定义表达式', value: 'expression' },
+];
+
+/**
+ * 数据参与类型选项
+ */
+export const DATA_PARTICIPATION_TYPE_OPTIONS = [
+  { label: '直接数据', value: 'direct', description: '参与组帧发送或从帧中直接解析' },
+  { label: '间接数据', value: 'indirect', description: '不参与组帧，通过计算得出或作为计算参数' },
 ];
 
 /**

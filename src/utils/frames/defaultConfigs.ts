@@ -10,6 +10,12 @@ import type {
   TimeTriggerConfig,
   ConditionTriggerConfig,
 } from '../../types/frames/sendInstances';
+import type {
+  ExpressionConfig,
+  VariableMapping,
+  ConditionalExpression,
+} from '../../types/frames/fields';
+import { DataSourceType } from '../../types/frames/fields';
 
 /**
  * 创建默认定时策略配置
@@ -59,6 +65,7 @@ export function createDefaultConditionTriggerConfig(): ConditionTriggerConfig {
     sourceId: '',
     triggerFrameId: '',
     conditions: [createDefaultTriggerCondition()],
+    continueListening: true,
   };
 }
 
@@ -76,11 +83,52 @@ export function createDefaultTriggerCondition(): TriggerCondition {
 }
 
 /**
+ * 创建默认表达式配置
+ */
+export function createDefaultExpressionConfig(): ExpressionConfig {
+  return {
+    expressions: [createDefaultConditionalExpression()],
+    variables: [],
+  };
+}
+
+/**
+ * 创建默认条件表达式
+ */
+export function createDefaultConditionalExpression(): ConditionalExpression {
+  return {
+    condition: 'true', // 默认总是执行
+    expression: '0', // 默认返回0
+  };
+}
+
+/**
+ * 创建默认变量映射
+ */
+export function createDefaultVariableMapping(
+  identifier: string = 'a',
+  sourceType: DataSourceType = DataSourceType.CURRENT_FIELD,
+): VariableMapping {
+  return {
+    identifier,
+    sourceType,
+    sourceId: '',
+  };
+}
+
+/**
  * 克隆策略配置
  */
 export function cloneStrategyConfig<T extends TimedStrategyConfig | TriggerStrategyConfig>(
   config: T,
 ): T {
+  return JSON.parse(JSON.stringify(config));
+}
+
+/**
+ * 克隆表达式配置
+ */
+export function cloneExpressionConfig(config: ExpressionConfig): ExpressionConfig {
   return JSON.parse(JSON.stringify(config));
 }
 
@@ -107,4 +155,49 @@ export function getConditionTypeLabel(condition: TriggerCondition['condition']):
     contains: '包含',
   };
   return labels[condition] || '未知条件';
+}
+
+/**
+ * 获取数据源类型的显示标签
+ * @param sourceType 数据源类型
+ * @returns 显示标签
+ */
+export function getDataSourceTypeLabel(sourceType: DataSourceType): string {
+  switch (sourceType) {
+    case DataSourceType.CURRENT_FIELD:
+      return '当前帧';
+    case DataSourceType.FRAME_FIELD:
+      return '接收帧';
+    case DataSourceType.GLOBAL_STAT:
+      return '全局统计';
+    default:
+      return '未知类型';
+  }
+}
+
+/**
+ * 验证表达式配置的完整性
+ */
+export function validateExpressionConfig(config: ExpressionConfig): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  // 检查表达式是否为空
+  if (!config.expressions || config.expressions.length === 0) {
+    errors.push('至少需要一个表达式');
+  }
+
+  // 检查变量映射的唯一性
+  const identifiers = config.variables.map((v) => v.identifier);
+  const uniqueIdentifiers = new Set(identifiers);
+  if (identifiers.length !== uniqueIdentifiers.size) {
+    errors.push('变量标识符不能重复');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
 }

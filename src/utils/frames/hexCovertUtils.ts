@@ -75,6 +75,24 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
         buffer[0] = Math.floor(numValue);
         return (buffer[0] >>> 0).toString(16).toUpperCase().padStart(8, '0');
       }
+      case 'float': {
+        const buffer = new ArrayBuffer(4);
+        const view = new DataView(buffer);
+        view.setFloat32(0, numValue, false); // big-endian
+        const hex = Array.from(new Uint8Array(buffer))
+          .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+          .join('');
+        return hex;
+      }
+      case 'double': {
+        const buffer = new ArrayBuffer(8);
+        const view = new DataView(buffer);
+        view.setFloat64(0, numValue, false); // big-endian
+        const hex = Array.from(new Uint8Array(buffer))
+          .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+          .join('');
+        return hex;
+      }
       default:
         return '00'; // 默认返回
     }
@@ -99,7 +117,10 @@ export const getHexLengthByDataType = (dataType: string): number => {
       return 4; // 2 字节 = 4 位十六进制
     case 'uint32':
     case 'int32':
+    case 'float':
       return 8; // 4 字节 = 8 位十六进制
+    case 'double':
+      return 16; // 8 字节 = 16 位十六进制
     case 'bytes':
       return 2; // bytes类型特殊处理，最小长度为2
     default:
@@ -128,7 +149,9 @@ export const getFieldHexValue = (field: SendInstanceField): string => {
 
   if (
     field.dataType &&
-    ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(field.dataType)
+    ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'float', 'double', 'bytes'].includes(
+      field.dataType,
+    )
   ) {
     return `0x${convertToHex(field.value, field.dataType, field.length)}`;
   }
@@ -139,19 +162,34 @@ export const getFieldHexValue = (field: SendInstanceField): string => {
 /**
  * 获取完整的帧十六进制字符串
  * @param fields 字段数组
- * @returns 所有字段连接的十六进制字符串
+ * @returns 所有字段连接的十六进制字符串（只包含直接数据参与类型的字段）
  */
 export const getFullHexString = (fields: SendInstanceField[]): string => {
   if (!fields || fields.length === 0) return '';
 
-  // 使用map生成所有字段的十六进制值，然后连接
-  return fields
+  // 过滤出参与组帧的字段（只有直接数据参与类型的字段）
+  const frameFields = fields.filter(
+    (field) => (field.dataParticipationType || 'direct') === 'direct',
+  );
+
+  // 使用map生成所有参与组帧字段的十六进制值，然后连接
+  return frameFields
     .map((field) => {
       if (
         field &&
         field.dataType &&
         field.value &&
-        ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(field.dataType)
+        [
+          'uint8',
+          'int8',
+          'uint16',
+          'int16',
+          'uint32',
+          'int32',
+          'float',
+          'double',
+          'bytes',
+        ].includes(field.dataType)
       ) {
         return convertToHex(field.value, field.dataType, field.length);
       }
@@ -173,7 +211,9 @@ export const initializeHexValues = (instance: {
 
   instance.fields.forEach((field) => {
     if (
-      ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(field.dataType) &&
+      ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'float', 'double', 'bytes'].includes(
+        field.dataType,
+      ) &&
       field.value
     ) {
       hexValues[field.id] = `0x${convertToHex(field.value, field.dataType, field.length)}`;

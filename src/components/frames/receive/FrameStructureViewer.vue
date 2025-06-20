@@ -8,10 +8,10 @@ import { formatHexWithSpaces } from '../../../utils/frames/hexCovertUtils';
 // Store
 const receiveFramesStore = useReceiveFramesStore();
 
-// 计算属性：选中帧信息
+// 计算属性：选中帧信息（使用过滤后的直接数据帧）
 const selectedFrame = computed((): Frame | undefined => {
   if (!receiveFramesStore.selectedFrameId) return undefined;
-  return receiveFramesStore.receiveFrames.find(
+  return receiveFramesStore.directDataFrames.find(
     (frame: Frame) => frame.id === receiveFramesStore.selectedFrameId,
   );
 });
@@ -47,9 +47,9 @@ const selectedFieldIds = computed((): Set<string> => {
   return fieldIds;
 });
 
-// 计算属性：带有偏移信息的字段列表（仅用于计算高亮）
+// 计算属性：带有偏移信息的字段列表（直接使用store中过滤好的字段）
 const fieldsWithOffset = computed(() => {
-  if (!selectedFrame.value) return [];
+  if (!selectedFrame.value?.fields) return [];
 
   let currentOffset = 0;
   return selectedFrame.value.fields.map((field) => {
@@ -73,8 +73,8 @@ const hexBytes = computed((): { byte: string; offset: number; highlightColor: st
   const pureHex = lastReceivedHex.value.replace(/\s/g, '');
   const bytes: { byte: string; offset: number; highlightColor: string }[] = [];
 
-  // 定义两种交错的高亮颜色
-  const highlightColors = ['yellow', 'green'];
+  // 定义6种不同的高亮颜色，便于区分更多相邻字段
+  const highlightColors = ['yellow', 'green', 'blue', 'purple', 'orange', 'cyan'];
 
   for (let i = 0; i < pureHex.length; i += 2) {
     const byte = pureHex.substring(i, i + 2);
@@ -124,10 +124,16 @@ const hexBytes = computed((): { byte: string; offset: number; highlightColor: st
           <template v-for="(byteInfo, index) in hexBytes" :key="index">
             <span
               :class="{
-                'text-blue-400': !byteInfo.highlightColor,
+                'text-industrial-accent': !byteInfo.highlightColor,
                 'text-yellow-400 bg-yellow-500/20 px-1 rounded':
                   byteInfo.highlightColor === 'yellow',
                 'text-green-400 bg-green-500/20 px-1 rounded': byteInfo.highlightColor === 'green',
+                'text-blue-400 bg-blue-500/20 px-1 rounded': byteInfo.highlightColor === 'blue',
+                'text-purple-400 bg-purple-500/20 px-1 rounded':
+                  byteInfo.highlightColor === 'purple',
+                'text-orange-400 bg-orange-500/20 px-1 rounded':
+                  byteInfo.highlightColor === 'orange',
+                'text-cyan-400 bg-cyan-500/20 px-1 rounded': byteInfo.highlightColor === 'cyan',
               }"
               class="select-all break-all"
               >{{ byteInfo.byte }}</span

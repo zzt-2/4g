@@ -219,7 +219,7 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
       state.instances.value.forEach((instance) => {
         instance.sendCount = 0;
         delete instance.lastSentAt;
-        instance.updatedAt = new Date();
+        crud.updateInstance(instance);
       });
       // 批量保存
       Promise.all(state.instances.value.map((instance) => crud.updateInstance(instance)));

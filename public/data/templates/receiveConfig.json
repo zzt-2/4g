@@ -10,74 +10,52 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 286331153,
-            "displayValue": "286331153",
+            "value": null,
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 1
-          },
-          {
-            "label": "误码bit数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": 268435456,
-            "displayValue": "268435456",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 2
           },
           {
             "label": "接收包计数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 0,
-            "displayValue": "0",
+            "value": null,
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 3
           },
           {
-            "label": "错误包计数",
+            "label": "误码bit数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 0,
-            "displayValue": "0",
+            "value": null,
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
-            "id": 4
+            "id": 2
           },
           {
             "label": "有效bit数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 0,
-            "displayValue": "0",
+            "value": null,
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 5
-          },
-          {
-            "label": "误码bit数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": 0,
-            "displayValue": "0",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 6
           },
           {
             "label": "接收包计数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 0,
-            "displayValue": "0",
+            "value": null,
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 7
@@ -87,38 +65,131 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
-            "value": 0,
-            "displayValue": "0",
+            "value": null,
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 8
           },
           {
-            "label": "新字段",
+            "label": "误码bit数",
             "isVisible": true,
             "isFavorite": false,
-            "dataType": "uint8",
+            "dataType": "uint32",
             "value": null,
             "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0",
-                "label": "选项 A"
-              },
-              {
-                "value": "1",
-                "label": "选项 B"
-              }
-            ],
-            "id": 9
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 6
           }
         ]
       },
       {
         "id": 2,
         "label": "测试分组",
-        "dataItems": []
+        "dataItems": [
+          {
+            "label": "测试接收1累加",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "uint32",
+            "value": 720,
+            "displayValue": "720",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 3
+          },
+          {
+            "label": "等于测试数据1*2",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "uint8",
+            "value": 8,
+            "displayValue": "8",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 2
+          },
+          {
+            "label": "测试数据1",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "uint8",
+            "value": 4,
+            "displayValue": "4",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 1
+          },
+          {
+            "label": "测试接收1+测试接收1*2",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 12,
+            "displayValue": "12",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 4
+          },
+          {
+            "label": "粗测距",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 2,
+            "displayValue": "2",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 5
+          },
+          {
+            "label": "细测距",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 16,
+            "displayValue": "16",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 6
+          },
+          {
+            "label": "测距值",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 216,
+            "displayValue": "216",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 7
+          },
+          {
+            "label": "字节数组",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "bytes",
+            "value": {
+              "0": 17,
+              "1": 17,
+              "2": 17,
+              "3": 17,
+              "4": 17,
+              "5": 17,
+              "6": 17,
+              "7": 17,
+              "8": 17,
+              "9": 17,
+              "10": 17,
+              "11": 17
+            },
+            "displayValue": "11 11 11 11 11 11 11 11 11 11 11 11",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 8
+          }
+        ]
       }
     ],
     "mappings": [
@@ -142,13 +213,6 @@
         "fieldName": "接收包计数",
         "groupId": 1,
         "dataItemId": 3
-      },
-      {
-        "frameId": "zcy005",
-        "fieldId": "gIYn1NpCfNSX2Gi0ZwipF",
-        "fieldName": "错误包计数",
-        "groupId": 1,
-        "dataItemId": 4
       },
       {
         "frameId": "zcy0006",
@@ -186,15 +250,64 @@
         "dataItemId": 9
       },
       {
+        "frameId": "test002",
+        "fieldId": "IRAI7ST9vm3wKs0QBHPTG",
+        "fieldName": "测试数据1",
+        "groupId": 2,
+        "dataItemId": 1
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "sXPvFmFXfavlm--geg9Kb",
+        "fieldName": "等于测试数据1*2",
+        "groupId": 2,
+        "dataItemId": 2
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "340LYOzVTf81_koKFk61G",
+        "fieldName": "测试接收1累加",
+        "groupId": 2,
+        "dataItemId": 3
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "JM8m01K6f24XG762G5uvL",
+        "fieldName": "测试接收1+测试接收1*2",
+        "groupId": 2,
+        "dataItemId": 4
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "w_2-a6-JN8wt4knTqlCcy",
+        "fieldName": "粗测距",
+        "groupId": 2,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "KOIag-beRSJgPl_CJHLXJ",
+        "fieldName": "细测距",
+        "groupId": 2,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "HdlG7MBElod851yzesrdD",
+        "fieldName": "测距值",
+        "groupId": 2,
+        "dataItemId": 7
+      },
+      {
         "frameId": "testreceive",
         "fieldId": "rOhIaQKGl3Z19Gqwjmy6t",
-        "fieldName": "新字段",
-        "groupId": 1,
-        "dataItemId": 9
+        "fieldName": "字节数组",
+        "groupId": 2,
+        "dataItemId": 8
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-06-18T14:45:37.865Z",
-    "updatedAt": "2025-06-18T14:45:37.865Z"
+    "createdAt": "2025-06-20T06:24:17.008Z",
+    "updatedAt": "2025-06-20T06:24:17.008Z"
   }
 ]

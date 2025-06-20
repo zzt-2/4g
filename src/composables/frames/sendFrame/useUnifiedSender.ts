@@ -8,6 +8,8 @@ import { frameToBuffer } from '../../../utils/frames/frameInstancesUtils';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
 import { useConnectionTargetsStore } from '../../../stores/connectionTargetsStore';
 import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
+import { useGlobalStatsStore } from '../../../stores/globalStatsStore';
+import { useFrameExpressionManager } from '../useFrameExpressionManager';
 
 /**
  * 统一发送结果
@@ -52,6 +54,9 @@ function parseTargetId(targetId: string): {
 export function useUnifiedSender() {
   // 获取发送实例store用于更新统计
   const sendFrameInstancesStore = useSendFrameInstancesStore();
+  const connectionTargetsStore = useConnectionTargetsStore();
+  const globalStatsStore = useGlobalStatsStore();
+  const frameExpressionManager = useFrameExpressionManager();
 
   /**
    * 发送帧实例到指定目标
@@ -64,6 +69,18 @@ export function useUnifiedSender() {
     frameInstance: SendFrameInstance,
   ): Promise<UnifiedSendResult> => {
     try {
+      // 发送前计算表达式字段
+      if (frameExpressionManager.hasExpressionFields(frameInstance.frameId, 'send')) {
+        const updateFieldValue = (fieldId: string, value: string) => {
+          const field = frameInstance.fields.find((f) => f.id === fieldId);
+          if (field) {
+            field.value = value;
+          }
+        };
+
+        frameExpressionManager.calculateAndApplySendFrame(frameInstance, updateFieldValue);
+      }
+
       const data = frameToBuffer(frameInstance);
       const { type, identifier } = parseTargetId(targetId);
 
@@ -79,7 +96,6 @@ export function useUnifiedSender() {
           const connectionId = parts[1] as string;
 
           // 从store获取目标信息
-          const connectionTargetsStore = useConnectionTargetsStore();
           connectionTargetsStore.refreshTargets();
           const target = connectionTargetsStore.getTargetById(targetId);
 
@@ -111,6 +127,14 @@ export function useUnifiedSender() {
         // 使用 setTimeout 异步执行，避免阻塞发送响应
         setTimeout(() => {
           sendFrameInstancesStore.updateSendStats(frameInstance.id);
+          // 更新全局统计
+          globalStatsStore.incrementSentPackets();
+          globalStatsStore.addSentBytes(data.length);
+        }, 0);
+      } else {
+        // 发送失败时更新错误统计
+        setTimeout(() => {
+          globalStatsStore.incrementCommunicationErrors();
         }, 0);
       }
 

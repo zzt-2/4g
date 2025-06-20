@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { SendFrameInstance, SendInstanceField } from '../../../types/frames/sendInstances';
+import type { SendInstanceField } from '../../../types/frames/sendInstances';
+import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 import {
   formatHexWithSpaces,
   getFullHexString,
   getFieldHexValue,
 } from '../../../utils/frames/hexCovertUtils';
 
-// 定义属性
-const props = defineProps<{
-  instance: SendFrameInstance | null;
-}>();
+// 获取store实例
+const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 // 筛选出可配置字段
 const configurableFields = computed(() => {
-  if (!props.instance) return [];
-  return props.instance.fields.filter((field) => field.configurable);
+  if (!sendFrameInstancesStore.currentInstance) return [];
+  return sendFrameInstancesStore.currentInstance.fields.filter(
+    (field: SendInstanceField) => field.configurable,
+  );
 });
 
 // 完整帧十六进制
 const fullHexString = computed(() => {
-  if (!props.instance) return '';
-  const hexValues = getFullHexString(props.instance.fields);
+  if (!sendFrameInstancesStore.currentInstance) return '';
+  const hexValues = getFullHexString(sendFrameInstancesStore.currentInstance.fields);
   return formatHexWithSpaces(hexValues);
 });
 
@@ -47,27 +48,33 @@ const formatDate = (date: Date | undefined | null) => {
 <template>
   <div class="flex flex-col h-full w-full">
     <!-- 实例信息头部 -->
-    <div class="flex flex-col p-3 border-b border-solid border-[#2A2F45]" v-if="instance">
+    <div
+      class="flex flex-col p-3 border-b border-solid border-[#2A2F45]"
+      v-if="sendFrameInstancesStore.currentInstance"
+    >
       <h5 class="m-0 text-white font-medium text-base">
-        {{ instance.label }}
+        {{ sendFrameInstancesStore.currentInstance.label }}
       </h5>
 
       <!-- 创建和更新时间 -->
       <div class="mt-2 flex flex-col gap-2 text-xs">
         <div class="text-blue-grey-5">
           <span class="text-blue-grey-4">创建时间: </span>
-          {{ formatDate(instance.createdAt) }}
+          {{ formatDate(sendFrameInstancesStore.currentInstance.createdAt) }}
         </div>
         <div class="text-blue-grey-5">
           <span class="text-blue-grey-4">更新时间: </span>
-          {{ formatDate(instance.updatedAt) }}
+          {{ formatDate(sendFrameInstancesStore.currentInstance.updatedAt) }}
         </div>
       </div>
 
       <!-- 备注 -->
-      <div class="break-all text-blue-grey-4 text-xs mt-2" v-if="instance.description">
+      <div
+        class="break-all text-blue-grey-4 text-xs mt-2"
+        v-if="sendFrameInstancesStore.currentInstance.description"
+      >
         <span class="text-blue-grey-5">备注: </span>
-        {{ instance.description }}
+        {{ sendFrameInstancesStore.currentInstance.description }}
       </div>
 
       <!-- 完整帧十六进制显示 -->
@@ -80,7 +87,7 @@ const formatDate = (date: Date | undefined | null) => {
     </div>
 
     <!-- 帧数据主体 - 只显示可配置字段 -->
-    <div class="flex-1 overflow-y-auto" v-if="instance">
+    <div class="flex-1 overflow-y-auto" v-if="sendFrameInstancesStore.currentInstance">
       <!-- 可配置字段数量为0时的提示 -->
       <div
         v-if="configurableFields.length === 0"
@@ -171,7 +178,10 @@ const formatDate = (date: Date | undefined | null) => {
     </div>
 
     <!-- 空状态提示 -->
-    <div class="flex-1 flex flex-col items-center justify-center p-8 bg-[#131725]" v-if="!instance">
+    <div
+      class="flex-1 flex flex-col items-center justify-center p-8 bg-[#131725]"
+      v-if="!sendFrameInstancesStore.currentInstance"
+    >
       <q-icon name="visibility" color="blue-grey-7" size="3rem" class="opacity-70" />
       <div class="text-blue-grey-4 mt-4 text-center">请选择帧实例以查看预览</div>
     </div>

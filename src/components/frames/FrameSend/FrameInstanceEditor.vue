@@ -1,54 +1,139 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
+import { useFrameExpressionManager } from '../../../composables/frames/useFrameExpressionManager';
 import type { SendInstanceField } from '../../../types/frames/sendInstances';
 import { getHexLengthByDataType } from '../../../utils/frames/hexCovertUtils';
 
-// 获取stores
+// 获取stores和composables
 const sendFrameInstancesStore = useSendFrameInstancesStore();
+const frameExpressionManager = useFrameExpressionManager();
 
 // 始终处于编辑模式
 const isEditing = true;
 
-// 计算属性
+// 计算属性 - 检查是否有可配置字段
 const hasConfigurableFields = computed(() => {
-  if (!sendFrameInstancesStore.localInstance) return false;
-  return sendFrameInstancesStore.localInstance.fields.some(
-    (field: SendInstanceField) => field.configurable,
-  );
+  return allFieldGroups.value.some((group) => group.config.editable && group.fields.length > 0);
 });
 
-const configurableFields = computed(() => {
+// 字段分组配置
+interface FieldGroupConfig {
+  type: 'payload' | 'calculation' | 'readonly';
+  title: string;
+  icon: string;
+  iconColor: string;
+  editable: boolean;
+  showHex: boolean;
+  cardClass: string;
+  indexColor: string;
+  badgeColor: string;
+  bgColorClass: string;
+}
+
+const fieldGroupConfigs: FieldGroupConfig[] = [
+  {
+    type: 'payload',
+    title: '载荷字段',
+    icon: 'tune',
+    iconColor: 'text-blue-5',
+    editable: true,
+    showHex: true,
+    cardClass:
+      'bg-industrial-panel rounded-md p-2 shadow-md border border-industrial hover:border-industrial-accent transition-colors',
+    indexColor: 'text-industrial-accent',
+    badgeColor: 'blue-5',
+    bgColorClass: 'rgba(16, 24, 40, 0.6)',
+  },
+  {
+    type: 'calculation',
+    title: '计算参数',
+    icon: 'calculate',
+    iconColor: 'text-orange-5',
+    editable: true,
+    showHex: false,
+    cardClass:
+      'bg-industrial-panel rounded-md p-2 shadow-md border border-industrial hover:border-industrial-accent transition-colors',
+    indexColor: 'text-orange-400',
+    badgeColor: 'orange-5',
+    bgColorClass: 'rgba(40, 35, 20, 0.6)',
+  },
+  {
+    type: 'readonly',
+    title: '不可配置字段',
+    icon: 'lock',
+    iconColor: 'text-blue-5',
+    editable: false,
+    showHex: true,
+    cardClass:
+      'bg-industrial-panel opacity-70 rounded-md p-2 shadow-sm border border-industrial-secondary',
+    indexColor: 'text-industrial-secondary',
+    badgeColor: 'blue-grey-7',
+    bgColorClass: 'rgba(16, 24, 40, 0.6)',
+  },
+];
+
+// 统一的字段获取方法
+function getFieldsByType(type: 'payload' | 'calculation' | 'readonly'): SendInstanceField[] {
   if (!sendFrameInstancesStore.localInstance) return [];
-  const fields = sendFrameInstancesStore.localInstance.fields.filter(
-    (field: SendInstanceField) => field.configurable,
-  );
-  return fields;
+
+  switch (type) {
+    case 'payload':
+      return sendFrameInstancesStore.localInstance.fields.filter(
+        (field) => field.configurable && (field.dataParticipationType || 'direct') === 'direct',
+      );
+    case 'calculation':
+      return sendFrameInstancesStore.localInstance.fields.filter(
+        (field) => field.configurable && field.dataParticipationType === 'indirect',
+      );
+    case 'readonly':
+      return sendFrameInstancesStore.localInstance.fields.filter((field) => !field.configurable);
+    default:
+      return [];
+  }
+}
+
+// 统一的字段分组数据
+const allFieldGroups = computed(() => {
+  return fieldGroupConfigs
+    .map((config) => ({
+      config,
+      fields: getFieldsByType(config.type).map((field, index) => ({
+        field,
+        globalIndex: getFieldGlobalIndex(index, config.editable),
+        groupConfig: config,
+        isConfigurable: config.editable,
+      })),
+    }))
+    .filter((group) => group.fields.length > 0);
 });
 
-const nonConfigurableFields = computed(() => {
+// 计算所有表达式字段
+const expressionFields = computed(() => {
   if (!sendFrameInstancesStore.localInstance) return [];
-  const fields = sendFrameInstancesStore.localInstance.fields.filter(
-    (field: SendInstanceField) => !field.configurable,
+  return sendFrameInstancesStore.localInstance.fields.filter(
+    (field: SendInstanceField) => field.inputType === 'expression',
   );
-  return fields;
 });
 
 // 计算字段的全局索引
 const getFieldGlobalIndex = (localIndex: number, isConfigurable: boolean) => {
   if (!sendFrameInstancesStore.localInstance) return localIndex + 1;
 
+  const allFields = sendFrameInstancesStore.localInstance.fields;
+
   // 如果是可配置字段，需要计算它在所有字段中的位置
   if (isConfigurable) {
-    const allFields = sendFrameInstancesStore.localInstance.fields;
-    const field = configurableFields.value[localIndex];
+    // 合并载荷和计算字段
+    const configurableFields = [...getFieldsByType('payload'), ...getFieldsByType('calculation')];
+    const field = configurableFields[localIndex];
     if (!field) return localIndex + 1;
     return allFields.findIndex((f) => f.id === field.id) + 1;
   }
   // 如果是不可配置字段，也需要计算其在所有字段中的位置
   else {
-    const allFields = sendFrameInstancesStore.localInstance.fields;
-    const field = nonConfigurableFields.value[localIndex];
+    const readonlyFields = getFieldsByType('readonly');
+    const field = readonlyFields[localIndex];
     if (!field) return localIndex + 1;
     return allFields.findIndex((f) => f.id === field.id) + 1;
   }
@@ -59,9 +144,25 @@ function handleValueChange(field: SendInstanceField, value: string | number | nu
   sendFrameInstancesStore.updateFieldValue(field.id, value);
 }
 
+// 计算所有表达式 - 使用新的表达式管理器
+function calculateAllExpressions() {
+  if (!sendFrameInstancesStore.localInstance) return;
+
+  console.log('开始计算表达式...');
+
+  // 使用新的表达式管理器
+  const updateFieldValue = (fieldId: string, value: string) => {
+    sendFrameInstancesStore.updateFieldValue(fieldId, value);
+  };
+
+  frameExpressionManager.calculateAndApplySendFrame(
+    sendFrameInstancesStore.localInstance,
+    updateFieldValue,
+  );
+}
+
 // 获取字段对应的输入规则
 function getFieldRules(field: SendInstanceField) {
-  // console.log('field', field);
   const rules = [];
 
   if (['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32'].includes(field.dataType)) {
@@ -166,18 +267,73 @@ function getDefaultOptions(field: SendInstanceField) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#131725]">
+  <div class="flex flex-col h-full bg-industrial-primary w-full min-w-0 p-4">
     <div
-      class="flex-1 overflow-y-auto p-2 bg-[#131725]"
+      class="flex-1 overflow-y-auto p-2 bg-industrial-primary"
       v-if="sendFrameInstancesStore.localInstance"
     >
+      <!-- 字段统计信息和表达式刷新按钮 -->
+      <div
+        class="mb-4 pb-3 border-b border-dashed border-industrial"
+        v-if="sendFrameInstancesStore.localInstance.fields.length > 0"
+      >
+        <div class="flex flex-row justify-between items-center">
+          <div class="flex flex-row gap-4 text-xs">
+            <div class="flex items-center gap-1">
+              <q-icon name="tune" size="xs" class="text-blue-5" />
+              <span class="text-industrial-secondary"
+                >载荷: {{ getFieldsByType('payload').length }}</span
+              >
+            </div>
+            <div class="flex items-center gap-1">
+              <q-icon name="calculate" size="xs" class="text-orange-5" />
+              <span class="text-industrial-secondary"
+                >计算: {{ getFieldsByType('calculation').length }}</span
+              >
+            </div>
+            <div class="flex items-center gap-1">
+              <q-icon name="lock" size="xs" class="text-blue-grey-7" />
+              <span class="text-industrial-secondary"
+                >只读: {{ getFieldsByType('readonly').length }}</span
+              >
+            </div>
+            <div class="flex items-center gap-1">
+              <q-icon name="list" size="xs" class="text-green-5" />
+              <span class="text-industrial-secondary"
+                >总计: {{ sendFrameInstancesStore.localInstance.fields.length }}</span
+              >
+            </div>
+            <div class="flex items-center gap-1" v-if="expressionFields.length > 0">
+              <q-icon name="functions" size="xs" class="text-warning" />
+              <span class="text-industrial-secondary">表达式: {{ expressionFields.length }}</span>
+            </div>
+          </div>
+
+          <!-- 表达式刷新按钮 -->
+          <div v-if="expressionFields.length > 0">
+            <q-btn
+              icon="refresh"
+              size="sm"
+              color="warning"
+              flat
+              dense
+              @click="calculateAllExpressions"
+              class="px-2"
+            >
+              <q-tooltip>刷新所有表达式计算</q-tooltip>
+              刷新表达式
+            </q-btn>
+          </div>
+        </div>
+      </div>
+
       <!-- 实例基本信息编辑 - 极简紧凑布局 -->
-      <div class="mb-2 pb-2 border-b border-dashed border-[#2A2F45]" v-if="isEditing">
+      <div class="mb-2 pb-2 border-b border-dashed border-industrial" v-if="isEditing">
         <!-- 并排布局的ID和备注编辑 - 更加紧凑 -->
         <div class="flex flex-row gap-2">
           <!-- ID编辑 -->
           <div class="flex items-center gap-2 flex-1">
-            <div class="text-xs font-medium text-white w-16 flex-shrink-0">
+            <div class="text-xs font-medium text-industrial-primary w-16 flex-shrink-0">
               <q-icon name="label" size="xs" class="mr-1 text-blue-5" />
               实例ID
             </div>
@@ -197,7 +353,7 @@ function getDefaultOptions(field: SendInstanceField) {
 
           <!-- 备注编辑 -->
           <div class="flex items-center gap-2 flex-1">
-            <div class="text-xs font-medium text-white w-16 flex-shrink-0">
+            <div class="text-xs font-medium text-industrial-primary w-16 flex-shrink-0">
               <q-icon name="notes" size="xs" class="mr-1 text-blue-5" />
               备注
             </div>
@@ -233,189 +389,256 @@ function getDefaultOptions(field: SendInstanceField) {
         <span class="text-sm">该帧实例没有可配置字段</span>
       </div>
 
-      <!-- 可配置字段表单 - 名称和类型垂直排列，输入框水平排列 -->
+      <!-- 统一的字段分组显示 -->
       <div
         class="flex flex-col gap-1"
         v-if="sendFrameInstancesStore.localInstance.fields.length > 0"
       >
-        <div v-if="configurableFields.length > 0">
-          <div class="text-blue-grey-4 text-xs uppercase font-medium mb-1 flex items-center">
-            <q-icon name="tune" size="xs" class="mr-1 text-blue-5" />
-            可配置字段
+        <template v-for="group in allFieldGroups" :key="group.config.type">
+          <!-- 分组标题 -->
+          <div
+            class="text-blue-grey-4 text-xs uppercase font-medium mb-1 flex items-center"
+            :class="group.config.type !== 'payload' ? 'mt-3' : ''"
+          >
+            <q-icon :name="group.config.icon" size="xs" :class="['mr-1', group.config.iconColor]" />
+            {{ group.config.title }}
           </div>
 
-          <!-- 新的布局：左侧垂直排列名称和类型，右侧是等高的输入框 -->
-          <div class="space-y-1">
+          <!-- 字段列表 -->
+          <div
+            :class="
+              group.config.type === 'calculation'
+                ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-1'
+                : 'space-y-1'
+            "
+          >
             <div
-              v-for="(field, index) in configurableFields"
-              :key="field.id"
-              class="bg-[#1a1e2e] rounded-md p-2 shadow-md border border-[#2A2F45] hover:border-blue-8 transition-colors"
+              v-for="fieldItem in group.fields"
+              :key="fieldItem.field.id"
+              :class="fieldItem.groupConfig.cardClass"
             >
+              <!-- 统一的字段说明 tooltip -->
+              <q-tooltip
+                v-if="fieldItem.field.description"
+                class="bg-industrial-secondary text-industrial-primary"
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[0, 8]"
+              >
+                {{ fieldItem.field.description }}
+              </q-tooltip>
+
               <div class="flex flex-row items-start gap-3">
-                <!-- 可配置字段的序号显示 -->
+                <!-- 序号显示 -->
                 <div
-                  class="flex-shrink-0 text-xs font-medium text-blue-400 w-8 flex items-center justify-center"
+                  class="flex-shrink-0 text-xs font-medium w-8 min-w-10 flex items-center justify-center"
+                  :class="fieldItem.groupConfig.indexColor"
                 >
-                  [{{ getFieldGlobalIndex(index, true) }}]
+                  [{{ fieldItem.globalIndex }}]
                 </div>
 
                 <!-- 左侧字段标签和类型垂直排列 -->
-                <div class="w-24 flex-shrink-0 flex flex-col">
-                  <div class="text-xs font-medium text-white">
-                    {{ field.label }}
+                <div class="w-32 min-w-32 flex-shrink-0 flex flex-col">
+                  <div
+                    class="text-xs font-medium flex items-center gap-1"
+                    :class="
+                      fieldItem.groupConfig.type === 'readonly'
+                        ? 'text-industrial-secondary'
+                        : 'text-industrial-primary'
+                    "
+                  >
+                    {{ fieldItem.field.label }}
+                    <!-- 表达式字段图标 -->
+                    <q-icon
+                      v-if="fieldItem.field.inputType === 'expression'"
+                      name="functions"
+                      color="warning"
+                      size="xs"
+                    >
+                      <q-tooltip
+                        class="bg-industrial-secondary text-industrial-primary max-w-xl"
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[0, 8]"
+                      >
+                        <div v-if="fieldItem.field.expressionConfig?.expressions?.length">
+                          <div class="font-medium mb-1">表达式配置:</div>
+                          <div
+                            v-for="(expr, i) in fieldItem.field.expressionConfig.expressions"
+                            :key="i"
+                            class="text-xs mb-1"
+                          >
+                            <div>条件: {{ expr.condition }}</div>
+                            <div>表达式: {{ expr.expression }}</div>
+                          </div>
+                        </div>
+                        <div v-else>表达式计算字段（未配置）</div>
+                      </q-tooltip>
+                    </q-icon>
                   </div>
                   <div class="mt-0.5">
-                    <q-badge outline :color="'blue-5'" class="text-2xs px-1">
-                      {{ field.dataType }}
+                    <q-badge
+                      outline
+                      :color="fieldItem.groupConfig.badgeColor"
+                      class="text-2xs px-1"
+                    >
+                      {{ fieldItem.field.dataType }}
                     </q-badge>
                   </div>
                 </div>
 
                 <!-- 右侧输入控件区域 -->
-                <div class="flex flex-1 gap-2 items-center">
-                  <!-- 左侧输入控件 -->
-                  <div class="flex-1">
-                    <!-- 下拉框类型 -->
-                    <q-select
-                      v-if="field.inputType === 'select'"
-                      v-model="field.value"
-                      :options="hasValidOptions(field) ? field.options : getDefaultOptions(field)"
-                      :disable="!isEditing"
-                      dense
-                      outlined
-                      dark
-                      option-value="value"
-                      option-label="label"
-                      emit-value
-                      map-options
-                      bg-color="rgba(16, 24, 40, 0.6)"
-                      class="w-full text-xs"
-                      @update:model-value="handleValueChange(field, $event)"
-                      input-class="py-0.5"
-                      hide-bottom-space
+                <div class="flex flex-1 gap-3 items-center">
+                  <!-- 只读字段显示值 -->
+                  <template v-if="!fieldItem.groupConfig.editable">
+                    <div
+                      class="flex-1 font-mono text-xs text-industrial-secondary py-1 px-2 bg-industrial-secondary rounded-md"
                     >
-                      <!-- 添加调试信息 -->
-                      <template v-if="!hasValidOptions(field)" v-slot:before>
-                        <div class="text-warning text-2xs">使用默认选项</div>
-                      </template>
-                    </q-select>
-
-                    <!-- 单选框类型 -->
-                    <div v-else-if="field.inputType === 'radio'" class="w-full">
-                      <!-- 当有选项时正常显示 -->
-                      <q-option-group
-                        v-if="hasValidOptions(field) && field.options"
-                        v-model="field.value"
-                        :options="
-                          field.options.map((opt) => ({ label: opt.label, value: opt.value }))
-                        "
-                        :disable="!isEditing"
-                        type="radio"
-                        inline
-                        dense
-                        class="w-full text-xs"
-                        @update:model-value="handleValueChange(field, $event)"
-                      />
-                      <!-- 无选项时显示默认选项 -->
-                      <q-option-group
-                        v-else
-                        v-model="field.value"
-                        :options="
-                          getDefaultOptions(field).map((opt) => ({
-                            label: opt.label,
-                            value: opt.value,
-                          }))
-                        "
-                        :disable="!isEditing"
-                        type="radio"
-                        inline
-                        dense
-                        class="w-full text-xs"
-                        @update:model-value="handleValueChange(field, $event)"
-                      >
-                        <div class="text-warning text-2xs mb-1">使用默认选项</div>
-                      </q-option-group>
+                      {{ fieldItem.field.value }}
                     </div>
 
-                    <!-- 默认输入框类型 -->
-                    <q-input
-                      v-else
-                      v-model="field.value"
-                      :disable="!isEditing"
-                      dense
-                      outlined
-                      dark
-                      bg-color="rgba(16, 24, 40, 0.6)"
-                      class="w-full text-xs"
-                      :rules="getFieldRules(field)"
-                      type="text"
-                      @update:model-value="handleValueChange(field, $event)"
-                      input-class="py-0.5"
-                      hide-bottom-space
-                    />
-                  </div>
+                    <!-- 只读字段的十六进制显示 -->
+                    <div
+                      v-if="
+                        fieldItem.groupConfig.showHex &&
+                        ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
+                          fieldItem.field.dataType,
+                        )
+                      "
+                      class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left"
+                    >
+                      <span>HEX: {{ sendFrameInstancesStore.hexValues[fieldItem.field.id] }}</span>
+                    </div>
+                  </template>
 
-                  <!-- 右侧十六进制显示 -->
-                  <div
-                    class="flex-1 px-2 py-1 h-40px bg-[#0d1117] rounded-md font-mono text-xs text-blue-400 flex items-center justify-left"
-                    v-if="
-                      ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
-                        field.dataType,
-                      )
-                    "
-                  >
-                    <span>HEX: {{ sendFrameInstancesStore.hexValues[field.id] }}</span>
-                  </div>
+                  <!-- 可编辑字段的输入控件 -->
+                  <template v-else>
+                    <!-- 左侧输入控件 -->
+                    <div class="flex-1">
+                      <!-- 表达式字段特殊显示 -->
+                      <div
+                        v-if="fieldItem.field.inputType === 'expression'"
+                        class="flex items-center gap-2"
+                      >
+                        <q-input
+                          v-model="fieldItem.field.value"
+                          :disable="!isEditing"
+                          dense
+                          outlined
+                          dark
+                          :bg-color="fieldItem.groupConfig.bgColorClass"
+                          class="flex-1 text-xs"
+                          input-class="py-0.5"
+                          hide-bottom-space
+                          @update:model-value="handleValueChange(fieldItem.field, $event)"
+                        />
+                      </div>
+
+                      <!-- 下拉框类型 -->
+                      <q-select
+                        v-else-if="fieldItem.field.inputType === 'select'"
+                        v-model="fieldItem.field.value"
+                        :options="
+                          hasValidOptions(fieldItem.field)
+                            ? fieldItem.field.options
+                            : getDefaultOptions(fieldItem.field)
+                        "
+                        :disable="!isEditing"
+                        dense
+                        outlined
+                        dark
+                        option-value="value"
+                        option-label="label"
+                        emit-value
+                        map-options
+                        :bg-color="fieldItem.groupConfig.bgColorClass"
+                        class="w-full text-xs"
+                        @update:model-value="handleValueChange(fieldItem.field, $event)"
+                        input-class="py-0.5"
+                        hide-bottom-space
+                      >
+                        <!-- 添加调试信息 -->
+                        <template v-if="!hasValidOptions(fieldItem.field)" v-slot:before>
+                          <div class="text-warning text-2xs">使用默认选项</div>
+                        </template>
+                      </q-select>
+
+                      <!-- 单选框类型 -->
+                      <div v-else-if="fieldItem.field.inputType === 'radio'" class="w-full">
+                        <!-- 当有选项时正常显示 -->
+                        <q-option-group
+                          v-if="hasValidOptions(fieldItem.field) && fieldItem.field.options"
+                          v-model="fieldItem.field.value"
+                          :options="
+                            fieldItem.field.options.map((opt) => ({
+                              label: opt.label,
+                              value: opt.value,
+                            }))
+                          "
+                          :disable="!isEditing"
+                          type="radio"
+                          inline
+                          dense
+                          class="w-full text-xs"
+                          @update:model-value="handleValueChange(fieldItem.field, $event)"
+                        />
+                        <!-- 无选项时显示默认选项 -->
+                        <q-option-group
+                          v-else
+                          v-model="fieldItem.field.value"
+                          :options="
+                            getDefaultOptions(fieldItem.field).map((opt) => ({
+                              label: opt.label,
+                              value: opt.value,
+                            }))
+                          "
+                          :disable="!isEditing"
+                          type="radio"
+                          inline
+                          dense
+                          class="w-full text-xs"
+                          @update:model-value="handleValueChange(fieldItem.field, $event)"
+                        >
+                          <div class="text-warning text-2xs mb-1">使用默认选项</div>
+                        </q-option-group>
+                      </div>
+
+                      <!-- 默认输入框类型 -->
+                      <q-input
+                        v-else
+                        v-model="fieldItem.field.value"
+                        :disable="!isEditing"
+                        dense
+                        outlined
+                        dark
+                        :bg-color="fieldItem.groupConfig.bgColorClass"
+                        class="w-full text-xs"
+                        :rules="getFieldRules(fieldItem.field)"
+                        type="text"
+                        @update:model-value="handleValueChange(fieldItem.field, $event)"
+                        input-class="py-0.5"
+                        hide-bottom-space
+                      />
+                    </div>
+
+                    <!-- 右侧十六进制显示 -->
+                    <div
+                      v-if="
+                        fieldItem.groupConfig.showHex &&
+                        ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
+                          fieldItem.field.dataType,
+                        )
+                      "
+                      class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left"
+                    >
+                      <span>HEX: {{ sendFrameInstancesStore.hexValues[fieldItem.field.id] }}</span>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- 不可配置字段信息 - 使用同样的布局 -->
-        <div v-if="nonConfigurableFields.length">
-          <div class="text-blue-grey-4 text-xs uppercase font-medium mb-1 flex items-center">
-            <q-icon name="lock" size="xs" class="mr-1 text-blue-5" />
-            不可配置字段
-          </div>
-
-          <!-- 标签左对齐，值对半分的布局 -->
-          <div class="space-y-1">
-            <div
-              v-for="(field, index) in nonConfigurableFields"
-              :key="field.id"
-              class="bg-[#1a1e2e] bg-opacity-70 rounded-md p-2 shadow-sm border border-[#232b3f]"
-            >
-              <div class="flex flex-row items-start gap-3">
-                <!-- 不可配置字段的序号显示 -->
-                <div
-                  class="flex-shrink-0 text-xs font-medium text-blue-grey-5 w-8 flex items-center justify-center"
-                >
-                  [{{ getFieldGlobalIndex(index, false) }}]
-                </div>
-
-                <!-- 左侧字段标签和类型垂直排列 -->
-                <div class="w-24 flex-shrink-0 flex flex-col">
-                  <div class="text-xs font-medium text-blue-grey-2">
-                    {{ field.label }}
-                  </div>
-                  <div class="mt-0.5">
-                    <q-badge outline color="blue-grey-7" class="text-2xs">
-                      {{ field.dataType }}
-                    </q-badge>
-                  </div>
-                </div>
-
-                <!-- 值显示 -->
-                <div
-                  class="flex-1 font-mono text-xs text-blue-grey-4 py-1 px-2 bg-[#0d1117] rounded-md"
-                >
-                  {{ field.value }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </template>
       </div>
     </div>
 
@@ -431,43 +654,9 @@ function getDefaultOptions(field: SendInstanceField) {
 </template>
 
 <style>
-/* 使用UnoCSS，移除SCSS样式 */
-.text-2xs {
-  font-size: 0.65rem;
-}
-
 /* 修改Quasar的样式，消除底部空间 */
 .q-field--with-bottom.q-field--hide-bottom-space .q-field__bottom {
   min-height: 0 !important;
   padding: 0 !important;
-}
-
-/* 编辑器容器宽度 */
-.flex-col.h-full.bg-\[\#131725\] {
-  width: 100%;
-  min-width: 0;
-  padding: 1rem;
-}
-
-/* 优化字段标签区域样式 */
-.w-24.flex-shrink-0.flex.flex-col {
-  width: 8rem;
-  min-width: 8rem;
-}
-
-/* 调整序号的样式 */
-.w-8.flex.items-center.justify-center {
-  min-width: 2.5rem;
-}
-
-/* 优化输入控件和十六进制显示区域 */
-.flex.flex-1.gap-4 {
-  gap: 0.75rem;
-}
-
-/* 调整实例基本信息编辑区域 */
-.mb-2.pb-2.border-b.border-dashed.border-\[\#2A2F45\] {
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
 }
 </style>
