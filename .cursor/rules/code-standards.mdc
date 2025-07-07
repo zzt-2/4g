@@ -1,0 +1,162 @@
+---
+description: 
+globs: *.ts,*.vue
+alwaysApply: false
+---
+# 代码规范指南
+
+## Vue 3 组件规范
+
+### 基本规范
+- 使用 `<script setup lang="ts">` 语法
+- 组件名使用 PascalCase 命名
+- 使用 Vue 3.5 的语法特性
+- 严格遵循用户需求。
+- 首先一步步思考-用伪代码详细地描述您的构建计划。
+- 确认无误后再编写代码!始终编写正确、符合最佳实践、遵循 DRY 原则(不要重复自己)、无错误、功能齐全且可运行的代码，并遵循以下代码实现指南中列出的规则。
+- 专注于代码的简洁易读性，而非性能。
+- 完整实现所有请求的功能。
+- 不留任何待办事项、占位符或缺失部分。
+- 确保代码完整!彻底验证代码是否最终完成。
+- 包含所有必需的导入，并确保关键组件的命名正确。
+- 简洁明了，尽量减少冗长的文字。
+- 如果您认为可能没有正确答案，请直接说出来。
+- 如果您不知道答案，请直接说出来，而不是猜测。
+
+### Props 定义
+使用 `defineProps` 定义组件 Props：
+```ts
+const props = defineProps<{
+  name: string
+  age: number
+  isStudent: boolean
+}>()
+```
+
+### 事件定义
+使用 `defineEmits` 定义组件 Emits：
+```ts
+const emit = defineEmits<{
+  'save': [data: SomeType]
+  'handleExpand': []
+  'handleCollapse': [paramA: string, paramB: number]
+}>()
+```
+
+### 暴露属性
+使用 `defineExpose` 定义组件 Expose 暴露给父组件的属性：
+```ts
+defineExpose({
+  someVariable,
+  someFunction
+})
+```
+
+### 双向绑定
+使用 `defineModels` 定义组件 Model：
+```ts
+// 基础版本，直接对应组件的 v-model="xxxxx"，变量名称可以自定义
+const modelValue = defineModel<string>({ required: true })
+
+// 复杂版本，可以自定义变量名称，并且可以指定类型
+// 对应到组件是 v-model:checked="xxxxx"
+const checked = defineModel<boolean>('checked', { required: true })
+```
+
+### 组件属性传递
+多个属性传递时，使用 v-bind：
+```vue
+<SomeComponent v-bind="{ someVariable, someFunction }" />
+```
+
+同名属性简写：
+```vue
+<!-- 完整写法 -->
+<SomeComponent :name="name" :color="color" />
+
+<!-- 简写 -->
+<SomeComponent :name :color />
+```
+
+## Electron API 使用规范
+
+### 分层架构模式
+
+项目采用分层架构模式来处理 Electron IPC 通信：
+
+1. **主进程层** (src-electron/main/ipc)：
+   - 使用 `ipcMain.handle` 注册处理函数
+   - 按功能模块组织处理函数文件 (xxxHandlers.ts)
+   - 统一在 index.ts 中注册所有处理函数
+
+2. **预加载脚本层** (src-electron/preload/api)：
+   - 按功能模块组织 API 文件
+   - 在 API 文件中定义类型安全的接口
+   - 通过 contextBridge 暴露给渲染进程
+
+3. **渲染进程层** (src/utils/electronApi.ts)：
+   - 封装对 window.electron 的访问
+   - 提供类型安全和错误处理
+   - 处理开发环境中没有 Electron 的情况
+
+### API 定义规范
+
+在预加载脚本中定义 API：
+```ts
+// src-electron/preload/api/moduleName.ts
+export const moduleAPI = {
+  // 方法命名使用驼峰式
+  someAction: (param: ParamType) => 
+    ipcRenderer.invoke('module:action', param),
+    
+  anotherAction: () => 
+    ipcRenderer.invoke('module:anotherAction'),
+};
+```
+
+### IPC 通道命名规范
+
+使用 `domain:action` 格式命名 IPC 通道：
+```ts
+// 例如：serial:list, frames:save, sendFrames:delete 等
+ipcMain.handle('domain:action', async (event, ...args) => {
+  // 处理逻辑
+});
+```
+
+### 在渲染进程中使用
+
+通过 utils/electronApi.ts 中的封装使用：
+```ts
+import { moduleAPI } from '@/utils/electronApi';
+
+// 使用API
+moduleAPI.someAction(params)
+  .then(result => {
+    // 处理结果
+  })
+  .catch(error => {
+    // 处理错误
+  });
+```
+
+## 命名规范
+
+- 目录使用小写短横线命名法（例如：components/auth-wizard）
+- 组件使用 PascalCase 命名
+- 函数优先使用命名导出
+- 变量使用具有描述性的名称，配合辅助动词（例如：isLoading, hasError）
+
+## 状态管理规范
+
+- 使用 Pinia 管理状态，不使用 Vuex
+- 使用 Composition API 形式的 Pinia
+- 使用 VueUse 提供的组合式函数
+
+## 文件组织规范
+
+- 每个文件只包含相关内容（组件、辅助函数、类型等）
+- 避免在单个文件中混合不相关的功能
+- 遵循 DRY 原则，避免代码重复，优先使用迭代和模块化
+- 相关的功能放在同一目录下
+

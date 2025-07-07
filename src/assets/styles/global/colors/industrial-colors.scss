@@ -1,0 +1,151 @@
+/* 工业主题颜色系统 - 统一协调版本 */
+
+/* ========================================
+   基础背景色 - 深蓝色系渐变
+   ======================================== */
+.bg-industrial-primary {
+  background-color: #131725;
+}
+
+.bg-industrial-secondary {
+  background-color: #1a1e2e;
+}
+
+.bg-industrial-panel {
+  background-color: #0d1117;
+}
+
+.bg-industrial-highlight {
+  background-color: #232b3f; /* 高亮背景: 用于悬停状态 */
+}
+
+.bg-industrial-table-header {
+  background-color: #111827; /* 表头背景色 */
+}
+
+/* ========================================
+   边框色 - 统一蓝灰色系
+   ======================================== */
+.border-industrial {
+  border-color: #2a2f45; /* 主边框颜色: 蓝灰色 */
+}
+
+.border-industrial-primary {
+  border-color: #475569; /* 主边框颜色: 与上面保持一致 */
+}
+
+.border-industrial-secondary {
+  border-color: #334155; /* 次边框颜色: 稍浅的蓝灰色 */
+}
+
+/* 聚焦边框 */
+.focus\:border-industrial-accent:focus {
+  border-color: #3b82f6; /* 聚焦时的边框颜色: 蓝色 */
+}
+
+/* ========================================
+   文本色 - 统一白色系
+   ======================================== */
+.text-industrial-primary {
+  color: #ffffff; /* 主文本色: 纯白色 */
+}
+
+.text-industrial-secondary {
+  color: #94a3b8; /* 次文本色: 浅灰白色 */
+}
+
+.text-industrial-tertiary {
+  color: #94a3b8; /* 第三文本色: 灰白色 */
+}
+
+.text-industrial-disabled {
+  color: #64748b; /* 禁用文本色: 深灰色 */
+}
+
+.text-industrial-accent {
+  color: #60a5fa; /* 强调文本: 明亮蓝色 */
+}
+
+.text-industrial-id {
+  color: #fbbf24; /* ID标识色: 温暖黄色 */
+}
+
+/* ========================================
+   按钮色 - 简化统一
+   ======================================== */
+.btn-industrial-primary {
+  background-color: #3b82f6; /* 主要操作按钮: 标准蓝色 */
+  color: #ffffff;
+}
+
+.btn-industrial-secondary {
+  background-color: #475569; /* 次要操作按钮: 蓝灰色 */
+  color: #ffffff;
+}
+
+.btn-industrial-danger {
+  background-color: #dc2626; /* 危险操作按钮: 标准红色 */
+  color: #ffffff;
+}
+
+/* ========================================
+   状态色 - 统一饱和度和明度
+   ======================================== */
+.status-processing {
+  background-color: #1e3a8a; /* 处理中背景: 深蓝色 */
+  color: #60a5fa; /* 处理中文本: 明亮蓝色 */
+}
+
+.status-completed {
+  background-color: #166534; /* 已完成背景: 深绿色 */
+  color: #4ade80; /* 已完成文本: 明亮绿色 */
+}
+
+.status-error {
+  background-color: #991b1b; /* 错误背景: 深红色 */
+  color: #f87171; /* 错误文本: 明亮红色 */
+}
+
+.status-pending {
+  background-color: #a16207; /* 待处理背景: 深黄色 */
+  color: #fbbf24; /* 待处理文本: 明亮黄色 */
+}
+
+.status-timeout {
+  background-color: #c2410c; /* 超时背景: 深橙色 */
+  color: #fb923c; /* 超时文本: 明亮橙色 */
+}
+
+.status-warning {
+  background-color: #a16207; /* 警告背景: 与待处理一致 */
+  color: #fbbf24; /* 警告文本: 与待处理一致 */
+}
+
+/* ========================================
+   组合样式
+   ======================================== */
+/* 状态标签 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: var(--font-family);
+}
+
+/* 悬停效果 */
+.hover\:bg-industrial-highlight:hover {
+  background-color: #334155; /* 悬停时的背景颜色 */
+}
+
+.hover\:text-industrial-primary:hover {
+  color: #ffffff; /* 悬停时的文本颜色 */
+}
+
+/* 工业主题渐变背景 */
+.bg-industrial-gradient {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+}

@@ -1,0 +1,64 @@
+// Quasar SCSS (& Sass) Variables
+// --------------------------------------------------
+// To customize the look and feel of this app, you can override
+// the Sass/SCSS variables found in Quasar's source Sass/SCSS files.
+
+// Check documentation for full list of Quasar variables
+
+// Your own variables (that are declared here) and Quasar's own
+// ones will be available out of the box in your .vue/.scss/.sass files
+
+// It's highly recommended to change the default colors
+// to match your app's branding.
+// Tip: Use the "Theme Builder" on Quasar's documentation website.
+
+// =========================================
+// 工业主题颜色系统 - 统一协调版本
+// =========================================
+
+// 主要颜色 - 保持一致的蓝色调
+$primary: #3b82f6; // 主要操作按钮色 - 标准蓝色
+$secondary: #475569; // 次要操作按钮色 - 蓝灰色
+$accent: #60a5fa; // 强调文本色 - 明亮蓝色
+
+// 背景颜色 - 统一深蓝色系渐变
+$dark: #1e293b; // 次背景色 - 深蓝色
+$dark-page: #0f172a; // 主背景色 - 深蓝黑色
+$card-bg: #0f172a; // 卡片背景色 - 与主背景一致
+$input-bg: #0f172a; // 输入框背景色 - 与主背景一致
+$panel-bg: #1e293b; // 面板背景色 - 次背景色
+$hover-bg: #334155; // 悬停背景色 - 高亮背景
+
+// 边框颜色 - 统一蓝灰色系
+$border-primary: #475569; // 主要边框色 - 蓝灰色
+$border-secondary: #334155; // 次要边框色 - 稍浅蓝灰色
+$border-light: #64748b; // 浅色边框 - 更浅的灰色
+$border-highlight: #3b82f6; // 高亮边框色 - 与primary一致
+
+// 文本颜色 - 统一白色系层级
+$text-primary: #ffffff; // 主要文本色 - 纯白色
+$text-secondary: #cbd5e1; // 次要文本色 - 浅灰白色
+$text-accent: #60a5fa; // 强调文本色 - 明亮蓝色
+$text-disabled: #64748b; // 禁用文本色 - 深灰色
+$text-hint: #94a3b8; // 提示文本色 - 灰白色
+
+// 功能色 - 统一饱和度和明度
+$positive: #4ade80; // 完成/成功状态 - 明亮绿色
+$negative: #dc2626; // 错误/失败状态 - 标准红色
+$info: #60a5fa; // 通知/处理中状态 - 明亮蓝色
+$warning: #fbbf24; // 警告/待处理状态 - 明亮黄色
+
+// 数据可视化颜色 - 协调的色彩搭配
+$data-1: #3b82f6; // 数据序列1 - 蓝色
+$data-2: #4ade80; // 数据序列2 - 绿色
+$data-3: #fbbf24; // 数据序列3 - 黄色
+$data-4: #a855f7; // 数据序列4 - 紫色
+$data-5: #ec4899; // 数据序列5 - 粉色
+$data-6: #06b6d4; // 数据序列6 - 青色
+
+// 设备状态颜色 - 明确的状态指示
+$device-online: #4ade80; // 设备在线 - 明亮绿色
+$device-offline: #94a3b8; // 设备离线 - 灰白色
+$device-error: #dc2626; // 设备错误 - 标准红色
+$device-warning: #fbbf24; // 设备警告 - 明亮黄色
+$device-busy: #3b82f6; // 设备忙 - 标准蓝色

@@ -1,0 +1,80 @@
+---
+description: 
+globs: *.ts,*.vue
+alwaysApply: false
+---
+# 文档体系检查规则
+
+> 文件依赖关系图与功能接口索引的检查维护规则
+
+## 核心文档
+
+- **文件依赖关系图.md**: dependencies、impacts、impact_level、modification_triggers
+- **文件功能接口索引.md**: 文件接口清单，导出函数、组件API等
+
+## 检查时机
+
+### 修改前必查依赖关系图
+
+```
+操作: grep "[文件路径]:" 文件依赖关系图.md
+获取: dependencies + impacts + impact_level + modification_triggers
+```
+
+### 影响级别检查范围
+
+- **critical** → 检查所有impacts文件
+- **high** → 检查核心impacts文件
+- **medium** → 检查直接impacts文件
+- **low** → 仅检查必要文件
+
+### 修改类型检查内容
+
+- **enum_change** → 检查switch/case + UI选项
+- **state_change** → 检查storeToRefs + action调用
+- **interface_change** → 检查导入语句 + 类型注解
+
+### 接口变更必查功能索引
+
+```
+操作: grep "[接口名]" 文件功能接口索引.md
+目的: 验证接口兼容性，确认调用点
+```
+
+## 修改时机
+
+### 更新依赖关系图
+
+- **新增文件** → 添加依赖记录
+- **依赖变更** → 更新dependencies和impacts
+- **重要性变化** → 调整impact_level
+
+### 更新功能接口索引
+
+- **接口新增** → 添加接口记录
+- **接口修改** → 更新接口描述
+- **接口废弃** → 移除或标记废弃
+
+## 检索命令
+
+```bash
+# 查找文件依赖
+grep "文件路径:" 文件依赖关系图.md
+
+# 查找接口定义
+grep -A 5 "接口名" 文件功能接口索引.md
+
+# 查找影响级别
+grep "impact_level: critical" 文件依赖关系图.md
+
+# 查找修改触发器
+grep "enum_change" 文件依赖关系图.md
+```
+
+## 使用原则
+
+1. **修改前**: 查询依赖关系图确定影响范围
+2. **接口变更**: 查询功能索引验证兼容性
+3. **修改后**: 立即更新对应文档
+4. **重点关注**: 高影响文件的文档准确性
+

@@ -1,0 +1,152 @@
+---
+description: 
+globs: src-electron/*
+alwaysApply: false
+---
+# 常用组件与工具函数指南
+
+本文档介绍项目中常用的组件及工具函数，帮助开发人员快速找到并使用合适的组件和API。
+
+## 工具函数
+
+### 电子通信API
+```ts
+// 串口操作API
+import { serialAPI } from '@/utils/electronApi';
+
+// 列出所有可用串口
+const ports = await serialAPI.listPorts();
+
+// 打开串口连接
+const result = await serialAPI.open('COM1', { baudRate: 9600 });
+
+// 发送数据
+await serialAPI.write('Hello', false); // 发送文本
+await serialAPI.write('01020304', true); // 发送十六进制
+await serialAPI.sendData(new Uint8Array([1, 2, 3, 4])); // 发送字节数组
+
+// 监听数据
+const cleanup = serialAPI.onData((data) => {
+  console.log('收到数据:', data);
+});
+
+// 获取串口状态
+const status = await serialAPI.getStatus();
+```
+
+### 帧操作API
+```ts
+// 帧模板操作
+import { framesAPI } from '@/utils/electronApi';
+
+// 获取所有帧模板
+const templates = await framesAPI.list();
+
+// 保存帧模板
+await framesAPI.save(frameTemplate);
+
+// 删除帧模板
+await framesAPI.delete('template-id');
+
+// 导入/导出
+await framesAPI.export(templates, 'export-path.json');
+const importedTemplates = await framesAPI.import('import-path.json');
+```
+
+### 帧实例API
+```ts
+// 帧实例操作
+import { sendFrameInstancesAPI } from '@/utils/electronApi';
+
+// 获取所有帧实例
+const instances = await sendFrameInstancesAPI.list();
+
+// 保存帧实例
+await sendFrameInstancesAPI.save(frameInstance);
+
+// 删除帧实例
+await sendFrameInstancesAPI.delete('instance-id');
+```
+
+### 日期工具函数
+```ts
+import { formatTimestamp, formatDate, formatDateTime } from '@/utils/dateUtils';
+
+// 格式化时间戳 (10:15:30.123)
+const timeStr = formatTimestamp(Date.now());
+
+// 格式化日期 (2023-05-20)
+const dateStr = formatDate(new Date());
+
+// 格式化日期时间 (2023-05-20 10:15:30)
+const dateTimeStr = formatDateTime(Date.now());
+```
+
+### 帧处理工具函数
+```ts
+import { 
+  deepClone, 
+  validateFrame, 
+  validateField, 
+  applyAllFilters 
+} from '@/utils/frames/frameUtils';
+
+// 深拷贝对象
+const frameCopy = deepClone(frame);
+
+// 验证帧定义
+const { valid, errors } = validateFrame(frame);
+
+// 验证字段
+const fieldValidation = validateField(field);
+
+// 过滤帧
+const filteredFrames = applyAllFilters(frames, filterOptions, searchQuery);
+```
+
+### 十六进制转换工具
+```ts
+import { 
+  hexStringToBytes, 
+  bytesToHexString 
+} from '@/utils/frames/hexCovertUtils';
+
+// 十六进制字符串转字节数组
+const bytes = hexStringToBytes('01 02 03 04');
+
+// 字节数组转十六进制字符串
+const hexString = bytesToHexString(new Uint8Array([1, 2, 3, 4]));
+```
+
+### 事件总线
+```ts
+import { bus, EventType, listenBusEvent } from '@/utils/EventBus';
+
+// 监听事件
+listenBusEvent(EventType.BOOKMARK_CREATED, () => {
+  console.log('书签已创建');
+});
+
+// 触发事件
+bus.emit(EventType.BOOKMARK_CREATED);
+```
+
+### 文件工具函数
+```ts
+import { 
+  loadJsonData, 
+  saveJsonData, 
+  fileExists 
+} from '@/utils/common/fileUtils';
+
+// 加载JSON数据
+const data = await loadJsonData<MyDataType>('path/to/file.json');
+
+// 保存JSON数据
+await saveJsonData('path/to/file.json', myData);
+
+// 检查文件是否存在
+const exists = await fileExists('path/to/file.json');
+```
+
+

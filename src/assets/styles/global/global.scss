@@ -1,0 +1,244 @@
+/* 确保根元素和 body 占满整个视口 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 主布局样式 */
+.main-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 标题栏固定高度 */
+.titlebar {
+  flex: 0 0 32px;
+}
+
+/* 内容区域自适应剩余空间 */
+.page-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* 确保路由视图内容填满容器 */
+.q-page {
+  min-height: 0 !important;
+  padding: 0;
+  flex: 1;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* 导入颜色变量 */
+@import '../variables/quasar.variables.scss';
+
+/* ========================================
+   滚动条样式
+   ======================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 5px;
+  &:hover {
+    background: #3b82f6;
+  }
+}
+
+/* ========================================
+   Quasar 组件全局样式
+   ======================================== */
+
+/* 卡片组件样式 */
+.q-card {
+  background-color: $card-bg;
+  border: 1px solid $border-primary;
+  border-radius: 8px;
+
+  /* 卡片标题样式 */
+  .q-card__section:first-child {
+    .card-title,
+    .text-accent-color.uppercase,
+    .font-medium.uppercase {
+      font-weight: 500;
+      color: $text-accent;
+      text-transform: uppercase;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid $border-primary;
+    }
+  }
+}
+
+/* 输入框和选择器样式 */
+.q-field {
+  &.q-field--outlined {
+    .q-field__control {
+      background-color: $input-bg;
+    }
+  }
+
+  /* 标签样式 */
+  .q-field__label {
+    font-size: 0.75rem;
+    color: $text-secondary;
+  }
+
+  /* 输入内容样式 */
+  .q-field__native,
+  .q-field__input {
+    font-size: 0.75rem;
+    color: $text-primary;
+  }
+}
+
+/* 所有表单控件统一字体大小 */
+.q-input,
+.q-select,
+.q-textarea {
+  font-size: 0.75rem;
+}
+
+/* 按钮文字大小 */
+.q-btn {
+  font-size: 0.75rem;
+
+  &--dense {
+    font-size: 0.7rem;
+  }
+}
+
+/* ========================================
+   辅助类 (仅保留必要的辅助类)
+   ======================================== */
+
+/* 文本颜色辅助类 */
+.text-primary-color {
+  color: $text-primary;
+}
+
+.text-secondary-color {
+  color: $text-secondary;
+}
+
+.text-accent-color {
+  color: $text-accent;
+}
+
+.text-disabled-color {
+  color: $text-disabled;
+}
+
+.text-hint-color {
+  color: $text-hint;
+}
+
+/* 卡片标题独立类 (可选使用) */
+.card-title {
+  font-weight: 500;
+  color: $text-accent;
+  text-transform: uppercase;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid $border-primary;
+}
+
+/* 状态标记样式 */
+.status-badge {
+  &--online {
+    background-color: $device-online;
+  }
+
+  &--offline {
+    background-color: $device-offline;
+  }
+
+  &--error {
+    background-color: $device-error;
+  }
+
+  &--warning {
+    background-color: $device-warning;
+  }
+
+  &--busy {
+    background-color: $device-busy;
+  }
+}
+
+/* 背景颜色类 */
+.bg-dark {
+  background-color: $dark;
+}
+
+.bg-dark-page {
+  background-color: $dark-page;
+}
+
+.bg-card {
+  background-color: $card-bg;
+}
+
+.bg-input {
+  background-color: $input-bg;
+}
+
+.bg-panel {
+  background-color: $panel-bg;
+}
+
+.bg-hover {
+  background-color: $hover-bg;
+}
+
+/* 边框颜色类 */
+.border-primary {
+  border-color: $border-primary;
+}
+
+.border-secondary {
+  border-color: $border-secondary;
+}
+
+.border-light {
+  border-color: $border-light;
+}
+
+.border-highlight {
+  border-color: $border-highlight;
+}
+
+/* 常用组合样式 */
+.card-container {
+  background-color: $card-bg;
+  border: 1px solid $border-primary;
+  border-radius: 8px;
+}
+
+.panel-container {
+  background-color: $panel-bg;
+  border: 1px solid $border-secondary;
+  border-radius: 6px;
+}
+
+/* 输入控件相关 */
+.input-bg {
+  background-color: $input-bg !important;
+}
