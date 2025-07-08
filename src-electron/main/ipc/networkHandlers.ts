@@ -83,11 +83,12 @@ class NetworkConnectionManager {
     options?: TcpConnectionOptions,
   ): Promise<NetworkOperationResult> {
     return new Promise((resolve) => {
+      // 创建Socket
       const socket = new net.Socket();
 
-      // 设置选项 - 默认禁用Nagle算法以减少延迟
-      if (options?.keepAlive) socket.setKeepAlive(true);
-      socket.setNoDelay(options?.noDelay !== false); // 默认为true，除非明确设置为false
+      // 设置选项 - 强制禁用Nagle算法以减少延迟，调整缓冲区设置
+      socket.setKeepAlive(false);
+      socket.setNoDelay(true); // 强制禁用Nagle算法，不依赖配置
 
       const timeout = options?.timeout || config.timeout || 5000;
       socket.setTimeout(timeout);
@@ -109,7 +110,7 @@ class NetworkConnectionManager {
       });
 
       socket.on('data', (data: Buffer) => {
-        this.handleDataReceived(config.id, new Uint8Array(data));
+        this.handleTcpData(config.id, new Uint8Array(data));
       });
 
       socket.on('error', (error) => {
@@ -326,6 +327,38 @@ class NetworkConnectionManager {
    */
   getConnectionStatus(connectionId: string): NetworkStatus | null {
     return this.connectionStats.get(connectionId) || null;
+  }
+
+  /**
+   * 处理TCP数据，按\r\n分割
+   */
+  private handleTcpData(connectionId: string, data: Uint8Array): void {
+    const packets: Uint8Array[] = [];
+    let start = 0;
+
+    // 查找所有\r\n分隔符位置
+    for (let i = 0; i < data.length - 1; i++) {
+      if (data[i] === 13 && data[i + 1] === 10) {
+        // \r\n
+        // 提取数据包（不包含\r\n）
+        if (i > start) {
+          packets.push(data.slice(start, i));
+        }
+        start = i + 2; // 跳过\r\n
+      }
+    }
+
+    // 处理剩余数据（如果没有以\r\n结尾）
+    if (start < data.length) {
+      packets.push(data.slice(start));
+    }
+
+    // 逐个处理分割后的数据包
+    packets.forEach((packet) => {
+      if (packet.length > 0) {
+        this.handleDataReceived(connectionId, packet);
+      }
+    });
   }
 
   /**

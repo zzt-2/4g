@@ -197,17 +197,6 @@
             "useLabel": false,
             "labelOptions": [],
             "id": 10
-          },
-          {
-            "label": "3",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint16",
-            "value": null,
-            "displayValue": "数据不足",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 11
           }
         ]
       }
@@ -338,17 +327,10 @@
         "fieldName": "2",
         "groupId": 2,
         "dataItemId": 10
-      },
-      {
-        "frameId": "I4GB89WE47Z-WrHzpXKUK",
-        "fieldId": "q6ImgHmRaHR_xsf2eV38w",
-        "fieldName": "3",
-        "groupId": 2,
-        "dataItemId": 11
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-07-08T01:39:40.951Z",
-    "updatedAt": "2025-07-08T01:39:40.951Z"
+    "createdAt": "2025-07-08T03:15:01.430Z",
+    "updatedAt": "2025-07-08T03:15:01.430Z"
   }
 ]

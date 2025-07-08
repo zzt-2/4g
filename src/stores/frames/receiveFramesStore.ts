@@ -145,14 +145,26 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     };
   });
 
+  // 上一次的配置状态（用于比较）
+  const lastConfigState = ref<string>('');
+
   // 监听配置变化并自动保存
   watch(
     configForWatch,
-    () => {
+    (newConfig) => {
       // 避免在初始加载时触发保存
       if (!isLoading.value) {
-        console.log('检测到接收帧配置变化，将在1秒后自动保存...');
-        debouncedSaveConfig();
+        const newConfigString = JSON.stringify(newConfig);
+
+        // 只有当配置真正发生变化时才保存
+        if (lastConfigState.value !== newConfigString) {
+          console.log('检测到接收帧配置变化，将在1秒后自动保存...');
+          lastConfigState.value = newConfigString;
+          debouncedSaveConfig();
+        }
+      } else {
+        // 初始加载时记录配置状态，但不触发保存
+        lastConfigState.value = JSON.stringify(newConfig);
       }
     },
     { deep: true },
