@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "configType": "multi-timed",
+  "name": "多帧发送配置",
+  "instanceRefs": [
+    {
+      "id": "1",
+      "label": "综测仪上位机复位 #1",
+      "frameId": "zcy001"
+    },
+    {
+      "id": "2",
+      "label": "综测仪上位机基本配置 #1",
+      "frameId": "zcy002"
+    },
+    {
+      "id": "3",
+      "label": "综测仪上位机基本配置 #2",
+      "frameId": "zcy002"
+    },
+    {
+      "id": "4",
+      "label": "综测仪上位机参数配置 #1",
+      "frameId": "zcy003"
+    },
+    {
+      "id": "5",
+      "label": "综测仪上位机参数配置 #2",
+      "frameId": "zcy003"
+    },
+    {
+      "id": "6",
+      "label": "综测仪上位机控制指令 #1",
+      "frameId": "zcy004"
+    },
+    {
+      "id": "7",
+      "label": "综测仪上位机控制指令 #2",
+      "frameId": "zcy004"
+    }
+  ],
+  "targets": [
+    {
+      "instanceId": "1",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    },
+    {
+      "instanceId": "2",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    },
+    {
+      "instanceId": "3",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    },
+    {
+      "instanceId": "4",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    },
+    {
+      "instanceId": "5",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    },
+    {
+      "instanceId": "6",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    },
+    {
+      "instanceId": "7",
+      "targetId": "network:conn_1749895108238_bbt9ig7fe:remote_1749895107238_uqdn53fe7",
+      "interval": 1000
+    }
+  ],
+  "createdAt": "2025-06-14T11:58:59.036Z",
+  "updatedAt": "2025-06-14T11:58:59.036Z",
+  "strategy": {
+    "type": "timed",
+    "sendInterval": 1000,
+    "repeatCount": 10,
+    "isInfinite": false,
+    "startDelay": 0
+  }
+}

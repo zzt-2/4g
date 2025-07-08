@@ -65,26 +65,42 @@ export const useConnectionTargetsStore = defineStore('connectionTargets', () => 
       // 添加网络连接目标
       const networkConnections = networkStore.getActiveConnections();
       for (const connection of networkConnections) {
-        // 添加远程主机目标（如果存在）
-        if (connection.remoteHosts && connection.remoteHosts.length > 0) {
-          for (const remoteHost of connection.remoteHosts) {
-            // 只添加启用的远程主机
-            if (remoteHost.enabled !== false) {
-              const remoteTargetId = `network:${connection.id}:${remoteHost.id}`;
-              const remoteDescription =
-                remoteHost.description || `远程主机 - ${remoteHost.host}:${remoteHost.port}`;
+        if (connection.type === 'tcp') {
+          // TCP连接：创建单一连接目标，代表整个TCP连接
+          const tcpTargetId = `network:${connection.id}`;
+          const tcpDescription =
+            connection.description || `TCP连接 - ${connection.host}:${connection.port}`;
 
-              newTargets.push({
-                id: remoteTargetId,
-                name: `${connection.name || connection.host}/${remoteHost.name}`,
-                type: 'network',
-                address: `${remoteHost.host}:${remoteHost.port}`,
-                status: connection.isConnected ? 'connected' : 'disconnected',
-                description: remoteDescription,
-                // 添加额外信息用于区分远程主机
-                connectionId: connection.id,
-                remoteHostId: remoteHost.id,
-              });
+          newTargets.push({
+            id: tcpTargetId,
+            name: connection.name || `${connection.host}:${connection.port}`,
+            type: 'network',
+            address: `${connection.host}:${connection.port}`,
+            status: connection.isConnected ? 'connected' : 'disconnected',
+            description: tcpDescription,
+            connectionId: connection.id,
+          });
+        } else if (connection.type === 'udp') {
+          // UDP连接：只添加远程主机目标（UDP绑定地址不是发送目标）
+          if (connection.remoteHosts && connection.remoteHosts.length > 0) {
+            for (const remoteHost of connection.remoteHosts) {
+              // 只添加启用的远程主机
+              if (remoteHost.enabled !== false) {
+                const remoteTargetId = `network:${connection.id}:${remoteHost.id}`;
+                const remoteDescription =
+                  remoteHost.description || `UDP远程主机 - ${remoteHost.host}:${remoteHost.port}`;
+
+                newTargets.push({
+                  id: remoteTargetId,
+                  name: `${connection.name || connection.host}/${remoteHost.name}`,
+                  type: 'network',
+                  address: `${remoteHost.host}:${remoteHost.port}`,
+                  status: connection.isConnected ? 'connected' : 'disconnected',
+                  description: remoteDescription,
+                  connectionId: connection.id,
+                  remoteHostId: remoteHost.id,
+                });
+              }
             }
           }
         }
@@ -146,17 +162,15 @@ export const useConnectionTargetsStore = defineStore('connectionTargets', () => 
     }
 
     // 对于网络连接
-    if (target.type === 'network') {
-      // 检查是否是远程主机目标
-      if (target.remoteHostId && target.connectionId) {
-        // 远程主机目标格式：connectionId:remoteHostId:host:port
-        return `${target.connectionId}:${target.remoteHostId}:${target.address}`;
+    if (target.type === 'network' && target.connectionId) {
+      // TCP主连接目标：network:connectionId -> connectionId
+      if (!target.remoteHostId) {
+        return target.connectionId;
       }
 
-      // 传统主连接目标
-      const parts = targetId.split(':', 2);
-      if (parts.length === 2 && parts[1]) {
-        return parts[1]; // 返回 tcp-192.168.1.100:8080 或 udp-255.255.255.255:9999
+      // UDP远程主机目标：network:connectionId:remoteHostId -> connectionId:targetHost
+      if (target.remoteHostId && target.address) {
+        return `${target.connectionId}:${target.address}`;
       }
     }
 

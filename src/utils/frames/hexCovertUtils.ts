@@ -24,14 +24,21 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
 
     // 特殊处理bytes类型
     if (dataType === 'bytes') {
-      // 十进制输入转为十六进制再处理
-      const numValue = isHexInput ? parseInt(inputString, 16) : Math.floor(parseFloat(inputString));
-      // 确保长度为偶数
-      return numValue
-        .toString(16)
-        .toUpperCase()
-        .padStart((length as number) * 2, '0')
-        .slice(-((length as number) * 2));
+      if (isHexInput) {
+        // 对于十六进制输入，直接处理字符串以避免精度丢失
+        const hexString = inputString.toUpperCase();
+        const targetLength = (length as number) * 2;
+        return hexString.padStart(targetLength, '0').slice(-targetLength);
+      } else {
+        // 十进制输入转为十六进制再处理
+        const numValue = Math.floor(parseFloat(inputString));
+        // 确保长度为偶数
+        return numValue
+          .toString(16)
+          .toUpperCase()
+          .padStart((length as number) * 2, '0')
+          .slice(-((length as number) * 2));
+      }
     }
 
     if (isHexInput) {

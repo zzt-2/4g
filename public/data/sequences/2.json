@@ -1,0 +1,30 @@
+{
+  "name": "顺序发送配置",
+  "description": "包含4个帧实例的顺序发送配置",
+  "instances": [
+    {
+      "id": "seq_1747387491624_t7cvpt7xy",
+      "instanceId": "6",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    },
+    {
+      "id": "seq_1747387493104_4m2x5wdt1",
+      "instanceId": "10",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    },
+    {
+      "id": "seq_1747389497805_ifa0bw55h",
+      "instanceId": "3",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    },
+    {
+      "id": "seq_1747389501677_wk9bdkqqj",
+      "instanceId": "123",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    }
+  ]
+}

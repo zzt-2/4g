@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "configType": "single-timed",
+  "name": "多帧发送配置",
+  "instanceRefs": [
+    {
+      "id": "1",
+      "label": "222 #1",
+      "frameId": "1234",
+      "description": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "targets": [
+    {
+      "instanceId": "1",
+      "targetId": "serial:COM1",
+      "interval": 1000
+    }
+  ],
+  "createdAt": "2025-05-30T13:58:46.568Z",
+  "updatedAt": "2025-05-30T13:58:46.568Z",
+  "strategy": {
+    "type": "timed",
+    "sendInterval": 5000,
+    "repeatCount": 5,
+    "isInfinite": false,
+    "startDelay": 0
+  }
+}

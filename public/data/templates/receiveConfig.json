@@ -1,0 +1,354 @@
+[
+  {
+    "groups": [
+      {
+        "id": 1,
+        "label": "1",
+        "dataItems": [
+          {
+            "label": "有效bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 1
+          },
+          {
+            "label": "接收包计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 3
+          },
+          {
+            "label": "误码bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 2
+          },
+          {
+            "label": "有效bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 5
+          },
+          {
+            "label": "接收包计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 7
+          },
+          {
+            "label": "错误包计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 8
+          },
+          {
+            "label": "误码bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 6
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "label": "测试分组",
+        "dataItems": [
+          {
+            "label": "测试接收1累加",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 3
+          },
+          {
+            "label": "等于测试数据1*2",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 2
+          },
+          {
+            "label": "测试数据1",
+            "isVisible": true,
+            "isFavorite": true,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 1
+          },
+          {
+            "label": "测试接收1+测试接收1*2",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 4
+          },
+          {
+            "label": "粗测距",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 5
+          },
+          {
+            "label": "细测距",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 6
+          },
+          {
+            "label": "测距值",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 7
+          },
+          {
+            "label": "字节数组",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "bytes",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 8
+          },
+          {
+            "label": "1",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 305419947,
+            "displayValue": "305419947",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 9
+          },
+          {
+            "label": "2",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "数据不足",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 10
+          },
+          {
+            "label": "3",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "数据不足",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 11
+          }
+        ]
+      }
+    ],
+    "mappings": [
+      {
+        "frameId": "zcy005",
+        "fieldId": "rNI9EboJe95pTDoyg3rwg",
+        "fieldName": "有效bit数",
+        "groupId": 1,
+        "dataItemId": 1
+      },
+      {
+        "frameId": "zcy005",
+        "fieldId": "5OqesYSuLuft_OuSmJUDH",
+        "fieldName": "误码bit数",
+        "groupId": 1,
+        "dataItemId": 2
+      },
+      {
+        "frameId": "zcy005",
+        "fieldId": "_EejzGCKnRp-h4MbNzTT0",
+        "fieldName": "接收包计数",
+        "groupId": 1,
+        "dataItemId": 3
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "rNI9EboJe95pTDoyg3rwg",
+        "fieldName": "有效bit数",
+        "groupId": 1,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "5OqesYSuLuft_OuSmJUDH",
+        "fieldName": "误码bit数",
+        "groupId": 1,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "_EejzGCKnRp-h4MbNzTT0",
+        "fieldName": "接收包计数",
+        "groupId": 1,
+        "dataItemId": 7
+      },
+      {
+        "frameId": "zcy0006",
+        "fieldId": "gIYn1NpCfNSX2Gi0ZwipF",
+        "fieldName": "错误包计数",
+        "groupId": 1,
+        "dataItemId": 8
+      },
+      {
+        "frameId": "t7CRbZb174ATzxs94xQSe",
+        "fieldId": "5OqesYSuLuft_OuSmJUDH",
+        "fieldName": "误码bit数",
+        "groupId": 1,
+        "dataItemId": 9
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "IRAI7ST9vm3wKs0QBHPTG",
+        "fieldName": "测试数据1",
+        "groupId": 2,
+        "dataItemId": 1
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "sXPvFmFXfavlm--geg9Kb",
+        "fieldName": "等于测试数据1*2",
+        "groupId": 2,
+        "dataItemId": 2
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "340LYOzVTf81_koKFk61G",
+        "fieldName": "测试接收1累加",
+        "groupId": 2,
+        "dataItemId": 3
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "JM8m01K6f24XG762G5uvL",
+        "fieldName": "测试接收1+测试接收1*2",
+        "groupId": 2,
+        "dataItemId": 4
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "w_2-a6-JN8wt4knTqlCcy",
+        "fieldName": "粗测距",
+        "groupId": 2,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "KOIag-beRSJgPl_CJHLXJ",
+        "fieldName": "细测距",
+        "groupId": 2,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "test002",
+        "fieldId": "HdlG7MBElod851yzesrdD",
+        "fieldName": "测距值",
+        "groupId": 2,
+        "dataItemId": 7
+      },
+      {
+        "frameId": "testreceive",
+        "fieldId": "rOhIaQKGl3Z19Gqwjmy6t",
+        "fieldName": "字节数组",
+        "groupId": 2,
+        "dataItemId": 8
+      },
+      {
+        "frameId": "I4GB89WE47Z-WrHzpXKUK",
+        "fieldId": "sRaOMCdljphLlPKnUCMqv",
+        "fieldName": "1",
+        "groupId": 2,
+        "dataItemId": 9
+      },
+      {
+        "frameId": "I4GB89WE47Z-WrHzpXKUK",
+        "fieldId": "Fy-m9jzqHH62NEIzp6y7m",
+        "fieldName": "2",
+        "groupId": 2,
+        "dataItemId": 10
+      },
+      {
+        "frameId": "I4GB89WE47Z-WrHzpXKUK",
+        "fieldId": "q6ImgHmRaHR_xsf2eV38w",
+        "fieldName": "3",
+        "groupId": 2,
+        "dataItemId": 11
+      }
+    ],
+    "version": "1.0.0",
+    "createdAt": "2025-07-08T01:39:40.951Z",
+    "updatedAt": "2025-07-08T01:39:40.951Z"
+  }
+]

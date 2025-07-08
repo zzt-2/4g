@@ -1,0 +1,209 @@
+{
+  "groups": [
+    {
+      "id": 1,
+      "label": "1",
+      "dataItems": [
+        {
+          "label": "随便什么",
+          "isVisible": true,
+          "dataType": "uint32",
+          "value": null,
+          "displayValue": "-",
+          "useLabel": true,
+          "labelOptions": [
+            {
+              "value": "0",
+              "label": "0"
+            },
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "100",
+              "label": "100"
+            },
+            {
+              "value": "1000",
+              "label": "1000"
+            },
+            {
+              "value": "10000",
+              "label": "10000"
+            }
+          ],
+          "id": 1
+        },
+        {
+          "label": "测试标签1",
+          "isVisible": true,
+          "dataType": "uint8",
+          "value": 255,
+          "displayValue": "全1",
+          "useLabel": true,
+          "labelOptions": [
+            {
+              "value": "0x00",
+              "label": "全0"
+            },
+            {
+              "value": "0xff",
+              "label": "全1"
+            }
+          ],
+          "id": 2
+        },
+        {
+          "label": "随便什么",
+          "isVisible": true,
+          "dataType": "uint32",
+          "value": 305419896,
+          "displayValue": "305419896",
+          "useLabel": true,
+          "labelOptions": [
+            {
+              "value": "0",
+              "label": "0"
+            },
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "100",
+              "label": "100"
+            },
+            {
+              "value": "1000",
+              "label": "1000"
+            },
+            {
+              "value": "10000",
+              "label": "10000"
+            }
+          ],
+          "id": 3
+        },
+        {
+          "label": "随便什么",
+          "isVisible": true,
+          "dataType": "uint32",
+          "value": null,
+          "displayValue": "-",
+          "useLabel": true,
+          "labelOptions": [
+            {
+              "value": "0",
+              "label": "0"
+            },
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "100",
+              "label": "100"
+            },
+            {
+              "value": "1000",
+              "label": "1000"
+            },
+            {
+              "value": "10000",
+              "label": "10000"
+            }
+          ],
+          "id": 4
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "2",
+      "dataItems": [
+        {
+          "label": "帧头",
+          "isVisible": true,
+          "dataType": "uint16",
+          "value": null,
+          "displayValue": "-",
+          "useLabel": true,
+          "labelOptions": [
+            {
+              "value": "0",
+              "label": "0"
+            },
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "100",
+              "label": "100"
+            },
+            {
+              "value": "1000",
+              "label": "1000"
+            },
+            {
+              "value": "65535",
+              "label": "65535 (最大值)"
+            }
+          ],
+          "id": 1
+        },
+        {
+          "label": "帧头",
+          "isVisible": true,
+          "dataType": "uint16",
+          "value": null,
+          "displayValue": "-",
+          "useLabel": true,
+          "labelOptions": [
+            {
+              "value": "0",
+              "label": "0"
+            },
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "100",
+              "label": "100"
+            },
+            {
+              "value": "1000",
+              "label": "1000"
+            },
+            {
+              "value": "65535",
+              "label": "65535 (最大值)"
+            }
+          ],
+          "id": 2
+        }
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "frameId": "12345678",
+      "fieldId": "kbi-7j2IXVyGp_XKjARLN",
+      "fieldName": "测试标签",
+      "groupId": 1,
+      "dataItemId": 2
+    },
+    {
+      "frameId": "12345678",
+      "fieldId": "BK22GwuP0-AP7yVHieyKw",
+      "fieldName": "随便什么",
+      "groupId": 1,
+      "dataItemId": 4
+    }
+  ],
+  "version": "1.0.0",
+  "createdAt": "2025-06-03T11:30:01.287Z",
+  "updatedAt": "2025-06-03T11:30:01.287Z"
+}

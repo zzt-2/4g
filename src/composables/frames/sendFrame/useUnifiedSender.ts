@@ -89,29 +89,34 @@ export function useUnifiedSender() {
       if (type === 'serial') {
         result = await sendToSerial(identifier, data, targetId);
       } else if (type === 'network') {
-        // 检查是否是远程主机目标
-        if (targetId.includes(':') && targetId.split(':').length >= 3) {
-          // 远程主机目标格式：network:connectionId:remoteHostId
-          const parts = targetId.split(':');
-          const connectionId = parts[1] as string;
+        // 获取验证后的目标路径
+        const targetPath = connectionTargetsStore.getValidatedTargetPath(targetId);
 
-          // 从store获取目标信息
-          connectionTargetsStore.refreshTargets();
-          const target = connectionTargetsStore.getTargetById(targetId);
-
-          if (target && target.address) {
-            result = await sendToNetwork(connectionId, data, targetId, target.address);
+        if (!targetPath) {
+          result = {
+            success: false,
+            error: '无效的网络目标路径',
+            targetId,
+            targetType: 'network',
+          };
+        } else if (targetPath.includes(':') && targetPath.split(':').length === 2) {
+          // UDP远程主机目标格式：connectionId:targetHost
+          const parts = targetPath.split(':');
+          const connectionId = parts[0];
+          const targetHost = parts[1];
+          if (connectionId && targetHost) {
+            result = await sendToNetwork(connectionId, data, targetId, targetHost);
           } else {
             result = {
               success: false,
-              error: '找不到远程主机目标信息',
+              error: '无效的UDP远程主机目标格式',
               targetId,
               targetType: 'network',
             };
           }
         } else {
-          // 传统主连接目标
-          result = await sendToNetwork(identifier, data, targetId);
+          // TCP主连接目标：connectionId
+          result = await sendToNetwork(targetPath, data, targetId);
         }
       } else {
         result = {
@@ -245,19 +250,19 @@ export function useUnifiedSender() {
         const status = await serialAPI.getStatus(identifier);
         return status.isOpen;
       } else if (type === 'network') {
-        // 检查是否是远程主机目标
-        if (targetId.includes(':') && targetId.split(':').length >= 3) {
-          // 远程主机目标：检查对应的网络连接是否可用
-          const parts = targetId.split(':');
-          const connectionId = parts[1] as string;
+        // 获取验证后的目标路径
+        const targetPath = connectionTargetsStore.getValidatedTargetPath(targetId);
+        if (!targetPath) {
+          return false;
+        }
+
+        // 提取连接ID（无论是TCP主连接还是UDP远程主机目标，都检查基础连接状态）
+        const connectionId = targetPath.includes(':') ? targetPath.split(':')[0] : targetPath;
+        if (connectionId) {
           const status = await networkAPI.getStatus(connectionId);
           return status?.isConnected || false;
-        } else {
-          // 传统主连接目标
-          const { identifier } = parseTargetId(targetId);
-          const status = await networkAPI.getStatus(identifier);
-          return status?.isConnected || false;
         }
+        return false;
       }
 
       return false;
@@ -280,16 +285,16 @@ export function useUnifiedSender() {
         const { identifier } = parseTargetId(targetId);
         return await serialAPI.getStatus(identifier);
       } else if (type === 'network') {
-        // 检查是否是远程主机目标
-        if (targetId.includes(':') && targetId.split(':').length >= 3) {
-          // 远程主机目标：返回对应网络连接的状态
-          const parts = targetId.split(':');
-          const connectionId = parts[1] as string;
+        // 获取验证后的目标路径
+        const targetPath = connectionTargetsStore.getValidatedTargetPath(targetId);
+        if (!targetPath) {
+          return null;
+        }
+
+        // 提取连接ID（无论是TCP主连接还是UDP远程主机目标，都返回基础连接状态）
+        const connectionId = targetPath.includes(':') ? targetPath.split(':')[0] : targetPath;
+        if (connectionId) {
           return await networkAPI.getStatus(connectionId);
-        } else {
-          // 传统主连接目标
-          const { identifier } = parseTargetId(targetId);
-          return await networkAPI.getStatus(identifier);
         }
       }
 
