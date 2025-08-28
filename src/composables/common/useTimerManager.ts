@@ -17,7 +17,7 @@ export interface TimerRegistration {
   callback: (data: TimerEventData) => void;
 }
 
-export const useTimerManager = () => {
+export const useTimerManager = (ifAutoCleanup?: boolean) => {
   // 注册的定时器列表
   const registeredTimers = ref<Map<string, TimerRegistration>>(new Map());
 
@@ -244,10 +244,12 @@ export const useTimerManager = () => {
     }
   };
 
-  // 组件卸载时自动清理
-  onUnmounted(() => {
-    cleanup();
-  });
+  // 组件卸载时自动清理（默认开启，除非明确传递 false）
+  if (ifAutoCleanup !== false) {
+    onUnmounted(() => {
+      cleanup();
+    });
+  }
 
   return {
     registeredTimers: registeredTimers.value,

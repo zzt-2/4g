@@ -87,12 +87,8 @@ const resetSelectedFrameStats = (): void => {
 <template>
   <div class="h-full flex flex-col">
     <!-- 标题栏 -->
-    <div
-      class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
-    >
-      <h6
-        class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-      >
+    <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
+      <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
         <q-icon name="analytics" size="xs" class="mr-1 text-blue-5" />
         统计信息
       </h6>
@@ -148,21 +144,11 @@ const resetSelectedFrameStats = (): void => {
           </div>
 
           <!-- 选中帧统计 -->
-          <div
-            v-if="receiveFramesStore.selectedFrameId"
-            class="bg-industrial-panel rounded-lg p-3 border border-industrial"
-          >
+          <div v-if="receiveFramesStore.selectedFrameId"
+            class="bg-industrial-panel rounded-lg p-3 border border-industrial">
             <div class="flex items-center justify-between mb-3">
               <div class="text-industrial-primary text-sm font-medium">当前帧统计</div>
-              <q-btn
-                flat
-                dense
-                round
-                size="sm"
-                icon="clear"
-                color="red"
-                @click="resetSelectedFrameStats"
-              >
+              <q-btn flat dense round size="sm" icon="clear" color="red" @click="resetSelectedFrameStats">
                 <q-tooltip>重置当前帧统计</q-tooltip>
               </q-btn>
             </div>
@@ -215,28 +201,10 @@ const resetSelectedFrameStats = (): void => {
 
               <!-- 记录控制按钮 -->
               <div class="flex items-center justify-center gap-2">
-                <q-btn
-                  v-if="!recordingStats.isRecording"
-                  flat
-                  dense
-                  size="sm"
-                  icon="play_arrow"
-                  color="green"
-                  label="开始记录"
-                  @click="dataDisplayStore.startRecording()"
-                  class="text-xs"
-                />
-                <q-btn
-                  v-else
-                  flat
-                  dense
-                  size="sm"
-                  icon="stop"
-                  color="red"
-                  label="停止记录"
-                  @click="dataDisplayStore.stopRecording()"
-                  class="text-xs"
-                />
+                <q-btn v-if="!recordingStats.isRecording" flat dense size="sm" icon="play_arrow" color="green"
+                  label="开始记录" @click="dataDisplayStore.startRecording()" class="text-xs" />
+                <q-btn v-else flat dense size="sm" icon="stop" color="red" label="停止记录"
+                  @click="dataDisplayStore.stopRecording()" class="text-xs" />
               </div>
             </div>
           </div>
@@ -247,16 +215,7 @@ const resetSelectedFrameStats = (): void => {
     <!-- 底部操作 -->
     <div class="p-3 border-t border-industrial bg-industrial-table-header">
       <div class="flex items-center justify-center">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="clear_all"
-          color="red"
-          label="重置统计"
-          @click="resetStats"
-          class="text-xs"
-        />
+        <q-btn flat dense size="sm" icon="clear_all" color="red" label="重置统计" @click="resetStats" class="text-xs" />
       </div>
     </div>
   </div>

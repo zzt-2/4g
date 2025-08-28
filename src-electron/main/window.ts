@@ -1,4 +1,4 @@
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow, app, screen } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -20,6 +20,11 @@ export class WindowManager {
       minWidth: 800, // 最小宽度
       minHeight: 600, // 最小高度
       show: false, // 先隐藏窗口
+      alwaysOnTop: false,
+      skipTaskbar: false, // 确保在任务栏显示
+      focusable: true, // 明确设置为可聚焦
+      autoHideMenuBar: true,
+      titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       webPreferences: {
         contextIsolation: true, // 必须为 true
         nodeIntegration: false, // 必须为 false
@@ -45,10 +50,33 @@ export class WindowManager {
     const url = process.env.NODE_ENV !== 'development' ? indexPath : process.env.APP_URL;
     this.mainWindow.loadURL(url);
 
-    // 等待窗口加载完成后最大化并显示
+    // 添加焦点事件处理
+    this.mainWindow.on('focus', () => {
+      console.log('Window focused');
+    });
+
+    this.mainWindow.on('blur', () => {
+      console.log('Window blurred');
+    });
+
+    // 等待窗口加载完成后调整到工作区大小并显示
     this.mainWindow.once('ready-to-show', () => {
-      this.mainWindow?.maximize();
-      this.mainWindow?.show();
+      if (this.mainWindow) {
+        // 获取主显示器的工作区域（排除任务栏）
+        const { workArea } = screen.getPrimaryDisplay();
+
+        // 设置窗口位置和大小以适应工作区域
+        this.mainWindow.setBounds({
+          x: workArea.x,
+          y: workArea.y,
+          width: workArea.width,
+          height: workArea.height,
+        });
+
+        this.mainWindow.show();
+        this.mainWindow.focus(); // 明确要求焦点
+        this.mainWindow.setAlwaysOnTop(false); // 确保不会一直置顶
+      }
     });
 
     if (process.env.DEBUGGING) {
@@ -64,6 +92,23 @@ export class WindowManager {
 
   getWindow() {
     return this.mainWindow;
+  }
+
+  restoreFocus() {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.restore();
+      this.mainWindow.focus();
+      this.mainWindow.show();
+    }
+  }
+
+  handleFocusLoss() {
+    if (this.mainWindow) {
+      // 延迟恢复焦点，避免立即冲突
+      setTimeout(() => {
+        this.restoreFocus();
+      }, 100);
+    }
   }
 }
 

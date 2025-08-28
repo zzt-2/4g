@@ -4,7 +4,6 @@
  * 负责各种类型任务的执行
  */
 import { ref } from 'vue';
-import { useSerialStore } from '../../../stores/serialStore';
 import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 import {
   useSendTasksStore,
@@ -14,27 +13,41 @@ import {
   FrameInstanceInTask,
 } from '../../../stores/frames/sendTasksStore';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
-import { useConnectionTargetsStore } from '../../../stores/connectionTargetsStore';
 import { useUnifiedSender } from './useUnifiedSender';
+import { deepClone } from '../../../utils/frames/frameUtils';
+import { useTimerManager } from '../../common/useTimerManager';
+import type { TimerConfig } from '../../../types/common/timerManager';
+
+/**
+ * 缓存的帧实例
+ */
+interface CachedFrameInstance {
+  instanceConfig: FrameInstanceInTask;
+  originalInstance: SendFrameInstance;
+  cachedInstance: SendFrameInstance;
+  currentVariationIndex: number;
+}
 
 /**
  * 任务执行器可组合函数
  */
 export function useSendTaskExecutor() {
   // 获取store实例
-  const serialStore = useSerialStore();
   const sendFrameInstancesStore = useSendFrameInstancesStore();
   const sendTasksStore = useSendTasksStore();
-
-  // 获取连接目标管理器用于解析目标ID
-  const connectionTargetsStore = useConnectionTargetsStore();
 
   // 获取统一发送路由器
   const { sendFrameInstance: sendFrameInstanceUnified, isTargetAvailable } = useUnifiedSender();
 
+  // 获取定时器管理器
+  const timerManager = useTimerManager(false);
+
   // 本地状态
   const isProcessing = ref(false);
   const processingError = ref<string | null>(null);
+
+  // 帧实例缓存 Map，key 为 taskId
+  const frameInstanceCaches = new Map<string, CachedFrameInstance[]>();
 
   // ============= 内部辅助函数 =============
 
@@ -47,6 +60,78 @@ export function useSendTaskExecutor() {
       throw new Error(`找不到实例: ${instanceId}`);
     }
     return instance;
+  };
+
+  /**
+   * 初始化任务的帧实例缓存
+   */
+  const initializeFrameInstanceCache = (
+    taskId: string,
+    instances: FrameInstanceInTask[],
+  ): CachedFrameInstance[] => {
+    const cache: CachedFrameInstance[] = [];
+
+    for (const instanceConfig of instances) {
+      const originalInstance = getSendFrameInstance(instanceConfig.instanceId);
+      const cachedInstance = deepClone(originalInstance);
+
+      cache.push({
+        instanceConfig,
+        originalInstance,
+        cachedInstance,
+        currentVariationIndex: 0,
+      });
+    }
+
+    frameInstanceCaches.set(taskId, cache);
+    console.log(`初始化任务 ${taskId} 的帧实例缓存，包含 ${cache.length} 个实例`);
+    return cache;
+  };
+
+  /**
+   * 更新缓存实例的字段值（参数变化）
+   */
+  const updateCachedInstanceFields = (
+    cachedInstance: CachedFrameInstance,
+    variationIndex: number,
+  ): void => {
+    const { instanceConfig, cachedInstance: instance } = cachedInstance;
+
+    // 如果启用了参数变化
+    if (instanceConfig.enableVariation && instanceConfig.fieldVariations) {
+      for (const fieldVariation of instanceConfig.fieldVariations) {
+        const field = instance.fields?.find((f) => f.id === fieldVariation.fieldId);
+        if (field && fieldVariation.values.length > variationIndex) {
+          field.value = String(fieldVariation.values[variationIndex] || '');
+          // console.log(
+          //   `更新字段 ${field.label}(${field.id}) 为: ${field.value} (轮次: ${variationIndex})`,
+          // );
+        }
+      }
+    }
+
+    // 更新变化索引
+    cachedInstance.currentVariationIndex = variationIndex;
+  };
+
+  /**
+   * 获取任务的缓存实例
+   */
+  const getCachedFrameInstance = (taskId: string, instanceIndex: number): SendFrameInstance => {
+    const cache = frameInstanceCaches.get(taskId);
+    if (!cache || !cache[instanceIndex]) {
+      throw new Error(`任务 ${taskId} 的缓存实例 ${instanceIndex} 不存在`);
+    }
+
+    return cache[instanceIndex].cachedInstance;
+  };
+
+  /**
+   * 清理任务缓存
+   */
+  const clearFrameInstanceCache = (taskId: string): void => {
+    frameInstanceCaches.delete(taskId);
+    console.log(`清理任务 ${taskId} 的帧实例缓存`);
   };
 
   /**
@@ -64,13 +149,85 @@ export function useSendTaskExecutor() {
   };
 
   /**
-   * 清理定时器
+   * 创建任务专用的定时器ID生成器
    */
-  const cleanupTimers = (timers: number[]): void => {
-    timers.forEach((timerId) => {
-      clearTimeout(timerId);
-      clearInterval(timerId);
-    });
+  const createTaskTimerIds = (taskId: string) => {
+    const timerIds: string[] = [];
+
+    const createTimerId = (type: 'interval' | 'timeout', suffix?: string) => {
+      const id = `task-${taskId}-${type}-${Date.now()}${suffix ? `-${suffix}` : ''}`;
+      timerIds.push(id);
+      return id;
+    };
+
+    const cleanup = async () => {
+      for (const timerId of timerIds) {
+        await timerManager.unregisterTimer(timerId);
+      }
+      timerIds.length = 0;
+    };
+
+    const getTimerIds = () => [...timerIds];
+
+    return { createTimerId, cleanup, getTimerIds };
+  };
+
+  /**
+   * 通用的时间触发计算逻辑
+   */
+  const createTimeCalculator = (config: {
+    executeTime: string;
+    isRecurring?: boolean;
+    recurringType?: 'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly';
+    recurringInterval?: number;
+    endTime?: string;
+  }) => {
+    const executeTime = new Date(config.executeTime);
+
+    const calculateNextExecutionTime = (currentTime: Date): Date | null => {
+      if (!config.isRecurring) {
+        return executeTime > currentTime ? executeTime : null;
+      }
+
+      const { recurringType, recurringInterval = 1 } = config;
+      const nextTime = new Date(executeTime);
+
+      // 如果执行时间已过，计算下一个重复时间
+      while (nextTime <= currentTime) {
+        switch (recurringType) {
+          case 'second':
+            nextTime.setSeconds(nextTime.getSeconds() + recurringInterval);
+            break;
+          case 'minute':
+            nextTime.setMinutes(nextTime.getMinutes() + recurringInterval);
+            break;
+          case 'hour':
+            nextTime.setHours(nextTime.getHours() + recurringInterval);
+            break;
+          case 'daily':
+            nextTime.setDate(nextTime.getDate() + recurringInterval);
+            break;
+          case 'weekly':
+            nextTime.setDate(nextTime.getDate() + 7 * recurringInterval);
+            break;
+          case 'monthly':
+            nextTime.setMonth(nextTime.getMonth() + recurringInterval);
+            break;
+        }
+      }
+
+      // 检查是否超过结束时间
+      if (config.endTime) {
+        const endTime = new Date(config.endTime);
+        if (nextTime > endTime) {
+          return null;
+        }
+      }
+
+      return nextTime;
+    };
+
+    return { calculateNextExecutionTime };
   };
 
   /**
@@ -81,18 +238,16 @@ export function useSendTaskExecutor() {
     instance: SendFrameInstance,
     taskId: string,
     taskName: string,
-    timers: number[],
   ): Promise<boolean> => {
     try {
       const result = await sendFrameInstanceUnified(targetId, instance);
 
       if (!result.success) {
         // 检查是否是连接问题
-        const isAvailable = await isTargetAvailable(targetId);
+        const isAvailable = isTargetAvailable(targetId);
         if (!isAvailable) {
           console.log(`连接已断开 (${targetId})，暂停任务: ${taskName}`);
           sendTasksStore.updateTaskStatus(taskId, 'paused', '连接已断开');
-          cleanupTimers(timers);
           return false;
         }
         throw new Error(result.error || '帧发送失败');
@@ -113,7 +268,7 @@ export function useSendTaskExecutor() {
     isLastInstance: boolean,
   ): Promise<void> => {
     if (!isLastInstance) {
-      const instanceInterval = instanceConfig.interval || 1000;
+      const instanceInterval = instanceConfig.interval;
       await new Promise((resolve) => setTimeout(resolve, instanceInterval));
     }
   };
@@ -122,23 +277,25 @@ export function useSendTaskExecutor() {
    * 处理单个实例的发送逻辑
    */
   const processSingleInstance = async (
-    instanceConfig: FrameInstanceInTask,
     taskId: string,
-    taskName: string,
-    timers: number[],
+    instanceIndex: number,
     isLastInstance: boolean = true,
   ): Promise<boolean> => {
     try {
-      // 获取实例
-      const instance = getSendFrameInstance(instanceConfig.instanceId);
+      const cache = frameInstanceCaches.get(taskId);
+      if (!cache || !cache[instanceIndex]) {
+        throw new Error(`任务 ${taskId} 的实例缓存 ${instanceIndex} 不存在`);
+      }
 
-      // 发送帧（使用统一发送路由器）
+      const cachedInstance = cache[instanceIndex];
+      const { instanceConfig } = cachedInstance;
+
+      // 发送帧（使用缓存的实例）
       const success = await sendFrameToTarget(
         instanceConfig.targetId,
-        instance,
+        cachedInstance.cachedInstance,
         taskId,
-        taskName,
-        timers,
+        `任务-${taskId}`,
       );
       if (!success) {
         return false; // 连接错误已在函数内处理
@@ -147,14 +304,9 @@ export function useSendTaskExecutor() {
       // 添加实例间延时
       await addInstanceDelay(instanceConfig, isLastInstance);
 
-      // 异步更新发送统计（不阻塞发送流程）
-      setTimeout(() => {
-        sendFrameInstancesStore.updateSendStats(instanceConfig.instanceId);
-      }, 0);
-
       return true;
     } catch (error) {
-      console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
+      console.error(`发送实例索引 ${instanceIndex} 时出错:`, error);
       throw error;
     }
   };
@@ -164,10 +316,7 @@ export function useSendTaskExecutor() {
    * 用于顺序发送和触发发送任务
    */
   const processInstance = async (
-    instanceConfig: FrameInstanceInTask,
     taskId: string,
-    taskName: string,
-    timers: number[],
     instanceIndex: number,
     totalInstances: number,
     isLastInstance: boolean = true,
@@ -177,13 +326,18 @@ export function useSendTaskExecutor() {
       throw new Error('任务配置无效');
     }
 
+    const cache = frameInstanceCaches.get(taskId);
+    if (!cache || !cache[instanceIndex]) {
+      throw new Error(`任务 ${taskId} 的实例缓存 ${instanceIndex} 不存在`);
+    }
+
+    const cachedInstance = cache[instanceIndex];
+    const { instanceConfig } = cachedInstance;
+
     // 更新当前处理的实例状态为 running
     const updatedInstances = [...task.config.instances];
     updatedInstances[instanceIndex] = {
-      id: instanceConfig.id,
-      instanceId: instanceConfig.instanceId,
-      targetId: instanceConfig.targetId,
-      interval: instanceConfig.interval || 0,
+      ...instanceConfig,
       status: 'running',
     };
 
@@ -194,21 +348,22 @@ export function useSendTaskExecutor() {
       },
     });
 
-    sendTasksStore.updateTaskProgress(taskId, {
-      currentCount: instanceIndex,
-      percentage: Math.floor((instanceIndex / totalInstances) * 100),
-      currentInstanceIndex: instanceIndex,
-    });
+    // 使用缓存版本以提高性能
+    if (
+      task.type === 'sequential' ||
+      task.type === 'timed-single' ||
+      task.type === 'triggered-single'
+    ) {
+      sendTasksStore.updateTaskProgressCached(taskId, {
+        currentCount: instanceIndex,
+        percentage: Math.floor((instanceIndex / totalInstances) * 100),
+        currentInstanceIndex: instanceIndex,
+      });
+    }
 
     try {
       // 使用基础的实例发送方法
-      const success = await processSingleInstance(
-        instanceConfig,
-        taskId,
-        taskName,
-        timers,
-        isLastInstance,
-      );
+      const success = await processSingleInstance(taskId, instanceIndex, isLastInstance);
 
       if (!success) {
         return false; // 连接错误已在函数内处理
@@ -216,10 +371,7 @@ export function useSendTaskExecutor() {
 
       // 更新实例状态为成功
       updatedInstances[instanceIndex] = {
-        id: instanceConfig.id,
-        instanceId: instanceConfig.instanceId,
-        targetId: instanceConfig.targetId,
-        interval: instanceConfig.interval || 0,
+        ...instanceConfig,
         status: 'completed',
       };
 
@@ -234,10 +386,7 @@ export function useSendTaskExecutor() {
     } catch (error) {
       // 更新实例状态为错误
       updatedInstances[instanceIndex] = {
-        id: instanceConfig.id,
-        instanceId: instanceConfig.instanceId,
-        targetId: instanceConfig.targetId,
-        interval: instanceConfig.interval || 0,
+        ...instanceConfig,
         status: 'error',
         errorMessage: error instanceof Error ? error.message : '发送失败',
       };
@@ -257,13 +406,15 @@ export function useSendTaskExecutor() {
    * 处理多个实例（触发任务专用）
    * 顺序处理所有实例，包含完整状态管理
    */
-  const processMultipleInstances = async (
-    instances: FrameInstanceInTask[],
-    taskId: string,
-    taskName: string,
-    timers: number[],
-  ): Promise<boolean> => {
+  const processMultipleInstances = async (taskId: string): Promise<boolean> => {
     try {
+      const cache = frameInstanceCaches.get(taskId);
+      if (!cache) {
+        throw new Error(`任务 ${taskId} 的实例缓存不存在`);
+      }
+
+      const instances = cache.map((c) => c.instanceConfig);
+
       // 按顺序发送所有实例
       for (let instanceIndex = 0; instanceIndex < instances.length; instanceIndex++) {
         // 检查任务是否仍在运行状态
@@ -272,31 +423,22 @@ export function useSendTaskExecutor() {
           return false;
         }
 
-        const instanceConfig = instances[instanceIndex];
-        if (!instanceConfig) {
-          console.warn(`无效的实例配置，索引: ${instanceIndex}`);
-          continue;
-        }
-
         try {
           // 使用带状态管理的实例处理方法
           const isLastInstance = instanceIndex === instances.length - 1;
           const success = await processInstance(
-            instanceConfig,
             taskId,
-            taskName,
-            timers,
             instanceIndex,
             instances.length,
             isLastInstance,
           );
 
           if (!success) {
-            console.error(`实例 ${instanceConfig.instanceId} 处理失败`);
+            console.error(`实例索引 ${instanceIndex} 处理失败`);
             return false; // 任何一个实例失败都返回失败
           }
         } catch (error) {
-          console.error(`处理实例 ${instanceConfig.instanceId} 时出错:`, error);
+          console.error(`处理实例索引 ${instanceIndex} 时出错:`, error);
           return false; // 任何一个实例出错都返回失败
         }
       }
@@ -366,41 +508,36 @@ export function useSendTaskExecutor() {
       throw new Error('任务配置无效: 没有实例');
     }
 
-    // 更新任务状态和进度
-    sendTasksStore.updateTaskStatus(task.id, 'running');
-    sendTasksStore.updateTaskProgress(task.id, {
-      currentCount: 0,
-      totalCount: task.config.instances.length,
-      percentage: 0,
-      currentInstanceIndex: 0,
-    });
-
-    // 存储定时器ID，用于后续清理
-    const timers: number[] = [];
-
     try {
+      // 初始化实例缓存
+      initializeFrameInstanceCache(task.id, task.config.instances);
+
+      // 更新任务状态和进度
+      sendTasksStore.updateTaskStatus(task.id, 'running');
+      sendTasksStore.updateTaskProgressCached(task.id, {
+        currentCount: 0,
+        totalCount: task.config.instances.length,
+        percentage: 0,
+        currentInstanceIndex: 0,
+      });
+
       // 直接使用统一的多实例处理函数
-      const success = await processMultipleInstances(
-        task.config.instances,
-        task.id,
-        task.name,
-        timers,
-      );
+      const success = await processMultipleInstances(task.id);
 
       if (!success) {
+        clearFrameInstanceCache(task.id);
         return false; // 错误已在processMultipleInstances中处理
       }
 
-      // 所有实例处理完成，更新任务状态
+      // 所有实例处理完成，更新任务状态（强制同步缓存）
+      sendTasksStore.forceSyncCache();
       sendTasksStore.updateTaskStatus(task.id, 'completed');
-      sendTasksStore.updateTaskProgress(task.id, {
+      sendTasksStore.updateTaskProgressCached(task.id, {
         percentage: 100,
       });
 
-      // 存储定时器ID到任务中
-      sendTasksStore.updateTask(task.id, {
-        timers,
-      });
+      // 清理缓存
+      clearFrameInstanceCache(task.id);
 
       return true;
     } catch (error) {
@@ -410,10 +547,129 @@ export function useSendTaskExecutor() {
         'error',
         error instanceof Error ? error.message : '执行失败',
       );
-      cleanupTimers(timers);
+      clearFrameInstanceCache(task.id);
       return false;
     }
   }
+
+  /**
+   * 通用定时发送执行器
+   */
+  const createTimedSender = (
+    task: SendTask,
+    config: TimedTaskConfig,
+    taskTimerIds: ReturnType<typeof createTaskTimerIds>,
+    sendFunction: () => Promise<boolean>,
+  ) => {
+    let currentCount = 0;
+
+    const executeOnce = async (): Promise<void> => {
+      try {
+        // 检查任务是否仍在运行
+        if (!isTaskStillRunning(task.id)) {
+          console.log('定时任务已停止，取消发送');
+          return;
+        }
+
+        // 检查是否已达到发送次数限制
+        if (!config.isInfinite && currentCount >= config.repeatCount) {
+          console.log('定时任务已达到发送次数限制，停止发送');
+          await taskTimerIds.cleanup();
+          sendTasksStore.updateTaskStatus(task.id, 'completed');
+          sendTasksStore.updateTaskProgressCached(task.id, {
+            currentCount: config.repeatCount,
+            percentage: 100,
+          });
+          clearFrameInstanceCache(task.id);
+          return;
+        }
+
+        // 更新缓存实例的参数变化
+        const cache = frameInstanceCaches.get(task.id);
+        if (cache) {
+          cache.forEach((cachedInstance) => {
+            updateCachedInstanceFields(cachedInstance, currentCount);
+          });
+        }
+
+        // 执行发送
+        const success = await sendFunction();
+        if (!success) {
+          return; // 连接错误已处理
+        }
+
+        currentCount++;
+
+        // 更新进度（使用缓存版本）
+        if (!config.isInfinite) {
+          const percentage = Math.min(100, Math.floor((currentCount / config.repeatCount) * 100));
+          sendTasksStore.updateTaskProgressCached(task.id, {
+            currentCount,
+            percentage,
+          });
+
+          // 检查是否完成
+          if (currentCount >= config.repeatCount) {
+            console.log('定时发送任务完成');
+            await taskTimerIds.cleanup();
+            sendTasksStore.forceSyncCache(); // 强制同步缓存
+            sendTasksStore.updateTaskStatus(task.id, 'completed');
+            sendTasksStore.updateTaskProgressCached(task.id, {
+              currentCount: config.repeatCount,
+              percentage: 100,
+            });
+            clearFrameInstanceCache(task.id);
+            return;
+          }
+        } else {
+          // 无限循环模式，只更新计数（使用缓存版本）
+          sendTasksStore.updateTaskProgressCached(task.id, {
+            currentCount,
+            nextExecutionTime: Date.now() + config.sendInterval,
+          });
+        }
+      } catch (error) {
+        console.error('定时发送失败:', error);
+        sendTasksStore.updateTaskStatus(
+          task.id,
+          'error',
+          error instanceof Error ? error.message : '发送失败',
+        );
+        await taskTimerIds.cleanup();
+        clearFrameInstanceCache(task.id);
+      }
+    };
+
+    const start = async () => {
+      // 立即发送第一次
+      await executeOnce();
+
+      // 如果需要重复发送，设置定时器
+      if (config.isInfinite || config.repeatCount > 1) {
+        // 检查任务是否仍在运行且还没完成
+        if (
+          isTaskStillRunning(task.id) &&
+          (config.isInfinite || currentCount < config.repeatCount)
+        ) {
+          const timerId = taskTimerIds.createTimerId('interval', 'timed-send');
+          const timerConfig: TimerConfig = {
+            id: timerId,
+            type: 'interval',
+            delay: config.sendInterval,
+            interval: config.sendInterval,
+            autoStart: true,
+          };
+
+          await timerManager.registerTimer(timerConfig, executeOnce);
+          console.log(
+            `设置定时器，间隔: ${config.sendInterval}ms, 剩余次数: ${config.isInfinite ? '∞' : config.repeatCount - currentCount}`,
+          );
+        }
+      }
+    };
+
+    return { start };
+  };
 
   /**
    * 开始单实例定时发送任务
@@ -429,142 +685,51 @@ export function useSendTaskExecutor() {
     }
 
     const config = task.config as TimedTaskConfig;
-    const instanceConfig = config.instances[0];
-    if (!instanceConfig) {
-      throw new Error('无效的实例配置');
+
+    try {
+      // 初始化实例缓存
+      initializeFrameInstanceCache(task.id, config.instances);
+
+      // 创建任务定时器ID管理器
+      const taskTimerIds = createTaskTimerIds(task.id);
+
+      // 更新任务状态
+      sendTasksStore.updateTaskStatus(task.id, 'running');
+
+      // 计算总发送次数
+      const totalCount = config.isInfinite ? Number.MAX_SAFE_INTEGER : config.repeatCount;
+
+      sendTasksStore.updateTaskProgressCached(task.id, {
+        currentCount: 0,
+        totalCount,
+        percentage: 0,
+      });
+
+      // 创建发送函数
+      const sendFunction = async (): Promise<boolean> => {
+        return await processSingleInstance(task.id, 0, true);
+      };
+
+      // 使用通用定时发送器
+      const timedSender = createTimedSender(task, config, taskTimerIds, sendFunction);
+      await timedSender.start();
+
+      // 存储定时器ID
+      sendTasksStore.updateTask(task.id, {
+        timers: taskTimerIds.getTimerIds(),
+      });
+
+      return true;
+    } catch (error) {
+      console.error(`单实例定时发送任务 ${task.name} 执行失败:`, error);
+      sendTasksStore.updateTaskStatus(
+        task.id,
+        'error',
+        error instanceof Error ? error.message : '执行失败',
+      );
+      clearFrameInstanceCache(task.id);
+      return false;
     }
-
-    // 获取实例（使用提取的函数）
-    const instance = getSendFrameInstance(instanceConfig.instanceId);
-
-    // 更新任务状态
-    sendTasksStore.updateTaskStatus(task.id, 'running');
-
-    // 计算总发送次数
-    const totalCount = config.isInfinite ? -1 : config.repeatCount;
-
-    sendTasksStore.updateTaskProgress(task.id, {
-      currentCount: 0,
-      totalCount: totalCount === -1 ? Number.MAX_SAFE_INTEGER : totalCount,
-      percentage: 0,
-    });
-
-    const timers: number[] = [];
-    let currentCount = 0;
-
-    // 发送帧的函数
-    const sendFrame = async () => {
-      try {
-        // 检查任务是否仍在运行
-        if (!isTaskStillRunning(task.id)) {
-          console.log('单实例定时任务已停止，取消发送');
-          return;
-        }
-
-        // 检查是否已达到发送次数限制
-        if (!config.isInfinite && currentCount >= config.repeatCount) {
-          console.log('单实例定时任务已达到发送次数限制，停止发送');
-          cleanupTimers(timers);
-          sendTasksStore.updateTaskStatus(task.id, 'completed');
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentCount: config.repeatCount,
-            percentage: 100,
-          });
-          return;
-        }
-
-        // 使用提取的函数发送帧
-        const targetPath = connectionTargetsStore.getValidatedTargetPath(instanceConfig.targetId);
-        if (!targetPath) {
-          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
-        }
-
-        console.log(
-          `单实例定时发送帧 ${currentCount + 1}/${config.isInfinite ? '∞' : config.repeatCount} 到目标: ${targetPath}`,
-          {
-            instanceId: instanceConfig.instanceId,
-            sendInterval: config.sendInterval,
-            isConnected: serialStore.isPortConnected(targetPath),
-          },
-        );
-
-        const success = await sendFrameToTarget(
-          instanceConfig.targetId,
-          instance,
-          task.id,
-          task.name,
-          timers,
-        );
-
-        if (!success) {
-          return; // 连接错误已处理
-        }
-
-        currentCount++;
-
-        // 更新进度
-        if (!config.isInfinite) {
-          const percentage = Math.min(100, Math.floor((currentCount / config.repeatCount) * 100));
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentCount,
-            percentage,
-          });
-
-          console.log(`单实例定时发送进度: ${currentCount}/${config.repeatCount} (${percentage}%)`);
-
-          // 检查是否完成
-          if (currentCount >= config.repeatCount) {
-            console.log('单实例定时发送任务完成');
-            cleanupTimers(timers);
-            sendTasksStore.updateTaskStatus(task.id, 'completed');
-            sendTasksStore.updateTaskProgress(task.id, {
-              currentCount: config.repeatCount,
-              percentage: 100,
-            });
-            return;
-          }
-        } else {
-          // 无限循环模式，只更新计数
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentCount,
-            nextExecutionTime: Date.now() + config.sendInterval,
-          });
-          console.log(
-            `单实例定时发送进度: ${currentCount}/∞, 下次发送时间: ${new Date(Date.now() + config.sendInterval).toLocaleTimeString()}`,
-          );
-        }
-      } catch (error) {
-        console.error('单实例定时发送帧失败:', error);
-        sendTasksStore.updateTaskStatus(
-          task.id,
-          'error',
-          error instanceof Error ? error.message : '发送失败',
-        );
-        cleanupTimers(timers);
-      }
-    };
-
-    // 立即发送第一次
-    await sendFrame();
-
-    // 如果需要重复发送，设置定时器
-    if (config.isInfinite || config.repeatCount > 1) {
-      // 检查任务是否仍在运行且还没完成
-      if (isTaskStillRunning(task.id) && (config.isInfinite || currentCount < config.repeatCount)) {
-        const intervalId = window.setInterval(sendFrame, config.sendInterval);
-        timers.push(intervalId);
-        console.log(
-          `设置单实例定时器，间隔: ${config.sendInterval}ms, 剩余次数: ${config.isInfinite ? '∞' : config.repeatCount - currentCount}, ID: ${intervalId}`,
-        );
-      }
-    }
-
-    // 存储定时器ID
-    sendTasksStore.updateTask(task.id, {
-      timers,
-    });
-
-    return true;
   }
 
   /**
@@ -590,159 +755,51 @@ export function useSendTaskExecutor() {
       instancesCount: config.instances.length,
     });
 
-    // 更新任务状态
-    sendTasksStore.updateTaskStatus(task.id, 'running');
+    try {
+      // 初始化实例缓存
+      initializeFrameInstanceCache(task.id, config.instances);
 
-    // 计算总发送次数
-    const totalCount = config.isInfinite ? Number.MAX_SAFE_INTEGER : config.repeatCount;
+      // 创建任务定时器ID管理器
+      const taskTimerIds = createTaskTimerIds(task.id);
 
-    sendTasksStore.updateTaskProgress(task.id, {
-      currentCount: 0,
-      totalCount,
-      percentage: 0,
-      currentInstanceIndex: 0,
-    });
+      // 更新任务状态
+      sendTasksStore.updateTaskStatus(task.id, 'running');
 
-    const timers: number[] = [];
-    let currentRoundCount = 0;
+      // 计算总发送次数
+      const totalCount = config.isInfinite ? Number.MAX_SAFE_INTEGER : config.repeatCount;
 
-    // 发送一轮所有实例的函数
-    const sendOneRound = async (): Promise<void> => {
-      // 检查任务是否仍在运行
-      if (!isTaskStillRunning(task.id)) {
-        console.log('多实例定时任务已停止，取消发送');
-        return;
-      }
+      sendTasksStore.updateTaskProgressCached(task.id, {
+        currentCount: 0,
+        totalCount,
+        percentage: 0,
+        currentInstanceIndex: 0,
+      });
 
-      // 检查是否已达到轮次限制
-      if (!config.isInfinite && currentRoundCount >= config.repeatCount) {
-        console.log('多实例定时任务已达到轮次限制，停止发送');
-        cleanupTimers(timers);
-        sendTasksStore.updateTaskStatus(task.id, 'completed');
-        sendTasksStore.updateTaskProgress(task.id, {
-          currentCount: config.repeatCount,
-          percentage: 100,
-        });
-        return;
-      }
+      // 创建发送函数：发送一轮所有实例
+      const sendFunction = async (): Promise<boolean> => {
+        return await processMultipleInstances(task.id);
+      };
 
-      currentRoundCount++;
-      console.log(`开始第 ${currentRoundCount} 轮发送，共 ${config.instances.length} 个实例`);
+      // 使用通用定时发送器
+      const timedSender = createTimedSender(task, config, taskTimerIds, sendFunction);
+      await timedSender.start();
 
-      try {
-        // 按顺序发送所有实例
-        for (let instanceIndex = 0; instanceIndex < config.instances.length; instanceIndex++) {
-          // 再次检查任务状态
-          if (!isTaskStillRunning(task.id)) {
-            console.log('任务在实例发送过程中被停止');
-            return;
-          }
+      // 存储定时器ID到任务中
+      sendTasksStore.updateTask(task.id, {
+        timers: taskTimerIds.getTimerIds(),
+      });
 
-          const instanceConfig = config.instances[instanceIndex];
-          if (!instanceConfig) {
-            console.warn(`无效的实例配置，索引: ${instanceIndex}`);
-            continue;
-          }
-
-          // 更新当前处理的实例索引
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentInstanceIndex: instanceIndex,
-          });
-
-          try {
-            // 使用提取的函数处理实例发送
-            const isLastInstance = instanceIndex === config.instances.length - 1;
-            const success = await processInstance(
-              instanceConfig,
-              task.id,
-              task.name,
-              timers,
-              instanceIndex,
-              config.instances.length,
-              isLastInstance,
-            );
-
-            if (!success) {
-              return; // 连接错误已处理
-            }
-
-            console.log(`发送实例 ${instanceIndex + 1}/${config.instances.length} 到目标成功`, {
-              instanceId: instanceConfig.instanceId,
-              round: currentRoundCount,
-            });
-          } catch (error) {
-            console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
-            continue;
-          }
-        }
-
-        // 更新进度
-        if (!config.isInfinite) {
-          const percentage = Math.min(
-            100,
-            Math.floor((currentRoundCount / config.repeatCount) * 100),
-          );
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentCount: currentRoundCount,
-            percentage,
-          });
-
-          console.log(
-            `多实例定时发送进度: ${currentRoundCount}/${config.repeatCount} (${percentage}%)`,
-          );
-
-          // 检查是否完成
-          if (currentRoundCount >= config.repeatCount) {
-            console.log('多实例定时发送任务完成');
-            cleanupTimers(timers);
-            sendTasksStore.updateTaskStatus(task.id, 'completed');
-            sendTasksStore.updateTaskProgress(task.id, {
-              currentCount: config.repeatCount,
-              percentage: 100,
-            });
-            return;
-          }
-        } else {
-          // 无限循环模式，只更新计数
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentCount: currentRoundCount,
-            nextExecutionTime: Date.now() + config.sendInterval,
-          });
-          console.log(`多实例定时发送进度: ${currentRoundCount}/∞`);
-        }
-
-        console.log(`第 ${currentRoundCount} 轮发送完成，${config.sendInterval}ms 后开始下一轮...`);
-
-        // 只有在需要继续且任务仍在运行时，才设置下一轮的定时器
-        if (isTaskStillRunning(task.id)) {
-          if (config.isInfinite || currentRoundCount < config.repeatCount) {
-            console.log(`设置下一轮定时器，间隔: ${config.sendInterval}ms`);
-            const nextTimerId = window.setTimeout(() => {
-              sendOneRound();
-            }, config.sendInterval);
-            timers.push(nextTimerId);
-          }
-        }
-      } catch (error) {
-        console.error('发送轮次失败:', error);
-        sendTasksStore.updateTaskStatus(
-          task.id,
-          'error',
-          error instanceof Error ? error.message : '发送失败',
-        );
-        cleanupTimers(timers);
-      }
-    };
-
-    // 立即发送第一轮
-    await sendOneRound();
-
-    // 存储定时器ID到任务中
-    sendTasksStore.updateTask(task.id, {
-      timers,
-    });
-
-    return true;
+      return true;
+    } catch (error) {
+      console.error(`多实例定时发送任务 ${task.name} 执行失败:`, error);
+      sendTasksStore.updateTaskStatus(
+        task.id,
+        'error',
+        error instanceof Error ? error.message : '执行失败',
+      );
+      clearFrameInstanceCache(task.id);
+      return false;
+    }
   }
 
   /**
@@ -754,53 +811,54 @@ export function useSendTaskExecutor() {
     }
 
     const config = task.config as TriggerTaskConfig;
-    const instanceConfig = config.instances[0];
 
-    if (!instanceConfig) {
-      throw new Error('无效的实例配置');
-    }
+    try {
+      // 初始化实例缓存
+      initializeFrameInstanceCache(task.id, config.instances);
 
-    // 获取实例（使用提取的函数）
-    const instance = getSendFrameInstance(instanceConfig.instanceId);
+      // 根据触发类型处理
+      if (config.triggerType === 'time') {
+        // 时间触发逻辑
+        return await startTimedTriggeredSingleTask(task, config);
+      } else {
+        // 条件触发逻辑 (原有逻辑)
+        if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
+          throw new Error('条件触发配置无效');
+        }
 
-    // 根据触发类型处理
-    if (config.triggerType === 'time') {
-      // 时间触发逻辑
-      return await startTimedTriggeredSingleTask(task, config, instanceConfig, instance);
-    } else {
-      // 条件触发逻辑 (原有逻辑)
-      if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
-        throw new Error('条件触发配置无效');
+        // 更新任务状态为等待触发
+        sendTasksStore.updateTaskStatus(task.id, 'waiting-trigger');
+
+        sendTasksStore.updateTaskProgressCached(task.id, {
+          currentCount: 0,
+          totalCount: 0,
+          percentage: 0,
+        });
+
+        // 设置监听逻辑
+        console.log(`注册触发监听器: ${task.id}`, {
+          sourceId: config.sourceId,
+          triggerFrameId: config.triggerFrameId,
+          conditionsCount: config.conditions?.length || 0,
+          continueListening: config.continueListening ?? true,
+          responseDelay: config.responseDelay || 0,
+        });
+
+        // 注册触发监听器
+        sendTasksStore.registerTaskTriggerListener(task.id, {
+          sourceId: config.sourceId,
+          triggerFrameId: config.triggerFrameId,
+          conditions: config.conditions || [],
+          continueListening: config.continueListening ?? true,
+          responseDelay: config.responseDelay || 0,
+        });
+
+        return true;
       }
-
-      // 更新任务状态为等待触发
-      sendTasksStore.updateTaskStatus(task.id, 'waiting-trigger');
-
-      sendTasksStore.updateTaskProgress(task.id, {
-        currentCount: 0,
-        totalCount: 0,
-        percentage: 0,
-      });
-
-      // 设置监听逻辑
-      console.log(`注册触发监听器: ${task.id}`, {
-        sourceId: config.sourceId,
-        triggerFrameId: config.triggerFrameId,
-        conditionsCount: config.conditions?.length || 0,
-        continueListening: config.continueListening ?? true,
-        responseDelay: config.responseDelay || 0,
-      });
-
-      // 注册触发监听器
-      sendTasksStore.registerTaskTriggerListener(task.id, {
-        sourceId: config.sourceId,
-        triggerFrameId: config.triggerFrameId,
-        conditions: config.conditions || [],
-        continueListening: config.continueListening ?? true,
-        responseDelay: config.responseDelay || 0,
-      });
-
-      return true;
+    } catch (error) {
+      console.error(`启动单实例触发发送任务失败:`, error);
+      clearFrameInstanceCache(task.id);
+      throw error;
     }
   }
 
@@ -814,125 +872,78 @@ export function useSendTaskExecutor() {
 
     const config = task.config as TriggerTaskConfig;
 
-    // 根据触发类型处理
-    if (config.triggerType === 'time') {
-      // 时间触发逻辑
-      return await startTimedTriggeredMultipleTask(task, config);
-    } else {
-      // 条件触发逻辑 (原有逻辑)
-      if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
-        throw new Error('条件触发配置无效');
+    try {
+      // 初始化实例缓存
+      initializeFrameInstanceCache(task.id, config.instances);
+
+      // 根据触发类型处理
+      if (config.triggerType === 'time') {
+        // 时间触发逻辑
+        return await startTimedTriggeredMultipleTask(task, config);
+      } else {
+        // 条件触发逻辑 (原有逻辑)
+        if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
+          throw new Error('条件触发配置无效');
+        }
+
+        // 更新任务状态为等待触发
+        sendTasksStore.updateTaskStatus(task.id, 'waiting-trigger');
+
+        sendTasksStore.updateTaskProgressCached(task.id, {
+          currentCount: 0,
+          totalCount: 0,
+          percentage: 0,
+        });
+
+        // 设置监听逻辑
+        console.log(`注册多实例触发监听器: ${task.id}`, {
+          sourceId: config.sourceId,
+          triggerFrameId: config.triggerFrameId,
+          conditionsCount: config.conditions?.length || 0,
+          continueListening: config.continueListening ?? true,
+          responseDelay: config.responseDelay || 0,
+          instancesCount: config.instances.length,
+        });
+
+        // 注册触发监听器
+        sendTasksStore.registerTaskTriggerListener(task.id, {
+          sourceId: config.sourceId,
+          triggerFrameId: config.triggerFrameId,
+          conditions: config.conditions || [],
+          continueListening: config.continueListening ?? true,
+          responseDelay: config.responseDelay || 0,
+        });
+
+        return true;
       }
-
-      // 更新任务状态为等待触发
-      sendTasksStore.updateTaskStatus(task.id, 'waiting-trigger');
-
-      sendTasksStore.updateTaskProgress(task.id, {
-        currentCount: 0,
-        totalCount: 0,
-        percentage: 0,
-      });
-
-      // 设置监听逻辑
-      console.log(`注册多实例触发监听器: ${task.id}`, {
-        sourceId: config.sourceId,
-        triggerFrameId: config.triggerFrameId,
-        conditionsCount: config.conditions?.length || 0,
-        continueListening: config.continueListening ?? true,
-        responseDelay: config.responseDelay || 0,
-        instancesCount: config.instances.length,
-      });
-
-      // 注册触发监听器
-      sendTasksStore.registerTaskTriggerListener(task.id, {
-        sourceId: config.sourceId,
-        triggerFrameId: config.triggerFrameId,
-        conditions: config.conditions || [],
-        continueListening: config.continueListening ?? true,
-        responseDelay: config.responseDelay || 0,
-      });
-
-      return true;
+    } catch (error) {
+      console.error(`启动多实例触发发送任务失败:`, error);
+      clearFrameInstanceCache(task.id);
+      throw error;
     }
   }
 
   /**
-   * 开始单实例时间触发任务
+   * 通用时间触发执行器
    */
-  async function startTimedTriggeredSingleTask(
+  const createScheduledExecutor = (
     task: SendTask,
     config: TriggerTaskConfig,
-    instanceConfig: FrameInstanceInTask,
-    instance: SendFrameInstance,
-  ): Promise<boolean> {
+    taskTimerIds: ReturnType<typeof createTaskTimerIds>,
+    sendFunction: () => Promise<boolean>,
+  ) => {
     if (!config.executeTime) {
       throw new Error('时间触发任务缺少执行时间');
     }
 
-    const executeTime = new Date(config.executeTime);
-    const now = new Date();
-
-    // 检查执行时间是否有效
-    if (executeTime <= now && !config.isRecurring) {
-      throw new Error('执行时间已过期');
-    }
-
-    // 更新任务状态为等待时间触发
-    sendTasksStore.updateTaskStatus(task.id, 'waiting-schedule');
-    sendTasksStore.updateTaskProgress(task.id, {
-      currentCount: 0,
-      totalCount: config.isRecurring ? Number.MAX_SAFE_INTEGER : 1,
-      percentage: 0,
-      nextExecutionTime: executeTime.getTime(),
+    const timeCalculator = createTimeCalculator({
+      executeTime: config.executeTime,
+      isRecurring: config.isRecurring || false,
+      ...(config.recurringType && { recurringType: config.recurringType }),
+      ...(config.recurringInterval && { recurringInterval: config.recurringInterval }),
+      ...(config.endTime && { endTime: config.endTime }),
     });
 
-    const timers: number[] = [];
-
-    // 计算下次执行时间
-    const calculateNextExecutionTime = (currentTime: Date): Date | null => {
-      if (!config.isRecurring) {
-        return executeTime > currentTime ? executeTime : null;
-      }
-
-      const { recurringType, recurringInterval = 1 } = config;
-      const nextTime = new Date(executeTime);
-
-      // 如果执行时间已过，计算下一个重复时间
-      while (nextTime <= currentTime) {
-        switch (recurringType) {
-          case 'second':
-            nextTime.setSeconds(nextTime.getSeconds() + recurringInterval);
-            break;
-          case 'minute':
-            nextTime.setMinutes(nextTime.getMinutes() + recurringInterval);
-            break;
-          case 'hour':
-            nextTime.setHours(nextTime.getHours() + recurringInterval);
-            break;
-          case 'daily':
-            nextTime.setDate(nextTime.getDate() + recurringInterval);
-            break;
-          case 'weekly':
-            nextTime.setDate(nextTime.getDate() + 7 * recurringInterval);
-            break;
-          case 'monthly':
-            nextTime.setMonth(nextTime.getMonth() + recurringInterval);
-            break;
-        }
-      }
-
-      // 检查是否超过结束时间
-      if (config.endTime) {
-        const endTime = new Date(config.endTime);
-        if (nextTime > endTime) {
-          return null;
-        }
-      }
-
-      return nextTime;
-    };
-
-    // 执行任务的函数
     const executeTask = async () => {
       try {
         // 检查任务是否仍在运行状态
@@ -944,65 +955,59 @@ export function useSendTaskExecutor() {
         // 更新状态为运行中
         sendTasksStore.updateTaskStatus(task.id, 'running');
 
-        // 使用提取的函数发送帧
-        const targetPath = connectionTargetsStore.getValidatedTargetPath(instanceConfig.targetId);
-        if (!targetPath) {
-          throw new Error(`无效的目标ID: ${instanceConfig.targetId}`);
-        }
-
-        console.log(`时间触发发送帧到目标: ${targetPath}`, {
-          instanceId: instanceConfig.instanceId,
+        console.log(`时间触发任务执行: ${task.name}`, {
           executeTime: config.executeTime,
           isRecurring: config.isRecurring,
-          isConnected: serialStore.isPortConnected(targetPath),
         });
 
-        const success = await sendFrameToTarget(
-          instanceConfig.targetId,
-          instance,
-          task.id,
-          task.name,
-          timers,
-        );
-
+        const success = await sendFunction();
         if (!success) {
           return; // 连接错误已处理
         }
 
-        // 更新进度
+        // 更新进度（使用缓存版本）
         const currentProgress = task.progress?.currentCount || 0;
-        sendTasksStore.updateTaskProgress(task.id, {
+        sendTasksStore.updateTaskProgressCached(task.id, {
           currentCount: currentProgress + 1,
         });
 
         // 处理重复执行
         if (config.isRecurring) {
-          const nextTime = calculateNextExecutionTime(new Date());
+          const nextTime = timeCalculator.calculateNextExecutionTime(new Date());
           if (nextTime) {
             // 更新状态为等待下次执行
             sendTasksStore.updateTaskStatus(task.id, 'waiting-schedule');
-            sendTasksStore.updateTaskProgress(task.id, {
+            sendTasksStore.updateTaskProgressCached(task.id, {
               nextExecutionTime: nextTime.getTime(),
             });
 
             // 设置下次执行的定时器
             const delay = nextTime.getTime() - Date.now();
             console.log(`设置下次执行时间: ${nextTime.toLocaleString()}, 延迟: ${delay}ms`);
-            const timerId = window.setTimeout(executeTask, delay);
-            timers.push(timerId);
+            const timerId = taskTimerIds.createTimerId('timeout', 'recurring');
+            const timerConfig: TimerConfig = {
+              id: timerId,
+              type: 'timeout',
+              delay,
+              interval: 0,
+              autoStart: true,
+            };
+            await timerManager.registerTimer(timerConfig, executeTask);
           } else {
             // 重复执行已结束
             console.log('时间触发任务重复执行已结束');
+            sendTasksStore.forceSyncCache(); // 强制同步缓存
             sendTasksStore.updateTaskStatus(task.id, 'completed');
-            sendTasksStore.updateTaskProgress(task.id, {
+            sendTasksStore.updateTaskProgressCached(task.id, {
               percentage: 100,
             });
           }
         } else {
           // 一次性执行完成
           console.log('时间触发任务执行完成');
+          sendTasksStore.forceSyncCache(); // 强制同步缓存
           sendTasksStore.updateTaskStatus(task.id, 'completed');
-          sendTasksStore.updateTaskProgress(task.id, {
+          sendTasksStore.updateTaskProgressCached(task.id, {
             percentage: 100,
           });
         }
@@ -1013,36 +1018,96 @@ export function useSendTaskExecutor() {
           'error',
           error instanceof Error ? error.message : '执行失败',
         );
-        cleanupTimers(timers);
+        await taskTimerIds.cleanup();
       }
     };
 
-    // 计算初始执行时间
-    const nextExecutionTime = calculateNextExecutionTime(now);
-    if (!nextExecutionTime) {
-      throw new Error('无法计算执行时间');
+    const start = async () => {
+      const now = new Date();
+      const executeTime = new Date(config.executeTime!);
+
+      // 检查执行时间是否有效
+      if (executeTime <= now && !config.isRecurring) {
+        throw new Error('执行时间已过期');
+      }
+
+      // 更新任务状态为等待时间触发
+      sendTasksStore.updateTaskStatus(task.id, 'waiting-schedule');
+      sendTasksStore.updateTaskProgressCached(task.id, {
+        currentCount: 0,
+        totalCount: config.isRecurring ? Number.MAX_SAFE_INTEGER : 1,
+        percentage: 0,
+        nextExecutionTime: executeTime.getTime(),
+      });
+
+      // 计算初始执行时间
+      const nextExecutionTime = timeCalculator.calculateNextExecutionTime(now);
+      if (!nextExecutionTime) {
+        throw new Error('无法计算执行时间');
+      }
+
+      // 设置初始执行定时器
+      const initialDelay = nextExecutionTime.getTime() - now.getTime();
+      console.log(
+        `设置时间触发任务: ${task.name}, 执行时间: ${nextExecutionTime.toLocaleString()}, 延迟: ${initialDelay}ms`,
+      );
+
+      if (initialDelay > 0) {
+        const timerId = taskTimerIds.createTimerId('timeout', 'initial');
+        const timerConfig: TimerConfig = {
+          id: timerId,
+          type: 'timeout',
+          delay: initialDelay,
+          interval: 0,
+          autoStart: true,
+        };
+        await timerManager.registerTimer(timerConfig, executeTask);
+      } else {
+        // 立即执行
+        await executeTask();
+      }
+    };
+
+    return { start };
+  };
+
+  /**
+   * 开始单实例时间触发任务
+   */
+  async function startTimedTriggeredSingleTask(
+    task: SendTask,
+    config: TriggerTaskConfig,
+  ): Promise<boolean> {
+    // 创建任务定时器ID管理器
+    const taskTimerIds = createTaskTimerIds(task.id);
+
+    // 创建发送函数
+    const sendFunction = async (): Promise<boolean> => {
+      return await processSingleInstance(task.id, 0, true);
+    };
+
+    try {
+      // 使用通用时间触发执行器
+      const scheduledExecutor = createScheduledExecutor(task, config, taskTimerIds, sendFunction);
+      await scheduledExecutor.start();
+
+      // 存储定时器ID
+      sendTasksStore.updateTask(task.id, {
+        timers: taskTimerIds.getTimerIds(),
+      });
+
+      return true;
+    } catch (error) {
+      console.error(`单实例时间触发任务 ${task.name} 执行失败:`, error);
+      sendTasksStore.updateTaskStatus(
+        task.id,
+        'error',
+        error instanceof Error ? error.message : '执行失败',
+      );
+      await taskTimerIds.cleanup();
+      clearFrameInstanceCache(task.id);
+      return false;
     }
-
-    // 设置初始执行定时器
-    const initialDelay = nextExecutionTime.getTime() - now.getTime();
-    console.log(
-      `设置时间触发任务: ${task.name}, 执行时间: ${nextExecutionTime.toLocaleString()}, 延迟: ${initialDelay}ms`,
-    );
-
-    if (initialDelay > 0) {
-      const timerId = window.setTimeout(executeTask, initialDelay);
-      timers.push(timerId);
-    } else {
-      // 立即执行
-      await executeTask();
-    }
-
-    // 存储定时器ID
-    sendTasksStore.updateTask(task.id, {
-      timers,
-    });
-
-    return true;
   }
 
   /**
@@ -1052,203 +1117,36 @@ export function useSendTaskExecutor() {
     task: SendTask,
     config: TriggerTaskConfig,
   ): Promise<boolean> {
-    if (!config.executeTime) {
-      throw new Error('时间触发任务缺少执行时间');
-    }
+    // 创建任务定时器ID管理器
+    const taskTimerIds = createTaskTimerIds(task.id);
 
-    const executeTime = new Date(config.executeTime);
-    const now = new Date();
-
-    // 检查执行时间是否有效
-    if (executeTime <= now && !config.isRecurring) {
-      throw new Error('执行时间已过期');
-    }
-
-    // 更新任务状态为等待时间触发
-    sendTasksStore.updateTaskStatus(task.id, 'waiting-schedule');
-    sendTasksStore.updateTaskProgress(task.id, {
-      currentCount: 0,
-      totalCount: config.isRecurring ? Number.MAX_SAFE_INTEGER : 1,
-      percentage: 0,
-      nextExecutionTime: executeTime.getTime(),
-      currentInstanceIndex: 0,
-    });
-
-    const timers: number[] = [];
-
-    // 计算下次执行时间
-    const calculateNextExecutionTime = (currentTime: Date): Date | null => {
-      if (!config.isRecurring) {
-        return executeTime > currentTime ? executeTime : null;
-      }
-
-      const { recurringType, recurringInterval = 1 } = config;
-      const nextTime = new Date(executeTime);
-
-      // 如果执行时间已过，计算下一个重复时间
-      while (nextTime <= currentTime) {
-        switch (recurringType) {
-          case 'second':
-            nextTime.setSeconds(nextTime.getSeconds() + recurringInterval);
-            break;
-          case 'minute':
-            nextTime.setMinutes(nextTime.getMinutes() + recurringInterval);
-            break;
-          case 'hour':
-            nextTime.setHours(nextTime.getHours() + recurringInterval);
-            break;
-          case 'daily':
-            nextTime.setDate(nextTime.getDate() + recurringInterval);
-            break;
-          case 'weekly':
-            nextTime.setDate(nextTime.getDate() + 7 * recurringInterval);
-            break;
-          case 'monthly':
-            nextTime.setMonth(nextTime.getMonth() + recurringInterval);
-            break;
-        }
-      }
-
-      // 检查是否超过结束时间
-      if (config.endTime) {
-        const endTime = new Date(config.endTime);
-        if (nextTime > endTime) {
-          return null;
-        }
-      }
-
-      return nextTime;
+    // 创建发送函数：发送所有实例
+    const sendFunction = async (): Promise<boolean> => {
+      return await processMultipleInstances(task.id);
     };
 
-    // 执行任务的函数
-    const executeTask = async () => {
-      try {
-        // 检查任务是否仍在运行状态
-        if (!isTaskStillRunning(task.id, ['waiting-schedule', 'running'])) {
-          console.log('多实例时间触发任务已停止，取消执行');
-          return;
-        }
+    try {
+      // 使用通用时间触发执行器
+      const scheduledExecutor = createScheduledExecutor(task, config, taskTimerIds, sendFunction);
+      await scheduledExecutor.start();
 
-        // 更新状态为运行中
-        sendTasksStore.updateTaskStatus(task.id, 'running');
+      // 存储定时器ID
+      sendTasksStore.updateTask(task.id, {
+        timers: taskTimerIds.getTimerIds(),
+      });
 
-        console.log(`开始执行多实例时间触发任务: ${task.name}`);
-
-        // 按顺序发送所有实例
-        for (let instanceIndex = 0; instanceIndex < config.instances.length; instanceIndex++) {
-          // 再次检查任务状态
-          if (!isTaskStillRunning(task.id)) {
-            console.log('任务在实例发送过程中被停止');
-            return;
-          }
-
-          const instanceConfig = config.instances[instanceIndex];
-          if (!instanceConfig) {
-            console.warn(`无效的实例配置，索引: ${instanceIndex}`);
-            continue;
-          }
-
-          // 更新当前处理的实例索引
-          sendTasksStore.updateTaskProgress(task.id, {
-            currentInstanceIndex: instanceIndex,
-          });
-
-          try {
-            // 使用提取的函数处理实例发送
-            const isLastInstance = instanceIndex === config.instances.length - 1;
-            const success = await processInstance(
-              instanceConfig,
-              task.id,
-              task.name,
-              timers,
-              instanceIndex,
-              config.instances.length,
-              isLastInstance,
-            );
-
-            if (!success) {
-              return; // 连接错误已处理
-            }
-          } catch (error) {
-            console.error(`发送实例 ${instanceConfig.instanceId} 时出错:`, error);
-            continue;
-          }
-        }
-
-        // 更新进度
-        const currentProgress = task.progress?.currentCount || 0;
-        sendTasksStore.updateTaskProgress(task.id, {
-          currentCount: currentProgress + 1,
-        });
-
-        // 处理重复执行
-        if (config.isRecurring) {
-          const nextTime = calculateNextExecutionTime(new Date());
-          if (nextTime) {
-            // 更新状态为等待下次执行
-            sendTasksStore.updateTaskStatus(task.id, 'waiting-schedule');
-            sendTasksStore.updateTaskProgress(task.id, {
-              nextExecutionTime: nextTime.getTime(),
-            });
-
-            // 设置下次执行的定时器
-            const delay = nextTime.getTime() - Date.now();
-            console.log(`设置下次执行时间: ${nextTime.toLocaleString()}, 延迟: ${delay}ms`);
-            const timerId = window.setTimeout(executeTask, delay);
-            timers.push(timerId);
-          } else {
-            // 重复执行已结束
-            console.log('多实例时间触发任务重复执行已结束');
-            sendTasksStore.updateTaskStatus(task.id, 'completed');
-            sendTasksStore.updateTaskProgress(task.id, {
-              percentage: 100,
-            });
-          }
-        } else {
-          // 一次性执行完成
-          console.log('多实例时间触发任务执行完成');
-          sendTasksStore.updateTaskStatus(task.id, 'completed');
-          sendTasksStore.updateTaskProgress(task.id, {
-            percentage: 100,
-          });
-        }
-      } catch (error) {
-        console.error('多实例时间触发任务执行失败:', error);
-        sendTasksStore.updateTaskStatus(
-          task.id,
-          'error',
-          error instanceof Error ? error.message : '执行失败',
-        );
-        cleanupTimers(timers);
-      }
-    };
-
-    // 计算初始执行时间
-    const nextExecutionTime = calculateNextExecutionTime(now);
-    if (!nextExecutionTime) {
-      throw new Error('无法计算执行时间');
+      return true;
+    } catch (error) {
+      console.error(`多实例时间触发任务 ${task.name} 执行失败:`, error);
+      sendTasksStore.updateTaskStatus(
+        task.id,
+        'error',
+        error instanceof Error ? error.message : '执行失败',
+      );
+      await taskTimerIds.cleanup();
+      clearFrameInstanceCache(task.id);
+      return false;
     }
-
-    // 设置初始执行定时器
-    const initialDelay = nextExecutionTime.getTime() - now.getTime();
-    console.log(
-      `设置多实例时间触发任务: ${task.name}, 执行时间: ${nextExecutionTime.toLocaleString()}, 延迟: ${initialDelay}ms`,
-    );
-
-    if (initialDelay > 0) {
-      const timerId = window.setTimeout(executeTask, initialDelay);
-      timers.push(timerId);
-    } else {
-      // 立即执行
-      await executeTask();
-    }
-
-    // 存储定时器ID
-    sendTasksStore.updateTask(task.id, {
-      timers,
-    });
-
-    return true;
   }
 
   return {
@@ -1268,5 +1166,11 @@ export function useSendTaskExecutor() {
     processSingleInstance,
     processInstance,
     processMultipleInstances,
+
+    // 缓存管理方法
+    initializeFrameInstanceCache,
+    updateCachedInstanceFields,
+    getCachedFrameInstance,
+    clearFrameInstanceCache,
   };
 }

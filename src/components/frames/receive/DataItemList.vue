@@ -84,7 +84,7 @@ const columns = [
     field: 'currentValue',
     align: 'center' as const,
     sortable: false,
-    style: 'width: 100px; min-width: 100px',
+    style: 'width: 200px; max-width: 200px',
     classes: 'text-blue-grey-5',
   },
   {
@@ -327,25 +327,16 @@ const handleSetReceiveData = async (data: unknown) => {
 <template>
   <div class="h-full w-full">
     <!-- 标题栏 -->
-    <div
-      class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
-    >
+    <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
       <div class="flex items-center gap-2">
-        <h6
-          class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-        >
+        <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
           <q-icon name="list_alt" size="xs" class="mr-1 text-blue-5" />
           数据项列表
         </h6>
 
         <!-- 导入导出按钮 -->
-        <ImportExportActions
-          :getData="handleGetReceiveData"
-          :setData="handleSetReceiveData"
-          storageDir="data/frames/receiveConfig"
-          exportTitle="导出接收配置"
-          importTitle="导入接收配置"
-        />
+        <ImportExportActions :getData="handleGetReceiveData" :setData="handleSetReceiveData"
+          storageDir="data/frames/receiveConfig" exportTitle="导出接收配置" importTitle="导入接收配置" />
       </div>
 
       <div class="flex items-center gap-2">
@@ -356,39 +347,20 @@ const handleSetReceiveData = async (data: unknown) => {
         </div>
 
         <!-- 添加映射关系按钮 -->
-        <q-btn
-          flat
-          dense
-          round
-          color="blue-grey-6"
-          icon="add"
+        <q-btn flat dense round color="blue-grey-6" icon="add"
           :disable="!selectedFrame || !selectedFrame.fields || selectedFrame.fields.length === 0"
-          @click="startCreateMapping"
-        >
+          @click="startCreateMapping">
           <q-tooltip>添加映射关系</q-tooltip>
         </q-btn>
       </div>
     </div>
 
     <!-- 表格 -->
-    <q-table
-      ref="tableRef"
-      class="data-item-table h-full min-w-[800px] w-full transition-[width] duration-200 box-border"
-      :rows="tableData"
-      :columns="columns"
-      row-key="id"
-      :pagination="pagination"
-      :loading="!tableReady"
-      :row-class="rowClass"
-      dark
-      dense
-      flat
-      :selected-rows-label="() => ''"
-      :rows-per-page-options="[0]"
-      virtual-scroll
-      :virtual-scroll-slice-size="10"
-      binary-state-sort
-    >
+    <q-table ref="tableRef"
+      class="data-item-table h-full min-w-[800px] w-full transition-[width] duration-200 box-border" :rows="tableData"
+      :columns="columns" row-key="id" :pagination="pagination" :loading="!tableReady" :row-class="rowClass" dark dense
+      flat :selected-rows-label="() => ''" :rows-per-page-options="[0]" virtual-scroll :virtual-scroll-slice-size="10"
+      binary-state-sort>
       <!-- 名称列 -->
       <template v-slot:body-cell-label="props">
         <q-td :props="props">
@@ -403,8 +375,8 @@ const handleSetReceiveData = async (data: unknown) => {
       <!-- 当前值列 -->
       <template v-slot:body-cell-currentValue="props">
         <q-td :props="props" class="text-blue-grey-5">
-          <div class="truncate max-w-full" :title="props.value || '-'">
-            {{ props.value || '-' }}
+          <div class="truncate" :title="props.value || '-'">
+            {{ props.value.length > 10 ? props.value.slice(0, 10) + '...' : props.value || '-' }}
           </div>
         </q-td>
       </template>
@@ -414,62 +386,34 @@ const handleSetReceiveData = async (data: unknown) => {
         <q-td :props="props">
           <div class="flex justify-center gap-1">
             <!-- 可见性按钮 -->
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              :icon="props.row.isVisible ? 'visibility' : 'visibility_off'"
+            <q-btn flat round dense size="xs" :icon="props.row.isVisible ? 'visibility' : 'visibility_off'"
               :color="props.row.isVisible ? 'blue' : 'grey'"
-              class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors"
-              @click.stop="
+              class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors" @click.stop="
                 receiveFramesStore.toggleDataItemVisibility(
                   props.row.group.id,
                   props.row.dataItem.id,
                 )
-              "
-            >
+                ">
               <q-tooltip>{{ props.row.isVisible ? '隐藏' : '显示' }}</q-tooltip>
             </q-btn>
             <!-- 收藏按钮 -->
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              :icon="props.row.dataItem.isFavorite ? 'star' : 'star_border'"
+            <q-btn flat round dense size="xs" :icon="props.row.dataItem.isFavorite ? 'star' : 'star_border'"
               :color="props.row.dataItem.isFavorite ? 'orange' : 'grey'"
-              class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors"
-              @click.stop="
+              class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors" @click.stop="
                 receiveFramesStore.toggleDataItemFavorite(props.row.group.id, props.row.dataItem.id)
-              "
-            >
+                ">
               <q-tooltip>{{ props.row.dataItem.isFavorite ? '取消收藏' : '收藏' }}</q-tooltip>
             </q-btn>
             <!-- 编辑按钮 -->
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              icon="edit"
-              color="blue-5"
+            <q-btn flat round dense size="xs" icon="edit" color="blue-5"
               class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors"
-              @click.stop="editDataItem(props.row.dataItem)"
-            >
+              @click.stop="editDataItem(props.row.dataItem)">
               <q-tooltip>编辑数据项</q-tooltip>
             </q-btn>
             <!-- 删除按钮 -->
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              icon="delete"
-              color="red-5"
+            <q-btn flat round dense size="xs" icon="delete" color="red-5"
               class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors"
-              @click.stop="removeDataItemMapping(props.row.mapping)"
-            >
+              @click.stop="removeDataItemMapping(props.row.mapping)">
               <q-tooltip>删除映射</q-tooltip>
             </q-btn>
           </div>
@@ -479,20 +423,14 @@ const handleSetReceiveData = async (data: unknown) => {
       <!-- 自定义行样式 -->
       <template v-slot:header="props">
         <q-tr :props="props">
-          <q-th
-            v-for="col in props.cols"
-            :key="col.name"
-            :props="props"
-            :style="col.style"
-            :class="[
-              col.classes,
-              {
-                'text-left': col.align === 'left',
-                'text-right': col.align === 'right',
-                'text-center': col.align === 'center',
-              },
-            ]"
-          >
+          <q-th v-for="col in props.cols" :key="col.name" :props="props" :style="col.style" :class="[
+            col.classes,
+            {
+              'text-left': col.align === 'left',
+              'text-right': col.align === 'right',
+              'text-center': col.align === 'center',
+            },
+          ]">
             {{ col.label }}
           </q-th>
         </q-tr>
@@ -528,50 +466,23 @@ const handleSetReceiveData = async (data: unknown) => {
 
       <q-card-section v-if="editingItem" class="space-y-4">
         <!-- 标签 -->
-        <q-input
-          v-model="editingItem.label"
-          label="数据项标签"
-          outlined
-          dense
-          bg-color="industrial-secondary"
-          color="blue"
-          class="text-industrial-primary"
-        />
+        <q-input v-model="editingItem.label" label="数据项标签" outlined dense bg-color="industrial-secondary" color="blue"
+          class="text-industrial-primary" />
 
         <!-- 数据类型 -->
-        <q-select
-          v-model="editingItem.dataType"
-          :options="[
-            { label: '8位无符号整数', value: 'uint8' },
-            { label: '16位无符号整数', value: 'uint16' },
-            { label: '32位无符号整数', value: 'uint32' },
-            { label: '32位浮点数', value: 'float' },
-            { label: '字节数组', value: 'bytes' },
-          ]"
-          label="数据类型"
-          outlined
-          dense
-          emit-value
-          map-options
-          bg-color="industrial-secondary"
-          color="blue"
-        />
+        <q-select v-model="editingItem.dataType" :options="[
+          { label: '8位无符号整数', value: 'uint8' },
+          { label: '16位无符号整数', value: 'uint16' },
+          { label: '32位无符号整数', value: 'uint32' },
+          { label: '32位浮点数', value: 'float' },
+          { label: '字节数组', value: 'bytes' },
+        ]" label="数据类型" outlined dense emit-value map-options bg-color="industrial-secondary" color="blue" />
 
         <!-- 可见性 -->
-        <q-checkbox
-          v-model="editingItem.isVisible"
-          label="在显示页面中可见"
-          color="blue"
-          class="text-industrial-primary"
-        />
+        <q-checkbox v-model="editingItem.isVisible" label="在显示页面中可见" color="blue" class="text-industrial-primary" />
 
         <!-- 使用标签 -->
-        <q-checkbox
-          v-model="editingItem.useLabel"
-          label="使用标签显示"
-          color="blue"
-          class="text-industrial-primary"
-        />
+        <q-checkbox v-model="editingItem.useLabel" label="使用标签显示" color="blue" class="text-industrial-primary" />
       </q-card-section>
 
       <q-card-actions align="right" class="bg-industrial-secondary">
@@ -590,54 +501,23 @@ const handleSetReceiveData = async (data: unknown) => {
 
       <q-card-section class="space-y-4">
         <!-- 字段选择 -->
-        <q-select
-          v-model="selectedFieldId"
-          :options="
-            availableFields.map((f) => ({ label: `${f.name} (${f.dataType})`, value: f.id }))
-          "
-          label="选择字段"
-          outlined
-          dense
-          emit-value
-          map-options
-          bg-color="industrial-secondary"
-          color="blue"
-        />
+        <q-select v-model="selectedFieldId" :options="availableFields.map((f) => ({ label: `${f.name} (${f.dataType})`, value: f.id }))
+          " label="选择字段" outlined dense emit-value map-options bg-color="industrial-secondary" color="blue" />
 
         <!-- 分组选择 -->
-        <q-select
-          v-model="selectedGroupId"
-          :options="receiveFramesStore.groups.map((g) => ({ label: g.label, value: g.id }))"
-          label="选择分组"
-          outlined
-          dense
-          emit-value
-          map-options
-          bg-color="industrial-secondary"
-          color="blue"
-        />
+        <q-select v-model="selectedGroupId"
+          :options="receiveFramesStore.groups.map((g) => ({ label: g.label, value: g.id }))" label="选择分组" outlined dense
+          emit-value map-options bg-color="industrial-secondary" color="blue" />
 
         <!-- 数据项标签 -->
-        <q-input
-          v-model="newDataItemLabel"
-          label="数据项标签"
-          outlined
-          dense
-          bg-color="industrial-secondary"
-          color="blue"
-          class="text-industrial-primary"
-        />
+        <q-input v-model="newDataItemLabel" label="数据项标签" outlined dense bg-color="industrial-secondary" color="blue"
+          class="text-industrial-primary" />
       </q-card-section>
 
       <q-card-actions align="right" class="bg-industrial-secondary">
         <q-btn flat label="取消" color="grey" @click="cancelCreateMapping" />
-        <q-btn
-          flat
-          label="创建"
-          color="blue"
-          :disable="!selectedFieldId || !selectedGroupId || !newDataItemLabel.trim()"
-          @click="createMapping"
-        />
+        <q-btn flat label="创建" color="blue" :disable="!selectedFieldId || !selectedGroupId || !newDataItemLabel.trim()"
+          @click="createMapping" />
       </q-card-actions>
     </q-card>
   </q-dialog>

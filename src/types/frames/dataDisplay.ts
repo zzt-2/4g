@@ -20,7 +20,7 @@ export interface DataRecord {
 // 表格配置
 export interface TableConfig {
   selectedGroupId: number | null; // 选中的分组ID
-  displayMode: 'table' | 'chart'; // 显示模式
+  displayMode: 'table' | 'special' | 'chart'; // 显示模式
   chartSelectedItems: number[]; // 图表选中的数据项ID（为后续图表功能预留）
   yAxisConfig?: YAxisConfig; // Y轴配置
 }

@@ -4,7 +4,7 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed, onUnmounted } from 'vue';
-import { useStorage } from '@vueuse/core';
+import { useStorage, useDebounceFn } from '@vueuse/core';
 import { serialAPI } from '../api/common';
 import { frameToBuffer } from '../utils/frames/frameInstancesUtils';
 import type {
@@ -445,20 +445,24 @@ export const useSerialStore = defineStore('serial', () => {
       }
     });
 
-    // 状态监听
-    const statusListener = serialAPI.onStatusChange((data) => {
+    // 状态监听 - 添加500ms防抖
+    const debouncedStatusUpdate = useDebounceFn((data) => {
       // 过滤只处理来自指定串口的状态
       if (data.portPath === portPath) {
         updatePortStatus(portPath, data.status);
       }
-    });
+    }, 500);
 
-    // 所有串口状态变化监听
-    const allStatusListener = serialAPI.onAllStatusChange((statusMap) => {
+    const statusListener = serialAPI.onStatusChange(debouncedStatusUpdate);
+
+    // 所有串口状态变化监听 - 添加500ms防抖
+    const debouncedAllStatusUpdate = useDebounceFn((statusMap: Record<string, SerialStatus>) => {
       for (const [path, status] of Object.entries(statusMap)) {
         updatePortStatus(path, status);
       }
-    });
+    }, 500);
+
+    const allStatusListener = serialAPI.onAllStatusChange(debouncedAllStatusUpdate);
 
     // 保存清理函数
     if (typeof dataListener === 'function') {

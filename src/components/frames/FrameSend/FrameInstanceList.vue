@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted, shallowRef } from 'vue';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
 import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 import { useDragSort } from '../../../composables/common/useDragSort';
 import { formatTimeOnly } from '../../../utils/common/dateUtils';
+import { watchEffect } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 
 // 定义Props
 const props = defineProps<{
   sortEnabled?: boolean;
+  isBatchEdit?: boolean;
 }>();
 
 // 不需要emit，排序状态由父组件管理
@@ -16,99 +19,133 @@ const props = defineProps<{
 const sendFrameInstancesStore = useSendFrameInstancesStore();
 
 // 从store直接获取实例数据
-const instances = computed(() => sendFrameInstancesStore.instances);
 const selectedInstanceId = computed(() => sendFrameInstancesStore.currentInstanceId);
 
-// 拖拽排序配置
-const dragSortOptions = ref({
-  enabled: computed(() => props.sortEnabled ?? false),
+// 批量选择状态
+const selectedInstanceIds = ref<Set<string>>(new Set());
+const isAllSelected = computed(() => {
+  return tableData.value.length > 0 && selectedInstanceIds.value.size === tableData.value.length;
+});
+const isSomeSelected = computed(() => {
+  return selectedInstanceIds.value.size > 0 && selectedInstanceIds.value.size < tableData.value.length;
+});
+
+// 拖拽排序配置 - 修复响应式问题
+const dragSortOptions = computed(() => ({
+  enabled: props.sortEnabled ?? false,
   showPreview: true,
   previewClass: 'drag-preview',
   dropIndicatorClass: 'drop-indicator',
-});
+}));
 
-// 使用拖拽排序 composable
+// 使用拖拽排序 composable - 修复数据源和异步处理
 const dragSort = useDragSort(
-  instances,
+  computed(() => sendFrameInstancesStore.instances),
   (fromIndex: number, toIndex: number) => {
-    sendFrameInstancesStore.moveInstance(fromIndex, toIndex);
+    // 使用同步方式处理，避免异步回调类型错误
+    sendFrameInstancesStore.moveInstance(fromIndex, toIndex).then((result) => {
+      if (result) {
+        // 立即更新本地表格数据以确保UI实时响应
+        forceRefreshTableData();
+      }
+    }).catch((error) => {
+      console.error('移动实例失败:', error);
+    });
+    return true; // 立即返回true，让UI先响应
   },
   dragSortOptions,
 );
 
 // 表格列定义
-const columns = [
-  {
-    name: 'index',
-    label: '#',
-    field: 'index',
-    align: 'center' as const,
-    sortable: false,
-    style: 'width: 40px; min-width: 40px',
-    classes: 'text-blue-grey-4',
-  },
-  {
-    name: 'id',
-    label: '编号',
-    field: 'id',
-    align: 'center' as const,
-    sortable: false,
-    style: 'width: 50px; min-width: 50px',
-    classes: 'font-mono text-blue-300',
-  },
-  {
-    name: 'label',
-    label: '名称',
-    field: 'label',
-    align: 'left' as const,
-    sortable: false,
-    style: 'width: 180px; min-width: 180px',
-  },
-  {
-    name: 'paramCount',
-    label: '参数数',
-    field: 'paramCount',
-    align: 'center' as const,
-    sortable: false,
-    style: 'width: 60px; min-width: 60px',
-    classes: 'text-blue-300',
-  },
-  {
-    name: 'sendCount',
-    label: '次数',
-    field: 'sendCount',
-    align: 'center' as const,
-    sortable: false,
-    style: 'width: 50px; min-width: 50px',
-    classes: 'text-green-400',
-  },
-  {
-    name: 'lastSentAt',
-    label: '上次发送',
-    field: 'lastSentAt',
-    align: 'center' as const,
-    sortable: false,
-    style: 'width: 80px; min-width: 80px',
-    classes: 'text-blue-grey-5',
-  },
-  {
-    name: 'description',
-    label: '备注',
-    field: 'description',
-    align: 'left' as const,
-    sortable: false,
-    style: 'width: 100%; min-width: 100%',
-    classes: 'text-blue-grey-5',
-  },
-  {
-    name: 'operations',
-    label: '操作',
-    field: 'operations',
-    align: 'center' as const,
-    sortable: false,
-    style: 'width: 90px; min-width: 90px',
-  },
-];
+const columns = computed(() => {
+  const baseColumns = [
+    {
+      name: 'index',
+      label: '#',
+      field: 'index',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 40px; min-width: 40px',
+      classes: 'text-blue-grey-4',
+    },
+    {
+      name: 'id',
+      label: '编号',
+      field: 'id',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 50px; min-width: 50px',
+      classes: 'font-mono text-blue-300',
+    },
+    {
+      name: 'label',
+      label: '名称',
+      field: 'label',
+      align: 'left' as const,
+      sortable: false,
+      style: 'width: 240px; min-width: 240px',
+    },
+    {
+      name: 'paramCount',
+      label: '参数数',
+      field: 'paramCount',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 60px; min-width: 60px',
+      classes: 'text-blue-300',
+    },
+    {
+      name: 'sendCount',
+      label: '次数',
+      field: 'sendCount',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 60px; min-width: 60px',
+      classes: 'text-green-400',
+    },
+    {
+      name: 'lastSentAt',
+      label: '上次发送',
+      field: 'lastSentAt',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 80px; min-width: 80px',
+      classes: 'text-blue-grey-5',
+    },
+    {
+      name: 'description',
+      label: '备注',
+      field: 'description',
+      align: 'left' as const,
+      sortable: false,
+      style: 'width: 100%; min-width: 100%',
+      classes: 'text-blue-grey-5',
+    },
+    {
+      name: 'operations',
+      label: '操作',
+      field: 'operations',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 90px; min-width: 90px',
+    },
+  ];
+
+  // 如果是批量编辑模式，在开头添加复选框列
+  if (props.isBatchEdit) {
+    baseColumns.unshift({
+      name: 'checkbox',
+      label: '',
+      field: 'checkbox',
+      align: 'center' as const,
+      sortable: false,
+      style: 'width: 48px; min-width: 48px',
+      classes: '',
+    });
+  }
+
+  return baseColumns;
+});
 
 // 表格分页设置
 const pagination = ref({
@@ -133,9 +170,16 @@ onMounted(async () => {
   }, 100);
 });
 
-// 当选择行时触发select-instance事件
+// 当选择行时触发select-instance事件 - 优化点击处理
 function onRowClick(evt: Event, row: { id: string }) {
-  if (dragSort.options.value.enabled) return; // 排序模式下不允许选择
+  // 在拖拽模式下，如果不是拖拽手柄区域的点击，仍然允许选择
+  if (dragSort.options.value.enabled) {
+    const target = evt.target as HTMLElement;
+    // 如果点击的是拖拽手柄或其子元素，不处理选择
+    if (target.closest('.cursor-grab, .cursor-grabbing')) {
+      return;
+    }
+  }
   sendFrameInstancesStore.setCurrentInstance(row.id);
 }
 
@@ -167,26 +211,12 @@ async function copyFrame(frame: SendFrameInstance) {
 // 处理删除帧
 function deleteFrame(frame: SendFrameInstance) {
   try {
-    // 使用Quasar确认对话框
-    const $q = window.$q;
-
-    if ($q) {
-      $q.dialog({
-        title: '确认删除',
-        message: '确定要删除这个发送实例吗？',
-        cancel: true,
-        persistent: true,
-      }).onOk(() => {
-        void sendFrameInstancesStore.deleteInstance(frame.id);
-      });
-    } else {
-      // 如果$q不可用，直接删除
-      if (confirm('确定要删除这个发送实例吗？')) {
-        void sendFrameInstancesStore.deleteInstance(frame.id);
-      }
-    }
+    sendFrameInstancesStore.isDeletingInstance = true;
+    void sendFrameInstancesStore.deleteInstance(frame.id);
   } catch (error) {
     console.error('删除实例失败:', error);
+  } finally {
+    forceRefreshTableData();
   }
 }
 
@@ -203,35 +233,112 @@ interface TableRow {
   lastSentAt: string;
 }
 
-const tableData = computed<TableRow[]>(() => {
-  return instances.value.map((instance: SendFrameInstance, index: number) => {
-    return {
-      id: instance.id,
-      label: instance.label,
-      frameId: instance.frameId,
-      description: instance.description,
-      paramCount: instance.paramCount,
-      isFavorite: instance.isFavorite,
-      index: index + 1,
-      sendCount: instance.sendCount || 0,
-      lastSentAt: formatTimeOnly(instance.lastSentAt),
-    };
-  });
+// 使用 shallowRef 存储表格数据，以便手动控制更新时机
+const tableData = shallowRef<TableRow[]>([]);
+
+// 优化的表格数据生成函数，减少对象展开和函数调用
+const generateTableData = (instancesArray: SendFrameInstance[]): TableRow[] => {
+  const result: TableRow[] = [];
+  for (let i = 0; i < instancesArray.length; i++) {
+    const instance = instancesArray[i];
+    if (instance) {
+      result.push({
+        id: instance.id,
+        label: instance.label,
+        frameId: instance.frameId,
+        description: instance.description,
+        paramCount: instance.paramCount,
+        isFavorite: instance.isFavorite,
+        index: i + 1,
+        sendCount: instance.sendCount || 0,
+        lastSentAt: formatTimeOnly(instance.lastSentAt),
+      });
+    }
+  }
+  return result;
+};
+
+// 优化的跟踪键创建，只关注必要字段
+const createTrackingKey = (instancesArray: SendFrameInstance[]): string => {
+  // 使用更高效的字符串拼接方式
+  const keys: string[] = [];
+  for (let i = 0; i < instancesArray.length; i++) {
+    const instance = instancesArray[i];
+    if (instance) {
+      keys.push(
+        `${instance.id}-${instance.sendCount || 0}-${instance.lastSentAt ? instance.lastSentAt : 0}`
+      );
+    }
+  }
+  return keys.join('|');
+};
+
+// 缓存上一次的表格数据，避免不必要的重新生成
+let lastTrackingKey = '';
+let lastInstancesLength = 0;
+
+// 创建防抖函数用于更新表格数据 - 在排序模式下禁用防抖确保实时性
+const debouncedUpdateTableData = useDebounceFn((currentInstances: SendFrameInstance[], currentLength: number) => {
+  // 快速检查：如果长度变化，直接更新
+  if (currentLength !== lastInstancesLength) {
+    tableData.value = generateTableData(currentInstances);
+    lastTrackingKey = createTrackingKey(currentInstances);
+    lastInstancesLength = currentLength;
+    return;
+  }
+
+  // 长度相同时，使用跟踪键检查内容变化
+  const currentTrackingKey = createTrackingKey(currentInstances);
+  if (currentTrackingKey !== lastTrackingKey) {
+    tableData.value = generateTableData(currentInstances);
+    lastTrackingKey = currentTrackingKey;
+  }
+}, computed(() => dragSortOptions.value.enabled ? 0 : 100)); // 排序模式下实时更新
+
+// 使用 watchEffect 来监听特定变化并更新表格数据
+watchEffect(() => {
+  const currentInstances = sendFrameInstancesStore.instances;
+  const currentLength = currentInstances.length;
+
+  // 在排序模式下立即更新，否则使用防抖
+  if (dragSortOptions.value.enabled) {
+    // 排序模式下立即更新表格数据
+    if (currentLength !== lastInstancesLength) {
+      tableData.value = generateTableData(currentInstances);
+      lastTrackingKey = createTrackingKey(currentInstances);
+      lastInstancesLength = currentLength;
+    } else {
+      const currentTrackingKey = createTrackingKey(currentInstances);
+      if (currentTrackingKey !== lastTrackingKey) {
+        tableData.value = generateTableData(currentInstances);
+        lastTrackingKey = currentTrackingKey;
+      }
+    }
+  } else {
+    // 普通模式下使用防抖
+    debouncedUpdateTableData(currentInstances, currentLength);
+  }
 });
 
-// 行样式
-function rowClass(row: { id: string }) {
-  return row.id === selectedInstanceId.value
-    ? 'cursor-pointer border-b border-industrial bg-industrial-highlight border-l-4 border-l-blue-500'
-    : 'cursor-pointer border-b border-industrial';
-}
+// 选中的行数据 - 用于 q-table 的 selected 属性
+const selectedRows = computed(() => {
+  const currentId = selectedInstanceId.value;
+  if (!currentId) return [];
+  const selectedRow = tableData.value.find(row => row.id === currentId);
+  return selectedRow ? [selectedRow] : [];
+});
 
-// 拖拽模式下的行样式
+// 行样式 - 基础样式
+const rowClass = (() => {
+  return 'cursor-pointer border-b border-industrial hover:bg-industrial-highlight transition-all duration-150';
+});
+
+// 拖拽模式下的行样式 - 增强选中效果
 function getRowClass(row: { id: string }, index: number): string {
-  const baseClass = 'drag-table-row transition-colors duration-200 cursor-pointer';
+  const baseClass = 'drag-table-row transition-all duration-200 cursor-pointer';
   const selectedClass =
     row.id === selectedInstanceId.value
-      ? 'bg-industrial-highlight border-l-4 border-l-blue-500'
+      ? 'bg-industrial-highlight border-l-4 border-l-blue-500 shadow-md'
       : index % 2 === 0
         ? 'bg-industrial-primary hover:bg-industrial-highlight'
         : 'bg-industrial-secondary hover:bg-industrial-highlight';
@@ -254,6 +361,77 @@ declare global {
     };
   }
 }
+
+// 强制刷新表格数据的方法 - 优化同步性
+function forceRefreshTableData() {
+  const currentInstances = sendFrameInstancesStore.instances;
+  // 重置缓存状态，强制重新生成
+  lastTrackingKey = '';
+  lastInstancesLength = -1;
+  // 立即更新表格数据，确保拖拽排序的实时性
+  tableData.value = generateTableData(currentInstances);
+  lastTrackingKey = createTrackingKey(currentInstances);
+  lastInstancesLength = currentInstances.length;
+}
+
+// 批量选择相关方法
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedInstanceIds.value.clear();
+  } else {
+    selectedInstanceIds.value = new Set(tableData.value.map(row => row.id));
+  }
+}
+
+function toggleSelectInstance(id: string) {
+  if (selectedInstanceIds.value.has(id)) {
+    selectedInstanceIds.value.delete(id);
+  } else {
+    selectedInstanceIds.value.add(id);
+  }
+}
+
+function isInstanceSelected(id: string) {
+  return selectedInstanceIds.value.has(id);
+}
+
+// 批量删除帧实例
+async function batchDeleteFrames() {
+  if (selectedInstanceIds.value.size === 0) return;
+
+  try {
+    const $q = window.$q;
+    const selectedCount = selectedInstanceIds.value.size;
+
+    if ($q) {
+      $q.dialog({
+        title: '确认批量删除',
+        message: `确定要删除选中的 ${selectedCount} 个发送实例吗？`,
+        cancel: true,
+        persistent: true,
+      }).onOk(async () => {
+        const idsArray = Array.from(selectedInstanceIds.value);
+        await sendFrameInstancesStore.deleteInstances(idsArray);
+        selectedInstanceIds.value.clear();
+        forceRefreshTableData();
+      });
+    } else {
+      if (confirm(`确定要删除选中的 ${selectedCount} 个发送实例吗？`)) {
+        const idsArray = Array.from(selectedInstanceIds.value);
+        await sendFrameInstancesStore.deleteInstances(idsArray);
+        selectedInstanceIds.value.clear();
+        forceRefreshTableData();
+      }
+    }
+  } catch (error) {
+    console.error('批量删除实例失败:', error);
+  }
+}
+
+defineExpose({
+  forceRefreshTableData,
+  batchDeleteFrames,
+});
 </script>
 
 <template>
@@ -268,6 +446,12 @@ declare global {
             <div class="flex items-center h-7 min-w-[700px] px-2">
               <!-- 拖拽手柄列 -->
               <div class="w-8 flex-shrink-0"></div>
+
+              <!-- 批量编辑模式下的复选框列 -->
+              <div v-if="props.isBatchEdit" class="w-12 flex-shrink-0 flex items-center justify-center">
+                <q-checkbox :model-value="isAllSelected" :indeterminate="isSomeSelected"
+                  @update:model-value="toggleSelectAll" size="xs" color="blue" />
+              </div>
 
               <!-- 序号列 -->
               <div class="w-10 flex-shrink-0 text-center">
@@ -310,23 +494,23 @@ declare global {
           <TransitionGroup name="table-row" tag="div">
             <template v-for="(row, index) in tableData" :key="row.id">
               <!-- 插入位置指示器 - 之前 -->
-              <div
-                v-if="dragSort.shouldShowDropIndicator('before', index)"
-                class="h-0.5 bg-blue-400 mx-2 rounded transition-all duration-200"
-              ></div>
+              <div v-if="dragSort.shouldShowDropIndicator('before', index)"
+                class="h-0.5 bg-blue-400 mx-2 rounded transition-all duration-200"></div>
 
               <!-- 表格行 -->
-              <div
-                :class="getRowClass(row, index)"
-                :style="dragSort.getItemStyle(index)"
-                @mousedown="dragSort.startDrag(index, $event)"
-              >
+              <div :class="getRowClass(row, index)" :style="dragSort.getItemStyle(index)"
+                @mousedown="dragSort.startDrag(index, $event)" @click="onRowClick($event, row)">
                 <div class="flex items-center h-7 min-w-[700px] px-2">
                   <!-- 拖拽手柄 -->
                   <div
-                    class="w-8 flex-shrink-0 flex items-center justify-center text-[#8294c4] cursor-grab active:cursor-grabbing"
-                  >
+                    class="w-8 flex-shrink-0 flex items-center justify-center text-[#8294c4] cursor-grab active:cursor-grabbing">
                     <q-icon name="drag_indicator" size="sm" />
+                  </div>
+
+                  <!-- 批量编辑模式下的复选框列 -->
+                  <div v-if="props.isBatchEdit" class="w-12 flex-shrink-0 flex items-center justify-center">
+                    <q-checkbox :model-value="isInstanceSelected(row.id)"
+                      @update:model-value="toggleSelectInstance(row.id)" @click.stop size="xs" color="blue" />
                   </div>
 
                   <!-- 序号列 -->
@@ -341,10 +525,7 @@ declare global {
 
                   <!-- 名称列 -->
                   <div class="w-45 flex-shrink-0 text-left">
-                    <div
-                      class="truncate max-w-full font-medium text-sm text-[#e2e8f0]"
-                      :title="row.label"
-                    >
+                    <div class="truncate max-w-full font-medium text-sm text-[#e2e8f0]" :title="row.label">
                       {{ row.label }}
                     </div>
                   </div>
@@ -355,7 +536,7 @@ declare global {
                   </div>
 
                   <!-- 次数列 -->
-                  <div class="w-12.5 flex-shrink-0 text-center">
+                  <div class="w-16 flex-shrink-0 text-center">
                     <span class="text-green-400 text-xs">{{ row.sendCount }}</span>
                   </div>
 
@@ -366,10 +547,7 @@ declare global {
 
                   <!-- 备注列 -->
                   <div class="flex-1 text-left min-w-0">
-                    <div
-                      class="truncate max-w-full text-[#A9B1D6] text-xs"
-                      :title="row.description || '-'"
-                    >
+                    <div class="truncate max-w-full text-[#A9B1D6] text-xs" :title="row.description || '-'">
                       {{ row.description || '-' }}
                     </div>
                   </div>
@@ -378,10 +556,8 @@ declare global {
             </template>
 
             <!-- 列表末尾的插入指示器 -->
-            <div
-              v-if="dragSort.shouldShowDropIndicator('after', tableData.length - 1)"
-              class="h-0.5 bg-blue-400 mx-2 rounded transition-all duration-200"
-            ></div>
+            <div v-if="dragSort.shouldShowDropIndicator('after', tableData.length - 1)"
+              class="h-0.5 bg-blue-400 mx-2 rounded transition-all duration-200"></div>
           </TransitionGroup>
         </template>
 
@@ -396,11 +572,9 @@ declare global {
       </div>
 
       <!-- 拖拽预览 -->
-      <div
-        v-if="dragSort.dragState.value.isDragging && dragSort.options.value.showPreview"
+      <div v-if="dragSort.dragState.value.isDragging && dragSort.options.value.showPreview"
         class="fixed pointer-events-none z-50 opacity-80 bg-industrial-highlight border border-blue-400 rounded-md min-w-[700px]"
-        :style="dragSort.previewStyle.value"
-      >
+        :style="dragSort.previewStyle.value">
         <div class="flex items-center h-7 px-2">
           <div class="w-8 flex-shrink-0 flex items-center justify-center text-[#8294c4]">
             <q-icon name="drag_indicator" size="sm" />
@@ -440,27 +614,23 @@ declare global {
     </div>
 
     <!-- 正常模式显示q-table -->
-    <q-table
-      v-else
-      ref="tableRef"
+    <q-table v-else ref="tableRef"
       class="frame-instance-table h-full min-w-[700px] w-full transition-[width] duration-200 box-border"
-      :rows="tableData"
-      :columns="columns"
-      row-key="id"
-      :pagination="pagination"
-      :loading="sendFrameInstancesStore.isLoading || !tableReady"
-      :row-class="rowClass"
-      dark
-      dense
-      flat
-      :selected-rows-label="() => ''"
-      :rows-per-page-options="[0]"
-      @row-click="onRowClick"
-      @row-dblclick="onRowDblClick"
-      virtual-scroll
-      :virtual-scroll-slice-size="10"
-      binary-state-sort
-    >
+      :rows="tableData" :columns="columns" row-key="id" :pagination="pagination"
+      :loading="sendFrameInstancesStore.isLoading || !tableReady" :row-class="rowClass" :selected="selectedRows" dark
+      dense flat :selected-rows-label="() => ''" :rows-per-page-options="[0]" @row-click="onRowClick"
+      @row-dblclick="onRowDblClick" virtual-scroll :virtual-scroll-slice-size="10" binary-state-sort>
+
+      <!-- 复选框列 -->
+      <template v-if="props.isBatchEdit" v-slot:body-cell-checkbox="props">
+        <q-td :props="props" class="text-center">
+          <div class="flex items-center justify-center h-full">
+            <q-checkbox :model-value="isInstanceSelected(props.row.id)"
+              @update:model-value="toggleSelectInstance(props.row.id)" @click.stop size="sm" h-1 color="blue" />
+          </div>
+        </q-td>
+      </template>
+
       <!-- 名称列 -->
       <template v-slot:body-cell-label="props">
         <q-td :props="props">
@@ -481,28 +651,12 @@ declare global {
       <template v-slot:body-cell-operations="props">
         <q-td :props="props">
           <div class="flex justify-center gap-2">
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              icon="content_copy"
-              color="green-5"
-              class="bg-[#1a1e2e] hover:bg-[#232b3f] transition-colors"
-              @click.stop="copyFrame(props.row)"
-            >
+            <q-btn flat round dense size="xs" icon="content_copy" color="green-5"
+              class="bg-[#1a1e2e] hover:bg-[#232b3f] transition-colors" @click.stop="copyFrame(props.row)">
               <q-tooltip>复制实例</q-tooltip>
             </q-btn>
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              icon="delete"
-              color="red-5"
-              class="bg-[#1a1e2e] hover:bg-[#232b3f] transition-colors"
-              @click.stop="deleteFrame(props.row)"
-            >
+            <q-btn flat round dense size="xs" icon="delete" color="red-5"
+              class="bg-[#1a1e2e] hover:bg-[#232b3f] transition-colors" @click.stop="deleteFrame(props.row)">
               <q-tooltip>删除实例</q-tooltip>
             </q-btn>
           </div>
@@ -512,21 +666,22 @@ declare global {
       <!-- 自定义行样式 -->
       <template v-slot:header="props">
         <q-tr :props="props">
-          <q-th
-            v-for="col in props.cols"
-            :key="col.name"
-            :props="props"
-            :style="col.style"
-            :class="[
-              col.classes,
-              {
-                'text-left': col.align === 'left',
-                'text-right': col.align === 'right',
-                'text-center': col.align === 'center',
-              },
-            ]"
-          >
-            {{ col.label }}
+          <q-th v-for="col in props.cols" :key="col.name" :props="props" :style="col.style" :class="[
+            col.classes,
+            {
+              'text-left': col.align === 'left',
+              'text-right': col.align === 'right',
+              'text-center': col.align === 'center',
+            },
+          ]">
+            <!-- 复选框列显示复选框，其他列显示标签 -->
+            <div v-if="col.name === 'checkbox'" class="flex items-center justify-center h-full">
+              <q-checkbox :model-value="isAllSelected" :indeterminate="isSomeSelected"
+                @update:model-value="toggleSelectAll" size="sm" h-1 color="blue" />
+            </div>
+            <template v-else>
+              {{ col.label }}
+            </template>
           </q-th>
         </q-tr>
       </template>
@@ -539,14 +694,6 @@ declare global {
           <div class="text-xs mt-2 text-[#8294c4] max-w-xs text-center">
             选择左侧帧格式后，点击上方"+"按钮创建新的实例
           </div>
-        </div>
-      </template>
-
-      <!-- 加载状态 -->
-      <template v-slot:loading>
-        <div class="flex flex-col items-center justify-center h-full p-10 text-[#A9B1D6]">
-          <q-spinner-gears color="blue-5" size="40px" />
-          <div class="mt-4">加载中...</div>
         </div>
       </template>
     </q-table>
@@ -636,6 +783,16 @@ declare global {
   position: absolute;
   right: 0;
   left: 0;
+}
+
+.checkbox-compact .q-checkbox__inner {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.checkbox-compact .q-checkbox__bg {
+  width: 8px !important;
+  height: 8px !important;
 }
 
 .frame-instance-table .q-virtual-scroll__content::-webkit-scrollbar-track,

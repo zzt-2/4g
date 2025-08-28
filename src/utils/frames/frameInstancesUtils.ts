@@ -2,6 +2,7 @@
  * 帧实例工具函数
  * 包含与帧实例相关的通用辅助函数
  */
+import { NUMBER_DATA_TYPES } from 'src/types/frames';
 import type { SendFrameInstance, SendInstanceField } from '../../types/frames/sendInstances';
 import { getFullHexString, convertToHex } from './hexCovertUtils';
 
@@ -46,7 +47,11 @@ export function initializeFieldOptions(field: SendInstanceField): SendInstanceFi
     updatedField.options.length === 0
   ) {
     // 根据数据类型添加合适的选项
-    if (['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32'].includes(updatedField.dataType)) {
+    if (
+      ['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64'].includes(
+        updatedField.dataType,
+      )
+    ) {
       updatedField.options.push({ value: '0', label: '0' });
       updatedField.options.push({ value: '1', label: '1' });
     } else {
@@ -371,7 +376,7 @@ export function frameToBuffer(instance: SendFrameInstance): Uint8Array {
   let totalBytes = 0;
   for (const field of frameFields) {
     // 根据字段类型和长度计算字节数
-    if (['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'float'].includes(field.dataType)) {
+    if (NUMBER_DATA_TYPES.includes(field.dataType)) {
       // 数值类型根据类型确定长度
       switch (field.dataType) {
         case 'uint8':
@@ -387,10 +392,15 @@ export function frameToBuffer(instance: SendFrameInstance): Uint8Array {
         case 'float':
           totalBytes += 4;
           break;
+        case 'uint64':
+        case 'int64':
+        case 'double':
+          totalBytes += 8;
+          break;
+        case 'bytes':
+          totalBytes += typeof field.length === 'number' ? field.length : 0;
+          break;
       }
-    } else if (field.dataType === 'bytes') {
-      // 字节数组使用指定长度
-      totalBytes += typeof field.length === 'number' ? field.length : 0;
     } else {
       // 其他类型（如自定义类型）也使用指定长度
       totalBytes += typeof field.length === 'number' ? field.length : 0;
@@ -454,6 +464,41 @@ function writeFieldToBuffer(buffer: Uint8Array, field: SendInstanceField, offset
       buffer[newOffset++] = (num >> 16) & 0xff;
       buffer[newOffset++] = (num >> 8) & 0xff;
       buffer[newOffset++] = num & 0xff; // 最低字节
+      break;
+    }
+
+    case 'uint64':
+    case 'int64': {
+      // 使用 BigInt 处理 64 位整数，避免精度丢失
+      let bigIntValue: bigint;
+      try {
+        if (isHexValue) {
+          bigIntValue = BigInt('0x' + value);
+        } else {
+          // 对于十进制输入，直接从字符串创建 BigInt
+          const integerPart = value.split('.')[0] || '0';
+          bigIntValue = BigInt(integerPart);
+        }
+
+        // 对于 int64，处理负数的补码表示
+        if (field.dataType === 'int64' && bigIntValue < 0n) {
+          bigIntValue = BigInt('0x10000000000000000') + bigIntValue;
+        }
+
+        // 确保在 uint64 范围内
+        bigIntValue = bigIntValue & BigInt('0xFFFFFFFFFFFFFFFF');
+
+        // 将 BigInt 转换为字节数组（大端序）
+        for (let i = 7; i >= 0; i--) {
+          buffer[newOffset++] = Number((bigIntValue >> BigInt(i * 8)) & 0xffn);
+        }
+      } catch (error) {
+        console.error('64位整数转换错误:', error);
+        // 出错时填充0
+        for (let i = 0; i < 8; i++) {
+          buffer[newOffset++] = 0;
+        }
+      }
       break;
     }
 

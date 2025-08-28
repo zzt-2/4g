@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/consistent-type-imports */
 /**
  * 基本帧类型定义
  * 包含字段类型、协议类型、设备类型等基础类型
@@ -29,3 +28,17 @@ export interface FrameValidationError {
   field: string;
   message: string;
 }
+
+export const NUMBER_DATA_TYPES = [
+  'uint8',
+  'int8',
+  'uint16',
+  'int16',
+  'uint32',
+  'int32',
+  'uint64',
+  'int64',
+  'float',
+  'double',
+  'bytes',
+];

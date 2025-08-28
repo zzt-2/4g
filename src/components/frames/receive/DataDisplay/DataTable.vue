@@ -142,25 +142,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full w-full">
+  <div class="w-full" style="height: calc(100vh - 198px);">
     <!-- 表格 -->
-    <q-table
-      ref="tableRef"
-      class="data-display-table h-full w-full transition-[width] duration-200 box-border"
-      :rows="tableData"
-      :columns="columns"
-      row-key="dataItemId"
-      :pagination="pagination"
-      :loading="!tableReady"
-      dark
-      dense
-      flat
-      :selected-rows-label="() => ''"
-      :rows-per-page-options="[0]"
-      virtual-scroll
-      :virtual-scroll-slice-size="10"
-      binary-state-sort
-    >
+    <q-table ref="tableRef"
+      class="data-display-table h-full w-full overflow-y-auto transition-[width] duration-200 box-border"
+      :rows="tableData" :columns="columns" row-key="dataItemId" :pagination="pagination" :loading="!tableReady" dark
+      dense flat :selected-rows-label="() => ''" :rows-per-page-options="[0]" virtual-scroll
+      :virtual-scroll-slice-size="10" binary-state-sort>
       <!-- 编号列 -->
       <template #body-cell-index="props">
         <q-td :props="props" class="text-center text-industrial-primary">
@@ -181,10 +169,9 @@ onUnmounted(() => {
       <template #body-cell-displayValue="props">
         <q-td :props="props" class="text-center">
           <div class="truncate max-w-full" :title="props.row.displayValue || '-'">
-            <span
-              class="font-mono text-sm px-2 py-1 rounded bg-industrial-secondary text-industrial-primary"
-            >
-              {{ props.row.displayValue }}
+            <span class="font-mono text-sm px-2 py-1 rounded bg-industrial-secondary text-industrial-primary">
+              {{ props.row.displayValue.length > 10 ? props.row.displayValue.slice(0, 10) + '...' :
+                props.row.displayValue }}
             </span>
           </div>
         </q-td>
@@ -194,10 +181,8 @@ onUnmounted(() => {
       <template #body-cell-hexValue="props">
         <q-td :props="props" class="text-center">
           <div class="truncate max-w-full" :title="props.row.hexValue">
-            <span
-              class="font-mono text-sm px-2 py-1 rounded bg-industrial-highlight text-industrial-accent"
-            >
-              {{ props.row.hexValue }}
+            <span class="font-mono text-sm px-2 py-1 rounded bg-industrial-highlight text-industrial-accent">
+              {{ props.row.hexValue.length > 10 ? props.row.hexValue.slice(0, 10) + '...' : props.row.hexValue }}
             </span>
           </div>
         </q-td>
@@ -214,32 +199,21 @@ onUnmounted(() => {
       <!-- 操作列 -->
       <template #body-cell-actions="props">
         <q-td :props="props" class="text-center">
-          <OrderControls
-            :group-id="groupId"
-            :data-item-id="props.row.dataItemId"
-            :current-index="props.row.index - 1"
-            :total-items="tableData.length"
-          />
+          <OrderControls :group-id="groupId" :data-item-id="props.row.dataItemId" />
         </q-td>
       </template>
 
       <!-- 自定义行样式 -->
       <template #header="props">
         <q-tr :props="props">
-          <q-th
-            v-for="col in props.cols"
-            :key="col.name"
-            :props="props"
-            :style="col.style"
-            :class="[
-              col.classes,
-              {
-                'text-left': col.align === 'left',
-                'text-right': col.align === 'right',
-                'text-center': col.align === 'center',
-              },
-            ]"
-          >
+          <q-th v-for="col in props.cols" :key="col.name" :props="props" :style="col.style" :class="[
+            col.classes,
+            {
+              'text-left': col.align === 'left',
+              'text-right': col.align === 'right',
+              'text-center': col.align === 'center',
+            },
+          ]">
             {{ col.label }}
           </q-th>
         </q-tr>

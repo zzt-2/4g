@@ -20,6 +20,8 @@ import type {
   TriggerCondition,
   ConditionTriggerConfig,
   TimeTriggerConfig,
+  SendFrameInstance,
+  SendInstanceField,
 } from '../../types/frames/sendInstances';
 
 export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () => {
@@ -32,6 +34,9 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
 
   const showEditorDialog = ref(false);
   const isCreatingNewInstance = ref(false);
+
+  const isDeletingInstance = ref(false);
+  const isModifyingInstance = ref(false);
 
   // 新增：多帧全局策略配置
   const multiFrameStrategyConfig = useStorage<StrategyConfig>('multi-frame-strategy-config', {
@@ -56,6 +61,17 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
   const recurringType = ref<'second' | 'minute' | 'hour' | 'daily' | 'weekly' | 'monthly'>('daily');
   const recurringInterval = ref<number>(1);
   const endTime = ref<string>('');
+
+  // 暂存的统计数据（非响应式）
+  const statsCache = new Map<
+    string,
+    {
+      instanceId: string;
+      sendCount: number;
+      lastSentAt: Date;
+      fields: SendInstanceField[];
+    }
+  >();
 
   // 计算属性：条件触发配置
   const conditionConfig = computed<ConditionTriggerConfig>(() => ({
@@ -180,28 +196,76 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
     endTime.value = '';
   }
 
-  // 新增：更新发送统计
-  function updateSendStats(instanceId: string, incrementCount: boolean = true) {
-    const instance = state.instances.value.find((i) => i.id === instanceId);
-    if (!instance) {
-      console.warn(`实例 ${instanceId} 不存在，无法更新发送统计`);
-      return;
+  // 新增：更新发送统计（优化版本，避免深拷贝和整体替换）
+  function updateSendStats() {
+    let hasUpdates = false;
+    let currentInstanceUpdated = false;
+
+    // 直接修改现有实例对象，避免深拷贝
+    state.instances.value.forEach((instance: SendFrameInstance) => {
+      const stats = statsCache.get(instance.id);
+      if (stats) {
+        // 直接修改现有对象
+        instance.sendCount = stats.sendCount;
+        instance.lastSentAt = stats.lastSentAt;
+        instance.fields = stats.fields;
+        hasUpdates = true;
+
+        // 检查当前实例是否被更新
+        if (instance.id === state.currentInstanceId.value) {
+          currentInstanceUpdated = true;
+        }
+      }
+    });
+
+    // 只有在有实际更新时才触发响应式更新
+    if (hasUpdates || isModifyingInstance.value || isDeletingInstance.value) {
+      // 手动触发 instances 的响应式更新（浅层更新）
+      state.instances.value = [...state.instances.value];
+      isDeletingInstance.value = false;
     }
 
-    // 确保统计字段存在
-    if (typeof instance.sendCount !== 'number') {
-      instance.sendCount = 0;
+    // 只在当前实例有更新时才更新 currentInstance
+    if ((currentInstanceUpdated && state.currentInstanceId.value) || isModifyingInstance.value) {
+      state.currentInstance.value =
+        state.instances.value.find(
+          (instance: SendFrameInstance) => instance.id === state.currentInstanceId.value,
+        ) || null;
+      isModifyingInstance.value = false;
     }
 
-    // 更新统计
-    if (incrementCount) {
-      instance.sendCount++;
-    }
-    instance.lastSentAt = new Date();
-    instance.updatedAt = new Date();
+    // 更新 sendFrameOptions - 简化逻辑，确保始终同步
+    const newSendFrameOptions = state.instances.value.map((instance: SendFrameInstance) => ({
+      id: instance.id,
+      name: instance.label,
+      fields:
+        instance.fields?.map((field: SendInstanceField) => ({
+          id: field.id,
+          name: field.label,
+        })) || [],
+    }));
 
-    // 保存到存储
-    crud.updateInstance(instance);
+    state.sendFrameOptions.value = newSendFrameOptions;
+  }
+
+  function updateSendStatsCache(instance: SendFrameInstance, ifUpdateStats: boolean = true) {
+    if (statsCache.has(instance.id)) {
+      const stats = statsCache.get(instance.id);
+      if (stats) {
+        if (ifUpdateStats) {
+          stats.sendCount++;
+          stats.lastSentAt = new Date();
+        }
+        stats.fields = instance.fields;
+      }
+    } else if (ifUpdateStats) {
+      statsCache.set(instance.id, {
+        instanceId: instance.id,
+        sendCount: 1,
+        lastSentAt: new Date(),
+        fields: instance.fields,
+      });
+    }
   }
 
   // 新增：重置发送统计
@@ -230,6 +294,7 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
   return {
     // 状态
     instances: state.instances,
+    sendFrameOptions: state.sendFrameOptions,
     currentInstanceId: state.currentInstanceId,
     currentInstance: state.currentInstance,
     instancesByFrameId: state.instancesByFrameId,
@@ -242,7 +307,8 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
     hexValues: editing.hexValues,
     showEditorDialog,
     isCreatingNewInstance,
-
+    isDeletingInstance,
+    isModifyingInstance,
     // 新增：多帧策略配置
     multiFrameStrategyConfig,
 
@@ -269,6 +335,7 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
     createInstance: crud.createInstance,
     updateInstance: crud.updateInstance,
     deleteInstance: crud.deleteInstance,
+    deleteInstances: crud.deleteInstances,
     copyInstance: crud.copyInstance,
     toggleFavorite: crud.toggleFavorite,
     moveInstance: crud.moveInstance,
@@ -294,6 +361,7 @@ export const useSendFrameInstancesStore = defineStore('sendFrameInstances', () =
 
     // 新增：更新发送统计
     updateSendStats,
+    updateSendStatsCache,
 
     // 新增：重置发送统计
     resetSendStats,

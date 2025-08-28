@@ -28,7 +28,7 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
       isLoading.value = true;
       error.value = null;
       const data = await dataStorageAPI.framesConfig.list();
-      frames.value = data;
+      frames.value = data as Frame[];
       return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '加载帧配置失败';

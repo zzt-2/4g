@@ -2,7 +2,7 @@
   "name": "4g",
   "version": "0.0.1",
   "description": "A Quasar Project",
-  "productName": "Quasar App",
+  "productName": "激光链路标准测试设备上位机",
   "author": "zzt-2 <3114178549@qq.com>",
   "private": true,
   "scripts": {
@@ -51,6 +51,7 @@
     "prettier": "^3.3.3",
     "typescript": "~5.5.3",
     "vite-plugin-checker": "^0.9.0",
+    "vite-plugin-vue-devtools": "^8.0.0",
     "vue-tsc": "^1.8.27"
   },
   "engines": {

@@ -9,6 +9,7 @@ import type { SendFrameInstance } from '../../types/frames/sendInstances';
 import type { ExpressionConfig } from '../../types/frames/fields';
 import { useReceiveFramesStore } from '../../stores/frames/receiveFramesStore';
 import { useFrameTemplateStore } from '../../stores/frames/frameTemplateStore';
+import { NUMBER_DATA_TYPES } from 'src/types/frames';
 
 export interface ExpressionCalculationResult {
   fieldId: string;
@@ -135,7 +136,7 @@ export function useFrameExpressionManager() {
     }
 
     // 对于其他数字类型，进行向下取整
-    if (['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32'].includes(dataType)) {
+    if (NUMBER_DATA_TYPES.includes(dataType)) {
       return Math.floor(value);
     }
 

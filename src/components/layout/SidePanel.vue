@@ -2,16 +2,8 @@
   <nav class="h-full bg-[#1a202c] text-[#e2e8f0]">
     <q-scroll-area class="fit">
       <q-list padding>
-        <q-item
-          v-for="item in navItems"
-          :key="item.path"
-          :active="activeRoute === item.path"
-          clickable
-          v-ripple
-          @click="navigateTo(item.path)"
-          class="transition-all duration-200"
-          active-class="bg-[#2d3748] text-[#3b82f6]"
-        >
+        <q-item v-for="item in navItems" :key="item.path" :active="activeRoute === item.path" clickable v-ripple
+          @click="navigateTo(item.path)" class="transition-all duration-200" active-class="bg-[#2d3748] text-[#3b82f6]">
           <q-item-section avatar>
             <q-icon :name="item.icon" />
           </q-item-section>

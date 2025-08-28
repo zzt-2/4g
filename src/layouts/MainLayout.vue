@@ -8,19 +8,9 @@
     <!-- 内容区域使用flex布局 -->
     <div class="flex items-end flex-grow h-[calc(100vh-28px)]">
       <!-- 侧边栏固定宽度 -->
-      <q-drawer
-        v-model="leftDrawerOpen"
-        :breakpoint="200"
-        dark
-        persistent
-        show-if-above
-        :width="drawerWidth"
-        :mini="miniState"
-        @mouseover="miniState = false"
-        @mouseout="miniState = true"
-        mini-to-overlay
-        class="bg-[#1e293b] text-[#e2e8f0] shadow-none border-r-0 h-full overflow-hidden"
-      >
+      <q-drawer v-model="leftDrawerOpen" :breakpoint="200" dark persistent show-if-above :width="drawerWidth"
+        :mini="miniState" @mouseover="miniState = false" @mouseout="miniState = true" mini-to-overlay
+        class="bg-[#1e293b] text-[#e2e8f0] shadow-none border-r-0 h-full overflow-hidden">
         <SidePanel />
       </q-drawer>
 
@@ -75,10 +65,6 @@ const clearDataItemValues = async (): Promise<void> => {
 
 const connectionTargetsStore = useConnectionTargetsStore();
 
-const updateWidth = () => {
-  drawerWidth.value = Math.round(window.innerWidth * 0.08); // 15% 的视窗宽度
-};
-
 // 计算抽屉宽度为视窗宽度的百分比
 onMounted(async () => {
   try {
@@ -103,15 +89,10 @@ onMounted(async () => {
   } catch (error) {
     console.error('加载数据失败:', error);
   }
-
-  updateWidth();
-  window.addEventListener('resize', updateWidth);
 });
 
 // 清理监听器
 onUnmounted(() => {
-  window.removeEventListener('resize', updateWidth);
-
   // 停止数据记录
   if (dataDisplayStore.recordingStatus.isRecording) {
     console.log('页面卸载，停止数据记录...');

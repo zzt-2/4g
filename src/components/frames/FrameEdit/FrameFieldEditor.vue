@@ -5,50 +5,26 @@
       <div class="w-3/5 h-full pr-4 overflow-auto">
         <div class="flex flex-col space-y-4">
           <!-- 字段名称 -->
-          <q-input
-            v-model="fieldStore.tempField.name"
-            label="字段名称"
-            dense
-            outlined
-            class="input-bg w-full"
-            placeholder="输入字段名称"
-            hide-bottom-space
-          />
+          <q-input v-model="fieldStore.tempField.name" label="字段名称" dense outlined class="input-bg w-full"
+            placeholder="输入字段名称" hide-bottom-space />
 
           <!-- 数据类型、比特数/长度、输入类型、默认值放在一起 -->
           <div class="flex space-x-4 h-[92px]">
             <!-- 第一列：数据类型和比特数/长度 -->
             <div class="flex flex-col space-y-4 w-45%">
               <!-- 数据类型 -->
-              <q-select
-                v-model="fieldStore.tempField.dataType"
-                :options="FIELD_TYPE_OPTIONS"
-                label="数据类型"
-                dense
-                outlined
-                class="input-bg"
-                map-options
-                emit-value
-                hide-bottom-space
-                @update:model-value="fieldStore.updateTempField('dataType')"
-              />
+              <q-select v-model="fieldStore.tempField.dataType" :options="FIELD_TYPE_OPTIONS" label="数据类型" dense
+                outlined class="input-bg" map-options emit-value hide-bottom-space
+                @update:model-value="fieldStore.updateTempField('dataType')" />
 
               <!-- 长度 -->
-              <q-input
-                v-if="
-                  fieldStore.tempField.dataType &&
-                  ['bytes', 'string'].includes(fieldStore.tempField.dataType)
-                "
-                v-model.number="fieldStore.tempField.length"
-                type="number"
-                label="字节长度"
-                dense
-                outlined
-                class="input-bg"
-                min="1"
-                placeholder="字段长度(字节)"
-                hide-bottom-space
-              />
+              <q-input v-if="
+                fieldStore.tempField.dataType &&
+                ['bytes', 'string'].includes(fieldStore.tempField.dataType)
+              " v-model.number="fieldStore.tempField.length" type="number" label="字节长度" dense outlined
+                class="input-bg" min="1" placeholder="字段长度(字节)" hide-bottom-space />
+              <q-input v-else v-model="fieldStore.tempField.factor" label="倍率" dense outlined class="input-bg"
+                placeholder="倍率" hide-bottom-space />
             </div>
 
             <q-space></q-space>
@@ -56,34 +32,17 @@
             <!-- 第二列：输入类型和默认值 -->
             <div class="flex flex-col space-y-4 w-45%">
               <!-- 输入类型 -->
-              <q-select
-                v-model="fieldStore.tempField.inputType"
-                label="输入类型"
-                :options="INPUT_TYPE_OPTIONS"
-                dense
-                outlined
-                class="input-bg"
-                map-options
-                emit-value
-                @update:model-value="handleInputTypeChange"
-                hide-bottom-space
-              >
+              <q-select v-model="fieldStore.tempField.inputType" label="输入类型" :options="INPUT_TYPE_OPTIONS" dense
+                outlined class="input-bg" map-options emit-value @update:model-value="handleInputTypeChange"
+                hide-bottom-space>
                 <template v-slot:hint>
                   <span class="text-secondary-color text-xs op-75">输入控件类型</span>
                 </template>
               </q-select>
 
               <!-- 默认值 -->
-              <q-input
-                v-if="fieldStore.tempField.inputType === 'input'"
-                v-model="fieldStore.tempField.defaultValue"
-                label="默认值"
-                dense
-                outlined
-                class="input-bg"
-                placeholder="默认值"
-                hide-bottom-space
-              >
+              <q-input v-if="fieldStore.tempField.inputType === 'input'" v-model="fieldStore.tempField.defaultValue"
+                label="默认值" dense outlined class="input-bg" placeholder="默认值" hide-bottom-space>
                 <q-tooltip> 可使用十六进制(0x前缀)或十进制 </q-tooltip>
               </q-input>
             </div>
@@ -91,20 +50,9 @@
 
           <!-- 数据参与类型选择器 -->
           <div class="flex flex-col space-y-2">
-            <q-select
-              v-model="fieldStore.tempField.dataParticipationType"
-              :options="DATA_PARTICIPATION_TYPE_OPTIONS"
-              option-value="value"
-              option-label="label"
-              emit-value
-              map-options
-              label="数据参与类型"
-              dense
-              outlined
-              class="input-bg w-full"
-              @update:model-value="handleDataParticipationTypeChange"
-              hide-bottom-space
-            >
+            <q-select v-model="fieldStore.tempField.dataParticipationType" :options="DATA_PARTICIPATION_TYPE_OPTIONS"
+              option-value="value" option-label="label" emit-value map-options label="数据参与类型" dense outlined
+              class="input-bg w-full" @update:model-value="handleDataParticipationTypeChange" hide-bottom-space>
               <template v-slot:option="scope">
                 <q-item v-bind="scope.itemProps">
                   <q-item-section>
@@ -118,60 +66,30 @@
 
           <!-- 可配置选项 -->
           <div class="flex items-center mb-4 text-secondary-color">
-            <q-checkbox
-              v-model="fieldStore.tempField.configurable"
-              label="可在发送用例中配置"
-              color="grey-7"
-              dense
-            />
+            <q-checkbox v-model="fieldStore.tempField.configurable" label="可在发送用例中配置" color="grey-7" dense />
             <q-tooltip>
               设置该字段是否可在发送用例中进行配置，不可配置的字段将使用默认值
             </q-tooltip>
           </div>
 
           <!-- 字段描述 -->
-          <q-input
-            v-model="fieldStore.tempField.description"
-            type="textarea"
-            label="字段描述"
-            dense
-            outlined
-            class="input-bg w-full"
-            placeholder="输入字段描述"
-            rows="16"
-            hide-bottom-space
-          />
+          <q-input v-model="fieldStore.tempField.description" type="textarea" label="字段描述" dense outlined
+            class="input-bg w-full" placeholder="输入字段描述" rows="16" hide-bottom-space />
 
           <!-- 校验和字段设置 -->
           <q-card bordered flat class="bg-panel p-3">
             <div class="flex justify-between items-center mb-2">
               <div class="text-xs text-secondary-color">{{ UI_LABELS.CHECKSUM }}</div>
               <div>
-                <q-toggle
-                  v-model="fieldStore.tempField.validOption!.isChecksum"
-                  dense
-                  color="grey-7"
-                  checked-icon="check"
-                  unchecked-icon="clear"
-                />
+                <q-toggle v-model="fieldStore.tempField.validOption!.isChecksum" dense color="grey-7"
+                  checked-icon="check" unchecked-icon="clear" />
               </div>
             </div>
 
-            <div
-              v-if="fieldStore.tempField.validOption && fieldStore.tempField.validOption.isChecksum"
-              class="space-y-3"
-            >
-              <q-select
-                v-model="fieldStore.tempField.validOption.checksumMethod"
-                :options="CHECKSUM_METHOD_OPTIONS"
-                label="校验和计算方法"
-                dense
-                outlined
-                class="input-bg w-full"
-                map-options
-                emit-value
-                hide-bottom-space
-              >
+            <div v-if="fieldStore.tempField.validOption && fieldStore.tempField.validOption.isChecksum"
+              class="space-y-3">
+              <q-select v-model="fieldStore.tempField.validOption.checksumMethod" :options="CHECKSUM_METHOD_OPTIONS"
+                label="校验和计算方法" dense outlined class="input-bg w-full" map-options emit-value hide-bottom-space>
                 <template v-slot:hint>
                   <span class="text-secondary-color text-xs op-75">
                     选择校验和计算方法（将在后续版本实现）
@@ -180,26 +98,10 @@
               </q-select>
 
               <div class="flex space-x-4">
-                <q-input
-                  v-model="fieldStore.tempField.validOption.startFieldIndex"
-                  type="number"
-                  label="起始字段索引"
-                  dense
-                  outlined
-                  class="input-bg w-40%"
-                  min="0"
-                  hide-bottom-space
-                />
-                <q-input
-                  v-model="fieldStore.tempField.validOption.endFieldIndex"
-                  type="number"
-                  label="结束字段索引"
-                  dense
-                  outlined
-                  class="input-bg w-40%"
-                  min="0"
-                  hide-bottom-space
-                />
+                <q-input v-model="fieldStore.tempField.validOption.startFieldIndex" type="number" label="起始字段索引" dense
+                  outlined class="input-bg w-40%" min="0" hide-bottom-space />
+                <q-input v-model="fieldStore.tempField.validOption.endFieldIndex" type="number" label="结束字段索引" dense
+                  outlined class="input-bg w-40%" min="0" hide-bottom-space />
               </div>
             </div>
             <div v-else class="text-xs op-75 text-secondary-color mt-1">
@@ -213,15 +115,9 @@
       <div class="w-2/5 pl-4">
         <!-- 右侧面板根据inputType动态显示 -->
         <div v-if="showInputConfigPanel" class="h-[75vh]">
-          <FieldInputConfigPanel
-            :field="fieldStore.tempField as FrameField"
-            @update:field="updateTempField"
-          />
+          <FieldInputConfigPanel :field="fieldStore.tempField as FrameField" @update:field="updateTempField" />
         </div>
-        <div
-          v-else
-          class="flex items-center justify-center h-full text-center text-industrial-secondary"
-        >
+        <div v-else class="flex items-center justify-center h-full text-center text-industrial-secondary">
           <div>
             <q-icon name="info" size="2rem" class="opacity-50 mb-2" />
             <div class="text-sm">该输入类型无需额外配置</div>

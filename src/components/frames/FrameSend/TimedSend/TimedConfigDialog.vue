@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="show" persistent class="timed-config-dialog">
+  <q-dialog v-model="show" class="timed-config-dialog">
     <q-card class="config-card bg-industrial-panel border-industrial" style="min-width: 420px">
       <q-card-section class="bg-industrial-secondary">
         <div class="flex items-center justify-between">

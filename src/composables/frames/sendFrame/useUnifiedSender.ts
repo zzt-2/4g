@@ -81,7 +81,21 @@ export function useUnifiedSender() {
         frameExpressionManager.calculateAndApplySendFrame(frameInstance, updateFieldValue);
       }
 
-      const data = frameToBuffer(frameInstance);
+      const frameInstanceTemp: SendFrameInstance = {
+        ...frameInstance,
+        fields: frameInstance.fields.map((field) => {
+          if (field.dataType !== 'bytes' && field.factor && field.factor !== 1) {
+            return {
+              ...field,
+              value: (Number(field.value) * field.factor).toString(),
+            };
+          } else {
+            return field;
+          }
+        }),
+      };
+
+      const data = frameToBuffer(frameInstanceTemp);
       const { type, identifier } = parseTargetId(targetId);
 
       let result: UnifiedSendResult;
@@ -99,11 +113,11 @@ export function useUnifiedSender() {
             targetId,
             targetType: 'network',
           };
-        } else if (targetPath.includes(':') && targetPath.split(':').length === 2) {
+        } else if (targetPath.includes(':') && targetPath.split(':').length === 3) {
           // UDP远程主机目标格式：connectionId:targetHost
           const parts = targetPath.split(':');
           const connectionId = parts[0];
-          const targetHost = parts[1];
+          const targetHost = parts[1] + ':' + parts[2];
           if (connectionId && targetHost) {
             result = await sendToNetwork(connectionId, data, targetId, targetHost);
           } else {
@@ -131,7 +145,7 @@ export function useUnifiedSender() {
       if (result.success) {
         // 使用 setTimeout 异步执行，避免阻塞发送响应
         setTimeout(() => {
-          sendFrameInstancesStore.updateSendStats(frameInstance.id);
+          sendFrameInstancesStore.updateSendStatsCache(frameInstance);
           // 更新全局统计
           globalStatsStore.incrementSentPackets();
           globalStatsStore.addSentBytes(data.length);
@@ -241,35 +255,9 @@ export function useUnifiedSender() {
    * @param targetId 目标连接ID
    * @returns 是否可用
    */
-  const isTargetAvailable = async (targetId: string): Promise<boolean> => {
-    try {
-      const { type } = parseTargetId(targetId);
-
-      if (type === 'serial') {
-        const { identifier } = parseTargetId(targetId);
-        const status = await serialAPI.getStatus(identifier);
-        return status.isOpen;
-      } else if (type === 'network') {
-        // 获取验证后的目标路径
-        const targetPath = connectionTargetsStore.getValidatedTargetPath(targetId);
-        if (!targetPath) {
-          return false;
-        }
-
-        // 提取连接ID（无论是TCP主连接还是UDP远程主机目标，都检查基础连接状态）
-        const connectionId = targetPath.includes(':') ? targetPath.split(':')[0] : targetPath;
-        if (connectionId) {
-          const status = await networkAPI.getStatus(connectionId);
-          return status?.isConnected || false;
-        }
-        return false;
-      }
-
-      return false;
-    } catch (error) {
-      console.warn(`检查目标可用性失败: ${targetId}`, error);
-      return false;
-    }
+  const isTargetAvailable = (targetId: string): boolean => {
+    // 直接从 connectionTargetsStore 获取可用性状态，避免 API 调用
+    return connectionTargetsStore.isTargetAvailable(targetId);
   };
 
   /**

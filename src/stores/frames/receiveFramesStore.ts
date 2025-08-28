@@ -116,6 +116,12 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     return useSendTasksStore();
   };
 
+  // 获取数据显示Store（动态导入避免循环依赖）
+  const getDataDisplayStore = async () => {
+    const { useDataDisplayStore } = await import('./dataDisplayStore');
+    return useDataDisplayStore();
+  };
+
   // 防抖保存函数
   let saveTimeout: NodeJS.Timeout | null = null;
   const debouncedSaveConfig = (): void => {
@@ -174,6 +180,18 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   const receiveFrames = computed(() => {
     return frameTemplateStore.frames.filter((frame: Frame) => frame.direction === 'receive');
   });
+
+  const receiveFrameOptions = computed(() =>
+    receiveFrames.value.map((frame) => ({
+      id: frame.id,
+      name: frame.name,
+      fields:
+        frame.fields?.map((field) => ({
+          id: field.id,
+          name: field.name,
+        })) || [],
+    })),
+  );
 
   // 计算属性：选中帧的关联数据项
   const selectedFrameDataItems = computed(() => {
@@ -805,6 +823,11 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         }
       }
 
+      // 收集星座图数据（异步处理）
+      if (result.frameStats?.frameId && result.updatedGroups) {
+        collectConstellationData(result.frameStats.frameId, result.updatedGroups);
+      }
+
       // 更新帧统计
       if (result.frameStats && result.frameStats.frameId) {
         const currentStats = frameStats.value.get(result.frameStats.frameId) || {
@@ -859,6 +882,48 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     } catch (error) {
       console.error('数据接收处理异常:', error);
       throw error; // 重新抛出错误，让调用者处理
+    }
+  };
+
+  /**
+   * 收集星座图数据
+   */
+  const collectConstellationData = async (
+    frameId: string,
+    updatedGroups: DataGroup[],
+  ): Promise<void> => {
+    try {
+      const dataDisplayStore = await getDataDisplayStore();
+
+      // 遍历更新的分组和数据项
+      updatedGroups.forEach((group) => {
+        group.dataItems.forEach((dataItem) => {
+          // 查找该数据项对应的映射关系
+          const mapping = mappings.value.find(
+            (m) => m.groupId === group.id && m.dataItemId === dataItem.id,
+          );
+
+          if (
+            mapping &&
+            mapping.frameId === frameId &&
+            dataItem.value !== null &&
+            dataItem.value !== undefined
+          ) {
+            // 确保value是数字类型
+            // 星座图需要原始的hex数据，不是单个数值
+            if (dataItem.value && typeof dataItem.value === 'object') {
+              // 将Uint8Array转换为hex字符串
+              const uint8Array = dataItem.value as Uint8Array;
+              const hexString = Array.from(uint8Array)
+                .map((byte) => byte.toString(16).padStart(2, '0'))
+                .join('');
+              dataDisplayStore.collectConstellationFieldData(frameId, mapping.fieldId, hexString);
+            }
+          }
+        });
+      });
+    } catch (error) {
+      console.error('星座图数据收集异常:', error);
     }
   };
 
@@ -941,6 +1006,76 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     });
   };
 
+  /**
+   * 在可见项中上移数据项
+   * @param groupId 分组ID
+   * @param dataItemId 数据项ID
+   */
+  const moveVisibleDataItemUp = (groupId: number, dataItemId: number): void => {
+    const group = findGroupById(groups.value, groupId);
+    if (!group) return;
+
+    // 获取所有可见项的索引
+    const visibleItems = group.dataItems.filter((item) => item.isVisible);
+    const visibleItemIndex = visibleItems.findIndex((item) => item.id === dataItemId);
+
+    if (visibleItemIndex <= 0) return; // 已经是第一个或不存在
+
+    // 在原数组中找到当前项和目标项的索引
+    const currentItemIndex = group.dataItems.findIndex((item) => item.id === dataItemId);
+    const targetItem = visibleItems[visibleItemIndex - 1];
+    if (!targetItem) return;
+
+    const targetItemIndex = group.dataItems.findIndex((item) => item.id === targetItem.id);
+
+    if (currentItemIndex === -1 || targetItemIndex === -1) return;
+
+    // 交换两个项目的位置
+    const currentItem = group.dataItems[currentItemIndex];
+    if (!currentItem) return;
+
+    group.dataItems.splice(currentItemIndex, 1);
+    group.dataItems.splice(targetItemIndex, 0, currentItem);
+
+    // 保存配置
+    debouncedSaveConfig();
+  };
+
+  /**
+   * 在可见项中下移数据项
+   * @param groupId 分组ID
+   * @param dataItemId 数据项ID
+   */
+  const moveVisibleDataItemDown = (groupId: number, dataItemId: number): void => {
+    const group = findGroupById(groups.value, groupId);
+    if (!group) return;
+
+    // 获取所有可见项的索引
+    const visibleItems = group.dataItems.filter((item) => item.isVisible);
+    const visibleItemIndex = visibleItems.findIndex((item) => item.id === dataItemId);
+
+    if (visibleItemIndex === -1 || visibleItemIndex >= visibleItems.length - 1) return; // 已经是最后一个或不存在
+
+    // 在原数组中找到当前项和目标项的索引
+    const currentItemIndex = group.dataItems.findIndex((item) => item.id === dataItemId);
+    const targetItem = visibleItems[visibleItemIndex + 1];
+    if (!targetItem) return;
+
+    const targetItemIndex = group.dataItems.findIndex((item) => item.id === targetItem.id);
+
+    if (currentItemIndex === -1 || targetItemIndex === -1) return;
+
+    // 交换两个项目的位置
+    const currentItem = group.dataItems[currentItemIndex];
+    if (!currentItem) return;
+
+    group.dataItems.splice(currentItemIndex, 1);
+    group.dataItems.splice(targetItemIndex, 0, currentItem);
+
+    // 保存配置
+    debouncedSaveConfig();
+  };
+
   return {
     // 状态
     groups,
@@ -953,6 +1088,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
     // 计算属性
     receiveFrames,
+    receiveFrameOptions,
     selectedFrameDataItems,
     selectedGroup,
     availableReceiveFrameOptions,
@@ -990,5 +1126,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
     debouncedSaveConfig,
     findOrphanedDataItems,
     removeOrphanedDataItems,
+    moveVisibleDataItemUp,
+    moveVisibleDataItemDown,
   };
 });

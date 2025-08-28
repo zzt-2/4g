@@ -153,24 +153,16 @@ const getDeletingConnectionName = computed(() => {
         <div class="text-sm text-industrial-secondary">
           网络连接配置 ({{ networkConfigs.length }}/9)
         </div>
-        <q-btn
-          color="primary"
-          icon="add"
-          label="添加连接"
-          size="sm"
-          :disable="networkConfigs.length >= 9"
-          @click="handleAddConnection"
-        >
+        <q-btn color="primary" icon="add" label="添加连接" size="sm" :disable="networkConfigs.length >= 9"
+          @click="handleAddConnection">
           <q-tooltip v-if="networkConfigs.length >= 9"> 最多支持9个网络连接配置 </q-tooltip>
         </q-btn>
       </div>
 
       <!-- 网络连接卡片网格 -->
       <div class="flex-1 overflow-auto">
-        <div
-          v-if="networkConfigs.length === 0"
-          class="flex items-center justify-center h-full text-industrial-secondary"
-        >
+        <div v-if="networkConfigs.length === 0"
+          class="flex items-center justify-center h-full text-industrial-secondary">
           <div class="text-center">
             <q-icon name="wifi_off" size="lg" class="text-industrial-tertiary mb-2" />
             <div>暂无网络连接配置</div>
@@ -179,15 +171,9 @@ const getDeletingConnectionName = computed(() => {
         </div>
 
         <div v-else class="grid grid-cols-3 gap-4 h-fit">
-          <NetworkConnectionCard
-            v-for="config in networkConfigs"
-            :key="config.id"
-            v-bind="getCardProps(config)"
-            @edit="handleEditConnection"
-            @delete="handleDeleteConnection"
-            @connect="handleConnectToNetwork"
-            @disconnect="handleDisconnectFromNetwork"
-          />
+          <NetworkConnectionCard v-for="config in networkConfigs" :key="config.id" v-bind="getCardProps(config)"
+            @edit="handleEditConnection" @delete="handleDeleteConnection" @connect="handleConnectToNetwork"
+            @disconnect="handleDisconnectFromNetwork" />
         </div>
       </div>
     </template>
@@ -196,17 +182,8 @@ const getDeletingConnectionName = computed(() => {
     <template v-else-if="mode === 'serial'">
       <!-- 串口选择 -->
       <div class="mb-3">
-        <q-select
-          v-model="selectedPort"
-          :options="availablePorts"
-          label="选择串口"
-          outlined
-          dense
-          dark
-          emit-value
-          map-options
-          class="bg-industrial-secondary border-industrial text-industrial-primary mb-2"
-        >
+        <q-select v-model="selectedPort" :options="availablePorts" label="选择串口" outlined dense dark emit-value
+          map-options class="bg-industrial-secondary border-industrial text-industrial-primary mb-2">
           <template v-slot:option="scope">
             <q-item v-bind="scope.itemProps">
               <q-item-section>
@@ -221,23 +198,15 @@ const getDeletingConnectionName = computed(() => {
           <template v-slot:selected>
             <div class="flex items-center">
               <span>{{ selectedPort }}</span>
-              <q-icon
-                v-if="serialStore.isPortConnected(selectedPort)"
-                name="check_circle"
-                color="green"
-                class="ml-1"
-                size="xs"
-              />
+              <q-icon v-if="serialStore.isPortConnected(selectedPort)" name="check_circle" color="green" class="ml-1"
+                size="xs" />
             </div>
           </template>
         </q-select>
       </div>
 
       <!-- 串口配置内容 -->
-      <div
-        v-if="!selectedPort"
-        class="flex-1 flex items-center justify-center text-industrial-secondary"
-      >
+      <div v-if="!selectedPort" class="flex-1 flex items-center justify-center text-industrial-secondary">
         <div class="text-center">
           <q-icon name="usb_off" size="lg" class="text-industrial-tertiary mb-2" />
           <div>未选择串口设备</div>
@@ -251,17 +220,8 @@ const getDeletingConnectionName = computed(() => {
     <template v-else-if="mode === 'test'">
       <!-- 串口选择 -->
       <div class="mb-3">
-        <q-select
-          v-model="selectedPort"
-          :options="availablePorts"
-          label="选择测试串口"
-          outlined
-          dense
-          dark
-          emit-value
-          map-options
-          class="bg-industrial-secondary border-industrial text-industrial-primary"
-        >
+        <q-select v-model="selectedPort" :options="availablePorts" label="选择测试串口" outlined dense dark emit-value
+          map-options class="bg-industrial-secondary border-industrial text-industrial-primary">
           <template v-slot:option="scope">
             <q-item v-bind="scope.itemProps">
               <q-item-section>
@@ -276,13 +236,8 @@ const getDeletingConnectionName = computed(() => {
           <template v-slot:selected>
             <div class="flex items-center">
               <span>{{ selectedPort }}</span>
-              <q-icon
-                v-if="serialStore.isPortConnected(selectedPort)"
-                name="check_circle"
-                color="green"
-                class="ml-1"
-                size="xs"
-              />
+              <q-icon v-if="serialStore.isPortConnected(selectedPort)" name="check_circle" color="green" class="ml-1"
+                size="xs" />
             </div>
           </template>
         </q-select>
@@ -290,10 +245,7 @@ const getDeletingConnectionName = computed(() => {
 
       <!-- 串口测试工具 -->
       <div class="flex-1">
-        <div
-          v-if="!selectedPort"
-          class="flex items-center justify-center h-full text-industrial-secondary"
-        >
+        <div v-if="!selectedPort" class="flex items-center justify-center h-full text-industrial-secondary">
           <div class="text-center">
             <q-icon name="usb_off" size="lg" class="text-industrial-tertiary mb-2" />
             <div>未选择测试串口</div>
@@ -305,19 +257,13 @@ const getDeletingConnectionName = computed(() => {
     </template>
 
     <!-- 编辑对话框 -->
-    <NetworkConnectionEditDialog
-      v-model="editDialogVisible"
-      :config="editingConfig"
-      :mode="editMode"
-      @save="handleSaveConfig"
-    />
+    <NetworkConnectionEditDialog v-model="editDialogVisible" :config="editingConfig" :mode="editMode"
+      @save="handleSaveConfig" />
 
     <!-- 删除确认对话框 -->
-    <q-dialog v-model="deleteConfirmVisible" persistent>
+    <q-dialog v-model="deleteConfirmVisible">
       <q-card class="bg-industrial-panel border border-industrial w-80 max-w-[90vw]">
-        <q-card-section
-          class="bg-industrial-secondary border-b border-industrial row items-center q-py-sm q-px-md"
-        >
+        <q-card-section class="bg-industrial-secondary border-b border-industrial row items-center q-py-sm q-px-md">
           <q-icon name="warning" color="warning" size="md" />
           <span class="text-h6 ml-2 text-industrial-primary font-medium">确认删除</span>
         </q-card-section>
@@ -331,20 +277,9 @@ const getDeletingConnectionName = computed(() => {
           </div>
         </q-card-section>
 
-        <q-card-actions
-          class="bg-industrial-secondary border-t border-industrial px-4 py-3 flex justify-end gap-3"
-        >
-          <q-btn
-            flat
-            label="取消"
-            class="btn-industrial-secondary px-4 py-2"
-            @click="deleteConfirmVisible = false"
-          />
-          <q-btn
-            label="删除"
-            class="btn-industrial-danger px-4 py-2"
-            @click="confirmDeleteConnection"
-          />
+        <q-card-actions class="bg-industrial-secondary border-t border-industrial px-4 py-3 flex justify-end gap-3">
+          <q-btn flat label="取消" class="btn-industrial-secondary px-4 py-2" @click="deleteConfirmVisible = false" />
+          <q-btn label="删除" class="btn-industrial-danger px-4 py-2" @click="confirmDeleteConnection" />
         </q-card-actions>
       </q-card>
     </q-dialog>

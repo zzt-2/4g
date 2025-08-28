@@ -4,17 +4,32 @@
  */
 
 import { defineStore } from 'pinia';
-import { ref, computed, readonly } from 'vue';
+import { computed, readonly, ref, shallowRef } from 'vue';
+import { useTimerManager } from '../composables/common/useTimerManager';
+import { useLocation } from '../composables/common/useLocation';
+import { TimerConfig } from 'src/types/common/timerManager';
 
 export const useGlobalStatsStore = defineStore('globalStats', () => {
+  const timerManager = useTimerManager();
+  const location = useLocation();
+
   // 系统统计
   const systemStats = ref({
+    year: 0,
+    month: 0,
+    day: 0,
+    hour: 0,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
     startTime: 0, // 启动时间戳
     uptime: 0, // 运行时间(秒)
+    latitude: 0, // 纬度（整数，精确到分）
+    longitude: 0, // 经度（整数，精确到分）
   });
 
   // 通信统计
-  const communicationStats = ref({
+  const communicationStats = shallowRef({
     sentPackets: 0, // 发送包数
     receivedPackets: 0, // 接收包数
     sentBytes: 0, // 发送字节数
@@ -22,13 +37,13 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
   });
 
   // 帧匹配统计
-  const frameStats = ref({
+  const frameStats = shallowRef({
     matchedFrames: 0, // 匹配成功的帧
     unmatchedFrames: 0, // 未匹配的帧
   });
 
   // 错误统计
-  const errorStats = ref({
+  const errorStats = shallowRef({
     communicationErrors: 0, // 通信错误数
     frameParseErrors: 0, // 帧解析错误数
   });
@@ -39,7 +54,16 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
   const availableStats = computed(() => ({
     // 时间相关
     runtime: systemStats.value.uptime,
-
+    year: systemStats.value.year,
+    month: systemStats.value.month,
+    day: systemStats.value.day,
+    hour: systemStats.value.hour,
+    minute: systemStats.value.minute,
+    second: systemStats.value.second,
+    millisecond: systemStats.value.millisecond,
+    // 位置相关
+    latitude: systemStats.value.latitude,
+    longitude: systemStats.value.longitude,
     // 通信统计
     sentPackets: communicationStats.value.sentPackets,
     receivedPackets: communicationStats.value.receivedPackets,
@@ -59,16 +83,50 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
   }));
 
   // 初始化
-  const initialize = (): void => {
+  const initialize = async (): Promise<void> => {
     const now = Date.now();
     systemStats.value.startTime = now;
 
+    const timerConfig: TimerConfig = {
+      id: 'globalStats',
+      type: 'interval',
+      interval: 1000,
+      autoStart: true,
+    };
+
     // 启动运行时间定时器（每秒更新）
-    uptimeTimer = setInterval(() => {
-      systemStats.value.uptime = Math.floor((Date.now() - systemStats.value.startTime) / 1000);
-    }, 1000);
+    timerManager.registerTimer(timerConfig, updateSystemStats);
+
+    // 获取位置信息
+    await updateLocationInfo();
 
     console.log('全局统计数据已初始化');
+  };
+
+  const updateSystemStats = () => {
+    systemStats.value.uptime = Math.floor((Date.now() - systemStats.value.startTime) / 1000);
+    const date = new Date();
+    systemStats.value.year = date.getFullYear();
+    systemStats.value.month = date.getMonth() + 1;
+    systemStats.value.day = date.getDate();
+    systemStats.value.hour = date.getHours();
+    systemStats.value.minute = date.getMinutes();
+    systemStats.value.second = date.getSeconds();
+    systemStats.value.millisecond = date.getMilliseconds();
+  };
+
+  // 更新位置信息
+  const updateLocationInfo = async (): Promise<void> => {
+    try {
+      const locationData = await location.fetchLocation();
+      if (locationData) {
+        systemStats.value.latitude = locationData.latitude;
+        systemStats.value.longitude = locationData.longitude;
+        console.log(`位置已更新: 纬度 ${locationData.latitude}, 经度 ${locationData.longitude}`);
+      }
+    } catch (error) {
+      console.warn('更新位置信息失败:', error);
+    }
   };
 
   // 通信统计更新
@@ -113,6 +171,20 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
 
   // 重置所有统计
   const resetStats = (): void => {
+    systemStats.value = {
+      year: 0,
+      month: 0,
+      day: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      startTime: 0,
+      uptime: 0,
+      latitude: 0,
+      longitude: 0,
+    };
+
     communicationStats.value = {
       sentPackets: 0,
       receivedPackets: 0,
@@ -155,6 +227,7 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
     cleanup,
     resetStats,
     getStatValue,
+    updateLocationInfo,
 
     // 更新方法
     incrementSentPackets,

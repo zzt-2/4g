@@ -1,17 +1,10 @@
 <template>
   <div class="flex flex-col h-full w-full bg-[#0a1929] text-[#e2e8f0] overflow-hidden">
     <!-- 页面头部 -->
-    <FrameEditorHeader
-      :is-new-frame="isNewFrame"
-      :protocol="(editorStore.editorFrame?.protocol as any) || 'custom'"
+    <FrameEditorHeader :is-new-frame="isNewFrame" :protocol="(editorStore.editorFrame?.protocol as any) || 'custom'"
       :frame-direction="(editorStore.editorFrame?.direction as any) || 'send'"
-      :frame-type="(editorStore.editorFrame?.frameType as any) || 'custom'"
-      :has-changes="editorStore.hasChanges"
-      :is-frame-valid="editorStore.isValid"
-      @go-back="goBack"
-      @save="saveFrame"
-      class="flex-shrink-0 w-full"
-    />
+      :frame-type="(editorStore.editorFrame?.frameType as any) || 'custom'" :has-changes="editorStore.hasChanges"
+      :is-frame-valid="editorStore.isValid" @go-back="goBack" @save="saveFrame" class="flex-shrink-0 w-full" />
 
     <!-- 主体内容 -->
     <div class="flex flex-1 w-full pt-3 overflow-hidden">
@@ -21,16 +14,12 @@
       </div>
 
       <!-- 主要区域 -->
-      <div
-        class="flex-1 h-full flex flex-col rounded-md bg-[#12233f] border border-[#1a3663] overflow-hidden ml-2"
-      >
+      <div class="flex-1 h-full flex flex-col rounded-md bg-[#12233f] border border-[#1a3663] overflow-hidden ml-2">
         <!-- 字段编辑和列表区域 -->
         <div class="flex flex-1 max-h-[100vh] overflow-hidden">
           <!-- 字段列表组件 - 直接使用共享的 composable -->
-          <FrameFieldList
-            class="!max-w-[25%] w-[30%] border-r border-[#1a3663] bg-[#0f2744] flex-shrink-0"
-            @edit-field="showFieldEditor"
-          />
+          <FrameFieldList class="!max-w-[25%] w-[30%] border-r border-[#1a3663] bg-[#0f2744] flex-shrink-0"
+            @edit-field="showFieldEditor" />
 
           <!-- 字段编辑区域和字段预览区域的垂直分隔 -->
           <div class="flex-1 flex flex-col overflow-hidden">
@@ -164,17 +153,8 @@ const showFieldEditor = (index: number | null) => {
 
 // 关闭字段编辑对话框
 const closeFieldEditor = () => {
-  $q.dialog({
-    title: '确认',
-    message: '是否放弃当前编辑？',
-    cancel: true,
-    persistent: true,
-    dark: true,
-    class: 'bg-[#12233f]',
-  }).onOk(() => {
-    fieldStore.cancelEditField();
-    showFieldEditorDialog.value = false;
-  });
+  fieldStore.cancelEditField();
+  showFieldEditorDialog.value = false;
 };
 
 // 保存字段并关闭对话框

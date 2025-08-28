@@ -50,6 +50,19 @@ export interface YAxisConfig {
   autoScale: boolean; // 是否自动缩放
   min?: number; // 最小值
   max?: number; // 最大值
+  // 统计计算配置
+  enableStatistics?: boolean; // 是否启用统计计算
+  statisticsItems?: number[]; // 参与统计计算的数据项ID列表
+  statisticsTimeWindow?: number; // 统计计算时间窗口（秒），默认60秒
+}
+
+// 性能配置接口
+export interface PerformanceConfig {
+  maxDataPoints?: number; // 最大数据点数量，超过时会移除旧数据
+  updateInterval?: number; // 更新间隔（毫秒）
+  enableIncrementalUpdate?: boolean; // 是否启用增量更新
+  enableSampling?: boolean; // 是否启用数据抽样
+  samplingInterval?: number; // 抽样间隔
 }
 
 // 图表配置接口

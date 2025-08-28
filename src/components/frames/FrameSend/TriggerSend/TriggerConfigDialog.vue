@@ -1,5 +1,5 @@
 <template>
-  <q-dialog v-model="show" persistent class="trigger-config-dialog">
+  <q-dialog v-model="show" class="trigger-config-dialog">
     <q-card class="config-card bg-industrial-panel border-industrial" style="min-width: 500px">
       <q-card-section class="bg-industrial-secondary">
         <div class="flex items-center justify-between">
@@ -12,10 +12,7 @@
       </q-card-section>
 
       <q-card-section>
-        <TriggerConfigPanel
-          :source-options="sourceOptions || []"
-          :frame-options="frameOptions || []"
-        />
+        <TriggerConfigPanel :source-options="sourceOptions || []" :frame-options="frameOptions || []" />
       </q-card-section>
 
       <q-card-actions align="right" class="bg-industrial-secondary">

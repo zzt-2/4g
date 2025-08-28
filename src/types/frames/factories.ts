@@ -16,6 +16,7 @@ export function createEmptyField(): FrameField {
     name: '新字段',
     dataType: 'uint8',
     length: 1,
+    factor: 1,
     description: '',
     validOption: { ...DEFAULT_VALID_OPTION },
     defaultValue: '0', // 默认值，基于类型

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed } from 'vue';
 import { useSendTaskManager } from '../../../composables/frames/sendFrame/useSendTaskManager';
 import { TaskType, TaskStatus, SendTask } from '../../../stores/frames/sendTasksStore';
 
@@ -158,37 +158,12 @@ function handleClose() {
   emit('update:modelValue', false);
   emit('close');
 }
-
-// 刷新计时器
-const refreshTimer = ref<number | null>(null);
-
-// 组件挂载
-onMounted(() => {
-  // 每秒更新一次显示
-  refreshTimer.value = window.setInterval(() => {
-    // 这个空操作会触发计算属性重新计算
-  }, 1000);
-});
-
-// 组件卸载前清理
-onBeforeUnmount(() => {
-  if (refreshTimer.value !== null) {
-    clearInterval(refreshTimer.value);
-    refreshTimer.value = null;
-  }
-});
 </script>
 
 <template>
-  <q-dialog
-    :model-value="props.modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
-    persistent
-  >
-    <q-card
-      style="width: 900px; max-width: 95vw"
-      class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial"
-    >
+  <q-dialog :model-value="props.modelValue" @update:model-value="emit('update:modelValue', $event)">
+    <q-card style="width: 900px; max-width: 95vw"
+      class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial">
       <q-card-section class="bg-industrial-panel p-4">
         <div class="active-tasks-monitor-dialog h-full w-full">
           <div class="flex flex-col h-full bg-industrial-panel">
@@ -208,22 +183,12 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <div class="flex items-center">
-                  <q-badge
-                    v-if="isProcessing"
-                    color="blue"
-                    text-color="white"
-                    class="q-mr-sm text-2xs"
-                  >
+                  <q-badge v-if="isProcessing" color="blue" text-color="white" class="q-mr-sm text-2xs">
                     处理中
                   </q-badge>
-                  <q-btn
-                    flat
-                    dense
-                    icon="close"
-                    color="blue-grey"
+                  <q-btn flat dense icon="close" color="blue-grey"
                     class="bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 rounded-md text-xs"
-                    @click="handleClose"
-                  >
+                    @click="handleClose">
                     <q-tooltip>关闭</q-tooltip>
                   </q-btn>
                 </div>
@@ -231,10 +196,8 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- 筛选器 -->
-            <div
-              v-if="props.showFilters && activeTasks.length > 0"
-              class="mb-4 p-3 bg-industrial-highlight rounded border border-industrial"
-            >
+            <div v-if="props.showFilters && activeTasks.length > 0"
+              class="mb-4 p-3 bg-industrial-highlight rounded border border-industrial">
               <div class="text-subtitle2 text-industrial-primary mb-3 flex items-center">
                 <q-icon name="filter_list" class="mr-2" />
                 任务筛选
@@ -243,58 +206,34 @@ onBeforeUnmount(() => {
               <div class="flex flex-wrap gap-4">
                 <div class="flex items-center space-x-2">
                   <span class="text-industrial-secondary text-xs">类型筛选:</span>
-                  <q-btn-toggle
-                    v-model="typeFilter"
-                    :options="[
-                      { label: '全部', value: 'all' },
-                      { label: '顺序', value: 'sequential' },
-                      { label: '定时', value: 'timed-single' },
-                      { label: '多实例定时', value: 'timed-multiple' },
-                      { label: '触发', value: 'triggered-single' },
-                      { label: '多实例触发', value: 'triggered-multiple' },
-                    ]"
-                    push
-                    glossy
-                    rounded
-                    dense
-                    unelevated
-                    class="text-2xs"
-                    toggle-color="primary"
-                    color="grey-9"
-                    text-color="white"
-                  />
+                  <q-btn-toggle v-model="typeFilter" :options="[
+                    { label: '全部', value: 'all' },
+                    { label: '顺序', value: 'sequential' },
+                    { label: '定时', value: 'timed-single' },
+                    { label: '多实例定时', value: 'timed-multiple' },
+                    { label: '触发', value: 'triggered-single' },
+                    { label: '多实例触发', value: 'triggered-multiple' },
+                  ]" push glossy rounded dense unelevated class="text-2xs" toggle-color="primary" color="grey-9"
+                    text-color="white" />
                 </div>
 
                 <div class="flex items-center space-x-2">
                   <span class="text-industrial-secondary text-xs">状态筛选:</span>
-                  <q-btn-toggle
-                    v-model="statusFilter"
-                    :options="[
-                      { label: '全部', value: 'all' },
-                      { label: '运行中', value: 'running' },
-                      { label: '已暂停', value: 'paused' },
-                      { label: '等待触发', value: 'waiting-trigger' },
-                      { label: '等待执行', value: 'waiting-schedule' },
-                      { label: '错误', value: 'error' },
-                    ]"
-                    push
-                    glossy
-                    rounded
-                    dense
-                    unelevated
-                    class="text-2xs"
-                    toggle-color="primary"
-                    color="grey-9"
-                    text-color="white"
-                  />
+                  <q-btn-toggle v-model="statusFilter" :options="[
+                    { label: '全部', value: 'all' },
+                    { label: '运行中', value: 'running' },
+                    { label: '已暂停', value: 'paused' },
+                    { label: '等待触发', value: 'waiting-trigger' },
+                    { label: '等待执行', value: 'waiting-schedule' },
+                    { label: '错误', value: 'error' },
+                  ]" push glossy rounded dense unelevated class="text-2xs" toggle-color="primary" color="grey-9"
+                    text-color="white" />
                 </div>
               </div>
             </div>
 
             <!-- 任务列表 -->
-            <div
-              class="flex-1 bg-industrial-secondary rounded-md shadow-md border border-industrial overflow-hidden"
-            >
+            <div class="flex-1 bg-industrial-secondary rounded-md shadow-md border border-industrial overflow-hidden">
               <div class="task-list overflow-auto" style="max-height: 400px">
                 <div v-if="filteredTasks.length === 0" class="empty-state p-8 text-center">
                   <q-icon name="info" color="blue-grey" size="lg" class="mb-4" />
@@ -303,23 +242,16 @@ onBeforeUnmount(() => {
                   </p>
                 </div>
 
-                <div
-                  v-for="task in filteredTasks"
-                  :key="task.id"
+                <div v-for="task in filteredTasks" :key="task.id"
                   class="task-item p-3 border-b border-industrial hover:bg-industrial-highlight"
                   :class="{ 'bg-industrial-highlight': selectedTaskId === task.id }"
-                  @click="handleTaskAction('select', task.id)"
-                >
+                  @click="handleTaskAction('select', task.id)">
                   <div class="flex justify-between items-start">
                     <!-- 任务信息 -->
                     <div class="flex-1 min-w-0">
                       <!-- 任务标题行 -->
                       <div class="flex items-center">
-                        <q-icon
-                          :name="taskTypeIcons[task.type]"
-                          class="text-blue-5 mr-2"
-                          size="sm"
-                        />
+                        <q-icon :name="taskTypeIcons[task.type]" class="text-blue-5 mr-2" size="sm" />
                         <span class="text-industrial-primary text-sm font-medium truncate">
                           {{ task.name }}
                         </span>
@@ -335,26 +267,17 @@ onBeforeUnmount(() => {
                       <div class="mt-2 flex items-center">
                         <template v-if="task.progress">
                           <!-- 通用进度信息 -->
-                          <div
-                            v-if="task.status === 'running' || task.status === 'paused'"
-                            class="flex-1 mr-4"
-                          >
-                            <q-linear-progress
-                              :value="(task.progress.percentage || 0) / 100"
-                              :color="task.status === 'paused' ? 'orange' : 'primary'"
-                              size="sm"
-                              class="mb-2"
-                            />
+                          <div v-if="task.status === 'running' || task.status === 'paused'" class="flex-1 mr-4">
+                            <q-linear-progress :value="(task.progress.percentage || 0) / 100"
+                              :color="task.status === 'paused' ? 'orange' : 'primary'" size="sm" class="mb-2" />
                             <div class="flex justify-between">
                               <span class="text-xs text-industrial-secondary">
-                                <template
-                                  v-if="
-                                    task.type.includes('timed') &&
-                                    task.config &&
-                                    'isInfinite' in task.config &&
-                                    task.config.isInfinite
-                                  "
-                                >
+                                <template v-if="
+                                  task.type.includes('timed') &&
+                                  task.config &&
+                                  'isInfinite' in task.config &&
+                                  task.config.isInfinite
+                                ">
                                   已执行 {{ task.progress.currentCount }} 次
                                 </template>
                                 <template v-else>
@@ -368,30 +291,22 @@ onBeforeUnmount(() => {
                           </div>
 
                           <!-- 定时任务特有信息 -->
-                          <div
-                            v-if="task.type.includes('timed') && task.status === 'running'"
-                            class="text-xs text-blue-400"
-                          >
+                          <div v-if="task.type.includes('timed') && task.status === 'running'"
+                            class="text-xs text-blue-400">
                             下次发送: {{ calculateRemainingTime(task) }}
                           </div>
 
                           <!-- 触发任务特有信息 -->
-                          <div
-                            v-if="
-                              task.type.includes('triggered') && task.status === 'waiting-trigger'
-                            "
-                            class="text-xs text-purple-400"
-                          >
+                          <div v-if="
+                            task.type.includes('triggered') && task.status === 'waiting-trigger'
+                          " class="text-xs text-purple-400">
                             等待触发条件满足
                           </div>
 
                           <!-- 时间触发任务特有信息 -->
-                          <div
-                            v-if="
-                              task.type.includes('triggered') && task.status === 'waiting-schedule'
-                            "
-                            class="text-xs text-indigo-400"
-                          >
+                          <div v-if="
+                            task.type.includes('triggered') && task.status === 'waiting-schedule'
+                          " class="text-xs text-indigo-400">
                             {{
                               calculateRemainingTime(task)
                                 ? `将在 ${calculateRemainingTime(task)} 执行`
@@ -401,14 +316,11 @@ onBeforeUnmount(() => {
                         </template>
 
                         <!-- 运行时长 -->
-                        <div
-                          v-if="
-                            task.status === 'running' ||
-                            task.status === 'waiting-trigger' ||
-                            task.status === 'waiting-schedule'
-                          "
-                          class="text-xs text-industrial-secondary ml-auto"
-                        >
+                        <div v-if="
+                          task.status === 'running' ||
+                          task.status === 'waiting-trigger' ||
+                          task.status === 'waiting-schedule'
+                        " class="text-xs text-industrial-secondary ml-auto">
                           运行: {{ calculateDuration(task) }}
                         </div>
 
@@ -423,97 +335,48 @@ onBeforeUnmount(() => {
                     <div class="ml-4 flex items-center">
                       <!-- 运行中任务的操作 -->
                       <template v-if="task.status === 'running'">
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="pause"
-                          color="orange"
-                          @click.stop="handleTaskAction('pause', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="pause" color="orange"
+                          @click.stop="handleTaskAction('pause', task.id)">
                           <q-tooltip>暂停</q-tooltip>
                         </q-btn>
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="stop"
-                          color="negative"
-                          @click.stop="handleTaskAction('stop', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="stop" color="negative"
+                          @click.stop="handleTaskAction('stop', task.id)">
                           <q-tooltip>停止</q-tooltip>
                         </q-btn>
                       </template>
 
                       <!-- 暂停任务的操作 -->
                       <template v-else-if="task.status === 'paused'">
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="play_arrow"
-                          color="positive"
-                          @click.stop="handleTaskAction('resume', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="play_arrow" color="positive"
+                          @click.stop="handleTaskAction('resume', task.id)">
                           <q-tooltip>继续</q-tooltip>
                         </q-btn>
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="stop"
-                          color="negative"
-                          @click.stop="handleTaskAction('stop', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="stop" color="negative"
+                          @click.stop="handleTaskAction('stop', task.id)">
                           <q-tooltip>停止</q-tooltip>
                         </q-btn>
                       </template>
 
                       <!-- 等待触发任务的操作 -->
                       <template v-else-if="task.status === 'waiting-trigger'">
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="stop"
-                          color="negative"
-                          @click.stop="handleTaskAction('stop', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="stop" color="negative"
+                          @click.stop="handleTaskAction('stop', task.id)">
                           <q-tooltip>停止监听</q-tooltip>
                         </q-btn>
                       </template>
 
                       <!-- 等待时间触发任务的操作 -->
                       <template v-else-if="task.status === 'waiting-schedule'">
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="stop"
-                          color="negative"
-                          @click.stop="handleTaskAction('stop', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="stop" color="negative"
+                          @click.stop="handleTaskAction('stop', task.id)">
                           <q-tooltip>停止定时</q-tooltip>
                         </q-btn>
                       </template>
 
                       <!-- 错误任务的操作 -->
                       <template v-else-if="task.status === 'error'">
-                        <q-btn
-                          flat
-                          dense
-                          round
-                          size="sm"
-                          icon="refresh"
-                          color="blue"
-                          @click.stop="handleTaskAction('start', task.id)"
-                        >
+                        <q-btn flat dense round size="sm" icon="refresh" color="blue"
+                          @click.stop="handleTaskAction('start', task.id)">
                           <q-tooltip>重试</q-tooltip>
                         </q-btn>
                       </template>
@@ -523,10 +386,7 @@ onBeforeUnmount(() => {
               </div>
 
               <!-- 底部错误提示 -->
-              <div
-                v-if="processingError"
-                class="p-3 bg-red-900 bg-opacity-20 border-t border-red-800"
-              >
+              <div v-if="processingError" class="p-3 bg-red-900 bg-opacity-20 border-t border-red-800">
                 <div class="flex items-start">
                   <q-icon name="error" color="negative" size="sm" class="mt-0.5 mr-2" />
                   <div class="text-xs text-red-400">

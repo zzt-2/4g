@@ -29,16 +29,10 @@ const selectedTargetId = ref<string>('');
 const { createTimedSingleTask, startTask, stopTask, isProcessing, processingError } =
   useSendTaskManager();
 
-// 当前选中的实例
-const currentInstance = computed(() => {
-  if (!props.instanceId) return null;
-  return sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId) || null;
-});
-
 // 当前实例的策略配置
 const currentStrategyConfig = computed((): InstanceStrategyConfig => {
   return (
-    currentInstance.value?.strategyConfig ||
+    sendFrameInstancesStore.currentInstance?.strategyConfig ||
     ({
       type: 'none',
       updatedAt: new Date().toISOString(),
@@ -72,7 +66,7 @@ watch(
     if (!instanceId) return;
 
     if (config.type === 'timed' && config.timedConfig) {
-      interval.value = config.timedConfig.sendInterval || 1000;
+      interval.value = config.timedConfig.sendInterval;
       repeatCount.value = config.timedConfig.repeatCount || 1;
       isInfinite.value = config.timedConfig.isInfinite || false;
       // 同步目标选择
@@ -95,22 +89,22 @@ watch(
 
 // 更新实例策略配置
 function updateInstanceStrategyConfig(config: Partial<InstanceStrategyConfig>) {
-  if (!currentInstance.value) return;
+  if (!sendFrameInstancesStore.currentInstance) return;
 
-  if (!currentInstance.value.strategyConfig) {
-    currentInstance.value.strategyConfig = {
+  if (!sendFrameInstancesStore.currentInstance.strategyConfig) {
+    sendFrameInstancesStore.currentInstance.strategyConfig = {
       type: 'none',
       updatedAt: new Date().toISOString(),
     };
   }
 
   // 直接修改实例配置
-  Object.assign(currentInstance.value.strategyConfig, config, {
+  Object.assign(sendFrameInstancesStore.currentInstance.strategyConfig, config, {
     updatedAt: new Date().toISOString(),
   });
 
   // 触发实例更新（会自动保存）
-  sendFrameInstancesStore.updateInstance(currentInstance.value);
+  sendFrameInstancesStore.updateInstance(sendFrameInstancesStore.currentInstance);
 }
 
 // 设置定时配置
@@ -149,7 +143,6 @@ const currentTaskId = ref<string | null>(null);
 const canStartSend = computed(() => {
   return (
     !isSending.value &&
-    interval.value > 0 &&
     (isInfinite.value || repeatCount.value > 0) &&
     selectedTargetId.value !== ''
   );
@@ -228,7 +221,7 @@ function continueTaskInBackground() {
 
 // 开始定时发送
 async function startTimedSend() {
-  if (!canStartSend.value || !currentInstance.value) return;
+  if (!canStartSend.value || !sendFrameInstancesStore.currentInstance) return;
 
   isSending.value = true;
   currentCount.value = 0;
@@ -244,7 +237,7 @@ async function startTimedSend() {
     isInfinite: isInfinite.value,
     selectedTargetId: selectedTargetId.value,
     instanceId: props.instanceId,
-    instanceLabel: currentInstance.value.label,
+    instanceLabel: sendFrameInstancesStore.currentInstance.label,
   });
 
   try {
@@ -255,7 +248,7 @@ async function startTimedSend() {
       interval.value,
       repeatCount.value,
       isInfinite.value,
-      `定时发送-${currentInstance.value.label}`,
+      `定时发送-${sendFrameInstancesStore.currentInstance.label}`,
     );
 
     console.log('TimedSendDialog - 创建任务结果:', { taskId });
@@ -292,7 +285,7 @@ function stopTimedSend() {
 </script>
 
 <template>
-  <div class="timed-send-dialog h-full w-full">
+  <div class=" h-full w-full">
     <div class="flex flex-col h-full bg-industrial-panel p-4">
       <!-- 标题信息 -->
       <div class="mb-4">
@@ -303,7 +296,7 @@ function stopTimedSend() {
               定时发送设置
             </h2>
             <div class="text-xs text-industrial-secondary mt-1 ml-6">
-              {{ currentInstance?.label || '选中帧实例' }} - 设置定时重复发送参数
+              {{ sendFrameInstancesStore.currentInstance?.label || '选中帧实例' }} - 设置定时重复发送参数
             </div>
           </div>
         </div>
@@ -319,32 +312,16 @@ function stopTimedSend() {
               <span>发送目标</span>
             </div>
 
-            <q-select
-              v-model="selectedTargetId"
-              :options="connectionTargetsStore.availableTargets"
-              option-value="id"
-              option-label="name"
-              dense
-              outlined
-              emit-value
-              map-options
-              dark
-              bg-color="rgba(18, 35, 63, 0.7)"
-              class="w-full"
-              :disable="isSending || isProcessing"
-              input-class="py-0.5 px-1"
-              hide-bottom-space
-            >
+            <q-select v-model="selectedTargetId" :options="connectionTargetsStore.availableTargets" option-value="id"
+              option-label="name" dense outlined emit-value map-options dark bg-color="rgba(18, 35, 63, 0.7)"
+              class="w-full" :disable="isSending || isProcessing" input-class="py-0.5 px-1" hide-bottom-space>
               <template #option="scope">
                 <q-item v-bind="scope.itemProps">
                   <q-item-section>
                     <q-item-label>{{ scope.opt.name }}</q-item-label>
                     <q-item-label caption>
-                      <span
-                        :class="
-                          scope.opt.status === 'connected' ? 'text-positive' : 'text-negative'
-                        "
-                      >
+                      <span :class="scope.opt.status === 'connected' ? 'text-positive' : 'text-negative'
+                        ">
                         {{ scope.opt.status === 'connected' ? '已连接' : '未连接' }}
                       </span>
                       <span v-if="scope.opt.description" class="ml-2 text-industrial-tertiary">
@@ -354,17 +331,12 @@ function stopTimedSend() {
                   </q-item-section>
 
                   <q-item-section side>
-                    <q-icon
-                      :name="
-                        scope.opt.type === 'serial'
-                          ? 'usb'
-                          : scope.opt.type === 'network'
-                            ? 'lan'
-                            : 'device_hub'
-                      "
-                      size="xs"
-                      class="text-blue-5"
-                    />
+                    <q-icon :name="scope.opt.type === 'serial'
+                      ? 'usb'
+                      : scope.opt.type === 'network'
+                        ? 'lan'
+                        : 'device_hub'
+                      " size="xs" class="text-blue-5" />
                   </q-item-section>
                 </q-item>
               </template>
@@ -381,21 +353,8 @@ function stopTimedSend() {
             </div>
 
             <div class="flex items-center">
-              <q-input
-                v-model.number="interval"
-                type="number"
-                min="100"
-                max="60000"
-                dense
-                outlined
-                dark
-                bg-color="rgba(18, 35, 63, 0.7)"
-                class="w-24"
-                :rules="[(val) => val > 0 || '必须大于0']"
-                :disable="isSending || isProcessing"
-                input-class="py-0.5 px-1"
-                hide-bottom-space
-              />
+              <q-input v-model.number="interval" dense outlined dark bg-color="rgba(18, 35, 63, 0.7)" class="w-24"
+                :disable="isSending || isProcessing" input-class="py-0.5 px-1" hide-bottom-space />
               <span class="ml-2 text-xs text-industrial-secondary">毫秒</span>
             </div>
           </div>
@@ -410,31 +369,13 @@ function stopTimedSend() {
             </div>
 
             <div class="flex items-center h-[40px]">
-              <q-checkbox
-                v-model="isInfinite"
-                dark
-                dense
-                :disable="isSending || isProcessing"
-                label="无限循环"
-                class="text-xs text-industrial-primary mr-4"
-              />
+              <q-checkbox v-model="isInfinite" dark dense :disable="isSending || isProcessing" label="无限循环"
+                class="text-xs text-industrial-primary mr-4" />
 
               <div v-if="!isInfinite" class="flex items-center">
-                <q-input
-                  v-model.number="repeatCount"
-                  type="number"
-                  min="1"
-                  max="10000"
-                  dense
-                  outlined
-                  dark
-                  bg-color="rgba(18, 35, 63, 0.7)"
-                  class="w-24"
-                  :rules="[(val) => val > 0 || '必须大于0']"
-                  :disable="isSending || isProcessing"
-                  input-class="py-0.5 px-1"
-                  hide-bottom-space
-                />
+                <q-input v-model.number="repeatCount" min="1" max="10000" dense outlined dark
+                  bg-color="rgba(18, 35, 63, 0.7)" class="w-24" :rules="[(val) => val > 0 || '必须大于0']"
+                  :disable="isSending || isProcessing" input-class="py-0.5 px-1" hide-bottom-space />
                 <span class="ml-2 text-xs text-industrial-secondary">次</span>
               </div>
             </div>
@@ -442,10 +383,8 @@ function stopTimedSend() {
         </div>
 
         <!-- 错误信息 -->
-        <div
-          v-if="sendError || processingError"
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800"
-        >
+        <div v-if="sendError || processingError"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800">
           <div class="flex items-start">
             <q-icon name="error" color="negative" size="sm" class="mt-0.5 mr-2" />
             <div class="text-xs text-red-400">
@@ -455,10 +394,8 @@ function stopTimedSend() {
         </div>
 
         <!-- 发送进度 -->
-        <div
-          v-if="isSending || currentTask"
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-blue-800"
-        >
+        <div v-if="isSending || currentTask"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-blue-800">
           <div class="text-xs font-medium text-industrial-primary mb-2 flex items-center">
             <q-icon name="trending_up" size="xs" class="mr-1 text-blue-5" />
             发送进度
@@ -469,10 +406,8 @@ function stopTimedSend() {
             <div v-if="!isInfinite" class="flex items-center">
               <div class="text-xs text-industrial-secondary w-16">进度:</div>
               <div class="flex-1 bg-industrial-primary rounded-full h-2 mx-2">
-                <div
-                  class="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  :style="{ width: `${progress}%` }"
-                ></div>
+                <div class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  :style="{ width: `${progress}%` }"></div>
               </div>
               <div class="text-xs text-industrial-accent w-12">{{ progress }}%</div>
             </div>
@@ -488,15 +423,12 @@ function stopTimedSend() {
             <!-- 任务状态 -->
             <div class="flex items-center">
               <div class="text-xs text-industrial-secondary w-16">状态:</div>
-              <div
-                class="text-xs"
-                :class="{
-                  'text-blue-400': currentTask?.status === 'running',
-                  'text-green-400': currentTask?.status === 'completed',
-                  'text-red-400': currentTask?.status === 'error',
-                  'text-gray-400': currentTask?.status === 'idle',
-                }"
-              >
+              <div class="text-xs" :class="{
+                'text-blue-400': currentTask?.status === 'running',
+                'text-green-400': currentTask?.status === 'completed',
+                'text-red-400': currentTask?.status === 'error',
+                'text-gray-400': currentTask?.status === 'idle',
+              }">
                 {{
                   currentTask?.status === 'running'
                     ? '运行中'
@@ -514,42 +446,22 @@ function stopTimedSend() {
 
       <!-- 按钮区域 -->
       <div class="flex justify-between mt-3 pt-3 border-t border-industrial">
-        <q-btn
-          flat
-          label="关闭"
-          color="blue-grey"
+        <q-btn flat label="关闭" color="blue-grey"
           class="rounded-md px-4 bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 text-xs"
-          @click="handleClose"
-          :disable="isProcessing"
-        />
+          @click="handleClose" :disable="isProcessing" />
         <div class="flex gap-2">
           <!-- 停止按钮 -->
-          <q-btn
-            v-if="isSending"
-            color="negative"
-            icon="stop"
-            label="停止发送"
-            class="rounded-md px-4 text-xs"
-            @click="stopTimedSend"
-            :disable="isProcessing"
-          />
+          <q-btn v-if="isSending" color="negative" icon="stop" label="停止发送" class="rounded-md px-4 text-xs"
+            @click="stopTimedSend" :disable="isProcessing" />
           <!-- 开始按钮 -->
-          <q-btn
-            v-else
-            color="primary"
-            icon="schedule"
-            label="开始定时发送"
-            class="rounded-md px-4 text-xs"
-            @click="startTimedSend"
-            :disable="!canStartSend || isProcessing"
-            :loading="isProcessing"
-          />
+          <q-btn v-else color="primary" icon="schedule" label="开始定时发送" class="rounded-md px-4 text-xs"
+            @click="startTimedSend" :disable="!canStartSend || isProcessing" :loading="isProcessing" />
         </div>
       </div>
     </div>
 
     <!-- 任务继续确认对话框 -->
-    <q-dialog v-model="showTaskDialog" persistent>
+    <q-dialog v-model="showTaskDialog">
       <q-card class="bg-industrial-panel border border-industrial">
         <q-card-section class="row items-center">
           <q-icon name="task_alt" color="primary" size="md" class="q-mr-sm" />
@@ -570,12 +482,7 @@ function stopTimedSend() {
 
         <q-card-actions align="right" class="bg-industrial-secondary">
           <q-btn flat label="停止任务" color="negative" @click="stopTaskAndClose" class="text-xs" />
-          <q-btn
-            label="后台运行"
-            color="primary"
-            @click="continueTaskInBackground"
-            class="text-xs"
-          />
+          <q-btn label="后台运行" color="primary" @click="continueTaskInBackground" class="text-xs" />
         </q-card-actions>
       </q-card>
     </q-dialog>

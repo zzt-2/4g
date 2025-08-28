@@ -2,25 +2,62 @@
   {
     "groups": [
       {
-        "id": 1,
-        "label": "1",
+        "id": 4,
+        "label": "第1路",
         "dataItems": [
           {
-            "label": "有效bit数",
-            "isVisible": true,
+            "label": "LocOp",
+            "isVisible": false,
             "isFavorite": false,
-            "dataType": "uint32",
+            "dataType": "uint8",
             "value": null,
             "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 1
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "C18"
+              },
+              {
+                "value": "0x55",
+                "label": "C46"
+              }
+            ],
+            "id": 12
           },
           {
-            "label": "接收包计数",
-            "isVisible": true,
+            "label": "SigOp",
+            "isVisible": false,
             "isFavorite": false,
-            "dataType": "uint32",
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0x000000A0",
+                "label": "激光器复位，需要重新发送开关波长控制指令及初始化控制指令"
+              },
+              {
+                "value": "0x00000000",
+                "label": "无效"
+              },
+              {
+                "value": "0xCC",
+                "label": "C18调制"
+              },
+              {
+                "value": "0xDD",
+                "label": "C46调制"
+              }
+            ],
+            "id": 2
+          },
+          {
+            "label": "信号光发射衰减",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "float",
             "value": null,
             "displayValue": "",
             "useLabel": false,
@@ -28,109 +65,386 @@
             "id": 3
           },
           {
-            "label": "误码bit数",
-            "isVisible": true,
+            "label": "信号光接收衰减",
+            "isVisible": false,
             "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 2
-          },
-          {
-            "label": "有效bit数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 5
-          },
-          {
-            "label": "接收包计数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 7
-          },
-          {
-            "label": "错误包计数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 8
-          },
-          {
-            "label": "误码bit数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 6
-          }
-        ]
-      },
-      {
-        "id": 2,
-        "label": "测试分组",
-        "dataItems": [
-          {
-            "label": "测试接收1累加",
-            "isVisible": true,
-            "isFavorite": true,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 3
-          },
-          {
-            "label": "等于测试数据1*2",
-            "isVisible": true,
-            "isFavorite": true,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 2
-          },
-          {
-            "label": "测试数据1",
-            "isVisible": true,
-            "isFavorite": true,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 1
-          },
-          {
-            "label": "测试接收1+测试接收1*2",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
+            "dataType": "float",
             "value": null,
             "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 4
+          },
+          {
+            "label": "光开关1状态",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "STATE_A"
+              },
+              {
+                "value": "0x55",
+                "label": "STATE_B"
+              }
+            ],
+            "id": 9
+          },
+          {
+            "label": "光开关2状态",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "STATE_A"
+              },
+              {
+                "value": "0x55",
+                "label": "STATE_B"
+              }
+            ],
+            "id": 6
+          },
+          {
+            "label": "光开关3状态",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "STATE_A"
+              },
+              {
+                "value": "0x55",
+                "label": "STATE_B"
+              }
+            ],
+            "id": 7
+          },
+          {
+            "label": "复位告知指令",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "bytes",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0x000000A0",
+                "label": "激光器复位，需要重新发送开关波长控制指令及初始化控制指令"
+              },
+              {
+                "value": "0x00000000",
+                "label": "无效"
+              }
+            ],
+            "id": 8
+          },
+          {
+            "label": "信号光发射衰减-接收数据",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 10
+          },
+          {
+            "label": "信号光接收衰减-接收数据",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 11
+          },
+          {
+            "label": "信号功率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 13
+          },
+          {
+            "label": "频偏估计值",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "int32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 14
+          },
+          {
+            "label": "编码方式",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 28
+          },
+          {
+            "label": "发送速率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "5G"
+              },
+              {
+                "value": "1",
+                "label": "2.5G"
+              },
+              {
+                "value": "2",
+                "label": "1.25G"
+              },
+              {
+                "value": "3",
+                "label": "625M"
+              },
+              {
+                "value": "4",
+                "label": "312.5M"
+              },
+              {
+                "value": "5",
+                "label": "1.2582912G"
+              },
+              {
+                "value": "6",
+                "label": "629.1456M"
+              },
+              {
+                "value": "7",
+                "label": "314.5728M"
+              }
+            ],
+            "id": 15
+          },
+          {
+            "label": "接收速率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "-",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "4",
+                "label": "5G"
+              },
+              {
+                "value": "3",
+                "label": "2.5G"
+              },
+              {
+                "value": "2",
+                "label": "1.25G"
+              },
+              {
+                "value": "1",
+                "label": "625M"
+              },
+              {
+                "value": "0",
+                "label": "312.5M"
+              },
+              {
+                "value": "7",
+                "label": "1.2582912G"
+              },
+              {
+                "value": "6",
+                "label": "629.1456M"
+              },
+              {
+                "value": "5",
+                "label": "314.5728M"
+              }
+            ],
+            "id": 35
+          },
+          {
+            "label": "载波同步锁定",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未锁定"
+              },
+              {
+                "value": "1",
+                "label": "锁定"
+              }
+            ],
+            "id": 17
+          },
+          {
+            "label": "定时同步锁定",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未锁定"
+              },
+              {
+                "value": "1",
+                "label": "锁定"
+              }
+            ],
+            "id": 18
+          },
+          {
+            "label": "帧同步锁定",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未锁定"
+              },
+              {
+                "value": "1",
+                "label": "锁定"
+              }
+            ],
+            "id": 19
+          },
+          {
+            "label": "译码前总bit数",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint64",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 20
+          },
+          {
+            "label": "译码前误bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint64",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 21
+          },
+          {
+            "label": "译码后总bit数",
+            "isVisible": false,
+            "isFavorite": false,
+            "dataType": "uint64",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 22
+          },
+          {
+            "label": "译码后误bit数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint64",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 23
+          },
+          {
+            "label": "帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 24
+          },
+          {
+            "label": "数据帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 26
+          },
+          {
+            "label": "误帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 25
+          },
+          {
+            "label": "数据误帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 27
           },
           {
             "label": "粗测距",
@@ -141,7 +455,7 @@
             "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
-            "id": 5
+            "id": 29
           },
           {
             "label": "细测距",
@@ -152,10 +466,10 @@
             "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
-            "id": 6
+            "id": 30
           },
           {
-            "label": "测距值",
+            "label": "测距值(ps)",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
@@ -163,174 +477,314 @@
             "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
-            "id": 7
+            "id": 31
           },
           {
-            "label": "字节数组",
+            "label": "测距值(cm)",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 32
+          },
+          {
+            "label": "测距值(m)",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 33
+          },
+          {
+            "label": "测距值(km)",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 34
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "label": "星座图",
+        "dataItems": [
+          {
+            "label": "I路",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "bytes",
             "value": null,
-            "displayValue": "",
+            "displayValue": "-",
             "useLabel": false,
             "labelOptions": [],
-            "id": 8
+            "id": 1
           },
           {
-            "label": "1",
+            "label": "Q路",
             "isVisible": true,
             "isFavorite": false,
-            "dataType": "uint32",
-            "value": 305419947,
-            "displayValue": "305419947",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 9
-          },
-          {
-            "label": "2",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint16",
+            "dataType": "bytes",
             "value": null,
-            "displayValue": "数据不足",
+            "displayValue": "-",
             "useLabel": false,
             "labelOptions": [],
-            "id": 10
+            "id": 2
           }
         ]
       }
     ],
     "mappings": [
       {
-        "frameId": "zcy005",
-        "fieldId": "rNI9EboJe95pTDoyg3rwg",
-        "fieldName": "有效bit数",
-        "groupId": 1,
-        "dataItemId": 1
-      },
-      {
-        "frameId": "zcy005",
-        "fieldId": "5OqesYSuLuft_OuSmJUDH",
-        "fieldName": "误码bit数",
-        "groupId": 1,
+        "frameId": "JGXT_R002",
+        "fieldId": "6GXQ9w-i70bKFBHq_3vfO",
+        "fieldName": "SigOp",
+        "groupId": 4,
         "dataItemId": 2
       },
       {
-        "frameId": "zcy005",
-        "fieldId": "_EejzGCKnRp-h4MbNzTT0",
-        "fieldName": "接收包计数",
-        "groupId": 1,
+        "frameId": "JGXT_R002",
+        "fieldId": "szeDR6q_L6IPqxgkNCbov",
+        "fieldName": "信号光发射衰减",
+        "groupId": 4,
         "dataItemId": 3
       },
       {
-        "frameId": "zcy0006",
-        "fieldId": "rNI9EboJe95pTDoyg3rwg",
-        "fieldName": "有效bit数",
-        "groupId": 1,
-        "dataItemId": 5
-      },
-      {
-        "frameId": "zcy0006",
-        "fieldId": "5OqesYSuLuft_OuSmJUDH",
-        "fieldName": "误码bit数",
-        "groupId": 1,
-        "dataItemId": 6
-      },
-      {
-        "frameId": "zcy0006",
-        "fieldId": "_EejzGCKnRp-h4MbNzTT0",
-        "fieldName": "接收包计数",
-        "groupId": 1,
-        "dataItemId": 7
-      },
-      {
-        "frameId": "zcy0006",
-        "fieldId": "gIYn1NpCfNSX2Gi0ZwipF",
-        "fieldName": "错误包计数",
-        "groupId": 1,
-        "dataItemId": 8
-      },
-      {
-        "frameId": "t7CRbZb174ATzxs94xQSe",
-        "fieldId": "5OqesYSuLuft_OuSmJUDH",
-        "fieldName": "误码bit数",
-        "groupId": 1,
-        "dataItemId": 9
-      },
-      {
-        "frameId": "test002",
-        "fieldId": "IRAI7ST9vm3wKs0QBHPTG",
-        "fieldName": "测试数据1",
-        "groupId": 2,
-        "dataItemId": 1
-      },
-      {
-        "frameId": "test002",
-        "fieldId": "sXPvFmFXfavlm--geg9Kb",
-        "fieldName": "等于测试数据1*2",
-        "groupId": 2,
-        "dataItemId": 2
-      },
-      {
-        "frameId": "test002",
-        "fieldId": "340LYOzVTf81_koKFk61G",
-        "fieldName": "测试接收1累加",
-        "groupId": 2,
-        "dataItemId": 3
-      },
-      {
-        "frameId": "test002",
-        "fieldId": "JM8m01K6f24XG762G5uvL",
-        "fieldName": "测试接收1+测试接收1*2",
-        "groupId": 2,
+        "frameId": "JGXT_R002",
+        "fieldId": "SgoBqHial8bTUijpvPGgx",
+        "fieldName": "信号光接收衰减",
+        "groupId": 4,
         "dataItemId": 4
       },
       {
-        "frameId": "test002",
-        "fieldId": "w_2-a6-JN8wt4knTqlCcy",
-        "fieldName": "粗测距",
-        "groupId": 2,
-        "dataItemId": 5
-      },
-      {
-        "frameId": "test002",
-        "fieldId": "KOIag-beRSJgPl_CJHLXJ",
-        "fieldName": "细测距",
-        "groupId": 2,
+        "frameId": "JGXT_R002",
+        "fieldId": "yso_3XV26Rk5nQmFE6oSj",
+        "fieldName": "光开关2状态",
+        "groupId": 4,
         "dataItemId": 6
       },
       {
-        "frameId": "test002",
-        "fieldId": "HdlG7MBElod851yzesrdD",
-        "fieldName": "测距值",
-        "groupId": 2,
+        "frameId": "JGXT_R002",
+        "fieldId": "O5AtEwJ5YNvFU6nuMhb3r",
+        "fieldName": "光开关3状态",
+        "groupId": 4,
         "dataItemId": 7
       },
       {
-        "frameId": "testreceive",
-        "fieldId": "rOhIaQKGl3Z19Gqwjmy6t",
-        "fieldName": "字节数组",
-        "groupId": 2,
+        "frameId": "JGXT_R002",
+        "fieldId": "bUJ4w_NHdeDORgyG4iKiq",
+        "fieldName": "复位告知指令",
+        "groupId": 4,
         "dataItemId": 8
       },
       {
-        "frameId": "I4GB89WE47Z-WrHzpXKUK",
-        "fieldId": "sRaOMCdljphLlPKnUCMqv",
-        "fieldName": "1",
-        "groupId": 2,
+        "frameId": "JGXT_R002",
+        "fieldId": "jPVLCHXj1FGdgCm9EYx-m",
+        "fieldName": "光开关1状态",
+        "groupId": 4,
         "dataItemId": 9
       },
       {
-        "frameId": "I4GB89WE47Z-WrHzpXKUK",
-        "fieldId": "Fy-m9jzqHH62NEIzp6y7m",
-        "fieldName": "2",
-        "groupId": 2,
+        "frameId": "JGXT_R002",
+        "fieldId": "tvGS_fTyn_dxPgc9VHXxu",
+        "fieldName": "信号光发射衰减-接收数据",
+        "groupId": 4,
         "dataItemId": 10
+      },
+      {
+        "frameId": "JGXT_R002",
+        "fieldId": "auhk_5C15R-qd_pOmgKKx",
+        "fieldName": "信号光接收衰减-接收数据",
+        "groupId": 4,
+        "dataItemId": 11
+      },
+      {
+        "frameId": "JGXT_R002",
+        "fieldId": "N2QblvSF0-97n2PXceq7Y",
+        "fieldName": "LocOp",
+        "groupId": 4,
+        "dataItemId": 12
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "Y1uW6Ez-IPtiBuoQ20CIn",
+        "fieldName": "信号功率",
+        "groupId": 4,
+        "dataItemId": 13
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "Fod-V0Bm5_zK56vSBfiWk",
+        "fieldName": "频偏估计值",
+        "groupId": 4,
+        "dataItemId": 14
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "zEnfG5hlybqqEbAZcHSCM",
+        "fieldName": "发送速率",
+        "groupId": 4,
+        "dataItemId": 15
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "3xPfL_f-gaBVXbRvIup3_",
+        "fieldName": "载波同步锁定",
+        "groupId": 4,
+        "dataItemId": 17
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "UXRgtQ24V5_7jCM1kuO2E",
+        "fieldName": "定时同步锁定",
+        "groupId": 4,
+        "dataItemId": 18
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "bgG0kbU1mUwt5Z8chmP26",
+        "fieldName": "帧同步锁定",
+        "groupId": 4,
+        "dataItemId": 19
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "tELTPm2DsSLG2bAhjCZbR",
+        "fieldName": "译码前总bit数",
+        "groupId": 4,
+        "dataItemId": 20
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "NtNNkamVYldFab8TK5A4t",
+        "fieldName": "译码前误bit数",
+        "groupId": 4,
+        "dataItemId": 21
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "tmh5HQ23r1zhSspq6CuN1",
+        "fieldName": "译码后总bit数",
+        "groupId": 4,
+        "dataItemId": 22
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "sA4z6hA3aQ3gHXEq3zXMW",
+        "fieldName": "译码后误bit数",
+        "groupId": 4,
+        "dataItemId": 23
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "33InXLTXC71FZ4VW_zk8g",
+        "fieldName": "空口帧计数",
+        "groupId": 4,
+        "dataItemId": 24
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "iIB4tEcHLQOtpE1Cdb7iK",
+        "fieldName": "空口误帧计数",
+        "groupId": 4,
+        "dataItemId": 25
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "oRZGE5LekXs1oVTAnVSRK",
+        "fieldName": "数据帧计数",
+        "groupId": 4,
+        "dataItemId": 26
+      },
+      {
+        "frameId": "R-FPGA-001",
+        "fieldId": "TV5dTramA4FjayUqON-xj",
+        "fieldName": "数据误帧计数",
+        "groupId": 4,
+        "dataItemId": 27
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "pyifhB5kg03Zfn9qv76V4",
+        "fieldName": "编码方式",
+        "groupId": 4,
+        "dataItemId": 28
+      },
+      {
+        "frameId": "R-FPGA-002",
+        "fieldId": "j-dmYSVXrgu8wC5zNZt1F",
+        "fieldName": "粗测距",
+        "groupId": 4,
+        "dataItemId": 29
+      },
+      {
+        "frameId": "R-FPGA-002",
+        "fieldId": "JX2MEeV4X693PThKpyamK",
+        "fieldName": "细测距",
+        "groupId": 4,
+        "dataItemId": 30
+      },
+      {
+        "frameId": "R-FPGA-002",
+        "fieldId": "tmqTRTQnFCyXMeWjLPvDL",
+        "fieldName": "测距值(ps)",
+        "groupId": 4,
+        "dataItemId": 31
+      },
+      {
+        "frameId": "R-FPGA-002",
+        "fieldId": "WB6VdDI5yDfMzBev6HPqF",
+        "fieldName": "测距值(cm)",
+        "groupId": 4,
+        "dataItemId": 32
+      },
+      {
+        "frameId": "R-FPGA-002",
+        "fieldId": "W5y-_zgcauY4Z6wxuNvid",
+        "fieldName": "测距值(m) ",
+        "groupId": 4,
+        "dataItemId": 33
+      },
+      {
+        "frameId": "R-FPGA-002",
+        "fieldId": "1qJL21APaNV24sZPY_5Gj",
+        "fieldName": "测距值(km)  ",
+        "groupId": 4,
+        "dataItemId": 34
+      },
+      {
+        "frameId": "R-FPGA-003",
+        "fieldId": "K_zm7f9H0zDYTppA0unrX",
+        "fieldName": "接收速率",
+        "groupId": 4,
+        "dataItemId": 35
+      },
+      {
+        "frameId": "R-FPGA-004",
+        "fieldId": "5exNOfkwDQVST3YXVm4Ad",
+        "fieldName": "I路",
+        "groupId": 5,
+        "dataItemId": 1
+      },
+      {
+        "frameId": "R-FPGA-004",
+        "fieldId": "I0i6NHOgkMuWt9YbzUhq1",
+        "fieldName": "Q路",
+        "groupId": 5,
+        "dataItemId": 2
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-07-08T03:15:01.430Z",
-    "updatedAt": "2025-07-08T03:15:01.430Z"
+    "createdAt": "2025-08-22T06:49:22.448Z",
+    "updatedAt": "2025-08-22T06:49:22.448Z"
   }
 ]

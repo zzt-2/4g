@@ -2,21 +2,11 @@
   <div class="timed-config-panel space-y-4">
     <!-- 发送间隔配置 -->
     <div>
-      <q-input
-        :model-value="localConfig.sendInterval"
-        @update:model-value="updateSendInterval"
-        type="number"
-        label="发送间隔(毫秒)"
-        min="100"
-        step="100"
-        :rules="[
-          (val) => val >= 100 || '发送间隔不能小于100毫秒',
+      <q-input :model-value="localConfig.sendInterval" @update:model-value="updateSendInterval" type="number"
+        label="发送间隔(毫秒)" min="5" :rules="[
+          (val) => val >= 5 || '发送间隔不能小于5毫秒',
           (val) => val <= 3600000 || '发送间隔不能超过1小时',
-        ]"
-        class="bg-industrial-panel text-industrial-primary"
-        outlined
-        dense
-      >
+        ]" class="bg-industrial-panel text-industrial-primary" outlined dense>
         <template #append>
           <q-icon name="schedule" class="text-industrial-accent" />
         </template>
@@ -25,27 +15,12 @@
 
     <!-- 重复设置 -->
     <div class="space-y-2">
-      <q-checkbox
-        :model-value="localConfig.isInfinite"
-        @update:model-value="updateIsInfinite"
-        label="无限循环"
-        color="primary"
-        class="text-industrial-primary"
-      />
+      <q-checkbox :model-value="localConfig.isInfinite" @update:model-value="updateIsInfinite" label="无限循环"
+        color="primary" class="text-industrial-primary" />
 
-      <q-input
-        v-if="!localConfig.isInfinite"
-        :model-value="localConfig.repeatCount"
-        @update:model-value="updateRepeatCount"
-        type="number"
-        label="重复次数"
-        min="1"
-        step="1"
-        :rules="[(val) => val >= 1 || '重复次数必须大于0']"
-        class="bg-industrial-panel text-industrial-primary"
-        outlined
-        dense
-      >
+      <q-input v-if="!localConfig.isInfinite" :model-value="localConfig.repeatCount"
+        @update:model-value="updateRepeatCount" type="number" label="重复次数" min="1" step="1"
+        :rules="[(val) => val >= 1 || '重复次数必须大于0']" class="bg-industrial-panel text-industrial-primary" outlined dense>
         <template #append>
           <q-icon name="repeat" class="text-industrial-accent" />
         </template>
@@ -54,18 +29,9 @@
 
     <!-- 开始延时配置 -->
     <div>
-      <q-input
-        :model-value="localConfig.startDelay || 0"
-        @update:model-value="updateStartDelay"
-        type="number"
-        label="开始延时(毫秒)"
-        min="0"
-        step="100"
-        :rules="[(val) => val >= 0 || '延时不能为负数']"
-        class="bg-industrial-panel text-industrial-primary"
-        outlined
-        dense
-      >
+      <q-input :model-value="localConfig.startDelay || 0" @update:model-value="updateStartDelay" type="number"
+        label="开始延时(毫秒)" min="0" step="100" :rules="[(val) => val >= 0 || '延时不能为负数']"
+        class="bg-industrial-panel text-industrial-primary" outlined dense>
         <template #append>
           <q-icon name="timer" class="text-industrial-accent" />
         </template>
@@ -223,15 +189,15 @@ function applyPreset(interval: number, count: number, infinite = false) {
   min-width: 320px;
 }
 
-.space-y-4 > * + * {
+.space-y-4>*+* {
   margin-top: 1rem;
 }
 
-.space-y-2 > * + * {
+.space-y-2>*+* {
   margin-top: 0.5rem;
 }
 
-.space-y-1 > * + * {
+.space-y-1>*+* {
   margin-top: 0.25rem;
 }
 </style>

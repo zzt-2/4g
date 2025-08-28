@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useFrameTemplateStore } from '../stores/frames/frameTemplateStore';
 import { useSendFrameInstancesStore } from '../stores/frames/sendFrameInstancesStore';
 
@@ -14,7 +14,8 @@ import TriggerSendDialog from '../components/frames/FrameSend/TriggerSend/Trigge
 import EnhancedSequentialSendDialog from '../components/frames/FrameSend/EnhancedSequentialSend/EnhancedSequentialSendDialog.vue';
 import ActiveTasksMonitor from '../components/frames/FrameSend/ActiveTasksMonitor.vue';
 import ImportExportActions from '../components/common/ImportExportActions.vue';
-import { useStorage } from '@vueuse/core';
+import { useIntervalFn, useStorage } from '@vueuse/core';
+import { useNotification } from 'src/composables/frames/useNotification';
 // 导入将在稍后实现
 // import { frameToBuffer } from '../utils/frameUtils';
 
@@ -27,12 +28,20 @@ const selectedTargetId = useStorage<string>('sendTargetId', '');
 
 // 使用统一发送器
 const { sendFrameInstance, isTargetAvailable } = useUnifiedSender();
+const { notifySuccess } = useNotification();
 
 // 本地UI状态
 const searchQuery = ref('');
 const isSending = ref(false);
+const isBatchEdit = ref(false);
 const sendError = ref('');
 const sortEnabled = ref(false);
+
+// FrameInstanceList 组件引用
+const frameInstanceListRef = ref<{
+  forceRefreshTableData: () => void;
+  batchDeleteFrames: () => Promise<void>;
+} | null>(null);
 
 // 对话框状态
 const showTimedSendDialog = ref(false);
@@ -81,9 +90,14 @@ async function saveEditorDialog() {
     const result = await sendFrameInstancesStore.saveEditedInstance();
     if (result) {
       console.log('实例保存成功!');
+      sendFrameInstancesStore.updateSendStatsCache(result, false);
       // 关闭对话框
       sendFrameInstancesStore.showEditorDialog = false;
       sendFrameInstancesStore.isCreatingNewInstance = false;
+      sendFrameInstancesStore.isModifyingInstance = true;
+
+      // 刷新表格数据
+      frameInstanceListRef.value?.forceRefreshTableData();
     } else {
       console.warn('保存实例失败');
     }
@@ -109,15 +123,17 @@ async function sendCurrentInstance() {
     );
 
     // 检查目标是否可用
-    const available = await isTargetAvailable(selectedTargetId.value);
+    const available = isTargetAvailable(selectedTargetId.value);
     if (!available) {
       throw new Error('目标连接不可用，请检查连接状态');
     }
 
+    const instance = sendFrameInstancesStore.currentInstance;
+
     // 使用统一发送器发送帧实例
     const result = await sendFrameInstance(
       selectedTargetId.value,
-      sendFrameInstancesStore.currentInstance,
+      instance,
     );
 
     if (!result.success) {
@@ -125,6 +141,7 @@ async function sendCurrentInstance() {
     }
 
     console.log('帧发送完成:', result.message || '发送成功');
+    notifySuccess(`发送完成: ${instance.label}`);
   } catch (err) {
     console.error('发送帧错误:', err);
     sendError.value = err instanceof Error ? err.message : '发送失败';
@@ -206,6 +223,12 @@ async function toggleSortMode() {
 const handleSetInstancesData = async (data: unknown) => {
   await sendFrameInstancesStore.importFromJSON(JSON.stringify(data));
 };
+
+onMounted(() => {
+  useIntervalFn(() => {
+    sendFrameInstancesStore.updateSendStats();
+  }, 500);
+});
 </script>
 
 <template>
@@ -214,20 +237,10 @@ const handleSetInstancesData = async (data: unknown) => {
     <div class="grid grid-cols-[240px_1fr_300px] gap-4 flex-1 min-h-0">
       <!-- 左侧帧格式列表 -->
       <div
-        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg"
-      >
-        <div
-          class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
-        >
-          <q-input
-            v-model="searchQuery"
-            dense
-            placeholder="搜索帧格式..."
-            outlined
-            class="w-full mt-2 bg-industrial-secondary"
-            dark
-            bg-color="rgba(16, 24, 40, 0.6)"
-          >
+        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg">
+        <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
+          <q-input v-model="searchQuery" dense placeholder="搜索帧格式..." outlined
+            class="w-full mt-2 bg-industrial-secondary" dark bg-color="rgba(16, 24, 40, 0.6)">
             <template #append>
               <q-icon name="search" class="text-blue-grey-6" />
             </template>
@@ -240,127 +253,72 @@ const handleSetInstancesData = async (data: unknown) => {
 
       <!-- 中间发送实例列表 -->
       <div
-        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg w-full"
-      >
-        <div
-          class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
-        >
+        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg w-full">
+        <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
           <div class="flex items-center">
-            <h6
-              class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-            >
+            <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
               <q-icon name="list_alt" size="xs" class="mr-1 text-blue-5" />
               所有发送实例
             </h6>
 
             <!-- 任务监控按钮 -->
-            <q-btn
-              flat
-              dense
-              round
-              color="blue-grey-6"
-              icon="task_alt"
-              class="ml-2"
-              @click="openTaskMonitorDialog"
-            >
+            <q-btn flat dense round color="blue-grey-6" icon="task_alt" class="ml-2" @click="openTaskMonitorDialog">
               <q-tooltip>任务监控</q-tooltip>
             </q-btn>
 
             <!-- 顺序发送按钮 -->
-            <q-btn
-              flat
-              dense
-              round
-              color="blue-grey-6"
-              icon="queue_play_next"
-              class="ml-2"
-              @click="openSequentialSendDialog"
-            >
+            <q-btn flat dense round color="blue-grey-6" icon="queue_play_next" class="ml-2"
+              @click="openSequentialSendDialog">
               <q-tooltip>顺序发送</q-tooltip>
             </q-btn>
           </div>
 
           <!-- 实例操作按钮组 -->
           <div class="flex items-center gap-2">
+            <q-btn v-if="isBatchEdit" flat dense icon="delete" size="sm"
+              @click="frameInstanceListRef?.batchDeleteFrames"
+              class="rounded-md text-red-400 hover:bg-red-900 hover:bg-opacity-30">
+              <q-tooltip>批量删除</q-tooltip>
+            </q-btn>
             <!-- 导入导出按钮 -->
-            <ImportExportActions
-              :getData="handleGetInstancesData"
-              :setData="handleSetInstancesData"
-              storageDir="data/frames/sendInstances"
-              exportTitle="导出帧实例配置"
-              importTitle="导入帧实例配置"
-            />
+            <ImportExportActions :getData="handleGetInstancesData" :setData="handleSetInstancesData"
+              storageDir="data/frames/sendInstances" exportTitle="导出帧实例配置" importTitle="导入帧实例配置" />
 
             <!-- 排序按钮 -->
-            <q-btn
-              flat
-              dense
-              :icon="sortEnabled ? 'done' : 'sort'"
-              size="sm"
-              :color="sortEnabled ? 'positive' : 'blue-4'"
-              class="rounded-md hover:bg-blue-900 hover:bg-opacity-30"
-              @click="toggleSortMode"
-            >
+            <q-btn flat dense :icon="sortEnabled ? 'done' : 'sort'" size="sm"
+              :color="sortEnabled ? 'positive' : 'blue-4'" class="rounded-md hover:bg-blue-900 hover:bg-opacity-30"
+              @click="toggleSortMode">
               <q-tooltip>{{ sortEnabled ? '完成排序' : '启用排序' }}</q-tooltip>
             </q-btn>
 
             <!-- 批量编辑按钮 -->
-            <q-btn
-              flat
-              dense
-              icon="edit_note"
-              size="sm"
-              disable
-              class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
-            >
-              <q-tooltip>批量编辑（暂未实现）</q-tooltip>
+            <q-btn flat dense icon="edit_note" size="sm" @click="isBatchEdit = !isBatchEdit"
+              class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30">
+              <q-tooltip>批量编辑</q-tooltip>
             </q-btn>
           </div>
         </div>
         <div class="flex-1 overflow-auto w-full">
-          <FrameInstanceList
-            class="w-full h-full"
-            :sort-enabled="sortEnabled"
-            @toggle-sort="toggleSortMode"
-          />
+          <FrameInstanceList ref="frameInstanceListRef" class="w-full h-full" :sort-enabled="sortEnabled"
+            @toggle-sort="toggleSortMode" :is-batch-edit="isBatchEdit" />
         </div>
       </div>
 
       <!-- 右侧帧预览组件 -->
       <div
-        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg"
-      >
-        <div
-          class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
-        >
-          <h6
-            class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-          >
+        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg">
+        <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
+          <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
             <q-icon name="visibility" size="xs" class="mr-1 text-blue-5" />
             帧预览
           </h6>
 
           <!-- 高级发送选项 -->
           <div class="flex items-center" v-if="sendFrameInstancesStore.currentInstance">
-            <q-btn
-              flat
-              dense
-              round
-              color="blue-grey-6"
-              icon="schedule"
-              class="mr-1"
-              @click="openTimedSendDialog"
-            >
+            <q-btn flat dense round color="blue-grey-6" icon="schedule" class="mr-1" @click="openTimedSendDialog">
               <q-tooltip>定时发送</q-tooltip>
             </q-btn>
-            <q-btn
-              flat
-              dense
-              round
-              color="blue-grey-6"
-              icon="sensors"
-              @click="openTriggerSendDialog"
-            >
+            <q-btn flat dense round color="blue-grey-6" icon="sensors" @click="openTriggerSendDialog">
               <q-tooltip>触发发送</q-tooltip>
             </q-btn>
           </div>
@@ -370,16 +328,12 @@ const handleSetInstancesData = async (data: unknown) => {
         </div>
 
         <!-- 发送按钮区域 -->
-        <div
-          class="p-3 bg-industrial-secondary border-t border-solid border-industrial"
-          v-if="sendFrameInstancesStore.currentInstance"
-        >
+        <div class="p-3 bg-industrial-secondary border-t border-industrial"
+          v-if="sendFrameInstancesStore.currentInstance">
           <div class="flex flex-col">
             <!-- 错误提示 -->
             <div class="mb-2 text-center" v-if="sendError">
-              <div
-                class="inline-block bg-industrial-table-header text-red-6 text-xs py-1 px-2 rounded shadow-md"
-              >
+              <div class="inline-block bg-industrial-table-header text-red-6 text-xs py-1 px-2 rounded shadow-md">
                 {{ sendError }}
               </div>
             </div>
@@ -388,15 +342,8 @@ const handleSetInstancesData = async (data: unknown) => {
             <div class="flex gap-2 items-center">
               <SendTargetSelector v-model="selectedTargetId" :disabled="isSending" class="flex-1" />
 
-              <q-btn
-                color="primary"
-                icon="send"
-                :label="isSending ? '发送中...' : '发送帧'"
-                :loading="isSending"
-                :disable="!canSendInstance"
-                @click="sendCurrentInstance"
-                class="flex-none"
-              >
+              <q-btn color="primary" icon="send" label='发送帧' :disable="!canSendInstance" @click="sendCurrentInstance"
+                class="flex-none">
                 <template #loading>
                   <q-spinner-dots />
                 </template>
@@ -408,7 +355,7 @@ const handleSetInstancesData = async (data: unknown) => {
     </div>
 
     <!-- 帧编辑对话框 -->
-    <q-dialog v-model="sendFrameInstancesStore.showEditorDialog" persistent>
+    <q-dialog v-model="sendFrameInstancesStore.showEditorDialog">
       <q-card style="width: 80vw; max-width: 90vw">
         <q-card-section class="overflow-auto p-0 bg-industrial-panel" style="max-height: 80vh">
           <FrameInstanceEditor />
@@ -417,63 +364,40 @@ const handleSetInstancesData = async (data: unknown) => {
         <q-separator dark color="#2A2F45" />
 
         <q-card-actions align="right" class="bg-industrial-table-header py-2 px-4 rounded-b-lg">
-          <q-btn
-            flat
-            label="取消"
-            color="blue-grey"
-            class="rounded-md px-4 bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100"
-            v-close-popup
-            @click="closeEditorDialog"
-          />
-          <q-btn
-            flat
-            label="保存"
-            color="primary"
-            class="rounded-md px-4 ml-2 bg-blue-800 bg-opacity-40 hover:bg-opacity-70"
-            @click="saveEditorDialog"
-          />
+          <q-btn flat label="取消" color="blue-grey"
+            class="rounded-md px-4 bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100" v-close-popup
+            @click="closeEditorDialog" />
+          <q-btn flat label="保存" color="primary"
+            class="rounded-md px-4 ml-2 bg-blue-800 bg-opacity-40 hover:bg-opacity-70" @click="saveEditorDialog" />
         </q-card-actions>
       </q-card>
     </q-dialog>
 
     <!-- 定时发送对话框 -->
-    <q-dialog v-model="showTimedSendDialog" persistent>
+    <q-dialog v-model="showTimedSendDialog">
       <q-card class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial">
-        <TimedSendDialog
-          :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
-          @close="closeTimedSendDialog"
-          class="h-full w-full"
-        />
+        <TimedSendDialog :instance-id="sendFrameInstancesStore.currentInstanceId || ''" @close="closeTimedSendDialog"
+          class="h-full w-full" />
       </q-card>
     </q-dialog>
 
     <!-- 触发发送对话框 -->
-    <q-dialog v-model="showTriggerSendDialog" persistent>
+    <q-dialog v-model="showTriggerSendDialog">
       <q-card class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial">
-        <TriggerSendDialog
-          :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
-          @close="closeTriggerSendDialog"
-          class="h-full w-full"
-        />
+        <TriggerSendDialog :instance-id="sendFrameInstancesStore.currentInstanceId || ''"
+          @close="closeTriggerSendDialog" class="h-full w-full" />
       </q-card>
     </q-dialog>
 
     <!-- 顺序发送对话框 -->
-    <q-dialog v-model="showSequentialSendDialog" persistent full-height>
-      <q-card
-        style="max-width: 80vw"
-        class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial"
-      >
+    <q-dialog v-model="showSequentialSendDialog" full-height>
+      <q-card style="max-width: 80vw" class="bg-industrial-secondary rounded-lg shadow-2xl border border-industrial">
         <EnhancedSequentialSendDialog @close="closeSequentialSendDialog" class="h-full w-full" />
       </q-card>
     </q-dialog>
 
     <!-- 任务监控对话框 -->
-    <ActiveTasksMonitor
-      v-model="showTaskMonitorDialog"
-      :show-filters="true"
-      @close="closeTaskMonitorDialog"
-    />
+    <ActiveTasksMonitor v-model="showTaskMonitorDialog" :show-filters="true" @close="closeTaskMonitorDialog" />
   </q-page>
 </template>
 
@@ -482,14 +406,17 @@ const handleSetInstancesData = async (data: unknown) => {
 .invisible {
   visibility: hidden;
 }
+
 .visible {
   visibility: visible;
   animation: fadeIn 0.3s ease;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }

@@ -2,7 +2,6 @@
  * 标签选项生成工具函数
  */
 import type { FrameField } from '../../types/frames/fields';
-import type { FieldType } from '../../types/frames/basic';
 
 /**
  * 从字段对象生成标签选项
@@ -47,44 +46,6 @@ export function generateLabelOptionsFromField(field: FrameField): {
   //     label: '默认值',
   //   });
   // }
-
-  return options;
-}
-
-/**
- * 根据数据类型生成默认选项
- * @param dataType 数据类型
- * @returns 默认选项数组
- */
-function generateDefaultOptionsForDataType(dataType: FieldType): {
-  value: string;
-  label: string;
-}[] {
-  const options: { value: string; label: string }[] = [];
-
-  switch (dataType) {
-    case 'uint8':
-    case 'int8':
-      break;
-
-    case 'uint16':
-    case 'int16':
-      break;
-
-    case 'uint32':
-    case 'int32':
-      break;
-
-    case 'float':
-      break;
-
-    case 'bytes':
-      break;
-
-    default:
-      // 未知类型，生成通用选项
-      options.push({ value: '0', label: '0' }, { value: '1', label: '1' });
-  }
 
   return options;
 }

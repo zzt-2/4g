@@ -2,6 +2,7 @@
  * 发送帧实例相关类型定义
  */
 
+import { FieldVariation } from 'src/stores/frames/sendTasksStore';
 import type { FieldType } from './basic';
 import type {
   FieldInputType,
@@ -21,6 +22,7 @@ export interface SendInstanceField {
   inputType: FieldInputType;
   value: string; // 统一使用字符串表示值
   validOption?: ValidationParam;
+  factor?: number;
   length: number;
   configurable?: boolean; // 是否可配置
   description?: string; // 字段说明/描述
@@ -79,13 +81,16 @@ export interface InstanceTargetConfig {
   instanceId: string; // 实例ID
   targetId: string; // 发送目标ID（串口路径等）
   interval?: number; // 发送间隔（用于顺序发送）
+  enableVariation?: boolean;
+  // 新增：字段变化配置
+  fieldVariations?: FieldVariation[];
 }
 
 /**
  * 策略配置基础接口
  */
 export interface StrategyConfigBase {
-  type: 'timed' | 'triggered';
+  type: 'immediate' | 'timed' | 'triggered' | 'variable';
 }
 
 /**
@@ -153,6 +158,14 @@ export interface TriggerStrategyConfig extends StrategyConfigBase {
 }
 
 /**
+ * 变量策略配置
+ */
+export interface VariableStrategyConfig extends StrategyConfigBase {
+  type: 'variable';
+  interval: number;
+}
+
+/**
  * 条件触发配置（单独类型，用于组件）
  */
 export interface ConditionTriggerConfig {
@@ -178,7 +191,7 @@ export interface TimeTriggerConfig {
 /**
  * 策略配置联合类型
  */
-export type StrategyConfig = TimedStrategyConfig | TriggerStrategyConfig;
+export type StrategyConfig = TimedStrategyConfig | TriggerStrategyConfig | VariableStrategyConfig;
 
 /**
  * 完整的任务配置

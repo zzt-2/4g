@@ -5,6 +5,7 @@
  */
 import { ref } from 'vue';
 import { useSendTasksStore } from '../../../stores/frames/sendTasksStore';
+import { useTimerManager } from '../../common/useTimerManager';
 
 /**
  * 任务控制器可组合函数
@@ -12,6 +13,9 @@ import { useSendTasksStore } from '../../../stores/frames/sendTasksStore';
 export function useSendTaskController() {
   // 获取store实例
   const sendTasksStore = useSendTasksStore();
+
+  // 获取定时器管理器（禁用自动清理，避免组件卸载时误清理正在运行的任务定时器）
+  const timerManager = useTimerManager(false);
 
   // 本地状态
   const processingError = ref<string | null>(null);
@@ -37,9 +41,8 @@ export function useSendTaskController() {
     try {
       // 清理任务相关的定时器
       if (task.timers && task.timers.length > 0) {
-        task.timers.forEach((timerId) => {
-          clearTimeout(timerId);
-          clearInterval(timerId);
+        task.timers.forEach(async (timerId) => {
+          await timerManager.unregisterTimer(timerId);
         });
       }
 
@@ -196,9 +199,8 @@ export function useSendTaskController() {
       // 强制清理所有定时器
       if (task.timers && task.timers.length > 0) {
         console.warn(`强制清理任务 ${task.name} 的 ${task.timers.length} 个定时器`);
-        task.timers.forEach((timerId) => {
-          clearTimeout(timerId);
-          clearInterval(timerId);
+        task.timers.forEach(async (timerId) => {
+          await timerManager.unregisterTimer(timerId);
         });
       }
 

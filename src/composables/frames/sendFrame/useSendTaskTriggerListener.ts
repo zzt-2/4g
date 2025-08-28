@@ -251,7 +251,7 @@ export function useSendTaskTriggerListener() {
       }
 
       // 创建空的定时器数组（触发任务不需要定时器）
-      const timers: number[] = [];
+      const timers: string[] = [];
 
       let success = false;
 
@@ -292,7 +292,7 @@ export function useSendTaskTriggerListener() {
         unregisterTriggerListener(taskId);
         // 单实例完成后更新任务状态
         sendTasksStore.updateTaskStatus(taskId, 'completed');
-        sendTasksStore.updateTaskProgress(taskId, {
+        sendTasksStore.updateTaskProgressCached(taskId, {
           percentage: 100,
         });
       }

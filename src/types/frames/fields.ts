@@ -49,6 +49,7 @@ export interface FrameField {
   name: string;
   dataType: FieldType;
   length: number;
+  factor?: number;
   bits?: number;
   description?: string;
   validOption?: ValidationParam;

@@ -8,6 +8,7 @@ import type { FrameOptions, FilterOptions, IdentifierRule, ValidationParam } fro
  * 排序选项常量
  */
 export const SORT_OPTIONS = {
+  ID: 'id',
   NAME: 'name',
   DATE: 'date',
   USAGE: 'usage',
@@ -58,6 +59,8 @@ export const FIELD_TYPE_OPTIONS = [
   { label: '有符号16位整数 (2字节)', value: 'int16' },
   { label: '无符号32位整数 (4字节)', value: 'uint32' },
   { label: '有符号32位整数 (4字节)', value: 'int32' },
+  { label: '无符号64位整数 (8字节)', value: 'uint64' },
+  { label: '有符号64位整数 (8字节)', value: 'int64' },
   { label: '单精度浮点数 (4字节)', value: 'float' },
   { label: '双精度浮点数 (8字节)', value: 'double' },
   { label: '字节数组', value: 'bytes' },
@@ -93,6 +96,8 @@ export const FIELD_TYPE_CONFIGS = {
   int8: { needsLength: false, fixedLength: 1, needsBits: false },
   int16: { needsLength: false, fixedLength: 2, needsBits: false },
   int32: { needsLength: false, fixedLength: 4, needsBits: false },
+  uint64: { needsLength: false, fixedLength: 8, needsBits: false },
+  int64: { needsLength: false, fixedLength: 8, needsBits: false },
   float: { needsLength: false, fixedLength: 4, needsBits: false },
   bytes: { needsLength: true, fixedLength: null, needsBits: false },
   string: { needsLength: true, fixedLength: null, needsBits: false },

@@ -43,16 +43,10 @@ const isMonitoring = ref(false);
 const triggerError = ref('');
 const currentTaskId = ref<string | null>(null);
 
-// 当前选中的实例
-const currentInstance = computed(() => {
-  if (!props.instanceId) return null;
-  return sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId) || null;
-});
-
 // 当前实例的策略配置
 const currentStrategyConfig = computed((): InstanceStrategyConfig => {
   return (
-    currentInstance.value?.strategyConfig ||
+    sendFrameInstancesStore.currentInstance?.strategyConfig ||
     ({
       type: 'none',
       updatedAt: new Date().toISOString(),
@@ -155,22 +149,22 @@ watch(
 
 // 更新实例策略配置
 function updateInstanceStrategyConfig(config: Partial<InstanceStrategyConfig>) {
-  if (!currentInstance.value) return;
+  if (!sendFrameInstancesStore.currentInstance) return;
 
-  if (!currentInstance.value.strategyConfig) {
-    currentInstance.value.strategyConfig = {
+  if (!sendFrameInstancesStore.currentInstance.strategyConfig) {
+    sendFrameInstancesStore.currentInstance.strategyConfig = {
       type: 'none',
       updatedAt: new Date().toISOString(),
     };
   }
 
   // 直接修改实例配置
-  Object.assign(currentInstance.value.strategyConfig, config, {
+  Object.assign(sendFrameInstancesStore.currentInstance.strategyConfig, config, {
     updatedAt: new Date().toISOString(),
   });
 
   // 触发实例更新（会自动保存）
-  sendFrameInstancesStore.updateInstance(currentInstance.value);
+  sendFrameInstancesStore.updateInstance(sendFrameInstancesStore.currentInstance);
 }
 
 // 设置触发配置
@@ -242,19 +236,6 @@ const sourceOptions = computed(() =>
   })),
 );
 
-// 帧选项（用于触发配置）- 只显示接收帧
-const frameOptions = computed(() =>
-  receiveFramesStore.receiveFrames.map((frame) => ({
-    id: frame.id,
-    name: frame.name,
-    fields:
-      frame.fields?.map((field) => ({
-        id: field.id,
-        name: field.name,
-      })) || [],
-  })),
-);
-
 // 获取指定帧中存在映射关系的字段选项
 const getMappedFieldOptions = computed(() => (frameId: string) => {
   const options = receiveFramesStore.getAvailableFrameFieldOptions(frameId);
@@ -307,7 +288,7 @@ function handleClose() {
 
 // 开始监听触发条件
 async function startMonitoring() {
-  if (!canStartMonitor.value || !currentInstance.value) return;
+  if (!canStartMonitor.value || !sendFrameInstancesStore.currentInstance) return;
 
   isMonitoring.value = true;
   triggerError.value = '';
@@ -330,7 +311,7 @@ async function startMonitoring() {
         sourceId.value,
         triggerFrameId.value,
         conditions.value,
-        `触发发送-${currentInstance.value.label}`,
+        `触发发送-${sendFrameInstancesStore.currentInstance.label}`,
         continueListening.value,
       );
     } else if (triggerType.value === 'time') {
@@ -345,7 +326,7 @@ async function startMonitoring() {
 
       const recurringTypeValue =
         recurringType.value &&
-        validRecurringTypes.includes(recurringType.value as ValidRecurringType)
+          validRecurringTypes.includes(recurringType.value as ValidRecurringType)
           ? (recurringType.value as ValidRecurringType)
           : undefined;
 
@@ -357,7 +338,7 @@ async function startMonitoring() {
         recurringTypeValue,
         recurringInterval.value,
         endTime.value,
-        `时间触发发送-${currentInstance.value.label}`,
+        `时间触发发送-${sendFrameInstancesStore.currentInstance.label}`,
       );
     }
 
@@ -410,7 +391,7 @@ function removeCondition(index: number) {
               触发发送设置
             </h2>
             <div class="text-xs text-industrial-secondary mt-1 ml-6">
-              {{ currentInstance?.label || '选中帧实例' }} - 设置触发条件，当条件满足时发送帧实例
+              {{ sendFrameInstancesStore.currentInstance?.label || '选中帧实例' }} - 设置触发条件，当条件满足时发送帧实例
             </div>
           </div>
         </div>
@@ -426,25 +407,12 @@ function removeCondition(index: number) {
               <span>触发类型</span>
             </div>
 
-            <q-select
-              v-model="triggerType"
-              :options="[
-                { label: '条件触发', value: 'condition' },
-                { label: '时间触发', value: 'time' },
-              ]"
-              option-label="label"
-              option-value="value"
-              emit-value
-              map-options
-              dense
-              outlined
-              dark
-              bg-color="rgba(18, 35, 63, 0.7)"
-              class="w-full"
-              :disable="isMonitoring || isProcessing"
-              input-class="py-0.5 px-1"
-              hide-bottom-space
-            />
+            <q-select v-model="triggerType" :options="[
+              { label: '条件触发', value: 'condition' },
+              { label: '时间触发', value: 'time' },
+            ]" option-label="label" option-value="value" emit-value map-options dense outlined dark
+              bg-color="rgba(18, 35, 63, 0.7)" class="w-full" :disable="isMonitoring || isProcessing"
+              input-class="py-0.5 px-1" hide-bottom-space />
           </div>
         </div>
 
@@ -457,20 +425,9 @@ function removeCondition(index: number) {
             </div>
 
             <div class="flex items-center">
-              <q-input
-                v-model.number="responseDelay"
-                type="number"
-                min="0"
-                step="10"
-                dense
-                outlined
-                dark
-                bg-color="rgba(18, 35, 63, 0.7)"
-                class="w-24"
-                :disable="isMonitoring || isProcessing"
-                input-class="py-0.5 px-1"
-                hide-bottom-space
-              />
+              <q-input v-model.number="responseDelay" type="number" min="0" step="10" dense outlined dark
+                bg-color="rgba(18, 35, 63, 0.7)" class="w-24" :disable="isMonitoring || isProcessing"
+                input-class="py-0.5 px-1" hide-bottom-space />
               <span class="ml-2 text-xs text-industrial-secondary">毫秒</span>
             </div>
           </div>
@@ -486,22 +443,9 @@ function removeCondition(index: number) {
                 <span>监听来源</span>
               </div>
 
-              <q-select
-                v-model="sourceId"
-                :options="sourceOptions"
-                option-value="id"
-                option-label="name"
-                dense
-                outlined
-                emit-value
-                map-options
-                dark
-                bg-color="rgba(18, 35, 63, 0.7)"
-                class="w-full"
-                :disable="isMonitoring || isProcessing"
-                input-class="py-0.5 px-1"
-                hide-bottom-space
-              />
+              <q-select v-model="sourceId" :options="sourceOptions" option-value="id" option-label="name" dense outlined
+                emit-value map-options dark bg-color="rgba(18, 35, 63, 0.7)" class="w-full"
+                :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1" hide-bottom-space />
             </div>
           </div>
 
@@ -513,22 +457,9 @@ function removeCondition(index: number) {
                 <span>触发帧</span>
               </div>
 
-              <q-select
-                v-model="triggerFrameId"
-                :options="frameOptions"
-                option-value="id"
-                option-label="name"
-                dense
-                outlined
-                emit-value
-                map-options
-                dark
-                bg-color="rgba(18, 35, 63, 0.7)"
-                class="w-full"
-                :disable="isMonitoring || isProcessing"
-                input-class="py-0.5 px-1"
-                hide-bottom-space
-              />
+              <q-select v-model="triggerFrameId" :options="receiveFramesStore.receiveFrameOptions" option-value="id"
+                option-label="name" dense outlined emit-value map-options dark bg-color="rgba(18, 35, 63, 0.7)"
+                class="w-full" :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1" hide-bottom-space />
             </div>
           </div>
 
@@ -539,32 +470,19 @@ function removeCondition(index: number) {
                 <q-icon name="rule" size="xs" class="mr-1 text-blue-5" />
                 <span>触发条件</span>
               </div>
-              <q-btn
-                dense
-                flat
-                icon="add"
-                color="blue-5"
-                size="sm"
-                @click="addCondition"
-                :disable="isMonitoring || isProcessing"
-              >
+              <q-btn dense flat icon="add" color="blue-5" size="sm" @click="addCondition"
+                :disable="isMonitoring || isProcessing">
                 <q-tooltip>添加条件</q-tooltip>
               </q-btn>
             </div>
 
-            <div
-              v-if="conditions.length === 0"
-              class="text-xs text-industrial-tertiary text-center py-4"
-            >
+            <div v-if="conditions.length === 0" class="text-xs text-industrial-tertiary text-center py-4">
               暂无触发条件，点击上方按钮添加
             </div>
 
             <div v-else class="space-y-2">
-              <div
-                v-for="(condition, index) in conditions"
-                :key="condition.id"
-                class="bg-industrial-primary rounded p-2 border border-industrial"
-              >
+              <div v-for="(condition, index) in conditions" :key="condition.id"
+                class="bg-industrial-primary rounded p-2 border border-industrial">
                 <div class="flex items-center gap-2">
                   <!-- 逻辑操作符 -->
                   <div v-if="index > 0" class="text-xs text-industrial-accent w-8">
@@ -573,23 +491,10 @@ function removeCondition(index: number) {
                   <div v-else class="w-8"></div>
 
                   <!-- 字段选择 -->
-                  <q-select
-                    v-model="condition.fieldId"
-                    :options="getMappedFieldOptions(triggerFrameId)"
-                    option-value="id"
-                    option-label="name"
-                    dense
-                    outlined
-                    emit-value
-                    map-options
-                    dark
-                    bg-color="rgba(18, 35, 63, 0.7)"
-                    class="flex-1"
-                    placeholder="选择已映射字段"
-                    :disable="isMonitoring || isProcessing"
-                    input-class="py-0.5 px-1"
-                    hide-bottom-space
-                  >
+                  <q-select v-model="condition.fieldId" :options="getMappedFieldOptions(triggerFrameId)"
+                    option-value="id" option-label="name" dense outlined emit-value map-options dark
+                    bg-color="rgba(18, 35, 63, 0.7)" class="flex-1" placeholder="选择已映射字段"
+                    :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1" hide-bottom-space>
                     <template #option="scope">
                       <q-item v-bind="scope.itemProps">
                         <q-item-section>
@@ -608,53 +513,24 @@ function removeCondition(index: number) {
                   </q-select>
 
                   <!-- 条件操作符 -->
-                  <q-select
-                    v-model="condition.condition"
-                    :options="[
-                      { label: '等于', value: 'equals' },
-                      { label: '不等于', value: 'not_equals' },
-                      { label: '大于', value: 'greater' },
-                      { label: '小于', value: 'less' },
-                      { label: '包含', value: 'contains' },
-                    ]"
-                    option-label="label"
-                    option-value="value"
-                    emit-value
-                    map-options
-                    dense
-                    outlined
-                    dark
-                    bg-color="rgba(18, 35, 63, 0.7)"
-                    class="w-20"
-                    :disable="isMonitoring || isProcessing"
-                    input-class="py-0.5 px-1"
-                    hide-bottom-space
-                  />
+                  <q-select v-model="condition.condition" :options="[
+                    { label: '等于', value: 'equals' },
+                    { label: '不等于', value: 'not_equals' },
+                    { label: '大于', value: 'greater' },
+                    { label: '小于', value: 'less' },
+                    { label: '包含', value: 'contains' },
+                  ]" option-label="label" option-value="value" emit-value map-options dense outlined dark
+                    bg-color="rgba(18, 35, 63, 0.7)" class="w-20" :disable="isMonitoring || isProcessing"
+                    input-class="py-0.5 px-1" hide-bottom-space />
 
                   <!-- 值输入 -->
-                  <q-input
-                    v-model="condition.value"
-                    dense
-                    outlined
-                    dark
-                    bg-color="rgba(18, 35, 63, 0.7)"
-                    class="w-24"
-                    placeholder="值"
-                    :disable="isMonitoring || isProcessing"
-                    input-class="py-0.5 px-1"
-                    hide-bottom-space
-                  />
+                  <q-input v-model="condition.value" dense outlined dark bg-color="rgba(18, 35, 63, 0.7)" class="w-24"
+                    placeholder="值" :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1"
+                    hide-bottom-space />
 
                   <!-- 删除按钮 -->
-                  <q-btn
-                    dense
-                    flat
-                    icon="delete"
-                    color="negative"
-                    size="sm"
-                    @click="removeCondition(index)"
-                    :disable="isMonitoring || isProcessing"
-                  >
+                  <q-btn dense flat icon="delete" color="negative" size="sm" @click="removeCondition(index)"
+                    :disable="isMonitoring || isProcessing">
                     <q-tooltip>删除条件</q-tooltip>
                   </q-btn>
                 </div>
@@ -664,14 +540,8 @@ function removeCondition(index: number) {
 
           <!-- 继续监听选项 -->
           <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
-            <q-checkbox
-              v-model="continueListening"
-              dark
-              dense
-              :disable="isMonitoring || isProcessing"
-              label="触发后继续监听"
-              class="text-xs text-industrial-primary"
-            />
+            <q-checkbox v-model="continueListening" dark dense :disable="isMonitoring || isProcessing" label="触发后继续监听"
+              class="text-xs text-industrial-primary" />
           </div>
         </div>
 
@@ -685,87 +555,38 @@ function removeCondition(index: number) {
                 <span>执行时间</span>
               </div>
 
-              <q-input
-                v-model="executeTime"
-                type="datetime-local"
-                dense
-                outlined
-                dark
-                bg-color="rgba(18, 35, 63, 0.7)"
-                class="w-full"
-                :disable="isMonitoring || isProcessing"
-                input-class="py-0.5 px-1"
-                hide-bottom-space
-              />
+              <q-input v-model="executeTime" type="datetime-local" dense outlined dark bg-color="rgba(18, 35, 63, 0.7)"
+                class="w-full" :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1" hide-bottom-space />
             </div>
           </div>
 
           <!-- 重复设置 -->
           <div class="bg-industrial-secondary rounded-md p-3 shadow-md border border-industrial">
-            <q-checkbox
-              v-model="isRecurring"
-              dark
-              dense
-              :disable="isMonitoring || isProcessing"
-              label="重复执行"
-              class="text-xs text-industrial-primary mb-2"
-            />
+            <q-checkbox v-model="isRecurring" dark dense :disable="isMonitoring || isProcessing" label="重复执行"
+              class="text-xs text-industrial-primary mb-2" />
 
             <div v-if="isRecurring" class="space-y-2 ml-6">
               <div class="flex items-center gap-2">
                 <span class="text-xs text-industrial-secondary">每</span>
-                <q-input
-                  v-model.number="recurringInterval"
-                  type="number"
-                  min="1"
-                  dense
-                  outlined
-                  dark
-                  bg-color="rgba(18, 35, 63, 0.7)"
-                  class="w-16"
-                  :disable="isMonitoring || isProcessing"
-                  input-class="py-0.5 px-1"
-                  hide-bottom-space
-                />
-                <q-select
-                  v-model="recurringType"
-                  :options="[
-                    { label: '秒', value: 'second' },
-                    { label: '分钟', value: 'minute' },
-                    { label: '小时', value: 'hour' },
-                    { label: '天', value: 'daily' },
-                    { label: '周', value: 'weekly' },
-                    { label: '月', value: 'monthly' },
-                  ]"
-                  option-label="label"
-                  option-value="value"
-                  emit-value
-                  map-options
-                  dense
-                  outlined
-                  dark
-                  bg-color="rgba(18, 35, 63, 0.7)"
-                  class="w-20"
-                  :disable="isMonitoring || isProcessing"
-                  input-class="py-0.5 px-1"
-                  hide-bottom-space
-                />
+                <q-input v-model.number="recurringInterval" type="number" min="1" dense outlined dark
+                  bg-color="rgba(18, 35, 63, 0.7)" class="w-16" :disable="isMonitoring || isProcessing"
+                  input-class="py-0.5 px-1" hide-bottom-space />
+                <q-select v-model="recurringType" :options="[
+                  { label: '秒', value: 'second' },
+                  { label: '分钟', value: 'minute' },
+                  { label: '小时', value: 'hour' },
+                  { label: '天', value: 'daily' },
+                  { label: '周', value: 'weekly' },
+                  { label: '月', value: 'monthly' },
+                ]" option-label="label" option-value="value" emit-value map-options dense outlined dark
+                  bg-color="rgba(18, 35, 63, 0.7)" class="w-20" :disable="isMonitoring || isProcessing"
+                  input-class="py-0.5 px-1" hide-bottom-space />
               </div>
 
               <div class="flex items-center gap-2">
                 <span class="text-xs text-industrial-secondary">结束时间:</span>
-                <q-input
-                  v-model="endTime"
-                  type="datetime-local"
-                  dense
-                  outlined
-                  dark
-                  bg-color="rgba(18, 35, 63, 0.7)"
-                  class="flex-1"
-                  :disable="isMonitoring || isProcessing"
-                  input-class="py-0.5 px-1"
-                  hide-bottom-space
-                />
+                <q-input v-model="endTime" type="datetime-local" dense outlined dark bg-color="rgba(18, 35, 63, 0.7)"
+                  class="flex-1" :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1" hide-bottom-space />
               </div>
             </div>
           </div>
@@ -779,32 +600,16 @@ function removeCondition(index: number) {
               <span>发送目标</span>
             </div>
 
-            <q-select
-              v-model="selectedTargetId"
-              :options="connectionTargetsStore.availableTargets"
-              option-value="id"
-              option-label="name"
-              dense
-              outlined
-              emit-value
-              map-options
-              dark
-              bg-color="rgba(18, 35, 63, 0.7)"
-              class="w-full"
-              :disable="isMonitoring || isProcessing"
-              input-class="py-0.5 px-1"
-              hide-bottom-space
-            >
+            <q-select v-model="selectedTargetId" :options="connectionTargetsStore.availableTargets" option-value="id"
+              option-label="name" dense outlined emit-value map-options dark bg-color="rgba(18, 35, 63, 0.7)"
+              class="w-full" :disable="isMonitoring || isProcessing" input-class="py-0.5 px-1" hide-bottom-space>
               <template #option="scope">
                 <q-item v-bind="scope.itemProps">
                   <q-item-section>
                     <q-item-label>{{ scope.opt.name }}</q-item-label>
                     <q-item-label caption>
-                      <span
-                        :class="
-                          scope.opt.status === 'connected' ? 'text-positive' : 'text-negative'
-                        "
-                      >
+                      <span :class="scope.opt.status === 'connected' ? 'text-positive' : 'text-negative'
+                        ">
                         {{ scope.opt.status === 'connected' ? '已连接' : '未连接' }}
                       </span>
                       <span v-if="scope.opt.description" class="ml-2 text-industrial-tertiary">
@@ -814,17 +619,12 @@ function removeCondition(index: number) {
                   </q-item-section>
 
                   <q-item-section side>
-                    <q-icon
-                      :name="
-                        scope.opt.type === 'serial'
-                          ? 'usb'
-                          : scope.opt.type === 'network'
-                            ? 'lan'
-                            : 'device_hub'
-                      "
-                      size="xs"
-                      class="text-blue-5"
-                    />
+                    <q-icon :name="scope.opt.type === 'serial'
+                      ? 'usb'
+                      : scope.opt.type === 'network'
+                        ? 'lan'
+                        : 'device_hub'
+                      " size="xs" class="text-blue-5" />
                   </q-item-section>
                 </q-item>
               </template>
@@ -833,10 +633,8 @@ function removeCondition(index: number) {
         </div>
 
         <!-- 错误信息 -->
-        <div
-          v-if="triggerError || processingError"
-          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800"
-        >
+        <div v-if="triggerError || processingError"
+          class="bg-industrial-secondary rounded-md p-3 shadow-md border border-red-800">
           <div class="flex items-start">
             <q-icon name="error" color="negative" size="sm" class="mt-0.5 mr-2" />
             <div class="text-xs text-red-400">
@@ -848,24 +646,12 @@ function removeCondition(index: number) {
 
       <!-- 按钮区域 -->
       <div class="flex justify-between mt-3 pt-3 border-t border-industrial">
-        <q-btn
-          flat
-          label="关闭"
-          color="blue-grey"
+        <q-btn flat label="关闭" color="blue-grey"
           class="rounded-md px-4 bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 text-xs"
-          @click="handleClose"
-          :disable="isProcessing"
-        />
+          @click="handleClose" :disable="isProcessing" />
         <div>
-          <q-btn
-            color="primary"
-            icon="sensors"
-            label="开始监听"
-            class="rounded-md px-4 text-xs"
-            @click="startMonitoring"
-            :disable="!canStartMonitor || isProcessing"
-            :loading="isProcessing"
-          />
+          <q-btn color="primary" icon="sensors" label="开始监听" class="rounded-md px-4 text-xs" @click="startMonitoring"
+            :disable="!canStartMonitor || isProcessing" :loading="isProcessing" />
         </div>
       </div>
     </div>

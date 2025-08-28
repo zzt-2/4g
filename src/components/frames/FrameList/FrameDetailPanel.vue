@@ -1,10 +1,6 @@
 <template>
-  <div
-    class="flex flex-col h-full w-full overflow-hidden bg-industrial-panel text-industrial-primary rounded"
-  >
-    <div
-      class="flex justify-between items-center px-4 py-3 bg-industrial-table-header border-b border-industrial"
-    >
+  <div class="flex flex-col h-full w-full overflow-hidden bg-industrial-panel text-industrial-primary rounded">
+    <div class="flex justify-between items-center px-4 py-3 bg-industrial-table-header border-b border-industrial">
       <div class="flex items-center text-sm font-medium text-industrial-primary">
         <q-icon name="description" size="20px" class="mr-2" />
         帧详情 - {{ frame ? frame.id : '未选择' }}
@@ -37,39 +33,19 @@
       </div>
       <q-separator color="grey-8" />
 
-      <div class="flex-1 h-full overflow-hidden">
-        <q-table
-          v-if="formattedParams.length > 0"
-          :rows="formattedParams"
-          :columns="qColumns"
-          row-key="name"
-          virtual-scroll
-          :virtual-scroll-slice-size="10"
-          :rows-per-page-options="[0]"
-          hide-pagination
-          flat
-          dark
-          dense
-          class="frame-detail-table"
-          style="height: calc(100vh - 280px)"
-        >
+      <div class="flex-1 h-full overflow-y-auto">
+        <q-table v-if="formattedParams.length > 0" :rows="formattedParams" :columns="qColumns" row-key="name"
+          virtual-scroll :virtual-scroll-slice-size="10" :rows-per-page-options="[0]" hide-pagination flat dark dense
+          class="frame-detail-table">
           <!-- 自定义表头样式 -->
           <template v-slot:header="props">
-            <q-tr
-              :props="props"
-              class="bg-industrial-table-header border-b border-industrial font-medium h-10"
-            >
-              <q-th
-                v-for="col in props.cols"
-                :key="col.name"
-                :props="props"
-                :class="[col.align, 'text-xs px-2 text-industrial-primary']"
-                :style="{
+            <q-tr :props="props" class="bg-industrial-table-header border-b border-industrial font-medium h-10">
+              <q-th v-for="col in props.cols" :key="col.name" :props="props"
+                :class="[col.align, 'text-xs px-2 text-industrial-primary']" :style="{
                   width: col.width,
                   minWidth: col.width,
                   maxWidth: col.maxWidth,
-                }"
-              >
+                }">
                 {{ col.label }}
               </q-th>
             </q-tr>
@@ -77,28 +53,17 @@
 
           <!-- 自定义行样式 -->
           <template v-slot:body="props">
-            <q-tr
-              :props="props"
-              :class="[
-                props.rowIndex % 2 === 1 ? 'bg-industrial-secondary' : 'bg-industrial-panel',
-                'border-b border-industrial h-10',
-              ]"
-            >
-              <q-td
-                v-for="col in props.cols"
-                :key="col.name"
-                :props="props"
-                :class="[col.align, 'text-xs px-2 text-industrial-primary']"
-                :style="{
+            <q-tr :props="props" :class="[
+              props.rowIndex % 2 === 1 ? 'bg-industrial-secondary' : 'bg-industrial-panel',
+              'border-b border-industrial h-10',
+            ]">
+              <q-td v-for="col in props.cols" :key="col.name" :props="props"
+                :class="[col.align, 'text-xs px-2 text-industrial-primary']" :style="{
                   width: col.width,
                   minWidth: col.width,
                   maxWidth: col.maxWidth,
-                }"
-              >
-                <div
-                  class="overflow-hidden text-ellipsis"
-                  :class="{ 'whitespace-nowrap': col.name !== 'value' }"
-                >
+                }">
+                <div class="overflow-hidden text-ellipsis" :class="{ 'whitespace-nowrap': col.name !== 'value' }">
                   {{ props.row[col.field] }}
                 </div>
               </q-td>
@@ -115,10 +80,7 @@
       </div>
     </template>
 
-    <div
-      v-else
-      class="flex flex-col items-center justify-center py-10 text-industrial-secondary text-center gap-4"
-    >
+    <div v-else class="flex flex-col items-center justify-center py-10 text-industrial-secondary text-center gap-4">
       <q-icon name="info" size="36px" color="grey-7" />
       <div>请选择一个帧查看详情</div>
     </div>

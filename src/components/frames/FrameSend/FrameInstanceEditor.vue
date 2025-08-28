@@ -34,7 +34,7 @@ interface FieldGroupConfig {
 const fieldGroupConfigs: FieldGroupConfig[] = [
   {
     type: 'payload',
-    title: '载荷字段',
+    title: '可调字段',
     icon: 'tune',
     iconColor: 'text-blue-5',
     editable: true,
@@ -165,7 +165,7 @@ function calculateAllExpressions() {
 function getFieldRules(field: SendInstanceField) {
   const rules = [];
 
-  if (['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32'].includes(field.dataType)) {
+  if (['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64'].includes(field.dataType)) {
     rules.push((val: string) => {
       if (val === '') return true;
 
@@ -252,7 +252,7 @@ function getDefaultOptions(field: SendInstanceField) {
   if (hasValidOptions(field) && field.options) return field.options;
 
   // 否则根据数据类型生成默认选项
-  if (['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32'].includes(field.dataType)) {
+  if (['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64'].includes(field.dataType)) {
     return [
       { value: '0', label: '0' },
       { value: '1', label: '1' },
@@ -268,40 +268,28 @@ function getDefaultOptions(field: SendInstanceField) {
 
 <template>
   <div class="flex flex-col h-full bg-industrial-primary w-full min-w-0 p-4">
-    <div
-      class="flex-1 overflow-y-auto p-2 bg-industrial-primary"
-      v-if="sendFrameInstancesStore.localInstance"
-    >
+    <div class="flex-1 overflow-y-auto p-2 bg-industrial-primary" v-if="sendFrameInstancesStore.localInstance">
       <!-- 字段统计信息和表达式刷新按钮 -->
-      <div
-        class="mb-4 pb-3 border-b border-dashed border-industrial"
-        v-if="sendFrameInstancesStore.localInstance.fields.length > 0"
-      >
+      <div class="mb-4 pb-3 border-b border-dashed border-industrial"
+        v-if="sendFrameInstancesStore.localInstance.fields.length > 0">
         <div class="flex flex-row justify-between items-center">
           <div class="flex flex-row gap-4 text-xs">
             <div class="flex items-center gap-1">
               <q-icon name="tune" size="xs" class="text-blue-5" />
-              <span class="text-industrial-secondary"
-                >载荷: {{ getFieldsByType('payload').length }}</span
-              >
+              <span class="text-industrial-secondary">可调: {{ getFieldsByType('payload').length }}</span>
             </div>
             <div class="flex items-center gap-1">
               <q-icon name="calculate" size="xs" class="text-orange-5" />
-              <span class="text-industrial-secondary"
-                >计算: {{ getFieldsByType('calculation').length }}</span
-              >
+              <span class="text-industrial-secondary">计算: {{ getFieldsByType('calculation').length }}</span>
             </div>
             <div class="flex items-center gap-1">
               <q-icon name="lock" size="xs" class="text-blue-grey-7" />
-              <span class="text-industrial-secondary"
-                >只读: {{ getFieldsByType('readonly').length }}</span
-              >
+              <span class="text-industrial-secondary">只读: {{ getFieldsByType('readonly').length }}</span>
             </div>
             <div class="flex items-center gap-1">
               <q-icon name="list" size="xs" class="text-green-5" />
-              <span class="text-industrial-secondary"
-                >总计: {{ sendFrameInstancesStore.localInstance.fields.length }}</span
-              >
+              <span class="text-industrial-secondary">总计: {{ sendFrameInstancesStore.localInstance.fields.length
+                }}</span>
             </div>
             <div class="flex items-center gap-1" v-if="expressionFields.length > 0">
               <q-icon name="functions" size="xs" class="text-warning" />
@@ -311,15 +299,7 @@ function getDefaultOptions(field: SendInstanceField) {
 
           <!-- 表达式刷新按钮 -->
           <div v-if="expressionFields.length > 0">
-            <q-btn
-              icon="refresh"
-              size="sm"
-              color="warning"
-              flat
-              dense
-              @click="calculateAllExpressions"
-              class="px-2"
-            >
+            <q-btn icon="refresh" size="sm" color="warning" flat dense @click="calculateAllExpressions" class="px-2">
               <q-tooltip>刷新所有表达式计算</q-tooltip>
               刷新表达式
             </q-btn>
@@ -337,18 +317,9 @@ function getDefaultOptions(field: SendInstanceField) {
               <q-icon name="label" size="xs" class="mr-1 text-blue-5" />
               实例ID
             </div>
-            <q-input
-              v-model="sendFrameInstancesStore.editedId"
-              dense
-              outlined
-              dark
-              bg-color="rgba(16, 24, 40, 0.6)"
-              class="w-full text-xs"
-              :rules="[(val) => val.trim().length > 0 || 'ID不能为空']"
-              input-class="py-0.5 px-1"
-              hide-bottom-space
-              error-message="ID不能为空"
-            />
+            <q-input v-model="sendFrameInstancesStore.editedId" dense outlined dark bg-color="rgba(16, 24, 40, 0.6)"
+              class="w-full text-xs" :rules="[(val) => val.trim().length > 0 || 'ID不能为空']" input-class="py-0.5 px-1"
+              hide-bottom-space error-message="ID不能为空" />
           </div>
 
           <!-- 备注编辑 -->
@@ -357,117 +328,71 @@ function getDefaultOptions(field: SendInstanceField) {
               <q-icon name="notes" size="xs" class="mr-1 text-blue-5" />
               备注
             </div>
-            <q-input
-              v-model="sendFrameInstancesStore.editedDescription"
-              dense
-              outlined
-              dark
-              bg-color="rgba(16, 24, 40, 0.6)"
-              class="w-full text-xs"
-              placeholder="可选描述信息"
-              input-class="py-0.5 px-1"
-              hide-bottom-space
-            />
+            <q-input v-model="sendFrameInstancesStore.editedDescription" dense outlined dark
+              bg-color="rgba(16, 24, 40, 0.6)" class="w-full text-xs" placeholder="可选描述信息" input-class="py-0.5 px-1"
+              hide-bottom-space />
           </div>
         </div>
       </div>
 
       <!-- 无字段或没有可配置字段时显示提示 -->
-      <div
-        class="flex items-center justify-center p-4 text-blue-grey-4 bg-[#1a1e2e] rounded-lg"
-        v-if="!sendFrameInstancesStore.localInstance.fields.length"
-      >
+      <div class="flex items-center justify-center p-4 text-blue-grey-4 bg-[#1a1e2e] rounded-lg"
+        v-if="!sendFrameInstancesStore.localInstance.fields.length">
         <q-icon name="info" color="warning" size="sm" class="mr-2" />
         <span class="text-sm">该帧实例没有定义任何字段</span>
       </div>
 
-      <div
-        class="flex items-center justify-center p-4 text-blue-grey-4 bg-[#1a1e2e] rounded-lg"
-        v-else-if="!hasConfigurableFields && !isEditing"
-      >
+      <div class="flex items-center justify-center p-4 text-blue-grey-4 bg-[#1a1e2e] rounded-lg"
+        v-else-if="!hasConfigurableFields && !isEditing">
         <q-icon name="info" color="info" size="sm" class="mr-2" />
         <span class="text-sm">该帧实例没有可配置字段</span>
       </div>
 
       <!-- 统一的字段分组显示 -->
-      <div
-        class="flex flex-col gap-1"
-        v-if="sendFrameInstancesStore.localInstance.fields.length > 0"
-      >
+      <div class="flex flex-col gap-1" v-if="sendFrameInstancesStore.localInstance.fields.length > 0">
         <template v-for="group in allFieldGroups" :key="group.config.type">
           <!-- 分组标题 -->
-          <div
-            class="text-blue-grey-4 text-xs uppercase font-medium mb-1 flex items-center"
-            :class="group.config.type !== 'payload' ? 'mt-3' : ''"
-          >
+          <div class="text-blue-grey-4 text-xs uppercase font-medium mb-1 flex items-center"
+            :class="group.config.type !== 'payload' ? 'mt-3' : ''">
             <q-icon :name="group.config.icon" size="xs" :class="['mr-1', group.config.iconColor]" />
             {{ group.config.title }}
           </div>
 
           <!-- 字段列表 -->
-          <div
-            :class="
-              group.config.type === 'calculation'
-                ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-1'
-                : 'space-y-1'
-            "
-          >
-            <div
-              v-for="fieldItem in group.fields"
-              :key="fieldItem.field.id"
-              :class="fieldItem.groupConfig.cardClass"
-            >
+          <div :class="group.config.type === 'calculation'
+            ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-1'
+            : 'space-y-1'
+            ">
+            <div v-for="fieldItem in group.fields" :key="fieldItem.field.id" :class="fieldItem.groupConfig.cardClass">
               <!-- 统一的字段说明 tooltip -->
-              <q-tooltip
-                v-if="fieldItem.field.description"
-                class="bg-industrial-secondary text-industrial-primary"
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[0, 8]"
-              >
+              <q-tooltip v-if="fieldItem.field.description" class="bg-industrial-secondary text-industrial-primary"
+                anchor="top middle" self="bottom middle" :offset="[0, 8]">
                 {{ fieldItem.field.description }}
               </q-tooltip>
 
               <div class="flex flex-row items-start gap-3">
                 <!-- 序号显示 -->
-                <div
-                  class="flex-shrink-0 text-xs font-medium w-8 min-w-10 flex items-center justify-center"
-                  :class="fieldItem.groupConfig.indexColor"
-                >
+                <div class="flex-shrink-0 text-xs font-medium w-8 min-w-10 flex items-center justify-center"
+                  :class="fieldItem.groupConfig.indexColor">
                   [{{ fieldItem.globalIndex }}]
                 </div>
 
                 <!-- 左侧字段标签和类型垂直排列 -->
                 <div class="w-32 min-w-32 flex-shrink-0 flex flex-col">
-                  <div
-                    class="text-xs font-medium flex items-center gap-1"
-                    :class="
-                      fieldItem.groupConfig.type === 'readonly'
-                        ? 'text-industrial-secondary'
-                        : 'text-industrial-primary'
-                    "
-                  >
+                  <div class="text-xs font-medium flex items-center gap-1" :class="fieldItem.groupConfig.type === 'readonly'
+                    ? 'text-industrial-secondary'
+                    : 'text-industrial-primary'
+                    ">
                     {{ fieldItem.field.label }}
                     <!-- 表达式字段图标 -->
-                    <q-icon
-                      v-if="fieldItem.field.inputType === 'expression'"
-                      name="functions"
-                      color="warning"
-                      size="xs"
-                    >
-                      <q-tooltip
-                        class="bg-industrial-secondary text-industrial-primary max-w-xl"
-                        anchor="top middle"
-                        self="bottom middle"
-                        :offset="[0, 8]"
-                      >
+                    <q-icon v-if="fieldItem.field.inputType === 'expression'" name="functions" color="warning"
+                      size="xs">
+                      <q-tooltip class="bg-industrial-secondary text-industrial-primary max-w-xl" anchor="top middle"
+                        self="bottom middle" :offset="[0, 8]">
                         <div v-if="fieldItem.field.expressionConfig?.expressions?.length">
                           <div class="font-medium mb-1">表达式配置:</div>
-                          <div
-                            v-for="(expr, i) in fieldItem.field.expressionConfig.expressions"
-                            :key="i"
-                            class="text-xs mb-1"
-                          >
+                          <div v-for="(expr, i) in fieldItem.field.expressionConfig.expressions" :key="i"
+                            class="text-xs mb-1">
                             <div>条件: {{ expr.condition }}</div>
                             <div>表达式: {{ expr.expression }}</div>
                           </div>
@@ -477,11 +402,7 @@ function getDefaultOptions(field: SendInstanceField) {
                     </q-icon>
                   </div>
                   <div class="mt-0.5">
-                    <q-badge
-                      outline
-                      :color="fieldItem.groupConfig.badgeColor"
-                      class="text-2xs px-1"
-                    >
+                    <q-badge outline :color="fieldItem.groupConfig.badgeColor" class="text-2xs px-1">
                       {{ fieldItem.field.dataType }}
                     </q-badge>
                   </div>
@@ -492,21 +413,18 @@ function getDefaultOptions(field: SendInstanceField) {
                   <!-- 只读字段显示值 -->
                   <template v-if="!fieldItem.groupConfig.editable">
                     <div
-                      class="flex-1 font-mono text-xs text-industrial-secondary py-1 px-2 bg-industrial-secondary rounded-md"
-                    >
+                      class="flex-1 font-mono text-xs text-industrial-secondary py-1 px-2 bg-industrial-secondary rounded-md">
                       {{ fieldItem.field.value }}
                     </div>
 
                     <!-- 只读字段的十六进制显示 -->
-                    <div
-                      v-if="
-                        fieldItem.groupConfig.showHex &&
-                        ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
-                          fieldItem.field.dataType,
-                        )
-                      "
-                      class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left"
-                    >
+                    <div v-if="
+                      fieldItem.groupConfig.showHex &&
+                      ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'uint64', 'int64', 'bytes'].includes(
+                        fieldItem.field.dataType,
+                      )
+                    "
+                      class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left">
                       <span>HEX: {{ sendFrameInstancesStore.hexValues[fieldItem.field.id] }}</span>
                     </div>
                   </template>
@@ -516,47 +434,21 @@ function getDefaultOptions(field: SendInstanceField) {
                     <!-- 左侧输入控件 -->
                     <div class="flex-1">
                       <!-- 表达式字段特殊显示 -->
-                      <div
-                        v-if="fieldItem.field.inputType === 'expression'"
-                        class="flex items-center gap-2"
-                      >
-                        <q-input
-                          v-model="fieldItem.field.value"
-                          :disable="!isEditing"
-                          dense
-                          outlined
-                          dark
-                          :bg-color="fieldItem.groupConfig.bgColorClass"
-                          class="flex-1 text-xs"
-                          input-class="py-0.5"
-                          hide-bottom-space
-                          @update:model-value="handleValueChange(fieldItem.field, $event)"
-                        />
+                      <div v-if="fieldItem.field.inputType === 'expression'" class="flex items-center gap-2">
+                        <q-input v-model="fieldItem.field.value" :disable="!isEditing" dense outlined dark
+                          :bg-color="fieldItem.groupConfig.bgColorClass" class="flex-1 text-xs" input-class="py-0.5"
+                          hide-bottom-space @update:model-value="handleValueChange(fieldItem.field, $event)" />
                       </div>
 
                       <!-- 下拉框类型 -->
-                      <q-select
-                        v-else-if="fieldItem.field.inputType === 'select'"
-                        v-model="fieldItem.field.value"
-                        :options="
-                          hasValidOptions(fieldItem.field)
-                            ? fieldItem.field.options
-                            : getDefaultOptions(fieldItem.field)
-                        "
-                        :disable="!isEditing"
-                        dense
-                        outlined
-                        dark
-                        option-value="value"
-                        option-label="label"
-                        emit-value
-                        map-options
-                        :bg-color="fieldItem.groupConfig.bgColorClass"
-                        class="w-full text-xs"
-                        @update:model-value="handleValueChange(fieldItem.field, $event)"
-                        input-class="py-0.5"
-                        hide-bottom-space
-                      >
+                      <q-select v-else-if="fieldItem.field.inputType === 'select'" v-model="fieldItem.field.value"
+                        :options="hasValidOptions(fieldItem.field)
+                          ? fieldItem.field.options
+                          : getDefaultOptions(fieldItem.field)
+                          " :disable="!isEditing" dense outlined dark option-value="value" option-label="label"
+                        emit-value map-options :bg-color="fieldItem.groupConfig.bgColorClass" class="w-full text-xs"
+                        @update:model-value="handleValueChange(fieldItem.field, $event)" input-class="py-0.5"
+                        hide-bottom-space popup-content-class="max-h-280px overflow-y-auto">
                         <!-- 添加调试信息 -->
                         <template v-if="!hasValidOptions(fieldItem.field)" v-slot:before>
                           <div class="text-warning text-2xs">使用默认选项</div>
@@ -564,73 +456,42 @@ function getDefaultOptions(field: SendInstanceField) {
                       </q-select>
 
                       <!-- 单选框类型 -->
-                      <div v-else-if="fieldItem.field.inputType === 'radio'" class="w-full">
+                      <div v-else-if="fieldItem.field.inputType === 'radio'" class="w-full items-center justify-center">
                         <!-- 当有选项时正常显示 -->
-                        <q-option-group
-                          v-if="hasValidOptions(fieldItem.field) && fieldItem.field.options"
-                          v-model="fieldItem.field.value"
-                          :options="
-                            fieldItem.field.options.map((opt) => ({
-                              label: opt.label,
-                              value: opt.value,
-                            }))
-                          "
-                          :disable="!isEditing"
-                          type="radio"
-                          inline
-                          dense
-                          class="w-full text-xs"
-                          @update:model-value="handleValueChange(fieldItem.field, $event)"
-                        />
+                        <q-option-group v-if="hasValidOptions(fieldItem.field) && fieldItem.field.options"
+                          v-model="fieldItem.field.value" :options="fieldItem.field.options.map((opt) => ({
+                            label: opt.label,
+                            value: opt.value,
+                          }))
+                            " :disable="!isEditing" type="radio" inline dense class="w-full text-xs"
+                          @update:model-value="handleValueChange(fieldItem.field, $event)" />
                         <!-- 无选项时显示默认选项 -->
-                        <q-option-group
-                          v-else
-                          v-model="fieldItem.field.value"
-                          :options="
-                            getDefaultOptions(fieldItem.field).map((opt) => ({
-                              label: opt.label,
-                              value: opt.value,
-                            }))
-                          "
-                          :disable="!isEditing"
-                          type="radio"
-                          inline
-                          dense
-                          class="w-full text-xs"
-                          @update:model-value="handleValueChange(fieldItem.field, $event)"
-                        >
+                        <q-option-group v-else v-model="fieldItem.field.value" :options="getDefaultOptions(fieldItem.field).map((opt) => ({
+                          label: opt.label,
+                          value: opt.value,
+                        }))
+                          " :disable="!isEditing" type="radio" inline dense class="w-full text-xs"
+                          @update:model-value="handleValueChange(fieldItem.field, $event)">
                           <div class="text-warning text-2xs mb-1">使用默认选项</div>
                         </q-option-group>
                       </div>
 
                       <!-- 默认输入框类型 -->
-                      <q-input
-                        v-else
-                        v-model="fieldItem.field.value"
-                        :disable="!isEditing"
-                        dense
-                        outlined
-                        dark
-                        :bg-color="fieldItem.groupConfig.bgColorClass"
-                        class="w-full text-xs"
-                        :rules="getFieldRules(fieldItem.field)"
-                        type="text"
-                        @update:model-value="handleValueChange(fieldItem.field, $event)"
-                        input-class="py-0.5"
-                        hide-bottom-space
-                      />
+                      <q-input v-else v-model="fieldItem.field.value" :disable="!isEditing" dense outlined dark
+                        :bg-color="fieldItem.groupConfig.bgColorClass" class="w-full text-xs"
+                        :rules="getFieldRules(fieldItem.field)" type="text"
+                        @update:model-value="handleValueChange(fieldItem.field, $event)" input-class="py-0.5"
+                        hide-bottom-space />
                     </div>
 
                     <!-- 右侧十六进制显示 -->
-                    <div
-                      v-if="
-                        fieldItem.groupConfig.showHex &&
-                        ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'bytes'].includes(
-                          fieldItem.field.dataType,
-                        )
-                      "
-                      class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left"
-                    >
+                    <div v-if="
+                      fieldItem.groupConfig.showHex &&
+                      ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'uint64', 'int64', 'bytes'].includes(
+                        fieldItem.field.dataType,
+                      )
+                    "
+                      class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left">
                       <span>HEX: {{ sendFrameInstancesStore.hexValues[fieldItem.field.id] }}</span>
                     </div>
                   </template>
@@ -643,10 +504,7 @@ function getDefaultOptions(field: SendInstanceField) {
     </div>
 
     <!-- 空状态提示 -->
-    <div
-      class="flex-1 flex flex-col items-center justify-center p-4"
-      v-if="!sendFrameInstancesStore.localInstance"
-    >
+    <div class="flex-1 flex flex-col items-center justify-center p-4" v-if="!sendFrameInstancesStore.localInstance">
       <q-icon name="info" color="grey" size="2rem" class="opacity-50" />
       <div class="text-blue-grey-4 mt-2 text-center text-sm">请选择帧实例进行编辑</div>
     </div>

@@ -12,7 +12,7 @@ export const useFrameFilterStore = defineStore('frameFilter', () => {
   // 核心状态
   const searchQuery = ref('');
   const filters = ref<FilterOptions>({ ...DEFAULT_FILTER_OPTIONS });
-  const sortOrder = ref<string>(SORT_OPTIONS.NAME);
+  const sortOrder = ref<string>(SORT_OPTIONS.ID);
   const showFilterPanel = ref(false);
 
   // 更新方法

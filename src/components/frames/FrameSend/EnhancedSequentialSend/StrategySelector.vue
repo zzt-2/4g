@@ -6,24 +6,11 @@
     </div>
 
     <div class="flex items-center gap-6 mb-3">
-      <q-option-group
-        :model-value="props.strategy"
-        :options="strategyOptions as any"
-        inline
-        color="primary"
-        class="text-industrial-primary"
-        @update:model-value="$emit('update:strategy', $event)"
-      />
+      <q-option-group :model-value="props.strategy" :options="strategyOptions as any" inline color="primary"
+        class="text-industrial-primary" @update:model-value="$emit('update:strategy', $event)" />
 
-      <q-btn
-        v-if="props.strategy !== 'immediate'"
-        size="sm"
-        color="accent"
-        outline
-        @click="$emit('open-config')"
-        :disable="props.isDisabled"
-        class="ml-2"
-      >
+      <q-btn v-if="props.strategy !== 'immediate' && props.strategy !== 'variable'" size="sm" color="accent" outline
+        @click="$emit('open-config')" :disable="props.isDisabled" class="ml-2">
         <q-icon name="settings" class="mr-1" />
         配置{{ strategyLabels[props.strategy] }}参数
       </q-btn>
@@ -38,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-type StrategyType = 'immediate' | 'timed' | 'triggered';
+type StrategyType = 'immediate' | 'timed' | 'triggered' | 'variable';
 
 const props = defineProps<{
   strategy: StrategyType;
@@ -56,11 +43,13 @@ const strategyOptions = [
   { label: '立即发送', value: 'immediate' },
   { label: '定时发送', value: 'timed' },
   { label: '触发发送', value: 'triggered' },
+  { label: '可变参数发送', value: 'variable' },
 ] as const;
 
 const strategyLabels: Record<StrategyType, string> = {
   immediate: '立即',
   timed: '定时',
   triggered: '触发',
+  variable: '可变参数',
 };
 </script>

@@ -4,8 +4,9 @@
 import { defineConfig } from '#q-app/wrappers';
 import UnoCSS from 'unocss/vite';
 import unoConfig from './uno.config';
+import VueDevTools from 'vite-plugin-vue-devtools';
 
-export default defineConfig((/* ctx */) => {
+export default defineConfig((ctx) => {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -54,7 +55,7 @@ export default defineConfig((/* ctx */) => {
 
       vueRouterMode: 'hash', // available values: 'hash', 'history'
       // vueRouterBase,
-      // vueDevtools,
+      vueDevtools: ctx.dev, // 仅在开发环境启用 Vue DevTools
       // vueOptionsAPI: false,
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
@@ -71,6 +72,11 @@ export default defineConfig((/* ctx */) => {
       extendViteConf(viteConf) {
         // 使用配置文件初始化UnoCSS
         viteConf.plugins?.push(UnoCSS(unoConfig));
+        // 仅在开发环境启用 Vite 的 Vue DevTools 插件
+        if (ctx.dev) {
+          viteConf.plugins = viteConf.plugins || [];
+          viteConf.plugins.push(VueDevTools());
+        }
         viteConf.build = viteConf.build || {};
         viteConf.build.rollupOptions = {
           external: [
@@ -235,7 +241,22 @@ export default defineConfig((/* ctx */) => {
       packager: {
         // 其他配置...
         asar: false, // 关键修改，不使用asar打包
-        extraResource: ['node_modules/serialport', 'node_modules/@serialport'],
+        // extraResource: ['node_modules/serialport', 'node_modules/@serialport'], // 移除这行，让serialport作为正常依赖处理
+        // ignore: [
+        //   // 忽略开发依赖和不必要的文件
+        //   /node_modules\/.*\/test/,
+        //   /node_modules\/.*\/tests/,
+        //   /node_modules\/.*\/\.nyc_output/,
+        //   /node_modules\/.*\/coverage/,
+        //   /node_modules\/.*\/\.git/,
+        //   /node_modules\/.*\/docs/,
+        //   /node_modules\/.*\/examples/,
+        //   /node_modules\/.*\/\.vscode/,
+        //   /\.pnpm/,
+        //   /\.git/,
+        //   /dist/,
+        //   /src-electron\/.*\.map$/,
+        // ],
       },
 
       builder: {

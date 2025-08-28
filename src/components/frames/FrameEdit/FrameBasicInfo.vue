@@ -16,73 +16,26 @@
       <q-card-section v-else class="q-pt-none flex flex-col flex-grow">
         <div class="flex flex-col flex-grow">
           <!-- 帧名称 -->
-          <q-input
-            v-model="frameEditorStore.editorFrame.name"
-            label="名称"
-            dense
-            dark
-            outlined
-            placeholder="输入帧配置名称"
-            :rules="[(val) => !!val || '名称不能为空']"
-          />
+          <q-input v-model="frameEditorStore.editorFrame.name" label="名称" dense dark outlined placeholder="输入帧配置名称"
+            :rules="[(val) => !!val || '名称不能为空']" />
 
           <!-- 帧ID -->
-          <q-input
-            v-model="frameEditorStore.editorFrame.id"
-            label="帧ID"
-            dense
-            dark
-            outlined
-            placeholder="输入帧ID"
-            :rules="[(val) => !!val || '帧ID不能为空']"
-          />
+          <q-input v-model="frameEditorStore.editorFrame.id" label="帧ID" dense dark outlined placeholder="输入帧ID"
+            :rules="[(val) => !!val || '帧ID不能为空']" />
 
           <div class="flex flex-col space-y-4">
-            <q-select
-              v-model="frameEditorStore.editorFrame.direction"
-              :options="FRAME_DIRECTION_OPTIONS"
-              label="帧方向"
-              dense
-              dark
-              outlined
-              emit-value
-              map-options
-            />
-            <q-select
-              v-model="frameEditorStore.editorFrame.protocol"
-              :options="PROTOCOL_OPTIONS"
-              label="协议类型"
-              dense
-              dark
-              outlined
-              emit-value
-              map-options
-            />
+            <q-select v-model="frameEditorStore.editorFrame.direction" :options="FRAME_DIRECTION_OPTIONS" label="帧方向"
+              dense dark outlined emit-value map-options />
+            <q-select v-model="frameEditorStore.editorFrame.protocol" :options="PROTOCOL_OPTIONS" label="协议类型" dense
+              dark outlined emit-value map-options />
 
-            <q-select
-              v-model="frameEditorStore.editorFrame.frameType"
-              :options="frameTypeOptions"
-              label="帧类型"
-              dense
-              dark
-              outlined
-              emit-value
-              map-options
-            />
+            <q-select v-model="frameEditorStore.editorFrame.frameType" :options="frameTypeOptions" label="帧类型" dense
+              dark outlined emit-value map-options />
 
             <!-- 描述 -->
-            <q-input
-              v-model="frameEditorStore.editorFrame.description"
-              type="textarea"
-              label="描述"
-              dense
-              outlined
-              autogrow
-              class="input-bg flex-grow"
-              style="max-height: 28vh; overflow-y: auto"
-              placeholder="输入帧配置描述"
-              hide-bottom-space
-            />
+            <q-input v-model="frameEditorStore.editorFrame.description" type="textarea" label="描述" dense outlined
+              autogrow class="input-bg flex-grow" style="max-height: 28vh; overflow-y: auto" placeholder="输入帧配置描述"
+              hide-bottom-space />
           </div>
         </div>
       </q-card-section>
@@ -93,24 +46,15 @@
       <q-card-section class="q-py-sm q-pb-xs">
         <div class="flex justify-between items-center">
           <div class="font-medium text-accent-color uppercase">帧识别规则</div>
-          <q-btn
-            color="primary"
-            label="编辑规则"
-            icon="edit"
-            dense
-            @click="showRulesDialog = true"
-          />
+          <q-btn color="primary" label="编辑规则" icon="edit" dense @click="showRulesDialog = true" />
         </div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <div
-          v-if="
-            !frameEditorStore.editorFrame.identifierRules ||
-            frameEditorStore.editorFrame.identifierRules.length === 0
-          "
-          class="text-center py-4"
-        >
+        <div v-if="
+          !frameEditorStore.editorFrame.identifierRules ||
+          frameEditorStore.editorFrame.identifierRules.length === 0
+        " class="text-center py-4">
           <div class="text-secondary-color">未设置识别规则，将无法识别此类型的接收帧</div>
         </div>
         <div v-else class="text-primary-color">

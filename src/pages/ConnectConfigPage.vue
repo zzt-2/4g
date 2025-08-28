@@ -30,8 +30,7 @@ onMounted(async () => {
     <div class="grid grid-cols-[24vw_1fr] h-full gap-2">
       <!-- 左侧连接列表面板 -->
       <div
-        class="flex flex-col rounded-lg overflow-hidden border border-industrial bg-industrial-panel shadow-lg"
-      >
+        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg">
         <div class="flex-1 overflow-auto">
           <ConnectionList />
         </div>
@@ -39,22 +38,12 @@ onMounted(async () => {
 
       <!-- 右侧内容面板 -->
       <div
-        class="flex flex-col rounded-lg overflow-hidden border border-industrial bg-industrial-panel shadow-lg"
-        :class="{ invisible: !layoutReady, visible: layoutReady }"
-      >
-        <div
-          class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header"
-        >
-          <h6
-            class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-          >
-            <q-icon
-              :name="
-                contentMode === 'network' ? 'wifi' : contentMode === 'serial' ? 'usb' : 'build'
-              "
-              size="xs"
-              class="mr-1 text-blue-5"
-            />
+        class="flex flex-col rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg"
+        :class="{ invisible: !layoutReady, visible: layoutReady }">
+        <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
+          <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
+            <q-icon :name="contentMode === 'network' ? 'wifi' : contentMode === 'serial' ? 'usb' : 'build'
+              " size="xs" class="mr-1 text-blue-5" />
             {{
               contentMode === 'network'
                 ? '网口配置'
@@ -64,33 +53,12 @@ onMounted(async () => {
             }}
           </h6>
           <div class="flex">
-            <q-btn
-              flat
-              dense
-              size="sm"
-              :color="contentMode === 'network' ? 'blue' : 'grey'"
-              label="网口配置"
-              class="text-xs mr-2"
-              @click="toggleContentMode('network')"
-            />
-            <q-btn
-              flat
-              dense
-              size="sm"
-              :color="contentMode === 'serial' ? 'blue' : 'grey'"
-              label="串口配置"
-              class="text-xs mr-2"
-              @click="toggleContentMode('serial')"
-            />
-            <q-btn
-              flat
-              dense
-              size="sm"
-              :color="contentMode === 'test' ? 'blue' : 'grey'"
-              label="测试"
-              class="text-xs"
-              @click="toggleContentMode('test')"
-            />
+            <q-btn flat dense size="sm" :color="contentMode === 'network' ? 'blue' : 'grey'" label="网口配置"
+              class="text-xs mr-2" @click="toggleContentMode('network')" />
+            <q-btn flat dense size="sm" :color="contentMode === 'serial' ? 'blue' : 'grey'" label="串口配置"
+              class="text-xs mr-2" @click="toggleContentMode('serial')" />
+            <q-btn flat dense size="sm" :color="contentMode === 'test' ? 'blue' : 'grey'" label="测试" class="text-xs"
+              @click="toggleContentMode('test')" />
           </div>
         </div>
         <div class="flex-1 overflow-auto p-3">
@@ -111,14 +79,17 @@ onMounted(async () => {
 .invisible {
   visibility: hidden;
 }
+
 .visible {
   visibility: visible;
   animation: fadeIn 0.3s ease;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }

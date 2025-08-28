@@ -4,65 +4,57 @@
   "name": "多帧发送配置",
   "instanceRefs": [
     {
-      "id": "4",
-      "label": "111 #1",
-      "frameId": "123"
+      "id": "24",
+      "label": "测试测距计算 #8",
+      "frameId": "test004"
     },
     {
-      "id": "2",
-      "label": "新帧配置 #2",
-      "frameId": "VXA7FZfmv00z5heDrSU-8"
+      "id": "25",
+      "label": "南开大学-RS422移频信号控制 #2",
+      "frameId": "NK002"
     },
     {
-      "id": "123",
-      "label": "新帧配置 #1",
-      "frameId": "VXA7FZfmv00z5heDrSU-8"
-    },
-    {
-      "id": "1",
-      "label": "222 #1",
-      "frameId": "1234",
-      "description": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    },
-    {
-      "id": "6",
-      "label": "控制帧-继电器控制 #1",
-      "frameId": "11"
+      "id": "24",
+      "label": "测试测距计算 #8",
+      "frameId": "test004"
     }
   ],
   "targets": [
     {
-      "instanceId": "4",
-      "targetId": "serial:COM1",
-      "interval": 1000
+      "instanceId": "24",
+      "targetId": "network:conn_1754903532226_dmxr1yv01:remote_1754959357801_i2455us8o",
+      "interval": 1,
+      "enableVariation": true,
+      "fieldVariations": [
+        {
+          "fieldId": "p2_Tp4UPWDutIZopqgtsA",
+          "values": [
+            "1"
+          ]
+        }
+      ]
     },
     {
-      "instanceId": "2",
-      "targetId": "serial:COM1",
-      "interval": 200
+      "instanceId": "25",
+      "targetId": "network:conn_1754903532226_dmxr1yv01:remote_1754959357801_i2455us8o",
+      "interval": 1,
+      "enableVariation": false,
+      "fieldVariations": []
     },
     {
-      "instanceId": "123",
-      "targetId": "serial:COM1",
-      "interval": 1000
-    },
-    {
-      "instanceId": "1",
-      "targetId": "serial:COM1",
-      "interval": 1000
-    },
-    {
-      "instanceId": "6",
-      "targetId": "serial:COM1",
-      "interval": 1000
+      "instanceId": "24",
+      "targetId": "network:conn_1754903532226_dmxr1yv01:remote_1754959357801_i2455us8o",
+      "interval": 1,
+      "enableVariation": false,
+      "fieldVariations": []
     }
   ],
-  "createdAt": "2025-05-30T10:01:26.208Z",
-  "updatedAt": "2025-05-30T10:01:26.208Z",
+  "createdAt": "2025-08-14T06:47:51.432Z",
+  "updatedAt": "2025-08-14T06:47:51.432Z",
   "strategy": {
     "type": "timed",
-    "sendInterval": 5000,
-    "repeatCount": 5,
+    "sendInterval": 1000,
+    "repeatCount": 10,
     "isInfinite": false,
     "startDelay": 0
   }

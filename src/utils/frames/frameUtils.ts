@@ -95,6 +95,10 @@ export function getFieldBitWidth(field: FrameField): number {
     case 'int32':
     case 'float':
       return 32;
+    case 'uint64':
+    case 'int64':
+    case 'double':
+      return 64;
     case 'bytes':
       return field.length * 8;
     default:
@@ -121,8 +125,14 @@ export function getFieldShortType(type: FieldType): string {
       return 'I16';
     case 'int32':
       return 'I32';
+    case 'uint64':
+      return 'U64';
+    case 'int64':
+      return 'I64';
     case 'float':
       return 'FLT';
+    case 'double':
+      return 'DBL';
     case 'bytes':
       return 'HEX';
     default:
@@ -166,6 +176,10 @@ export function getFieldHexPreview(field: FrameField): string {
       case 'int32':
       case 'float':
         return 'XX XX XX XX';
+      case 'uint64':
+      case 'int64':
+      case 'double':
+        return 'XX XX XX XX XX XX XX XX';
       case 'bytes':
         return Array(field.length).fill('XX').join(' ');
       default:
@@ -193,6 +207,13 @@ export function getFieldHexPreview(field: FrameField): string {
         const num = Number(useValue);
         const hex = num.toString(16).padStart(8, '0').toUpperCase();
         return `${hex.substring(0, 2)} ${hex.substring(2, 4)} ${hex.substring(4, 6)} ${hex.substring(6, 8)}`;
+      }
+      case 'uint64':
+      case 'int64':
+      case 'double': {
+        const num = Number(useValue);
+        const hex = num.toString(16).padStart(16, '0').toUpperCase();
+        return `${hex.substring(0, 2)} ${hex.substring(2, 4)} ${hex.substring(4, 6)} ${hex.substring(6, 8)} ${hex.substring(8, 10)} ${hex.substring(10, 12)} ${hex.substring(12, 14)} ${hex.substring(14, 16)}`;
       }
       case 'bytes': {
         if (typeof useValue === 'string') {
@@ -431,6 +452,8 @@ function sortFrames(frames: Frame[], sortOrder: string): Frame[] {
     let bDate: Date | null = null;
 
     switch (sortOrder) {
+      case 'id':
+        return a.id.localeCompare(b.id);
       case 'name':
         return a.name.localeCompare(b.name);
       case 'date':

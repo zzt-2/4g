@@ -186,6 +186,16 @@ export const useConnectionTargetsStore = defineStore('connectionTargets', () => 
     return first?.id || '';
   }
 
+  /**
+   * 检查目标连接是否可用
+   * @param targetId 目标连接ID
+   * @returns 是否可用
+   */
+  function isTargetAvailable(targetId: string): boolean {
+    const target = getTargetById(targetId);
+    return target?.status === 'connected';
+  }
+
   // 初始化时自动刷新
   refreshTargets();
 
@@ -223,5 +233,6 @@ export const useConnectionTargetsStore = defineStore('connectionTargets', () => 
     parseTargetPath,
     getValidatedTargetPath,
     getFirstAvailableTargetId,
+    isTargetAvailable,
   };
 });

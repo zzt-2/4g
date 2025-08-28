@@ -20,8 +20,8 @@ export function validateTimedStrategy(config: TimedStrategyConfig): ValidationRe
     errors.push('发送间隔必须大于0');
   }
 
-  if (config.sendInterval < 100) {
-    errors.push('发送间隔不能小于100毫秒');
+  if (config.sendInterval < 5) {
+    errors.push('发送间隔不能小于5毫秒');
   }
 
   if (!config.isInfinite && (!config.repeatCount || config.repeatCount <= 0)) {

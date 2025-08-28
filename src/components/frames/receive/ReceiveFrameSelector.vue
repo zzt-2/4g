@@ -100,49 +100,25 @@ const toggleContentMode = (mode: ContentMode): void => {
 <template>
   <div class="h-full overflow-y-auto bg-transparent">
     <!-- 标题栏 -->
-    <div
-      class="flex justify-between items-center p-3 border-b border-solid border-industrial bg-industrial-table-header"
-    >
-      <h6
-        class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-      >
+    <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
+      <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
         <q-icon name="sensors" size="xs" class="mr-1 text-blue-5" />
         接收帧选择
       </h6>
 
       <!-- 编辑/显示模式切换按钮 -->
       <div class="flex bg-industrial-secondary rounded">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          :color="contentMode === 'edit' ? 'blue' : 'grey'"
-          label="编辑"
-          class="text-xs px-3 py-1"
-          @click="toggleContentMode('edit')"
-        />
-        <q-btn
-          flat
-          dense
-          size="sm"
-          :color="contentMode === 'display' ? 'blue' : 'grey'"
-          label="显示"
-          class="text-xs px-3 py-1"
-          @click="toggleContentMode('display')"
-        />
+        <q-btn flat dense size="sm" :color="contentMode === 'edit' ? 'blue' : 'grey'" label="编辑"
+          class="text-xs px-3 py-1" @click="toggleContentMode('edit')" />
+        <q-btn flat dense size="sm" :color="contentMode === 'display' ? 'blue' : 'grey'" label="显示"
+          class="text-xs px-3 py-1" @click="toggleContentMode('display')" />
       </div>
     </div>
 
     <!-- 搜索框 -->
     <div class="p-3 border-b border-industrial">
-      <q-input
-        v-model="searchText"
-        dense
-        placeholder="搜索帧格式..."
-        outlined
-        class="w-full bg-industrial-secondary text-industrial-primary"
-        dark
-      >
+      <q-input v-model="searchText" dense placeholder="搜索帧格式..." outlined
+        class="w-full bg-industrial-secondary text-industrial-primary" dark>
         <template #append>
           <q-icon name="search" class="text-blue-grey-6" />
         </template>
@@ -150,10 +126,8 @@ const toggleContentMode = (mode: ContentMode): void => {
     </div>
 
     <!-- 空状态提示 -->
-    <div
-      class="flex flex-col items-center justify-center h-full p-8 text-blue-grey-4"
-      v-if="filteredFrames.length === 0"
-    >
+    <div class="flex flex-col items-center justify-center h-full p-8 text-blue-grey-4"
+      v-if="filteredFrames.length === 0">
       <q-icon name="sensors" color="blue-grey-7" size="3rem" class="opacity-70" />
       <div class="mt-4 text-center">暂无接收帧格式</div>
     </div>
@@ -166,9 +140,7 @@ const toggleContentMode = (mode: ContentMode): void => {
           收藏
         </div>
         <div class="max-h-[200px] overflow-y-auto pr-1">
-          <div
-            v-for="frame in favoriteFrames"
-            :key="frame.id"
+          <div v-for="frame in favoriteFrames" :key="frame.id"
             class="flex justify-between items-center px-3 py-2 rounded-md my-1 cursor-pointer transition-colors h-[34px] min-h-[34px]"
             :class="{
               'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
@@ -176,9 +148,7 @@ const toggleContentMode = (mode: ContentMode): void => {
               'bg-red-800 bg-opacity-30 border-l-4 border-l-red-500 pl-2':
                 isSelected(frame) && hasValidationError(frame),
               'hover:bg-industrial-highlight': !isSelected(frame),
-            }"
-            @click="selectFrame(frame)"
-          >
+            }" @click="selectFrame(frame)">
             <div class="text-white text-sm font-medium truncate max-w-[150px]">
               {{ frame.name }}
             </div>
@@ -186,16 +156,9 @@ const toggleContentMode = (mode: ContentMode): void => {
               <!-- 验证错误指示器 -->
               <q-icon v-if="hasValidationError(frame)" name="error" color="red" size="12px" />
 
-              <q-btn
-                flat
-                round
-                dense
-                size="xs"
-                color="amber-5"
-                icon="star"
+              <q-btn flat round dense size="xs" color="amber-5" icon="star"
                 class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors"
-                @click.stop="toggleFavorite($event, frame.id)"
-              />
+                @click.stop="toggleFavorite($event, frame.id)" />
             </div>
           </div>
         </div>
@@ -207,9 +170,7 @@ const toggleContentMode = (mode: ContentMode): void => {
           全部接收帧格式
         </div>
         <div class="overflow-auto pr-1">
-          <div
-            v-for="frame in regularFrames"
-            :key="frame.id"
+          <div v-for="frame in regularFrames" :key="frame.id"
             class="flex justify-between items-center px-3 py-2 rounded-md my-1 cursor-pointer transition-colors h-[34px] min-h-[34px]"
             :class="{
               'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
@@ -217,9 +178,7 @@ const toggleContentMode = (mode: ContentMode): void => {
               'bg-red-800 bg-opacity-30 border-l-4 border-l-red-500 pl-2':
                 isSelected(frame) && hasValidationError(frame),
               'hover:bg-industrial-highlight': !isSelected(frame),
-            }"
-            @click="selectFrame(frame)"
-          >
+            }" @click="selectFrame(frame)">
             <div class="text-white text-sm font-medium truncate max-w-[150px]">
               {{ frame.name }}
             </div>
@@ -227,16 +186,9 @@ const toggleContentMode = (mode: ContentMode): void => {
               <!-- 验证错误指示器 -->
               <q-icon v-if="hasValidationError(frame)" name="error" color="red" size="12px" />
 
-              <q-btn
-                flat
-                round
-                dense
-                size="xs"
-                color="blue-grey-5"
-                icon="star_outline"
+              <q-btn flat round dense size="xs" color="blue-grey-5" icon="star_outline"
                 class="bg-industrial-secondary hover:bg-industrial-highlight transition-colors"
-                @click.stop="toggleFavorite($event, frame.id)"
-              />
+                @click.stop="toggleFavorite($event, frame.id)" />
             </div>
           </div>
         </div>

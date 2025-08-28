@@ -8,6 +8,7 @@ import type {
   TimedStrategyConfig,
   TriggerStrategyConfig,
   StrategyConfig,
+  VariableStrategyConfig,
 } from '../../types/frames/sendInstances';
 import { validateStrategyConfig } from '../../utils/frames/strategyValidation';
 import {
@@ -18,7 +19,11 @@ import {
 export function useStrategyConfig() {
   const timedConfig = ref<TimedStrategyConfig>(createDefaultTimedConfig());
   const triggerConfig = ref<TriggerStrategyConfig>(createDefaultTriggerConfig());
-  const currentStrategyType = ref<'immediate' | 'timed' | 'triggered'>('immediate');
+  const variableConfig = ref<VariableStrategyConfig>({
+    type: 'variable',
+    interval: 1000,
+  });
+  const currentStrategyType = ref<'immediate' | 'timed' | 'triggered' | 'variable'>('immediate');
 
   // 计算当前策略配置
   const currentStrategyConfig = computed<StrategyConfig | undefined>(() => {
@@ -152,6 +157,7 @@ export function useStrategyConfig() {
     // 状态
     timedConfig,
     triggerConfig,
+    variableConfig,
     currentStrategyType,
     currentStrategyConfig,
     validation,

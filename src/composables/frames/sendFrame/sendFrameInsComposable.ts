@@ -9,7 +9,7 @@ interface ApiResponse<T> {
  * 发送帧实例组合式函数
  * 将发送帧实例管理功能拆分为可组合的逻辑单元
  */
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
 import { useFrameTemplateStore } from '../../../stores/frames/frameTemplateStore';
 import {
   withErrorHandling,
@@ -23,20 +23,25 @@ import type { SendFrameInstance, SendInstanceField } from '../../../types/frames
 import { createSendFrameInstance } from '../../../types/frames/sendInstanceFactories';
 import type { Frame } from '../../../types/frames/frames';
 import { dataStorageAPI } from '../../../api/common';
+import { NUMBER_DATA_TYPES } from 'src/types/frames';
 
 /**
  * 帧实例基本状态管理
  */
 export function useInstancesState() {
-  const instances = ref<SendFrameInstance[]>([]);
+  const instances = shallowRef<SendFrameInstance[]>([]);
   const currentInstanceId = ref<string | null>(null);
+  const currentInstance = shallowRef<SendFrameInstance | null>(null);
+  const sendFrameOptions = ref<
+    { id: string; name: string; fields: { id: string; name: string }[] }[]
+  >([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
   // 计算属性
-  const currentInstance = computed(
-    () => instances.value.find((instance) => instance.id === currentInstanceId.value) || null,
-  );
+  // const currentInstance = computed(
+  //   () => instances.value.find((instance) => instance.id === currentInstanceId.value) || null,
+  // );
 
   const instancesByFrameId = computed(() => {
     const result: Record<string, SendFrameInstance[]> = {};
@@ -55,6 +60,7 @@ export function useInstancesState() {
 
   return {
     instances,
+    sendFrameOptions,
     currentInstanceId,
     isLoading,
     error,
@@ -102,6 +108,19 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
       }
 
       state.instances.value = instancesData;
+
+      // 🔧 修复：同时更新 sendFrameOptions
+      const newSendFrameOptions = instancesData.map((instance: SendFrameInstance) => ({
+        id: instance.id,
+        name: instance.label,
+        fields:
+          instance.fields?.map((field: SendInstanceField) => ({
+            id: field.id,
+            name: field.label,
+          })) || [],
+      }));
+      state.sendFrameOptions.value = newSendFrameOptions;
+
       return instancesData;
     }, '加载发送实例失败');
   }
@@ -179,6 +198,26 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
     }, '删除发送实例失败');
   }
 
+  // 批量删除实例
+  async function deleteInstances(ids: string[]): Promise<boolean | null> {
+    return state.withErrorHandling(async () => {
+      // 批量调用dataStorageAPI.delete
+      const deletePromises = ids.map((id) => dataStorageAPI.sendInstances.delete(id));
+      await Promise.all(deletePromises);
+
+      // 从本地数据中删除
+      const idsSet = new Set(ids);
+      state.instances.value = state.instances.value.filter((instance) => !idsSet.has(instance.id));
+
+      // 如果删除的实例中包含当前选中的实例，清空选中状态
+      if (state.currentInstanceId.value && idsSet.has(state.currentInstanceId.value)) {
+        state.currentInstanceId.value = null;
+      }
+
+      return true;
+    }, '批量删除发送实例失败');
+  }
+
   // 复制实例
   async function copyInstance(id: string): Promise<SendFrameInstance | null> {
     return state.withErrorHandling(async () => {
@@ -231,28 +270,47 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
     await updateInstance(instance).catch((err) => console.error('切换收藏状态失败', err));
   }
 
-  // 移动实例位置
+  // 移动实例位置 - 修复并增强同步性
   async function moveInstance(fromIndex: number, toIndex: number): Promise<boolean> {
-    if (
-      fromIndex < 0 ||
-      fromIndex >= state.instances.value.length ||
-      toIndex < 0 ||
-      toIndex >= state.instances.value.length ||
-      fromIndex === toIndex
-    ) {
-      return false;
-    }
+    const result = await state.withErrorHandling(async () => {
+      if (
+        fromIndex < 0 ||
+        fromIndex >= state.instances.value.length ||
+        toIndex < 0 ||
+        toIndex >= state.instances.value.length ||
+        fromIndex === toIndex
+      ) {
+        return false;
+      }
 
-    // 移动实例
-    const instanceToMove = state.instances.value[fromIndex];
-    if (!instanceToMove) {
-      return false;
-    }
+      // 移动实例
+      const instanceToMove = state.instances.value[fromIndex];
+      if (!instanceToMove) {
+        return false;
+      }
 
-    state.instances.value.splice(fromIndex, 1);
-    state.instances.value.splice(toIndex, 0, instanceToMove);
+      // 执行数组移动操作
+      const newInstances = [...state.instances.value];
+      newInstances.splice(fromIndex, 1);
+      newInstances.splice(toIndex, 0, instanceToMove);
 
-    return true;
+      // 更新本地状态
+      state.instances.value = newInstances;
+
+      // 保存到后端（批量保存所有实例的新顺序）
+      try {
+        await dataStorageAPI.sendInstances.saveAll(newInstances);
+        return true;
+      } catch (error) {
+        // 如果保存失败，回滚本地状态
+        console.error('保存实例顺序失败:', error);
+        // 重新获取数据以保证一致性
+        await fetchInstances();
+        return false;
+      }
+    }, '移动实例失败');
+
+    return result ?? false;
   }
 
   return {
@@ -260,6 +318,7 @@ export function useInstancesCrud(state: ReturnType<typeof useInstancesState>) {
     createInstance,
     updateInstance,
     deleteInstance,
+    deleteInstances,
     copyInstance,
     toggleFavorite,
     moveInstance,
@@ -280,10 +339,13 @@ export function useInstanceEditing(state: ReturnType<typeof useInstancesState>) 
   function setCurrentInstance(id: string | null): void {
     state.currentInstanceId.value = id;
 
-    // 如果设置了新的ID，初始化本地编辑状态
+    // 🔧 修复：同时更新 currentInstance 引用
     if (id) {
       const instance = state.instances.value.find((inst) => inst.id === id);
       if (instance) {
+        // 更新当前实例引用（用于 FramePreview 等组件）
+        state.currentInstance.value = instance;
+
         // 创建深拷贝，避免直接修改原始对象
         const instanceCopy = JSON.parse(JSON.stringify(instance));
 
@@ -297,9 +359,13 @@ export function useInstanceEditing(state: ReturnType<typeof useInstancesState>) 
 
         // 初始化十六进制值映射
         hexValues.value = initializeHexValues(instance);
+      } else {
+        // 如果找不到实例，清空当前实例
+        state.currentInstance.value = null;
       }
     } else {
-      // 清空本地编辑状态
+      // 清空当前实例和本地编辑状态
+      state.currentInstance.value = null;
       localInstance.value = null;
       editedId.value = '';
       editedDescription.value = '';
@@ -317,19 +383,7 @@ export function useInstanceEditing(state: ReturnType<typeof useInstancesState>) 
       targetField.value = value !== null ? String(value) : '';
 
       // 更新十六进制显示
-      if (
-        [
-          'uint8',
-          'int8',
-          'uint16',
-          'int16',
-          'uint32',
-          'int32',
-          'float',
-          'double',
-          'bytes',
-        ].includes(targetField.dataType)
-      ) {
+      if (NUMBER_DATA_TYPES.includes(targetField.dataType)) {
         hexValues.value[fieldId] = `0x${convertToHex(
           value || '0',
           targetField.dataType,
@@ -540,7 +594,7 @@ export function useInstanceFrameUpdates(
 
       // 如果是select或radio类型且没有选项，创建默认选项
       if ((field.inputType === 'select' || field.inputType === 'radio') && options.length === 0) {
-        if (['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32'].includes(field.dataType)) {
+        if (NUMBER_DATA_TYPES.includes(field.dataType)) {
           options = [
             { value: '0', label: '0' },
             { value: '1', label: '1' },

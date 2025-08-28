@@ -113,6 +113,64 @@ export function matchDataToFrame(packet: ReceivedDataPacket, frames: Frame[]): F
 }
 
 /**
+ * 应用倍率到数值
+ * @param value 原始数值
+ * @param factor 倍率
+ * @returns 应用倍率后的数值（最多保留五位小数）
+ */
+function applyFactor(value: number, factor: number): number {
+  const result = value * factor;
+  // 使用 parseFloat 和 toFixed 来限制小数位数并避免浮点数精度问题
+  return parseFloat(result.toFixed(5));
+}
+
+/**
+ * 检查是否需要应用倍率
+ * @param factor 倍率值
+ * @returns 是否需要应用倍率
+ */
+function shouldApplyFactor(factor: number | undefined): boolean {
+  return factor !== undefined && factor !== 1;
+}
+
+/**
+ * 从字节数组解析 BigInt (64位)
+ * @param fieldData 字节数组
+ * @param signed 是否为有符号整数
+ * @returns BigInt 值
+ */
+function parseBigIntFromBytes(fieldData: Uint8Array, signed: boolean = false): bigint {
+  let bigIntValue = 0n;
+  for (let i = 0; i < 8; i++) {
+    bigIntValue = (bigIntValue << 8n) | BigInt(fieldData[i]!);
+  }
+
+  // 处理有符号整数的负数
+  if (signed && bigIntValue > BigInt('0x7FFFFFFFFFFFFFFF')) {
+    bigIntValue = bigIntValue - BigInt('0x10000000000000000');
+  }
+
+  return bigIntValue;
+}
+
+/**
+ * 从字节数组解析浮点数
+ * @param fieldData 字节数组
+ * @param isDouble 是否为双精度
+ * @returns 浮点数值
+ */
+function parseFloatFromBytes(fieldData: Uint8Array, isDouble: boolean = false): number {
+  const buffer = new ArrayBuffer(isDouble ? 8 : 4);
+  const view = new DataView(buffer);
+
+  for (let i = 0; i < fieldData.length; i++) {
+    view.setUint8(i, fieldData[i]!);
+  }
+
+  return isDouble ? view.getFloat64(0, false) : view.getFloat32(0, false);
+}
+
+/**
  * 从接收数据中提取字段值
  * @param data 接收数据
  * @param field 字段定义
@@ -138,38 +196,54 @@ export function extractFieldValue(
 
     // 提取字段数据
     const fieldData = data.slice(startOffset, endOffset);
-
-    // 根据数据类型解析值
     let value: unknown;
     let displayValue: string;
 
     switch (field.dataType) {
-      case 'uint8':
-        value = fieldData[0] || 0;
-        displayValue = (value as number).toString();
+      case 'uint8': {
+        let numValue = fieldData[0] || 0;
+        if (shouldApplyFactor(field.factor)) {
+          numValue = applyFactor(numValue, field.factor!);
+        }
+        value = numValue;
+        displayValue = numValue.toString();
         break;
+      }
 
       case 'int8': {
         const byte = fieldData[0] || 0;
-        value = byte > 127 ? byte - 256 : byte;
-        displayValue = (value as number).toString();
+        let numValue = byte > 127 ? byte - 256 : byte;
+        if (shouldApplyFactor(field.factor)) {
+          numValue = applyFactor(numValue, field.factor!);
+        }
+        value = numValue;
+        displayValue = numValue.toString();
         break;
       }
 
-      case 'uint16':
-        value = fieldData.length >= 2 ? (fieldData[0]! << 8) | fieldData[1]! : 0;
-        displayValue = (value as number).toString();
+      case 'uint16': {
+        let numValue = fieldData.length >= 2 ? (fieldData[0]! << 8) | fieldData[1]! : 0;
+        if (shouldApplyFactor(field.factor)) {
+          numValue = applyFactor(numValue, field.factor!);
+        }
+        value = numValue;
+        displayValue = numValue.toString();
         break;
+      }
 
       case 'int16': {
         const uint16Val = fieldData.length >= 2 ? (fieldData[0]! << 8) | fieldData[1]! : 0;
-        value = uint16Val > 32767 ? uint16Val - 65536 : uint16Val;
-        displayValue = (value as number).toString();
+        let numValue = uint16Val > 32767 ? uint16Val - 65536 : uint16Val;
+        if (shouldApplyFactor(field.factor)) {
+          numValue = applyFactor(numValue, field.factor!);
+        }
+        value = numValue;
+        displayValue = numValue.toString();
         break;
       }
 
-      case 'uint32':
-        value =
+      case 'uint32': {
+        let numValue =
           fieldData.length >= 4
             ? ((fieldData[0]! << 24) |
                 (fieldData[1]! << 16) |
@@ -177,61 +251,102 @@ export function extractFieldValue(
                 fieldData[3]!) >>>
               0
             : 0;
-        displayValue = (value as number).toString();
+        if (shouldApplyFactor(field.factor)) {
+          numValue = applyFactor(numValue, field.factor!);
+        }
+        value = numValue;
+        displayValue = numValue.toString();
         break;
+      }
 
       case 'int32': {
         const uint32Val =
           fieldData.length >= 4
             ? (fieldData[0]! << 24) | (fieldData[1]! << 16) | (fieldData[2]! << 8) | fieldData[3]!
             : 0;
-        value = uint32Val > 2147483647 ? uint32Val - 4294967296 : uint32Val;
-        displayValue = (value as number).toString();
+        let numValue = uint32Val > 2147483647 ? uint32Val - 4294967296 : uint32Val;
+        if (shouldApplyFactor(field.factor)) {
+          numValue = applyFactor(numValue, field.factor!);
+        }
+        value = numValue;
+        displayValue = numValue.toString();
         break;
       }
 
-      case 'float':
+      case 'uint64': {
+        if (fieldData.length >= 8) {
+          const bigIntValue = parseBigIntFromBytes(fieldData, false);
+
+          if (shouldApplyFactor(field.factor)) {
+            const factorResult = applyFactor(Number(bigIntValue), field.factor!);
+            value = Math.round(factorResult).toString();
+            displayValue = Math.round(factorResult).toString();
+          } else {
+            value = bigIntValue.toString();
+            displayValue = bigIntValue.toString();
+          }
+        } else {
+          value = '0';
+          displayValue = '0';
+        }
+        break;
+      }
+
+      case 'int64': {
+        if (fieldData.length >= 8) {
+          const bigIntValue = parseBigIntFromBytes(fieldData, true);
+
+          if (shouldApplyFactor(field.factor)) {
+            const factorResult = applyFactor(Number(bigIntValue), field.factor!);
+            value = Math.round(factorResult).toString();
+            displayValue = Math.round(factorResult).toString();
+          } else {
+            value = bigIntValue.toString();
+            displayValue = bigIntValue.toString();
+          }
+        } else {
+          value = '0';
+          displayValue = '0';
+        }
+        break;
+      }
+
+      case 'float': {
         if (fieldData.length >= 4) {
-          const buffer = new ArrayBuffer(4);
-          const view = new DataView(buffer);
-          view.setUint8(0, fieldData[0]!);
-          view.setUint8(1, fieldData[1]!);
-          view.setUint8(2, fieldData[2]!);
-          view.setUint8(3, fieldData[3]!);
-          value = view.getFloat32(0, false); // big-endian
-          displayValue = (value as number).toFixed(2);
+          let numValue = parseFloatFromBytes(fieldData, false);
+          if (shouldApplyFactor(field.factor)) {
+            numValue = applyFactor(numValue, field.factor!);
+          }
+          value = numValue;
+          displayValue = numValue.toFixed(2);
         } else {
           value = 0.0;
           displayValue = '0.00';
         }
         break;
+      }
 
-      case 'double':
+      case 'double': {
         if (fieldData.length >= 8) {
-          const buffer = new ArrayBuffer(8);
-          const view = new DataView(buffer);
-          view.setUint8(0, fieldData[0]!);
-          view.setUint8(1, fieldData[1]!);
-          view.setUint8(2, fieldData[2]!);
-          view.setUint8(3, fieldData[3]!);
-          view.setUint8(4, fieldData[4]!);
-          view.setUint8(5, fieldData[5]!);
-          view.setUint8(6, fieldData[6]!);
-          view.setUint8(7, fieldData[7]!);
-          value = view.getFloat64(0, false); // big-endian
-          displayValue = (value as number).toFixed(4);
+          let numValue = parseFloatFromBytes(fieldData, true);
+          if (shouldApplyFactor(field.factor)) {
+            numValue = applyFactor(numValue, field.factor!);
+          }
+          value = numValue;
+          displayValue = numValue.toFixed(4);
         } else {
           value = 0.0;
           displayValue = '0.0000';
         }
         break;
+      }
 
       case 'bytes':
         value = fieldData;
-        displayValue = '';
-        // displayValue = Array.from(fieldData)
-        //   .map((byte) => byte.toString(16).padStart(2, '0'))
-        //   .join(' ');
+        displayValue = Array.from(fieldData)
+          .map((byte) => byte.toString(16).padStart(2, '0'))
+          .join(' ');
+        console.log('displayValue', displayValue);
         break;
 
       default:
@@ -271,6 +386,11 @@ export function processReceivedData(
         errors: ['数据匹配失败，无法处理'],
       };
     }
+
+    // console.log('packet', packet);
+    // console.log('matchResult', matchResult);
+    // console.log('mappings', mappings);
+    // console.log('groups', groups);
 
     const frame = matchResult.frame;
     const frameId = matchResult.frameId;

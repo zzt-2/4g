@@ -2,6 +2,7 @@
  * 十六进制转换工具
  * 提供各类数据类型与十六进制字符串之间的转换功能
  */
+import { NUMBER_DATA_TYPES } from 'src/types/frames';
 import type { SendInstanceField } from '../../types/frames/sendInstances';
 
 /**
@@ -44,6 +45,13 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
     if (isHexInput) {
       const hexString = inputString.toUpperCase();
       const hexLength = getHexLengthByDataType(dataType);
+
+      // 对于 64 位类型，需要特殊处理以避免精度丢失
+      if (dataType === 'uint64' || dataType === 'int64') {
+        // 直接处理十六进制字符串，确保长度正确
+        return hexString.padStart(hexLength, '0').slice(-hexLength);
+      }
+
       return hexString.padStart(hexLength, '0').slice(-hexLength);
     }
 
@@ -81,6 +89,52 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
         const buffer = new Int32Array(1);
         buffer[0] = Math.floor(numValue);
         return (buffer[0] >>> 0).toString(16).toUpperCase().padStart(8, '0');
+      }
+      case 'uint64': {
+        // 使用 BigInt 处理 64 位无符号整数，避免精度丢失
+        let bigIntValue: bigint;
+        try {
+          // 直接从字符串创建 BigInt，避免 parseFloat 的精度丢失
+          const integerPart = inputString.split('.')[0] || '0';
+          bigIntValue = BigInt(integerPart); // 只取整数部分
+          if (bigIntValue < 0n) {
+            bigIntValue = -bigIntValue; // 取绝对值
+          }
+        } catch {
+          bigIntValue = 0n;
+        }
+
+        const maxUint64 = BigInt('0xFFFFFFFFFFFFFFFF');
+        const clampedValue = bigIntValue > maxUint64 ? maxUint64 : bigIntValue;
+        return clampedValue.toString(16).toUpperCase().padStart(16, '0');
+      }
+      case 'int64': {
+        // 使用 BigInt 处理 64 位有符号整数，避免精度丢失
+        let bigIntValue: bigint;
+        try {
+          // 直接从字符串创建 BigInt，避免 parseFloat 的精度丢失
+          const integerPart = inputString.split('.')[0] || '0';
+          bigIntValue = BigInt(integerPart); // 只取整数部分
+        } catch {
+          bigIntValue = 0n;
+        }
+
+        const maxInt64 = BigInt('0x7FFFFFFFFFFFFFFF');
+        const minInt64 = -BigInt('0x8000000000000000');
+
+        // 限制在 int64 范围内
+        let clampedValue = bigIntValue;
+        if (bigIntValue > maxInt64) {
+          clampedValue = maxInt64;
+        } else if (bigIntValue < minInt64) {
+          clampedValue = minInt64;
+        }
+
+        // 转换为无符号表示用于十六进制输出
+        const unsignedValue =
+          clampedValue < 0n ? BigInt('0x10000000000000000') + clampedValue : clampedValue;
+
+        return unsignedValue.toString(16).toUpperCase().padStart(16, '0');
       }
       case 'float': {
         const buffer = new ArrayBuffer(4);
@@ -126,6 +180,8 @@ export const getHexLengthByDataType = (dataType: string): number => {
     case 'int32':
     case 'float':
       return 8; // 4 字节 = 8 位十六进制
+    case 'uint64':
+    case 'int64':
     case 'double':
       return 16; // 8 字节 = 16 位十六进制
     case 'bytes':
@@ -154,12 +210,7 @@ export const formatHexWithSpaces = (hexString: string): string => {
 export const getFieldHexValue = (field: SendInstanceField): string => {
   if (!field || !field.value) return '0x00';
 
-  if (
-    field.dataType &&
-    ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'float', 'double', 'bytes'].includes(
-      field.dataType,
-    )
-  ) {
+  if (field.dataType && NUMBER_DATA_TYPES.includes(field.dataType)) {
     return `0x${convertToHex(field.value, field.dataType, field.length)}`;
   }
 
@@ -179,25 +230,23 @@ export const getFullHexString = (fields: SendInstanceField[]): string => {
     (field) => (field.dataParticipationType || 'direct') === 'direct',
   );
 
+  const displayFields: SendInstanceField[] = [];
+
+  frameFields.forEach((field) => {
+    if (field.factor) {
+      displayFields.push({
+        ...field,
+        value: (Number(field.value) * field.factor).toString(),
+      });
+    } else {
+      displayFields.push(field);
+    }
+  });
+
   // 使用map生成所有参与组帧字段的十六进制值，然后连接
-  return frameFields
+  return displayFields
     .map((field) => {
-      if (
-        field &&
-        field.dataType &&
-        field.value &&
-        [
-          'uint8',
-          'int8',
-          'uint16',
-          'int16',
-          'uint32',
-          'int32',
-          'float',
-          'double',
-          'bytes',
-        ].includes(field.dataType)
-      ) {
+      if (field && field.dataType && field.value && NUMBER_DATA_TYPES.includes(field.dataType)) {
         return convertToHex(field.value, field.dataType, field.length);
       }
       return '';
@@ -217,12 +266,7 @@ export const initializeHexValues = (instance: {
   const hexValues: Record<string, string> = {};
 
   instance.fields.forEach((field) => {
-    if (
-      ['uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'float', 'double', 'bytes'].includes(
-        field.dataType,
-      ) &&
-      field.value
-    ) {
+    if (NUMBER_DATA_TYPES.includes(field.dataType) && field.value) {
       hexValues[field.id] = `0x${convertToHex(field.value, field.dataType, field.length)}`;
     }
   });

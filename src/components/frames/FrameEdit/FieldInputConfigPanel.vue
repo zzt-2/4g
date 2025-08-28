@@ -36,7 +36,7 @@ const validationErrors = ref<string[]>([]);
 watch(
   () => props.field,
   (newField) => {
-    localField.value = { ...newField };
+    localField.value = JSON.parse(JSON.stringify(newField));
     validateExpression();
   },
   { deep: true },
@@ -78,6 +78,13 @@ const getReceiveFrameFieldOptions = computed(
 const globalStatsOptions = computed(() => [
   // 时间统计
   { label: '运行时间 (秒)', value: 'runtime' },
+  { label: '年', value: 'year' },
+  { label: '月', value: 'month' },
+  { label: '日', value: 'day' },
+  { label: '时', value: 'hour' },
+  { label: '分', value: 'minute' },
+  { label: '秒', value: 'second' },
+  { label: '毫秒', value: 'millisecond' },
 
   // 通信统计
   { label: '发送包数', value: 'sentPackets' },
@@ -285,10 +292,7 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
 </script>
 
 <template>
-  <div
-    v-if="showConfigPanel"
-    class="bg-industrial-panel rounded-lg p-4 border border-industrial h-full"
-  >
+  <div v-if="showConfigPanel" class="bg-industrial-panel rounded-lg p-4 border border-industrial h-full">
     <div class="flex flex-col h-full">
       <!-- 表达式配置 -->
       <div v-if="isExpressionField" class="flex-1 overflow-y-auto">
@@ -300,10 +304,7 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
         </div>
 
         <!-- 验证错误显示 -->
-        <div
-          v-if="hasValidationErrors"
-          class="mb-4 p-3 bg-red-900/20 border border-red-700 rounded"
-        >
+        <div v-if="hasValidationErrors" class="mb-4 p-3 bg-red-900/20 border border-red-700 rounded">
           <div class="flex items-center gap-2 mb-2">
             <q-icon name="error" size="xs" class="text-red-400" />
             <span class="text-xs font-medium text-red-400">配置错误</span>
@@ -326,118 +327,42 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
           </div>
 
           <div class="space-y-2 max-h-[30vh] overflow-auto">
-            <div
-              v-for="(mapping, index) in localField.expressionConfig?.variables || []"
-              :key="index"
-              class="bg-industrial-secondary rounded p-3 border border-industrial-secondary"
-            >
+            <div v-for="(mapping, index) in localField.expressionConfig?.variables || []" :key="index"
+              class="bg-industrial-secondary rounded p-3 border border-industrial-secondary">
               <div class="flex items-center gap-2 mb-2">
-                <q-input
-                  v-model="mapping.identifier"
-                  label="变量标识符"
-                  outlined
-                  dense
-                  dark
-                  class="w-32"
+                <q-input v-model="mapping.identifier" label="变量标识符" outlined dense dark class="w-32"
                   @update:model-value="
                     updateVariableMapping(mapping, 'identifier', $event as string)
-                  "
-                />
-                <q-select
-                  v-model="mapping.sourceType"
-                  :options="dataSourceTypeOptions"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  label="数据源类型"
-                  outlined
-                  dense
-                  dark
-                  class="w-40"
-                  @update:model-value="updateVariableMapping(mapping, 'sourceType', $event)"
-                />
-                <q-btn
-                  icon="delete"
-                  size="sm"
-                  color="red"
-                  flat
-                  dense
-                  @click="removeVariableMapping(index)"
-                />
+                    " />
+                <q-select v-model="mapping.sourceType" :options="dataSourceTypeOptions" option-value="value"
+                  option-label="label" emit-value map-options label="数据源类型" outlined dense dark class="w-40"
+                  @update:model-value="updateVariableMapping(mapping, 'sourceType', $event)" />
+                <q-btn icon="delete" size="sm" color="red" flat dense @click="removeVariableMapping(index)" />
               </div>
 
               <!-- 当前帧字段选择 -->
               <div v-if="mapping.sourceType === DataSourceType.CURRENT_FIELD" class="flex gap-2">
-                <q-select
-                  v-model="mapping.sourceId"
-                  :options="currentFrameFieldOptions"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  label="选择当前帧字段"
-                  placeholder="选择字段"
-                  outlined
-                  dense
-                  dark
-                  class="flex-1"
-                  @update:model-value="updateVariableMapping(mapping, 'sourceId', $event)"
-                />
+                <q-select v-model="mapping.sourceId" :options="currentFrameFieldOptions" option-value="value"
+                  option-label="label" emit-value map-options label="选择当前帧字段" placeholder="选择字段" outlined dense dark
+                  class="flex-1" @update:model-value="updateVariableMapping(mapping, 'sourceId', $event)" />
               </div>
 
               <!-- 接收帧字段选择 -->
               <div v-else-if="mapping.sourceType === DataSourceType.FRAME_FIELD" class="flex gap-2">
-                <q-select
-                  v-model="mapping.frameId"
-                  :options="receiveFrameOptions"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  label="选择接收帧"
-                  placeholder="选择帧"
-                  outlined
-                  dense
-                  dark
-                  class="w-48"
-                  @update:model-value="updateVariableMapping(mapping, 'frameId', $event)"
-                />
-                <q-select
-                  v-model="mapping.fieldId"
-                  :options="getReceiveFrameFieldOptions(mapping.frameId || '')"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  label="选择字段"
-                  placeholder="选择字段"
-                  outlined
-                  dense
-                  dark
-                  class="flex-1"
-                  :disable="!mapping.frameId"
-                  @update:model-value="updateVariableMapping(mapping, 'fieldId', $event)"
-                />
+                <q-select v-model="mapping.frameId" :options="receiveFrameOptions" option-value="value"
+                  option-label="label" emit-value map-options label="选择接收帧" placeholder="选择帧" outlined dense dark
+                  class="w-48" @update:model-value="updateVariableMapping(mapping, 'frameId', $event)" />
+                <q-select v-model="mapping.fieldId" :options="getReceiveFrameFieldOptions(mapping.frameId || '')"
+                  option-value="value" option-label="label" emit-value map-options label="选择字段" placeholder="选择字段"
+                  outlined dense dark class="flex-1" :disable="!mapping.frameId"
+                  @update:model-value="updateVariableMapping(mapping, 'fieldId', $event)" />
               </div>
 
               <!-- 全局统计选择 -->
               <div v-else-if="mapping.sourceType === DataSourceType.GLOBAL_STAT" class="flex gap-2">
-                <q-select
-                  v-model="mapping.sourceId"
-                  :options="globalStatsOptions"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  label="选择统计项"
-                  placeholder="选择统计项"
-                  outlined
-                  dense
-                  dark
-                  class="flex-1"
-                  @update:model-value="updateVariableMapping(mapping, 'sourceId', $event)"
-                />
+                <q-select v-model="mapping.sourceId" :options="globalStatsOptions" option-value="value"
+                  option-label="label" emit-value map-options label="选择统计项" placeholder="选择统计项" outlined dense dark
+                  class="flex-1" @update:model-value="updateVariableMapping(mapping, 'sourceId', $event)" />
               </div>
             </div>
           </div>
@@ -447,59 +372,28 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
         <div>
           <div class="flex items-center justify-between mb-2">
             <label class="text-xs font-medium text-industrial-secondary"> 条件表达式 </label>
-            <q-btn
-              icon="add"
-              size="sm"
-              color="orange-5"
-              flat
-              dense
-              @click="addConditionalExpression"
-            >
+            <q-btn icon="add" size="sm" color="orange-5" flat dense @click="addConditionalExpression">
               添加条件
             </q-btn>
           </div>
 
           <div class="space-y-2 max-h-[40vh] overflow-auto">
-            <div
-              v-for="(expr, index) in localField.expressionConfig?.expressions || []"
-              :key="index"
-              class="bg-industrial-secondary rounded p-3 border border-industrial-secondary"
-            >
+            <div v-for="(expr, index) in localField.expressionConfig?.expressions || []" :key="index"
+              class="bg-industrial-secondary rounded p-3 border border-industrial-secondary">
               <div class="flex items-center gap-2 mb-2">
                 <span class="text-xs text-industrial-secondary w-12">条件:</span>
-                <q-input
-                  v-model="expr.condition"
-                  placeholder="如: a > 10"
-                  outlined
-                  dense
-                  dark
-                  class="flex-1"
+                <q-input v-model="expr.condition" placeholder="如: a > 10" outlined dense dark class="flex-1"
                   @update:model-value="
                     updateConditionalExpression(expr, 'condition', $event as string)
-                  "
-                />
-                <q-btn
-                  icon="delete"
-                  size="sm"
-                  color="red"
-                  flat
-                  dense
-                  @click="removeConditionalExpression(index)"
-                />
+                    " />
+                <q-btn icon="delete" size="sm" color="red" flat dense @click="removeConditionalExpression(index)" />
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-xs text-industrial-secondary w-12">表达式:</span>
-                <q-input
-                  v-model="expr.expression"
-                  placeholder="如: a * 2"
-                  outlined
-                  dense
-                  dark
-                  class="flex-1"
+                <q-input v-model="expr.expression" placeholder="如: a * 2" outlined dense dark class="flex-1"
                   @update:model-value="
                     updateConditionalExpression(expr, 'expression', $event as string)
-                  "
-                />
+                    " />
               </div>
             </div>
           </div>
@@ -520,52 +414,18 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
 
         <div class="flex-1 overflow-y-auto">
           <div class="space-y-2">
-            <div
-              v-for="(option, index) in localField.options || []"
-              :key="index"
-              class="flex gap-2 items-center bg-industrial-secondary rounded p-2 border border-industrial-secondary"
-            >
-              <q-input
-                v-model="option.value"
-                dense
-                outlined
-                dark
-                class="flex-1"
-                placeholder="值"
-                hide-bottom-space
-                @update:model-value="updateField"
-              />
-              <q-input
-                v-model="option.label"
-                dense
-                outlined
-                dark
-                class="flex-1"
-                placeholder="标签"
-                hide-bottom-space
-                @update:model-value="updateField"
-              />
-              <q-checkbox
-                v-model="option.isDefault"
-                dense
-                color="blue-5"
-                @update:model-value="updateDefaultOption(index)"
-                class="mx-1"
-              />
-              <q-btn
-                flat
-                round
-                color="red"
-                icon="delete"
-                size="xs"
-                dense
-                @click="removeOption(index)"
-              />
+            <div v-for="(option, index) in localField.options || []" :key="index"
+              class="flex gap-2 items-center bg-industrial-secondary rounded p-2 border border-industrial-secondary">
+              <q-input v-model="option.value" dense outlined dark class="flex-1" placeholder="值" hide-bottom-space
+                @update:model-value="updateField" />
+              <q-input v-model="option.label" dense outlined dark class="flex-1" placeholder="标签" hide-bottom-space
+                @update:model-value="updateField" />
+              <q-checkbox v-model="option.isDefault" dense color="blue-5"
+                @update:model-value="updateDefaultOption(index)" class="mx-1" />
+              <q-btn flat round color="red" icon="delete" size="xs" dense @click="removeOption(index)" />
             </div>
-            <div
-              v-if="!localField.options || localField.options.length === 0"
-              class="text-center text-industrial-secondary text-xs py-4"
-            >
+            <div v-if="!localField.options || localField.options.length === 0"
+              class="text-center text-industrial-secondary text-xs py-4">
               暂无选项
             </div>
           </div>
@@ -584,10 +444,7 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
       </div>
 
       <!-- 普通输入字段或空状态 -->
-      <div
-        v-else
-        class="flex items-center justify-center h-full text-center text-industrial-secondary"
-      >
+      <div v-else class="flex items-center justify-center h-full text-center text-industrial-secondary">
         <div>
           <q-icon name="info" size="2rem" class="opacity-50 mb-2" />
           <div class="text-sm">该输入类型无需额外配置</div>

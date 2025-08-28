@@ -23,7 +23,11 @@ export function createSendInstanceField(field: FrameField): SendInstanceField {
   // 如果需要选项但没有，则创建默认选项
   if ((field.inputType === 'select' || field.inputType === 'radio') && options.length === 0) {
     // 为数值类型创建0和1选项
-    if (['uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32'].includes(field.dataType)) {
+    if (
+      ['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64'].includes(
+        field.dataType,
+      )
+    ) {
       options.push({ value: '0', label: '0' });
       options.push({ value: '1', label: '1' });
     } else {
@@ -41,6 +45,7 @@ export function createSendInstanceField(field: FrameField): SendInstanceField {
     description: field.description || '',
     value: field.defaultValue || '',
     validOption: field.validOption || DEFAULT_VALID_OPTION,
+    factor: field.factor || 1,
     length: field.length,
     configurable: field.configurable,
     options: options,

@@ -33,6 +33,7 @@ async function handleDoubleClickFrame(frameId: string) {
   const newInstance = await sendFrameInstancesStore.createInstance(frameId);
   sendFrameInstancesStore.setCurrentInstance(newInstance!.id);
   sendFrameInstancesStore.showEditorDialog = true;
+  sendFrameInstancesStore.isModifyingInstance = true;
 }
 
 // 计算收藏的帧格式
@@ -62,10 +63,7 @@ function toggleFavorite(event: Event, frameId: string) {
 <template>
   <div class="h-full overflow-y-auto bg-transparent">
     <!-- 空状态提示 -->
-    <div
-      class="flex flex-col items-center justify-center h-full p-8 text-blue-grey-4"
-      v-if="frames.length === 0"
-    >
+    <div class="flex flex-col items-center justify-center h-full p-8 text-blue-grey-4" v-if="frames.length === 0">
       <q-icon name="format_list_bulleted" color="blue-grey-7" size="3rem" class="opacity-70" />
       <div class="mt-4 text-center">暂无帧格式</div>
     </div>
@@ -78,30 +76,18 @@ function toggleFavorite(event: Event, frameId: string) {
           收藏
         </div>
         <div class="max-h-[200px] overflow-y-auto pr-1">
-          <div
-            v-for="frame in favoriteFrames"
-            :key="frame.id"
+          <div v-for="frame in favoriteFrames" :key="frame.id"
             class="flex justify-between items-center px-3 py-2 rounded-md my-1 cursor-pointer transition-colors h-[34px] min-h-[34px] hover:bg-[#232b3f]"
             :class="{
               'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
                 frame.id === selectedFrameId,
-            }"
-            @click="handleSelectFrame(frame.id)"
-            @dblclick="handleDoubleClickFrame(frame.id)"
-          >
+            }" @click="handleSelectFrame(frame.id)" @dblclick="handleDoubleClickFrame(frame.id)">
             <div class="text-white text-sm font-medium truncate max-w-[150px]">
               {{ frame.name }}
             </div>
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              color="amber-5"
-              icon="star"
+            <q-btn flat round dense size="xs" color="amber-5" icon="star"
               class="bg-[#1a1e2e] hover:bg-[#232b3f] transition-colors"
-              @click.stop="toggleFavorite($event, frame.id)"
-            />
+              @click.stop="toggleFavorite($event, frame.id)" />
           </div>
         </div>
       </div>
@@ -113,30 +99,18 @@ function toggleFavorite(event: Event, frameId: string) {
           全部帧格式
         </div>
         <div class="overflow-auto pr-1">
-          <div
-            v-for="frame in regularFrames"
-            :key="frame.id"
+          <div v-for="frame in regularFrames" :key="frame.id"
             class="flex justify-between items-center px-3 py-2 rounded-md my-1 cursor-pointer transition-colors h-[34px] min-h-[34px] hover:bg-[#232b3f]"
             :class="{
               'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
                 frame.id === selectedFrameId,
-            }"
-            @click="handleSelectFrame(frame.id)"
-            @dblclick="handleDoubleClickFrame(frame.id)"
-          >
+            }" @click="handleSelectFrame(frame.id)" @dblclick="handleDoubleClickFrame(frame.id)">
             <div class="text-white text-sm font-medium truncate max-w-[150px]">
               {{ frame.name }}
             </div>
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              color="blue-grey-5"
-              icon="star_outline"
+            <q-btn flat round dense size="xs" color="blue-grey-5" icon="star_outline"
               class="bg-[#1a1e2e] hover:bg-[#232b3f] transition-colors"
-              @click.stop="toggleFavorite($event, frame.id)"
-            />
+              @click.stop="toggleFavorite($event, frame.id)" />
           </div>
         </div>
       </div>

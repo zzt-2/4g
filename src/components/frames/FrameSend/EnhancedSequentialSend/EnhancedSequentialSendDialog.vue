@@ -1,111 +1,67 @@
 <template>
   <div class="enhanced-sequential-send-dialog h-full w-full">
-    <div class="flex flex-col h-full bg-industrial-panel p-4">
+    <div class="flex flex-col h-full bg-industrial-panel p-4 gap-2">
       <!-- 标题信息 -->
-      <div class="mb-4">
-        <div class="flex justify-between items-center">
-          <div>
-            <h2 class="text-industrial-primary text-base font-medium flex items-center">
-              <q-icon name="queue_play_next" size="sm" class="mr-2 text-blue-5" />
-              多帧发送设置
-            </h2>
-            <div class="text-xs text-industrial-secondary mt-1 ml-6">
-              支持立即、定时、触发三种发送策略的多帧配置
-            </div>
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-industrial-primary text-base font-medium flex items-center">
+            <q-icon name="queue_play_next" size="sm" class="mr-2 text-blue-5" />
+            多帧发送设置
+          </h2>
+          <div class="text-xs text-industrial-secondary mt-1 ml-6">
+            支持立即、定时、触发三种发送策略的多帧配置
           </div>
-          <div class="flex gap-2">
-            <ImportExportActions
-              :getData="handleGetTaskConfigData"
-              :setData="handleSetTaskConfigData"
-              storageDir="data/frames/taskConfigs"
-              exportTitle="导出任务配置"
-              importTitle="导入任务配置"
-            />
-          </div>
+        </div>
+        <div class="flex gap-2">
+          <ImportExportActions :getData="handleGetTaskConfigData" :setData="handleSetTaskConfigData"
+            storageDir="data/frames/taskConfigs" exportTitle="导出任务配置" importTitle="导入任务配置" />
         </div>
       </div>
 
       <!-- 策略选择区域 -->
-      <StrategySelector
-        v-model:strategy="sendStrategy"
-        :preview-text="getStrategyPreview()"
-        :is-disabled="isSending || isProcessing"
-        @open-config="openStrategyConfig"
-      />
+      <div class="flex justify-start items-center bg-industrial-secondary">
+        <StrategySelector v-model:strategy="sendStrategy" :preview-text="getStrategyPreview()"
+          :is-disabled="isSending || isProcessing" @open-config="openStrategyConfig" />
+        <q-input v-if="sendStrategy === 'variable'" v-model="variableInterval" class="w-24" dense label="发送间隔(毫秒)"
+          outlined dark input-class="py-0.5 px-1 text-xs text-industrial-primary" hide-bottom-space />
+      </div>
 
       <!-- 实例列表区域 -->
-      <InstanceSequenceTable
-        :instances="selectedInstances"
-        :available-targets="connectionTargetsStore.availableTargets"
-        :available-instances="availableInstancesForTable"
-        v-model:selected-instance-for-add="selectedInstanceForAdd"
-        :is-loading="isSending || isProcessing"
-        @update-target="updateInstanceTarget"
-        @update-interval="updateInstanceInterval"
-        @move-up="moveInstanceUp"
-        @move-down="moveInstanceDown"
-        @remove-instance="removeInstanceFromSequence"
-        @add-instance="addInstanceToSequence"
-      />
+      <InstanceSequenceTable :instances="selectedInstances" :available-targets="connectionTargetsStore.availableTargets"
+        :available-instances="availableInstancesForTable" v-model:selected-instance-for-add="selectedInstanceForAdd"
+        :is-loading="isSending || isProcessing" :show-variable-fields="sendStrategy === 'variable'"
+        @update-target="updateInstanceTarget" @update-interval="updateInstanceInterval"
+        @update-variable-values="updateInstanceVariableValues" @load-variable-file="loadVariableFile"
+        @add-field-variation="addFieldVariation" @remove-field-variation="removeFieldVariation"
+        @update-field-selection="updateFieldSelection" @move-up="moveInstanceUp" @move-down="moveInstanceDown"
+        @remove-instance="removeInstanceFromSequence" @add-instance="addInstanceToSequence" />
 
       <!-- 任务状态和进度显示 -->
-      <TaskStatusPanel
-        :task="currentTask"
-        :error-message="sequenceError || processingError || ''"
-      />
+      <TaskStatusPanel :task="currentTask" :error-message="sequenceError || processingError || ''" />
 
       <!-- 按钮区域 -->
-      <div class="flex justify-between mt-3 pt-3 border-t border-industrial">
-        <q-btn
-          flat
-          label="关闭"
-          color="blue-grey"
+      <div class="flex justify-between border-t border-industrial">
+        <q-btn flat label="关闭" color="blue-grey"
           class="rounded-md px-4 bg-industrial-secondary bg-opacity-60 hover:bg-opacity-100 text-xs"
-          @click="handleClose"
-          :disable="isProcessing"
-        />
+          @click="handleClose" :disable="isProcessing" />
         <div class="flex gap-2">
-          <q-btn
-            v-if="currentTask && currentTask.status === 'running'"
-            color="negative"
-            icon="stop"
-            label="停止任务"
-            class="rounded-md px-4 text-xs"
-            @click="stopCurrentTask"
-            :disable="isProcessing"
-          />
-          <q-btn
-            v-else
-            color="primary"
-            :icon="getStartButtonIcon()"
-            :label="getStartButtonLabel()"
-            class="rounded-md px-4 text-xs"
-            @click="startSendingTask"
-            :disable="!canStartTask"
-            :loading="isProcessing"
-          />
+          <q-btn v-if="currentTask && currentTask.status === 'running'" color="negative" icon="stop" label="停止任务"
+            class="rounded-md px-4 text-xs" @click="stopCurrentTask" :disable="isProcessing" />
+          <q-btn v-else color="primary" :icon="getStartButtonIcon()" :label="getStartButtonLabel()"
+            class="rounded-md px-4 text-xs" @click="startSendingTask" :disable="!canStartTask"
+            :loading="isProcessing" />
         </div>
       </div>
     </div>
 
     <!-- 独立的策略配置对话框 -->
-    <TimedConfigDialog
-      v-if="sendStrategy === 'timed'"
-      v-model="showTimedConfig"
-      :initial-config="timedConfig"
-      @confirm="onTimedConfigConfirm"
-      @cancel="showTimedConfig = false"
-    />
+    <TimedConfigDialog v-if="sendStrategy === 'timed'" v-model="showTimedConfig" :initial-config="timedConfig"
+      @confirm="onTimedConfigConfirm" @cancel="showTimedConfig = false" />
 
-    <TriggerConfigDialog
-      v-if="sendStrategy === 'triggered'"
-      v-model="showTriggerConfig"
-      :initial-config="sendFrameInstancesStore.triggerStrategyConfig"
-      :source-options="sourceOptions"
-      :frame-options="frameOptions"
-      @confirm="onTriggerConfigConfirm"
-      @cancel="showTriggerConfig = false"
-    />
+    <TriggerConfigDialog v-if="sendStrategy === 'triggered'" v-model="showTriggerConfig"
+      :initial-config="sendFrameInstancesStore.triggerStrategyConfig" :source-options="sourceOptions"
+      :frame-options="receiveFramesStore.receiveFrameOptions" @confirm="onTriggerConfigConfirm"
+      @cancel="showTriggerConfig = false" />
 
     <!-- 任务继续确认对话框 -->
     <q-dialog v-model="showTaskDialog">
@@ -116,12 +72,7 @@
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="停止任务并关闭" color="negative" @click="stopTaskAndClose" />
-          <q-btn
-            flat
-            label="让任务在后台继续运行"
-            color="primary"
-            @click="continueTaskInBackground"
-          />
+          <q-btn flat label="让任务在后台继续运行" color="primary" @click="continueTaskInBackground" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -130,6 +81,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+
+// 本地策略类型定义，包含可变参数策略
+type LocalStrategyType = 'immediate' | 'timed' | 'triggered' | 'variable';
 import { useSendFrameInstancesStore } from '../../../../stores/frames/sendFrameInstancesStore';
 import { useSendTasksStore } from '../../../../stores/frames/sendTasksStore';
 import { useConnectionTargetsStore } from '../../../../stores/connectionTargetsStore';
@@ -143,9 +97,11 @@ import {
 } from '../../../../utils/frames/taskConfigUtils';
 import type { FrameInstanceInTask } from '../../../../stores/frames/sendTasksStore';
 import type {
+  StrategyConfig,
   TimedStrategyConfig,
   TriggerStrategyConfig,
 } from '../../../../types/frames/sendInstances';
+import { useReceiveFramesStore } from '../../../../stores/frames/receiveFramesStore';
 
 import { useStorage } from '@vueuse/core';
 import TimedConfigDialog from '../TimedSend/TimedConfigDialog.vue';
@@ -158,6 +114,7 @@ import { TaskConfigFile } from 'src/types/frames/taskConfig';
 
 // 获取store实例
 const sendFrameInstancesStore = useSendFrameInstancesStore();
+const receiveFramesStore = useReceiveFramesStore();
 const sendTasksStore = useSendTasksStore();
 const connectionTargetsStore = useConnectionTargetsStore();
 
@@ -193,10 +150,26 @@ const showTriggerConfig = ref(false);
 const currentTaskId = ref<string | null>(null);
 const showTaskDialog = ref(false);
 
+// 可变参数策略状态
+const isVariableStrategy = ref(false);
+const variableInterval = useStorage('enhanced-sequential-send-variable-interval', 1000);
+
 // 发送策略状态
 const sendStrategy = computed({
-  get: () => currentStrategyType.value,
-  set: (value) => setStrategyType(value),
+  get: (): LocalStrategyType => {
+    if (isVariableStrategy.value) return 'variable';
+    return currentStrategyType.value as LocalStrategyType;
+  },
+  set: (value: LocalStrategyType) => {
+    if (value === 'variable') {
+      isVariableStrategy.value = true;
+      // variable策略基于timed策略实现
+      setStrategyType('timed');
+    } else {
+      isVariableStrategy.value = false;
+      setStrategyType(value);
+    }
+  },
 });
 
 // 当前任务信息
@@ -215,8 +188,10 @@ const selectedInstances = useStorage<FrameInstanceInTask[]>(
 const availableInstancesForTable = computed(() =>
   sendFrameInstancesStore.instances.map((instance) => ({
     id: instance.id,
+    frameId: instance.frameId,
     label: instance.label,
     description: instance.description || '',
+    fields: instance.fields,
   })),
 );
 
@@ -226,19 +201,6 @@ const sourceOptions = computed(() =>
     id: target.id,
     name: target.name,
     ...(target.description ? { description: target.description } : {}),
-  })),
-);
-
-// 帧选项（用于触发配置）
-const frameOptions = computed(() =>
-  sendFrameInstancesStore.instances.map((instance) => ({
-    id: instance.id,
-    name: instance.label,
-    fields:
-      instance.fields?.map((field) => ({
-        id: field.id,
-        name: field.label,
-      })) || [],
   })),
 );
 
@@ -293,7 +255,7 @@ function getStrategyPreview(): string {
       const sourceName =
         sourceOptions.value.find((s) => s.id === config.sourceId)?.name || '未选择';
       const frameName =
-        frameOptions.value.find((f) => f.id === config.triggerFrameId)?.name || '未选择';
+        receiveFramesStore.receiveFrameOptions.find((f) => f.id === config.triggerFrameId)?.name || '未选择';
       const conditionCount = config.conditions?.length || 0;
       return `监听来源: ${sourceName}，触发帧: ${frameName}，条件数: ${conditionCount}`;
     } else if (config.triggerType === 'time') {
@@ -302,6 +264,12 @@ function getStrategyPreview(): string {
         : '未设置';
       return `时间触发: ${executeTime}${config.isRecurring ? ' (重复执行)' : ''}`;
     }
+  } else if (sendStrategy.value === 'variable') {
+    const variableInstanceCount = selectedInstances.value.filter(
+      inst => inst.enableVariation && inst.fieldVariations?.length
+    ).length;
+    const totalInstances = selectedInstances.value.length;
+    return `可变参数发送: ${variableInstanceCount}/${totalInstances} 个实例启用参数变化`;
   }
   return '立即发送';
 }
@@ -389,6 +357,151 @@ function updateInstanceTarget(index: number, targetId: string) {
 }
 
 /**
+ * 更新实例的可变参数值
+ */
+function updateInstanceVariableValues(index: number, fieldId: string, values: string) {
+  if (isSending.value || index < 0 || index >= selectedInstances.value.length) return;
+  const instance = selectedInstances.value[index];
+  if (!instance) return;
+
+  // 确保实例有 fieldVariations 数组
+  if (!instance.fieldVariations) {
+    instance.fieldVariations = [];
+  }
+
+  // 解析逗号分隔的值
+  const valuesArray = values.split(',').map(v => v.trim()).filter(v => v !== '');
+
+  // 查找现有的字段变化配置
+  const existingIndex = instance.fieldVariations?.findIndex(fv => fv.fieldId === fieldId) ?? -1;
+
+  if (existingIndex >= 0 && instance.fieldVariations && instance.fieldVariations[existingIndex]) {
+    // 更新现有配置
+    if (valuesArray.length > 0) {
+      instance.fieldVariations[existingIndex].values = valuesArray;
+    } else {
+      // 如果值为空，删除该字段配置
+      instance.fieldVariations.splice(existingIndex, 1);
+    }
+  } else if (valuesArray.length > 0 && instance.fieldVariations) {
+    // 添加新的字段配置
+    instance.fieldVariations.push({
+      fieldId,
+      values: valuesArray,
+    });
+  }
+
+  // 检查是否有字段变化配置来设置 enableVariation
+  instance.enableVariation = (instance.fieldVariations?.length ?? 0) > 0;
+}
+
+/**
+ * 加载可变参数文件
+ */
+async function loadVariableFile(index: number, fieldId: string) {
+  if (isSending.value || index < 0 || index >= selectedInstances.value.length) return;
+
+  try {
+    // 创建文件输入元素
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.csv';
+
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (!content) return;
+
+        // 解析文件内容，支持换行、回车、逗号分隔
+        const values = content
+          .split(/[\n\r,]+/)
+          .map(v => v.trim())
+          .filter(v => v !== '');
+
+        // 将解析的值以逗号连接后更新
+        const valuesString = values.join(',');
+        updateInstanceVariableValues(index, fieldId, valuesString);
+      };
+
+      reader.readAsText(file);
+    };
+
+    input.click();
+  } catch (error) {
+    console.error('加载文件失败:', error);
+    sequenceError.value = '加载文件失败: ' + (error instanceof Error ? error.message : '未知错误');
+  }
+}
+
+/**
+ * 添加字段变化配置
+ */
+function addFieldVariation(index: number) {
+  if (isSending.value || index < 0 || index >= selectedInstances.value.length) return;
+  const instance = selectedInstances.value[index];
+  if (!instance) return;
+
+  // 确保实例有 fieldVariations 数组
+  if (!instance.fieldVariations) {
+    instance.fieldVariations = [];
+  }
+
+  // 添加新的字段变化配置
+  instance.fieldVariations.push({
+    fieldId: '', // 初始为空，用户需要选择字段
+    values: [],
+  });
+
+  // 启用参数变化
+  instance.enableVariation = true;
+}
+
+/**
+ * 删除字段变化配置
+ */
+function removeFieldVariation(index: number, varIndex: number) {
+  if (isSending.value || index < 0 || index >= selectedInstances.value.length) return;
+  const instance = selectedInstances.value[index];
+  if (!instance || !instance.fieldVariations || varIndex < 0 || varIndex >= instance.fieldVariations.length) return;
+
+  // 删除指定的字段变化配置
+  instance.fieldVariations.splice(varIndex, 1);
+
+  // 如果没有字段变化配置了，禁用参数变化
+  instance.enableVariation = (instance.fieldVariations?.length ?? 0) > 0;
+}
+
+/**
+ * 更新字段选择
+ */
+function updateFieldSelection(index: number, varIndex: number, fieldId: string) {
+  if (isSending.value || index < 0 || index >= selectedInstances.value.length) return;
+  const instance = selectedInstances.value[index];
+  if (!instance || !instance.fieldVariations || varIndex < 0 || varIndex >= instance.fieldVariations.length) return;
+
+  // 检查是否已存在相同字段的配置
+  const existingIndex = instance.fieldVariations.findIndex((fv, idx) => idx !== varIndex && fv.fieldId === fieldId);
+  if (existingIndex >= 0 && fieldId !== '') {
+    sequenceError.value = `字段已存在于配置中，请选择其他字段`;
+    return;
+  }
+
+  // 更新字段ID
+  if (instance.fieldVariations[varIndex]) {
+    instance.fieldVariations[varIndex].fieldId = fieldId;
+  }
+
+  // 清空错误信息
+  if (sequenceError.value.includes('字段已存在')) {
+    sequenceError.value = '';
+  }
+}
+
+/**
  * 打开策略配置对话框
  */
 function openStrategyConfig() {
@@ -434,12 +547,22 @@ function handleGetTaskConfigData() {
     instanceId: item.instanceId,
     targetId: item.targetId,
     interval: item.interval || 1000,
+    enableVariation: item.enableVariation || false,
+    fieldVariations: item.fieldVariations || [],
   }));
 
-  const strategy =
-    sendStrategy.value === 'triggered'
-      ? sendFrameInstancesStore.triggerStrategyConfig
-      : timedConfig.value || { type: 'immediate' };
+  let strategy: StrategyConfig | undefined;
+
+  if (sendStrategy.value === 'variable') {
+    strategy = { type: 'variable', interval: variableInterval.value };
+  } else if (sendStrategy.value === 'triggered') {
+    strategy = sendFrameInstancesStore.triggerStrategyConfig;
+  } else if (sendStrategy.value === 'timed') {
+    strategy = timedConfig.value;
+  } else {
+    strategy = undefined;
+  }
+
   const configName = `多帧发送配置`;
 
   return createTaskConfigData(instances, targets, strategy, configName);
@@ -476,6 +599,8 @@ async function handleSetTaskConfigData(configFileContent: unknown) {
       instanceId: target.instanceId,
       targetId: target.targetId,
       interval: target.interval || 1000,
+      enableVariation: target.enableVariation || false,
+      fieldVariations: target.fieldVariations || [],
     }));
 
     // 应用导入的策略配置，包括具体的配置参数
@@ -570,6 +695,50 @@ async function startSendingTask() {
         } else {
           throw new Error('未知的触发类型');
         }
+        break;
+      }
+
+      case 'variable': {
+        // 可变参数发送：使用定时发送，但根据参数变化设置轮次
+        const variableInstances = selectedInstances.value.filter(
+          inst => inst.enableVariation && inst.fieldVariations?.length
+        );
+
+        if (variableInstances.length === 0) {
+          throw new Error('可变参数发送需要至少一个实例启用参数变化');
+        }
+
+        // 检查所有可变字段的值数组长度是否相等
+        let maxLength = 0;
+        const lengths: number[] = [];
+
+        for (const instance of variableInstances) {
+          if (instance.fieldVariations) {
+            for (const fieldVar of instance.fieldVariations) {
+              lengths.push(fieldVar.values.length);
+              maxLength = Math.max(maxLength, fieldVar.values.length);
+            }
+          }
+        }
+
+        // 验证长度一致性
+        const minLength = Math.min(...lengths);
+        if (minLength !== maxLength) {
+          throw new Error(`可变参数长度不一致，最小长度: ${minLength}，最大长度: ${maxLength}。请确保所有字段的参数数量相等。`);
+        }
+
+        if (maxLength === 0) {
+          throw new Error('可变参数不能为空');
+        }
+
+        // 使用定时发送，发送间隔1秒，重复次数为参数数组长度
+        taskId = createTimedMultipleTask(
+          selectedInstances.value,
+          variableInterval.value, // 1秒间隔
+          maxLength, // 重复次数为参数数组长度
+          false, // 不是无限循环
+          '可变参数发送',
+        );
         break;
       }
     }

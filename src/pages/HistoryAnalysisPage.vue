@@ -152,11 +152,11 @@ const handleChartConfigUpdate = (selectedIds: number[]): void => {
       };
     })
     .filter((item) => item !== null) as Array<{
-    groupId: number;
-    dataItemId: number;
-    label: string;
-    color: string;
-  }>;
+      groupId: number;
+      dataItemId: number;
+      label: string;
+      color: string;
+    }>;
 
   historyStore.updateChartConfig(currentEditingChartId.value, {
     selectedDataItems: selectedItems,
@@ -270,9 +270,8 @@ onUnmounted(() => {
     <div class="flex gap-4 p-4 h-full">
       <!-- 左侧控制面板 -->
       <div
-        class="bg-industrial-panel border border-industrial rounded-lg shadow-lg flex-shrink-0 flex flex-col overflow-hidden"
-        :style="{ width: `${leftPanelWidth}px`, minWidth: '280px', maxWidth: '400px' }"
-      >
+        class="bg-industrial-panel border border-solid border-industrial rounded-lg shadow-lg flex-shrink-0 flex flex-col overflow-hidden"
+        :style="{ width: `${leftPanelWidth}px`, minWidth: '280px', maxWidth: '400px' }">
         <!-- 面板内容 -->
         <div class="flex-1 flex flex-col p-3">
           <!-- 时间选择器 -->
@@ -287,47 +286,32 @@ onUnmounted(() => {
 
           <!-- CSV导出按钮 -->
           <div class="flex-shrink-0">
-            <q-btn
-              flat
-              label="导出为CSV"
-              icon="file_download"
-              size="sm"
-              class="w-full btn-industrial-secondary text-xs"
+            <q-btn flat label="导出为CSV" icon="file_download" size="sm" class="w-full btn-industrial-secondary text-xs"
               :disabled="historyStore.isLoading || historyStore.selectedItemsCount === 0"
-              @click="showExportDialog = true"
-            />
+              @click="showExportDialog = true" />
           </div>
         </div>
 
         <!-- 调整手柄 -->
         <div
           class="w-1 bg-industrial-highlight hover:bg-industrial-accent cursor-col-resize absolute right-0 top-0 bottom-0 opacity-0 hover:opacity-100 transition-opacity"
-          @mousedown="startResize"
-        />
+          @mousedown="startResize" />
       </div>
 
       <!-- 右侧图表区域 -->
       <div class="flex-1 flex flex-col bg-industrial-primary">
         <!-- 顶部状态栏 -->
-        <div
-          class="flex items-center justify-between bg-industrial-secondary border-b border-industrial px-6 py-4"
-        >
+        <div class="flex items-center justify-between bg-industrial-secondary border-b border-industrial px-6 py-4">
           <!-- 左侧：图表数量选择 -->
           <div class="flex items-center gap-4">
             <span class="text-industrial-secondary text-xs">图表数量:</span>
             <div class="flex gap-1">
-              <button
-                v-for="option in chartCountOptions"
-                :key="option.value"
-                :class="[
-                  'px-2 py-1 text-xs rounded bg-industrial-secondary border border-industrial-highlight text-industrial-accent hover:bg-industrial-highlight transition-colors',
-                  historyStore.multiChartSettings.chartCount === option.value
-                    ? 'bg-industrial-accent border-industrial-accent text-white'
-                    : 'border-industrial text-industrial-primary hover:bg-industrial-highlight',
-                ]"
-                :disabled="historyStore.isLoading"
-                @click="updateChartCount(option.value)"
-              >
+              <button v-for="option in chartCountOptions" :key="option.value" :class="[
+                'px-2 py-1 text-xs rounded bg-industrial-secondary border border-industrial-highlight text-industrial-accent hover:bg-industrial-highlight transition-colors',
+                historyStore.multiChartSettings.chartCount === option.value
+                  ? 'bg-industrial-accent border-industrial-accent text-white'
+                  : 'border-industrial text-industrial-primary hover:bg-industrial-highlight',
+              ]" :disabled="historyStore.isLoading" @click="updateChartCount(option.value)">
                 {{ option.label }}
               </button>
             </div>
@@ -368,16 +352,11 @@ onUnmounted(() => {
         <!-- 图表展示区域 -->
         <div v-else class="flex-1 overflow-y-hidden">
           <!-- 多图表展示 -->
-          <div
-            v-for="chart in historyStore.multiChartSettings.charts"
-            :key="chart.id"
-            class="w-full"
-          >
+          <div v-for="chart in historyStore.multiChartSettings.charts" :key="chart.id" class="w-full">
             <div class="bg-industrial-panel border-industrial rounded overflow-hidden">
               <!-- 图表标题栏 -->
               <div
-                class="h-32px bg-industrial-secondary border-b border-industrial px-3 flex items-center justify-between"
-              >
+                class="h-32px bg-industrial-secondary border-b border-industrial px-3 flex items-center justify-between">
                 <h4 class="text-industrial-primary text-sm font-medium m-0">
                   {{ chart.title }}
                 </h4>
@@ -385,33 +364,23 @@ onUnmounted(() => {
                   <span class="text-industrial-tertiary text-xs">
                     {{ chart.selectedDataItems.length }} 项
                   </span>
-                  <button
-                    class="btn-industrial-secondary px-2 py-1 text-xs rounded hover:bg-industrial-highlight"
-                    @click="openChartSettings(chart.id)"
-                  >
+                  <button class="btn-industrial-secondary px-2 py-1 text-xs rounded hover:bg-industrial-highlight"
+                    @click="openChartSettings(chart.id)">
                     配置
                   </button>
                 </div>
               </div>
 
               <!-- 图表内容 -->
-              <UniversalChart
-                :history-data="historyStore.chartDataSets[chart.id] || []"
-                :chart-config="chart"
-                :y-axis-config="chart.yAxisConfig"
-                :height="`${getChartHeight}px`"
-                :loading="historyStore.isLoading"
-                mode="history"
-                :show-settings-button="false"
-              />
+              <UniversalChart :history-data="historyStore.chartDataSets[chart.id] || []" :chart-config="chart"
+                :y-axis-config="chart.yAxisConfig" :height="`${getChartHeight}px`" :loading="historyStore.isLoading"
+                mode="history" :show-settings-button="false" />
             </div>
           </div>
 
           <!-- 空状态 -->
-          <div
-            v-if="historyStore.multiChartSettings.charts.length === 0"
-            class="flex-1 flex items-center justify-center"
-          >
+          <div v-if="historyStore.multiChartSettings.charts.length === 0"
+            class="flex-1 flex items-center justify-center">
             <div class="text-center space-y-4">
               <q-icon name="show_chart" size="xl" class="text-industrial-tertiary opacity-50" />
               <div class="text-industrial-tertiary text-lg">暂无图表配置</div>
@@ -425,23 +394,14 @@ onUnmounted(() => {
     </div>
 
     <!-- CSV导出对话框 -->
-    <CSVExportDialog
-      v-model="showExportDialog"
-      @export-success="handleExportSuccess"
-      @export-error="handleExportError"
-    />
+    <CSVExportDialog v-model="showExportDialog" @export-success="handleExportSuccess"
+      @export-error="handleExportError" />
 
     <!-- 图表配置对话框 -->
-    <UniversalChartSettingsDialog
-      v-model="showChartSettingsDialog"
-      :available-items="availableItemsForChart"
-      :selected-items="currentChartSelectedIds"
-      :chart-config="currentEditingChart?.yAxisConfig"
-      :title="currentEditingChart ? `配置 ${currentEditingChart.title}` : '图表配置'"
-      mode="history"
-      @update:selected-items="handleChartConfigUpdate"
-      @update:chart-config="handleYAxisConfigUpdate"
-    />
+    <UniversalChartSettingsDialog v-model="showChartSettingsDialog" :available-items="availableItemsForChart"
+      :selected-items="currentChartSelectedIds" :chart-config="currentEditingChart?.yAxisConfig"
+      :title="currentEditingChart ? `配置 ${currentEditingChart.title}` : '图表配置'" mode="history"
+      @update:selected-items="handleChartConfigUpdate" @update:chart-config="handleYAxisConfigUpdate" />
   </div>
 </template>
 

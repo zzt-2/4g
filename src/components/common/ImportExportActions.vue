@@ -118,27 +118,13 @@ async function handleImport() {
 <template>
   <div class="flex items-center">
     <q-btn-group flat>
-      <q-btn
-        flat
-        dense
-        icon="file_upload"
-        size="sm"
-        :loading="isImporting"
-        class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
-        @click="handleImport"
-      >
+      <q-btn flat dense icon="file_download" size="sm" :loading="isImporting"
+        class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30" @click="handleImport">
         <q-tooltip>{{ importTitle }}</q-tooltip>
       </q-btn>
 
-      <q-btn
-        flat
-        dense
-        icon="file_download"
-        size="sm"
-        :loading="isExporting"
-        class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30"
-        @click="handleExport"
-      >
+      <q-btn flat dense icon="file_upload" size="sm" :loading="isExporting"
+        class="rounded-md text-blue-400 hover:bg-blue-900 hover:bg-opacity-30" @click="handleExport">
         <q-tooltip>{{ exportTitle }}</q-tooltip>
       </q-btn>
     </q-btn-group>
