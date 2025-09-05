@@ -219,7 +219,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
   const receiveFramesStore = useReceiveFramesStore();
 
   // 优化的hex转换函数，带缓存
-  const cachedConvertToHex = (value: string, dataType: string): string => {
+  const cachedConvertToHex = (value: string, dataType: string, isASCII?: boolean): string => {
     const cacheKey = `${value}_${dataType}`;
 
     // 检查缓存
@@ -228,7 +228,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
     }
 
     // 计算hex值
-    const hexValue = convertToHex(value, dataType);
+    const hexValue = convertToHex(value, dataType, undefined, isASCII, true);
 
     // 添加到缓存，控制缓存大小
     if (hexConversionCache.size >= MAX_HEX_CACHE_SIZE) {

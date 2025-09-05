@@ -384,11 +384,20 @@ export function useInstanceEditing(state: ReturnType<typeof useInstancesState>) 
 
       // 更新十六进制显示
       if (NUMBER_DATA_TYPES.includes(targetField.dataType)) {
-        hexValues.value[fieldId] = `0x${convertToHex(
-          value || '0',
-          targetField.dataType,
-          targetField.length,
-        )}`;
+        if (targetField.isASCII) {
+          hexValues.value[fieldId] = convertToHex(
+            value || '0',
+            targetField.dataType,
+            targetField.length,
+            targetField.isASCII,
+          );
+        } else {
+          hexValues.value[fieldId] = `0x${convertToHex(
+            value || '0',
+            targetField.dataType,
+            targetField.length,
+          )}`;
+        }
       }
 
       // 如果当前修改的不是校验字段，自动更新所有校验字段的值

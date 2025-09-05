@@ -48,6 +48,8 @@ export function createSendInstanceField(field: FrameField): SendInstanceField {
     factor: field.factor || 1,
     length: field.length,
     configurable: field.configurable,
+    bigEndian: field.bigEndian || false,
+    isASCII: field.isASCII || undefined,
     options: options,
     dataParticipationType: field.dataParticipationType || 'direct',
   };

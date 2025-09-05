@@ -22,6 +22,7 @@ export function createEmptyField(): FrameField {
     defaultValue: '0', // 默认值，基于类型
     inputType: 'input', // 默认输入类型
     configurable: true, // 默认可配置
+    bigEndian: true, // 默认大端序
     options: [],
     // 新增表达式相关字段 - 确保向后兼容性，都是可选的
     dataParticipationType: 'direct', // 默认为直接数据参与
@@ -48,6 +49,7 @@ export function createExpressionField(
     defaultValue: '0',
     inputType: 'expression', // 表达式输入类型
     configurable: false, // 表达式字段通常不可直接配置
+    bigEndian: true, // 默认大端序
     options: [],
     dataParticipationType: 'indirect', // 间接数据参与
     expressionConfig: createDefaultExpressionConfig(), // 默认表达式配置
@@ -65,8 +67,6 @@ export function createEmptyFrame(): Frame {
     name: '新帧配置',
     description: '',
     direction: 'send',
-    frameType: 'custom',
-    protocol: 'custom',
     fields: [],
     timestamp: Date.now(),
     createdAt: new Date(),

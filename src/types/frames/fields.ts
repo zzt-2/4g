@@ -56,6 +56,8 @@ export interface FrameField {
   defaultValue?: string;
   inputType: FieldInputType; // 控制字段输入类型
   configurable: boolean; // 是否可在发送用例中配置
+  bigEndian?: boolean; // 是否大端序
+  isASCII?: boolean; // 是否为ASCII字符
   // 可选配置参数，用于下拉框或单选框
   options?: {
     value: string; // 实际值

@@ -137,12 +137,26 @@ function shouldApplyFactor(factor: number | undefined): boolean {
  * 从字节数组解析 BigInt (64位)
  * @param fieldData 字节数组
  * @param signed 是否为有符号整数
+ * @param bigEndian 是否为大端序
  * @returns BigInt 值
  */
-function parseBigIntFromBytes(fieldData: Uint8Array, signed: boolean = false): bigint {
+function parseBigIntFromBytes(
+  fieldData: Uint8Array,
+  signed: boolean = false,
+  bigEndian: boolean = true,
+): bigint {
   let bigIntValue = 0n;
-  for (let i = 0; i < 8; i++) {
-    bigIntValue = (bigIntValue << 8n) | BigInt(fieldData[i]!);
+
+  if (bigEndian) {
+    // 大端序：高字节在前
+    for (let i = 0; i < 8; i++) {
+      bigIntValue = (bigIntValue << 8n) | BigInt(fieldData[i]!);
+    }
+  } else {
+    // 小端序：低字节在前
+    for (let i = 7; i >= 0; i--) {
+      bigIntValue = (bigIntValue << 8n) | BigInt(fieldData[i]!);
+    }
   }
 
   // 处理有符号整数的负数
@@ -157,9 +171,14 @@ function parseBigIntFromBytes(fieldData: Uint8Array, signed: boolean = false): b
  * 从字节数组解析浮点数
  * @param fieldData 字节数组
  * @param isDouble 是否为双精度
+ * @param bigEndian 是否为大端序
  * @returns 浮点数值
  */
-function parseFloatFromBytes(fieldData: Uint8Array, isDouble: boolean = false): number {
+function parseFloatFromBytes(
+  fieldData: Uint8Array,
+  isDouble: boolean = false,
+  bigEndian: boolean = true,
+): number {
   const buffer = new ArrayBuffer(isDouble ? 8 : 4);
   const view = new DataView(buffer);
 
@@ -167,7 +186,7 @@ function parseFloatFromBytes(fieldData: Uint8Array, isDouble: boolean = false): 
     view.setUint8(i, fieldData[i]!);
   }
 
-  return isDouble ? view.getFloat64(0, false) : view.getFloat32(0, false);
+  return isDouble ? view.getFloat64(0, bigEndian) : view.getFloat32(0, bigEndian);
 }
 
 /**
@@ -222,7 +241,16 @@ export function extractFieldValue(
       }
 
       case 'uint16': {
-        let numValue = fieldData.length >= 2 ? (fieldData[0]! << 8) | fieldData[1]! : 0;
+        let numValue = 0;
+        if (fieldData.length >= 2) {
+          if (field.bigEndian === false) {
+            // 小端序：低字节在前
+            numValue = (fieldData[1]! << 8) | fieldData[0]!;
+          } else {
+            // 大端序：高字节在前（默认）
+            numValue = (fieldData[0]! << 8) | fieldData[1]!;
+          }
+        }
         if (shouldApplyFactor(field.factor)) {
           numValue = applyFactor(numValue, field.factor!);
         }
@@ -232,7 +260,16 @@ export function extractFieldValue(
       }
 
       case 'int16': {
-        const uint16Val = fieldData.length >= 2 ? (fieldData[0]! << 8) | fieldData[1]! : 0;
+        let uint16Val = 0;
+        if (fieldData.length >= 2) {
+          if (field.bigEndian === false) {
+            // 小端序：低字节在前
+            uint16Val = (fieldData[1]! << 8) | fieldData[0]!;
+          } else {
+            // 大端序：高字节在前（默认）
+            uint16Val = (fieldData[0]! << 8) | fieldData[1]!;
+          }
+        }
         let numValue = uint16Val > 32767 ? uint16Val - 65536 : uint16Val;
         if (shouldApplyFactor(field.factor)) {
           numValue = applyFactor(numValue, field.factor!);
@@ -243,14 +280,26 @@ export function extractFieldValue(
       }
 
       case 'uint32': {
-        let numValue =
-          fieldData.length >= 4
-            ? ((fieldData[0]! << 24) |
+        let numValue = 0;
+        if (fieldData.length >= 4) {
+          if (field.bigEndian === false) {
+            // 小端序：低字节在前
+            numValue =
+              ((fieldData[3]! << 24) |
+                (fieldData[2]! << 16) |
+                (fieldData[1]! << 8) |
+                fieldData[0]!) >>>
+              0;
+          } else {
+            // 大端序：高字节在前（默认）
+            numValue =
+              ((fieldData[0]! << 24) |
                 (fieldData[1]! << 16) |
                 (fieldData[2]! << 8) |
                 fieldData[3]!) >>>
-              0
-            : 0;
+              0;
+          }
+        }
         if (shouldApplyFactor(field.factor)) {
           numValue = applyFactor(numValue, field.factor!);
         }
@@ -260,10 +309,18 @@ export function extractFieldValue(
       }
 
       case 'int32': {
-        const uint32Val =
-          fieldData.length >= 4
-            ? (fieldData[0]! << 24) | (fieldData[1]! << 16) | (fieldData[2]! << 8) | fieldData[3]!
-            : 0;
+        let uint32Val = 0;
+        if (fieldData.length >= 4) {
+          if (field.bigEndian === false) {
+            // 小端序：低字节在前
+            uint32Val =
+              (fieldData[3]! << 24) | (fieldData[2]! << 16) | (fieldData[1]! << 8) | fieldData[0]!;
+          } else {
+            // 大端序：高字节在前（默认）
+            uint32Val =
+              (fieldData[0]! << 24) | (fieldData[1]! << 16) | (fieldData[2]! << 8) | fieldData[3]!;
+          }
+        }
         let numValue = uint32Val > 2147483647 ? uint32Val - 4294967296 : uint32Val;
         if (shouldApplyFactor(field.factor)) {
           numValue = applyFactor(numValue, field.factor!);
@@ -275,7 +332,7 @@ export function extractFieldValue(
 
       case 'uint64': {
         if (fieldData.length >= 8) {
-          const bigIntValue = parseBigIntFromBytes(fieldData, false);
+          const bigIntValue = parseBigIntFromBytes(fieldData, false, field.bigEndian !== false);
 
           if (shouldApplyFactor(field.factor)) {
             const factorResult = applyFactor(Number(bigIntValue), field.factor!);
@@ -294,7 +351,7 @@ export function extractFieldValue(
 
       case 'int64': {
         if (fieldData.length >= 8) {
-          const bigIntValue = parseBigIntFromBytes(fieldData, true);
+          const bigIntValue = parseBigIntFromBytes(fieldData, true, field.bigEndian !== false);
 
           if (shouldApplyFactor(field.factor)) {
             const factorResult = applyFactor(Number(bigIntValue), field.factor!);
@@ -313,7 +370,7 @@ export function extractFieldValue(
 
       case 'float': {
         if (fieldData.length >= 4) {
-          let numValue = parseFloatFromBytes(fieldData, false);
+          let numValue = parseFloatFromBytes(fieldData, false, field.bigEndian !== false);
           if (shouldApplyFactor(field.factor)) {
             numValue = applyFactor(numValue, field.factor!);
           }
@@ -328,7 +385,7 @@ export function extractFieldValue(
 
       case 'double': {
         if (fieldData.length >= 8) {
-          let numValue = parseFloatFromBytes(fieldData, true);
+          let numValue = parseFloatFromBytes(fieldData, true, field.bigEndian !== false);
           if (shouldApplyFactor(field.factor)) {
             numValue = applyFactor(numValue, field.factor!);
           }
@@ -342,11 +399,18 @@ export function extractFieldValue(
       }
 
       case 'bytes':
-        value = fieldData;
-        displayValue = Array.from(fieldData)
-          .map((byte) => byte.toString(16).padStart(2, '0'))
-          .join(' ');
-        console.log('displayValue', displayValue);
+        if (field.isASCII) {
+          value = Array.from(fieldData)
+            .filter((byte) => byte !== 0)
+            .map((byte) => String.fromCharCode(byte))
+            .join('');
+          displayValue = value as string;
+        } else {
+          value = Array.from(fieldData)
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
+          displayValue = (value as string).match(/.{2}/g)?.join(' ') || '';
+        }
         break;
 
       default:

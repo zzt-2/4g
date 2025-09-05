@@ -452,18 +452,34 @@ function writeFieldToBuffer(buffer: Uint8Array, field: SendInstanceField, offset
     case 'uint16':
     case 'int16': {
       const num = parseInt(value, isHexValue ? 16 : 10);
-      buffer[newOffset++] = (num >> 8) & 0xff; // 高字节
-      buffer[newOffset++] = num & 0xff; // 低字节
+      if (field.bigEndian === false) {
+        // 小端序：低字节在前
+        buffer[newOffset++] = num & 0xff; // 低字节
+        buffer[newOffset++] = (num >> 8) & 0xff; // 高字节
+      } else {
+        // 大端序：高字节在前（默认）
+        buffer[newOffset++] = (num >> 8) & 0xff; // 高字节
+        buffer[newOffset++] = num & 0xff; // 低字节
+      }
       break;
     }
 
     case 'uint32':
     case 'int32': {
       const num = parseInt(value, isHexValue ? 16 : 10);
-      buffer[newOffset++] = (num >> 24) & 0xff; // 最高字节
-      buffer[newOffset++] = (num >> 16) & 0xff;
-      buffer[newOffset++] = (num >> 8) & 0xff;
-      buffer[newOffset++] = num & 0xff; // 最低字节
+      if (field.bigEndian === false) {
+        // 小端序：低字节在前
+        buffer[newOffset++] = num & 0xff; // 最低字节
+        buffer[newOffset++] = (num >> 8) & 0xff;
+        buffer[newOffset++] = (num >> 16) & 0xff;
+        buffer[newOffset++] = (num >> 24) & 0xff; // 最高字节
+      } else {
+        // 大端序：高字节在前（默认）
+        buffer[newOffset++] = (num >> 24) & 0xff; // 最高字节
+        buffer[newOffset++] = (num >> 16) & 0xff;
+        buffer[newOffset++] = (num >> 8) & 0xff;
+        buffer[newOffset++] = num & 0xff; // 最低字节
+      }
       break;
     }
 
@@ -488,9 +504,17 @@ function writeFieldToBuffer(buffer: Uint8Array, field: SendInstanceField, offset
         // 确保在 uint64 范围内
         bigIntValue = bigIntValue & BigInt('0xFFFFFFFFFFFFFFFF');
 
-        // 将 BigInt 转换为字节数组（大端序）
-        for (let i = 7; i >= 0; i--) {
-          buffer[newOffset++] = Number((bigIntValue >> BigInt(i * 8)) & 0xffn);
+        // 将 BigInt 转换为字节数组
+        if (field.bigEndian === false) {
+          // 小端序：低字节在前
+          for (let i = 0; i < 8; i++) {
+            buffer[newOffset++] = Number((bigIntValue >> BigInt(i * 8)) & 0xffn);
+          }
+        } else {
+          // 大端序：高字节在前（默认）
+          for (let i = 7; i >= 0; i--) {
+            buffer[newOffset++] = Number((bigIntValue >> BigInt(i * 8)) & 0xffn);
+          }
         }
       } catch (error) {
         console.error('64位整数转换错误:', error);
@@ -507,7 +531,7 @@ function writeFieldToBuffer(buffer: Uint8Array, field: SendInstanceField, offset
       const num = parseFloat(value);
       // 创建一个浮点数的视图
       const view = new DataView(new ArrayBuffer(4));
-      view.setFloat32(0, num, false); // false表示大端字节序
+      view.setFloat32(0, num, field.bigEndian !== false); // 根据字段设置字节序
 
       // 复制四个字节到buffer
       buffer[newOffset++] = view.getUint8(0);
@@ -518,31 +542,52 @@ function writeFieldToBuffer(buffer: Uint8Array, field: SendInstanceField, offset
     }
 
     case 'bytes': {
-      // 对于字节数组，假设值是十六进制字符串表示的字节
-      const hexValue = value.replace(/\s+/g, ''); // 移除所有空白
-      if (hexValue.length > 0) {
-        // 确保十六进制字符串长度为偶数
-        const paddedHex = hexValue.length % 2 ? '0' + hexValue : hexValue;
-
-        // 计算要写入的字节数
-        const bytesCount = paddedHex.length / 2;
-        const fieldLength = typeof field.length === 'number' ? field.length : bytesCount;
-        const bytesToWrite = Math.min(bytesCount, fieldLength);
-
-        // 将十六进制字符串转换为字节并写入
-        for (let i = 0; i < bytesToWrite; i++) {
-          const byteValue = parseInt(paddedHex.substring(i * 2, i * 2 + 2), 16);
-          buffer[newOffset++] = byteValue;
-        }
-
-        // 填充剩余空间
-        for (let i = bytesToWrite; i < fieldLength; i++) {
-          buffer[newOffset++] = 0;
-        }
-      } else if (typeof field.length === 'number') {
-        // 如果没有值但有长度，用0填充
+      if (field.isASCII) {
         for (let i = 0; i < field.length; i++) {
-          buffer[newOffset++] = 0;
+          if (i < value.length) {
+            buffer[newOffset++] = value.charCodeAt(i);
+          } else {
+            buffer[newOffset++] = 0;
+          }
+        }
+      } else {
+        let hexValue = '';
+        if (isHexValue) {
+          hexValue = value.replace(/\s+|^(0x)/g, ''); // 移除所有空白
+          console.log('hexValue', hexValue);
+        } else {
+          const numValue = Math.floor(parseFloat(value));
+          // 确保长度为偶数
+          hexValue = numValue
+            .toString(16)
+            .toUpperCase()
+            .padStart((field.length as number) * 2, '0')
+            .slice(-((field.length as number) * 2));
+        }
+        if (hexValue.length > 0) {
+          // 确保十六进制字符串长度为偶数
+          const paddedHex = hexValue.length % 2 ? '0' + hexValue : hexValue;
+
+          // 计算要写入的字节数
+          const bytesCount = paddedHex.length / 2;
+          const fieldLength = typeof field.length === 'number' ? field.length : bytesCount;
+          const bytesToWrite = Math.min(bytesCount, fieldLength);
+
+          // 将十六进制字符串转换为字节并写入
+          for (let i = 0; i < bytesToWrite; i++) {
+            const byteValue = parseInt(paddedHex.substring(i * 2, i * 2 + 2), 16);
+            buffer[newOffset++] = byteValue;
+          }
+
+          // 填充剩余空间
+          for (let i = bytesToWrite; i < fieldLength; i++) {
+            buffer[newOffset++] = 0;
+          }
+        } else if (typeof field.length === 'number') {
+          // 如果没有值但有长度，用0填充
+          for (let i = 0; i < field.length; i++) {
+            buffer[newOffset++] = 0;
+          }
         }
       }
       break;

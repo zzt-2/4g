@@ -38,6 +38,7 @@ const formattedConfigurableFields = computed(() => {
   // 使用更高效的映射方式，避免对象展开
   return configFields.map((field: SendInstanceField) => ({
     ...field,
+    label: field.bigEndian ? field.label : field.label + ' (小端序)',
     hexValue: getFieldHexValue(field),
   }));
 });
@@ -103,7 +104,7 @@ const formatDate = (date: Date | undefined | null) => {
             field: 'label',
             align: 'left',
             sortable: true,
-            style: 'width: 80px',
+            style: 'width: 120px',
           },
           {
             name: 'hex',

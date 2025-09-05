@@ -115,50 +115,50 @@ const canConnect = (portPath: string) => {
     <!-- 无可用串口的提示 -->
     <div v-if="serialStore.availablePorts.length === 0" class="text-center py-4">
       <div class="text-industrial-secondary mb-2">未检测到串口设备</div>
-      <q-btn
-        outline
-        color="blue-5"
-        label="刷新列表"
-        class="text-sm"
-        :loading="serialStore.isLoading"
-        @click="serialStore.refreshPorts(true)"
-      />
+      <q-btn outline color="blue-5" label="刷新列表" class="text-sm" :loading="serialStore.isLoading"
+        @click="serialStore.refreshPorts(true)" />
     </div>
 
     <!-- 串口列表 -->
     <div v-else class="space-y-3">
-      <div
-        v-for="port in serialStore.availablePorts"
-        :key="port.path"
-        class="border border-industrial rounded-lg overflow-hidden bg-industrial-panel"
-      >
+      <div v-for="port in serialStore.availablePorts" :key="port.path"
+        class="border border-industrial rounded-lg overflow-hidden bg-industrial-panel">
         <!-- 串口标题行 -->
-        <div
-          class="p-3 flex justify-between items-center cursor-pointer hover:bg-industrial-highlight"
-          @click="toggleExpand(port.path)"
-        >
+        <div class="p-3 flex justify-between items-center cursor-pointer hover:bg-industrial-highlight"
+          @click="toggleExpand(port.path)">
           <div class="flex items-center">
-            <q-icon
-              :name="getPortStatusIcon(port.path)"
-              :color="getPortStatusColor(port.path)"
-              size="sm"
-              class="mr-2"
-            />
+            <q-icon :name="getPortStatusIcon(port.path)" :color="getPortStatusColor(port.path)" size="sm"
+              class="mr-2" />
             <div>
               <div class="text-sm text-industrial-primary">{{ getPortDisplayName(port) }}</div>
               <div class="text-xs text-industrial-secondary">{{ port.path }}</div>
             </div>
           </div>
 
-          <div class="flex items-center">
+          <div class="flex items-center gap-4">
             <div class="text-xs mr-2" :class="`text-${getPortStatusColor(port.path)}-500`">
               {{ getPortStatusText(port.path) }}
             </div>
-            <q-icon
-              :name="expandedPorts[port.path] ? 'expand_less' : 'expand_more'"
-              color="blue-5"
-              size="sm"
-            />
+
+            <!-- 操作按钮 -->
+            <div class="flex justify-end">
+              <q-btn v-if="!isConnectedPort(port.path)" color="primary" label="连接" size="sm" :loading="operatingPorts[port.path] ||
+                serialStore.portConnectionStatuses[port.path] === 'connecting'
+                " :disable="!canConnect(port.path)" @click.stop="handleConnect(port.path)">
+                <template #loading>
+                  <q-spinner-dots />
+                </template>
+              </q-btn>
+
+              <q-btn v-else color="negative" label="断开" size="sm" :loading="operatingPorts[port.path]"
+                @click.stop="handleDisconnect(port.path)">
+                <template #loading>
+                  <q-spinner-dots />
+                </template>
+              </q-btn>
+            </div>
+
+            <q-icon :name="expandedPorts[port.path] ? 'expand_less' : 'expand_more'" color="blue-5" size="sm" />
           </div>
         </div>
 
@@ -230,48 +230,12 @@ const canConnect = (portPath: string) => {
             </div>
 
             <!-- 错误信息 -->
-            <div
-              v-if="
-                serialStore.portErrorMessages[port.path] &&
-                serialStore.portConnectionStatuses[port.path] === 'error'
-              "
-              class="mb-3 bg-red-900/20 p-2 rounded text-xs text-red-400"
-            >
+            <div v-if="
+              serialStore.portErrorMessages[port.path] &&
+              serialStore.portConnectionStatuses[port.path] === 'error'
+            " class="mb-3 bg-red-900/20 p-2 rounded text-xs text-red-400">
               <div class="font-medium mb-1">错误:</div>
               <div>{{ serialStore.portErrorMessages[port.path] }}</div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="flex justify-end">
-              <q-btn
-                v-if="!isConnectedPort(port.path)"
-                color="primary"
-                label="连接"
-                size="sm"
-                :loading="
-                  operatingPorts[port.path] ||
-                  serialStore.portConnectionStatuses[port.path] === 'connecting'
-                "
-                :disable="!canConnect(port.path)"
-                @click.stop="handleConnect(port.path)"
-              >
-                <template #loading>
-                  <q-spinner-dots />
-                </template>
-              </q-btn>
-
-              <q-btn
-                v-else
-                color="negative"
-                label="断开"
-                size="sm"
-                :loading="operatingPorts[port.path]"
-                @click.stop="handleDisconnect(port.path)"
-              >
-                <template #loading>
-                  <q-spinner-dots />
-                </template>
-              </q-btn>
             </div>
           </div>
         </q-slide-transition>

@@ -9,9 +9,48 @@ import {
   TimedTaskConfig,
   TriggerTaskConfig,
 } from '../../../stores/frames/sendTasksStore';
+import type { TriggerCondition } from '../../../types/frames/sendInstances';
 import { fileDialogManager } from '../../../utils/common/fileDialogManager';
 import { pathAPI } from '../../../api/common';
 import { useSendTaskCreator } from './useSendTaskCreator';
+
+/**
+ * 任务配置数据接口
+ */
+interface TaskConfigData {
+  version?: string;
+  taskType: string;
+  taskName: string;
+  taskDescription?: string;
+  instances: Array<{
+    id: string;
+    instanceId: string;
+    targetId: string;
+    interval?: number;
+  }>;
+  typeSpecificConfig?: {
+    sendInterval?: number;
+    repeatCount?: number;
+    isInfinite?: boolean;
+    sourceId?: string;
+    triggerFrameId?: string;
+    conditions?: TriggerCondition[];
+  };
+  createdAt?: string;
+  savedBy?: string;
+}
+
+/**
+ * 批量任务配置数据接口
+ */
+interface BatchTaskConfigData {
+  version?: string;
+  type: string;
+  tasks: TaskConfigData[];
+  taskCount?: number;
+  createdAt?: string;
+  savedBy?: string;
+}
 
 /**
  * 任务配置管理器可组合函数
@@ -109,7 +148,7 @@ export function useSendTaskConfigManager() {
 
       if (!result.canceled && result.fileData) {
         // 验证任务配置数据
-        const taskData = result.fileData;
+        const taskData = result.fileData as TaskConfigData;
 
         if (
           !taskData ||
@@ -152,9 +191,9 @@ export function useSendTaskConfigManager() {
             taskId = createTimedSingleTask(
               taskData.instances[0].instanceId,
               taskData.instances[0].targetId,
-              taskData.typeSpecificConfig.sendInterval,
-              taskData.typeSpecificConfig.repeatCount,
-              taskData.typeSpecificConfig.isInfinite,
+              taskData.typeSpecificConfig!.sendInterval!,
+              taskData.typeSpecificConfig!.repeatCount!,
+              taskData.typeSpecificConfig!.isInfinite || false,
               taskData.taskName || '导入的定时发送任务',
             );
             break;
@@ -166,9 +205,9 @@ export function useSendTaskConfigManager() {
 
             taskId = createTimedMultipleTask(
               taskData.instances,
-              taskData.typeSpecificConfig.sendInterval,
-              taskData.typeSpecificConfig.repeatCount,
-              taskData.typeSpecificConfig.isInfinite,
+              taskData.typeSpecificConfig!.sendInterval!,
+              taskData.typeSpecificConfig!.repeatCount!,
+              taskData.typeSpecificConfig!.isInfinite || false,
               taskData.taskName || '导入的多实例定时发送任务',
               taskData.taskDescription,
             );
@@ -186,9 +225,9 @@ export function useSendTaskConfigManager() {
             taskId = createTriggeredSingleTask(
               taskData.instances[0].instanceId,
               taskData.instances[0].targetId,
-              taskData.typeSpecificConfig.sourceId,
-              taskData.typeSpecificConfig.triggerFrameId,
-              taskData.typeSpecificConfig.conditions,
+              taskData.typeSpecificConfig!.sourceId!,
+              taskData.typeSpecificConfig!.triggerFrameId!,
+              taskData.typeSpecificConfig!.conditions || [],
               taskData.taskName || '导入的触发发送任务',
             );
             break;
@@ -200,9 +239,9 @@ export function useSendTaskConfigManager() {
 
             taskId = createTriggeredMultipleTask(
               taskData.instances,
-              taskData.typeSpecificConfig.sourceId,
-              taskData.typeSpecificConfig.triggerFrameId,
-              taskData.typeSpecificConfig.conditions,
+              taskData.typeSpecificConfig!.sourceId!,
+              taskData.typeSpecificConfig!.triggerFrameId!,
+              taskData.typeSpecificConfig!.conditions || [],
               taskData.taskName || '导入的多实例触发发送任务',
               taskData.taskDescription,
             );
@@ -317,7 +356,7 @@ export function useSendTaskConfigManager() {
       );
 
       if (!result.canceled && result.fileData) {
-        const data = result.fileData;
+        const data = result.fileData as BatchTaskConfigData;
 
         if (!data || data.type !== 'multiple-tasks' || !Array.isArray(data.tasks)) {
           throw new Error('无效的批量任务配置数据');
@@ -349,9 +388,9 @@ export function useSendTaskConfigManager() {
                 taskId = createTimedSingleTask(
                   taskData.instances[0].instanceId,
                   taskData.instances[0].targetId,
-                  taskData.typeSpecificConfig.sendInterval,
-                  taskData.typeSpecificConfig.repeatCount,
-                  taskData.typeSpecificConfig.isInfinite,
+                  taskData.typeSpecificConfig!.sendInterval!,
+                  taskData.typeSpecificConfig!.repeatCount!,
+                  taskData.typeSpecificConfig!.isInfinite || false,
                   taskData.taskName || '导入的定时发送任务',
                 );
                 break;
@@ -364,9 +403,9 @@ export function useSendTaskConfigManager() {
 
                 taskId = createTimedMultipleTask(
                   taskData.instances,
-                  taskData.typeSpecificConfig.sendInterval,
-                  taskData.typeSpecificConfig.repeatCount,
-                  taskData.typeSpecificConfig.isInfinite,
+                  taskData.typeSpecificConfig!.sendInterval!,
+                  taskData.typeSpecificConfig!.repeatCount!,
+                  taskData.typeSpecificConfig!.isInfinite || false,
                   taskData.taskName || '导入的多实例定时发送任务',
                   taskData.taskDescription,
                 );
@@ -381,9 +420,9 @@ export function useSendTaskConfigManager() {
                 taskId = createTriggeredSingleTask(
                   taskData.instances[0].instanceId,
                   taskData.instances[0].targetId,
-                  taskData.typeSpecificConfig.sourceId,
-                  taskData.typeSpecificConfig.triggerFrameId,
-                  taskData.typeSpecificConfig.conditions,
+                  taskData.typeSpecificConfig!.sourceId!,
+                  taskData.typeSpecificConfig!.triggerFrameId!,
+                  taskData.typeSpecificConfig!.conditions || [],
                   taskData.taskName || '导入的触发发送任务',
                 );
                 break;
@@ -396,9 +435,9 @@ export function useSendTaskConfigManager() {
 
                 taskId = createTriggeredMultipleTask(
                   taskData.instances,
-                  taskData.typeSpecificConfig.sourceId,
-                  taskData.typeSpecificConfig.triggerFrameId,
-                  taskData.typeSpecificConfig.conditions,
+                  taskData.typeSpecificConfig!.sourceId!,
+                  taskData.typeSpecificConfig!.triggerFrameId!,
+                  taskData.typeSpecificConfig!.conditions || [],
                   taskData.taskName || '导入的多实例触发发送任务',
                   taskData.taskDescription,
                 );

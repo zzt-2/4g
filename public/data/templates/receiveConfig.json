@@ -511,6 +511,50 @@
             "useLabel": false,
             "labelOptions": [],
             "id": 34
+          },
+          {
+            "label": "新字段",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "-",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 36
+          },
+          {
+            "label": "新字段2",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": null,
+            "displayValue": "-",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 37
+          },
+          {
+            "label": "新字段4",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "bytes",
+            "value": null,
+            "displayValue": "数据不足",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 38
+          },
+          {
+            "label": "新字段3",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "bytes",
+            "value": null,
+            "displayValue": "-",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 39
           }
         ]
       },
@@ -781,10 +825,38 @@
         "fieldName": "Q路",
         "groupId": 5,
         "dataItemId": 2
+      },
+      {
+        "frameId": "rQIkd8tQC_9g0Vp8Qyu-R",
+        "fieldId": "VzNs98Sp96pyGlK03jDn1",
+        "fieldName": "新字段",
+        "groupId": 4,
+        "dataItemId": 36
+      },
+      {
+        "frameId": "rQIkd8tQC_9g0Vp8Qyu-R",
+        "fieldId": "GlVzcJSpV0f6yffPWhdgi",
+        "fieldName": "新字段2",
+        "groupId": 4,
+        "dataItemId": 37
+      },
+      {
+        "frameId": "J9hf--R9WjkCT6jrw0rke",
+        "fieldId": "iclZMWXcXM8TqO4vpdivA",
+        "fieldName": "新字段4",
+        "groupId": 4,
+        "dataItemId": 38
+      },
+      {
+        "frameId": "J9hf--R9WjkCT6jrw0rke",
+        "fieldId": "k-apqibs8KGg5n0dWrbfa",
+        "fieldName": "新字段3",
+        "groupId": 4,
+        "dataItemId": 39
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-08-22T06:49:22.448Z",
-    "updatedAt": "2025-08-22T06:49:22.448Z"
+    "createdAt": "2025-09-05T03:18:01.913Z",
+    "updatedAt": "2025-09-05T03:18:01.913Z"
   }
 ]

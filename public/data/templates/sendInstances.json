@@ -6,7 +6,7 @@
     "description": "",
     "paramCount": 2,
     "createdAt": "2025-08-23T13:02:37.716Z",
-    "updatedAt": "2025-08-23T13:02:38.787Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "UGiQCczA0nZg72yrjhxL2",
@@ -126,7 +126,7 @@
     "description": "",
     "paramCount": 3,
     "createdAt": "2025-08-21T02:11:13.018Z",
-    "updatedAt": "2025-08-23T12:59:50.972Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "CIWpK2gv1uULY0m9X04Ez",
@@ -285,7 +285,7 @@
     "description": "",
     "paramCount": 6,
     "createdAt": "2025-08-21T02:11:14.016Z",
-    "updatedAt": "2025-08-23T12:59:50.972Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "jj7xZbgczdYzliA3k4IaM",
@@ -435,7 +435,7 @@
     "description": "",
     "paramCount": 6,
     "createdAt": "2025-08-22T02:57:00.920Z",
-    "updatedAt": "2025-08-23T12:59:50.972Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "wgx_yyTyOc8xKF8smWXUC",
@@ -864,7 +864,7 @@
     "description": "",
     "paramCount": 3,
     "createdAt": "2025-08-22T02:57:02.052Z",
-    "updatedAt": "2025-08-23T12:59:50.972Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "CkmZkov98vbh2H79XP23l",
@@ -1402,7 +1402,7 @@
     "description": "",
     "paramCount": 0,
     "createdAt": "2025-08-22T02:57:03.416Z",
-    "updatedAt": "2025-08-23T12:59:50.972Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "uN6RewEHGco0Tyqqsra4Q",
@@ -1578,7 +1578,7 @@
     "description": "",
     "paramCount": 2,
     "createdAt": "2025-08-22T06:29:44.745Z",
-    "updatedAt": "2025-08-23T12:59:50.972Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
     "fields": [
       {
         "id": "wAFrUxAd1uZw30XxSIJ9h",
@@ -1623,6 +1623,2120 @@
     "strategyConfig": {
       "type": "none",
       "updatedAt": "2025-08-22T06:29:44.745Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "3",
+    "label": "测距发送 #1",
+    "frameId": "OFxG8d5bIcw4JHQbG77R4",
+    "description": "",
+    "paramCount": 2,
+    "createdAt": "2025-08-28T08:02:12.626Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
+    "fields": [
+      {
+        "id": "Z7nFWlF72oxpaFC_e8RNY",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1acf0002",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "_QTO0SGHUBr5ybpo3agnl",
+        "label": "粗测距",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "3030529",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "JgSJOhCU4wBfWdVxEXNz8",
+        "label": "细测距",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-08-28T08:02:12.626Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "9",
+    "label": "系统状态帧 (副本) #1",
+    "frameId": "s04nF0Q1O07wqaQq9_Thy",
+    "description": "",
+    "paramCount": 7,
+    "createdAt": "2025-08-28T08:04:26.354Z",
+    "updatedAt": "2025-09-05T07:47:47.366Z",
+    "fields": [
+      {
+        "id": "Y05eqFmYqrpIBnjq22Wtd",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF0003",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "Y1uW6Ez-IPtiBuoQ20CIn",
+        "label": "信号功率",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "Fod-V0Bm5_zK56vSBfiWk",
+        "label": "频偏估计值",
+        "dataType": "int32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": "0.000001",
+        "length": 4,
+        "configurable": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "zEnfG5hlybqqEbAZcHSCM",
+        "label": "发送速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          },
+          {
+            "value": "5",
+            "label": "1.2582912G"
+          },
+          {
+            "value": "6",
+            "label": "629.1456M"
+          },
+          {
+            "value": "7",
+            "label": "314.5728M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "K_zm7f9H0zDYTppA0unrX",
+        "label": "接收速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "4",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "options": [
+          {
+            "value": "4",
+            "label": "5G"
+          },
+          {
+            "value": "3",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "1",
+            "label": "625M"
+          },
+          {
+            "value": "0",
+            "label": "312.5M"
+          },
+          {
+            "value": "7",
+            "label": "1.2582912G"
+          },
+          {
+            "value": "6",
+            "label": "629.1456M"
+          },
+          {
+            "value": "5",
+            "label": "314.5728M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "3xPfL_f-gaBVXbRvIup3_",
+        "label": "载波同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "UXRgtQ24V5_7jCM1kuO2E",
+        "label": "定时同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "bgG0kbU1mUwt5Z8chmP26",
+        "label": "帧同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "pyifhB5kg03Zfn9qv76V4",
+        "label": "编码方式",
+        "dataType": "uint8",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "var1<5",
+              "expression": "'RS编码'"
+            },
+            {
+              "condition": "var1>=5",
+              "expression": "'LDPC编码'"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "current_field",
+              "sourceId": "K_zm7f9H0zDYTppA0unrX",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-08-28T08:04:26.354Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "10",
+    "label": "帧统计数据 (副本) #1",
+    "frameId": "hotDoNu0QLJ843BvmvjA9",
+    "description": "",
+    "paramCount": 0,
+    "createdAt": "2025-08-28T08:04:44.114Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "Y05eqFmYqrpIBnjq22Wtd",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF0001",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "tELTPm2DsSLG2bAhjCZbR",
+        "label": "译码前总bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "NtNNkamVYldFab8TK5A4t",
+        "label": "译码前误bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "tmh5HQ23r1zhSspq6CuN1",
+        "label": "译码后总bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "sA4z6hA3aQ3gHXEq3zXMW",
+        "label": "译码后误bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "33InXLTXC71FZ4VW_zk8g",
+        "label": "空口帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iIB4tEcHLQOtpE1Cdb7iK",
+        "label": "空口误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "oRZGE5LekXs1oVTAnVSRK",
+        "label": "数据帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "TV5dTramA4FjayUqON-xj",
+        "label": "数据误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-08-28T08:04:44.114Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "11",
+    "label": "帧统计数据 (副本) #2",
+    "frameId": "hotDoNu0QLJ843BvmvjA9",
+    "description": "",
+    "paramCount": 1,
+    "createdAt": "2025-08-28T08:05:15.714Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "Y05eqFmYqrpIBnjq22Wtd",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF0001",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "tELTPm2DsSLG2bAhjCZbR",
+        "label": "译码前总bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "NtNNkamVYldFab8TK5A4t",
+        "label": "译码前误bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "tmh5HQ23r1zhSspq6CuN1",
+        "label": "译码后总bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "sA4z6hA3aQ3gHXEq3zXMW",
+        "label": "译码后误bit数",
+        "dataType": "uint64",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "33InXLTXC71FZ4VW_zk8g",
+        "label": "空口帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "625000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iIB4tEcHLQOtpE1Cdb7iK",
+        "label": "空口误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "oRZGE5LekXs1oVTAnVSRK",
+        "label": "数据帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "TV5dTramA4FjayUqON-xj",
+        "label": "数据误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-08-28T08:05:15.714Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "12",
+    "label": "1234test (副本) #1",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 2,
+    "createdAt": "2025-09-05T01:54:50.792Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "123457",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "123456",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T01:54:50.792Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "13",
+    "label": "1234test (副本) #2",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 4,
+    "createdAt": "2025-09-05T02:22:48.927Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T02:22:48.927Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "14",
+    "label": "1234test (副本) #3",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 4,
+    "createdAt": "2025-09-05T02:36:07.491Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "123456",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T02:36:07.491Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "15",
+    "label": "1234test (副本) #4",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 4,
+    "createdAt": "2025-09-05T02:38:16.420Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "12345678999211",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T02:38:16.420Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "16",
+    "label": "1234test (副本) #5",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 4,
+    "createdAt": "2025-09-05T02:41:44.349Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0111111111111",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "011111111111111111111111111",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "222222222222222222",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "234567",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T02:41:44.349Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "17",
+    "label": "1234test (副本) #6",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 5,
+    "createdAt": "2025-09-05T03:07:09.373Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "CiPb1mFrGDvyr_jBpIMSA",
+        "label": "新字段5",
+        "dataType": "bytes",
+        "inputType": "expression",
+        "description": "",
+        "value": "51",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "global_stat",
+              "sourceId": "second",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T03:07:09.373Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "18",
+    "label": "1234test (副本) #7",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 6,
+    "createdAt": "2025-09-05T06:51:46.805Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "CiPb1mFrGDvyr_jBpIMSA",
+        "label": "新字段5",
+        "dataType": "bytes",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "global_stat",
+              "sourceId": "second",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "kD8vMo_iP_t9oouOayD0n",
+        "label": "ms",
+        "dataType": "uint8",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "new Date().getMilliseconds()"
+            }
+          ],
+          "variables": []
+        }
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-09-05T06:51:46.805Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "19",
+    "label": "1234test (副本) #8",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 7,
+    "createdAt": "2025-09-05T07:00:35.511Z",
+    "updatedAt": "2025-09-05T07:47:47.367Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "5678",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "5678",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "CiPb1mFrGDvyr_jBpIMSA",
+        "label": "新字段5",
+        "dataType": "bytes",
+        "inputType": "expression",
+        "description": "",
+        "value": "12",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "global_stat",
+              "sourceId": "second",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "kD8vMo_iP_t9oouOayD0n",
+        "label": "ms",
+        "dataType": "uint8",
+        "inputType": "expression",
+        "description": "",
+        "value": "853",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "new Date().getMilliseconds()"
+            }
+          ],
+          "variables": []
+        }
+      },
+      {
+        "id": "0rPDGv5pPWRTlOP_BE3KD",
+        "label": "s",
+        "dataType": "uint8",
+        "inputType": "expression",
+        "description": "",
+        "value": "1757057472",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "global_stat",
+              "sourceId": "allSeconds",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-09-05T07:31:08.017Z",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "condition",
+        "responseDelay": 0,
+        "sourceId": "serial:COM10",
+        "triggerFrameId": "J9hf--R9WjkCT6jrw0rke",
+        "conditions": [
+          {
+            "id": "condition_1757056315634",
+            "fieldId": "k-apqibs8KGg5n0dWrbfa",
+            "condition": "equals",
+            "value": "1234000000000000"
+          }
+        ],
+        "continueListening": true
+      },
+      "targetId": "serial:COM9"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "20",
+    "label": "1234test (副本) #9",
+    "frameId": "-Lnms9IzBk2nX07VtxF5B",
+    "description": "",
+    "paramCount": 7,
+    "createdAt": "2025-09-05T07:12:22.132Z",
+    "updatedAt": "2025-09-05T07:51:08.121Z",
+    "fields": [
+      {
+        "id": "eB81EvtMkSJmaqRArhL6_",
+        "label": "123",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "VzNs98Sp96pyGlK03jDn1",
+        "label": "新字段",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "12345678",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GlVzcJSpV0f6yffPWhdgi",
+        "label": "新字段2",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "k-apqibs8KGg5n0dWrbfa",
+        "label": "新字段3",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0x123456",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "iclZMWXcXM8TqO4vpdivA",
+        "label": "新字段4",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "1234",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "CiPb1mFrGDvyr_jBpIMSA",
+        "label": "新字段5",
+        "dataType": "bytes",
+        "inputType": "expression",
+        "description": "",
+        "value": "50",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 8,
+        "configurable": true,
+        "bigEndian": true,
+        "isASCII": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "global_stat",
+              "sourceId": "second",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "kD8vMo_iP_t9oouOayD0n",
+        "label": "ms",
+        "dataType": "uint8",
+        "inputType": "expression",
+        "description": "",
+        "value": "512",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "new Date().getMilliseconds()"
+            }
+          ],
+          "variables": []
+        }
+      },
+      {
+        "id": "0rPDGv5pPWRTlOP_BE3KD",
+        "label": "s",
+        "dataType": "uint8",
+        "inputType": "expression",
+        "description": "",
+        "value": "1757058290",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "global_stat",
+              "sourceId": "allSeconds",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      }
+    ],
+    "isFavorite": false,
+    "strategyConfig": {
+      "type": "triggered",
+      "updatedAt": "2025-09-05T07:51:08.118Z",
+      "triggeredConfig": {
+        "type": "triggered",
+        "triggerType": "time",
+        "responseDelay": 0,
+        "executeTime": "2025-09-05T15:51",
+        "isRecurring": true,
+        "recurringType": "second",
+        "recurringInterval": 1,
+        "endTime": "2025-09-05T15:53"
+      },
+      "targetId": "serial:COM9"
     },
     "sendCount": 0
   }

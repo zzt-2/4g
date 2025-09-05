@@ -25,6 +25,8 @@ export interface SendInstanceField {
   factor?: number;
   length: number;
   configurable?: boolean; // 是否可配置
+  bigEndian?: boolean; // 是否大端序
+  isASCII?: boolean | undefined; // 是否为ASCII字符
   description?: string; // 字段说明/描述
   options: {
     value: string;

@@ -12,7 +12,13 @@ import type { SendInstanceField } from '../../types/frames/sendInstances';
  * @param length 长度（字节数，主要用于bytes类型）
  * @returns 十六进制字符串（不含0x前缀）
  */
-export const convertToHex = (value: string | number, dataType: string, length?: number): string => {
+export const convertToHex = (
+  value: string | number,
+  dataType: string,
+  length?: number,
+  isASCII?: boolean,
+  isReceive?: boolean,
+): string => {
   // 统一处理输入值
   const strValue = String(value || '');
   if (!strValue) return '00';
@@ -25,11 +31,22 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
 
     // 特殊处理bytes类型
     if (dataType === 'bytes') {
+      if (isASCII) {
+        if (isReceive) {
+          return String.fromCharCode(Number(inputString));
+        } else {
+          return inputString
+            .split('')
+            .map((char) => char.charCodeAt(0))
+            .join('')
+            .padEnd((length as number) * 2, '0');
+        }
+      }
       if (isHexInput) {
         // 对于十六进制输入，直接处理字符串以避免精度丢失
         const hexString = inputString.toUpperCase();
         const targetLength = (length as number) * 2;
-        return hexString.padStart(targetLength, '0').slice(-targetLength);
+        return hexString.padEnd(targetLength, '0').slice(-targetLength);
       } else {
         // 十进制输入转为十六进制再处理
         const numValue = Math.floor(parseFloat(inputString));
@@ -37,7 +54,7 @@ export const convertToHex = (value: string | number, dataType: string, length?: 
         return numValue
           .toString(16)
           .toUpperCase()
-          .padStart((length as number) * 2, '0')
+          .padEnd((length as number) * 2, '0')
           .slice(-((length as number) * 2));
       }
     }
@@ -211,7 +228,7 @@ export const getFieldHexValue = (field: SendInstanceField): string => {
   if (!field || !field.value) return '0x00';
 
   if (field.dataType && NUMBER_DATA_TYPES.includes(field.dataType)) {
-    return `0x${convertToHex(field.value, field.dataType, field.length)}`;
+    return `0x${convertToHex(field.value, field.dataType, field.length, field.isASCII)}`;
   }
 
   return '0x00';
@@ -247,7 +264,12 @@ export const getFullHexString = (fields: SendInstanceField[]): string => {
   return displayFields
     .map((field) => {
       if (field && field.dataType && field.value && NUMBER_DATA_TYPES.includes(field.dataType)) {
-        return convertToHex(field.value, field.dataType, field.length);
+        const hex = convertToHex(field.value, field.dataType, field.length, field.isASCII);
+        if (!field.bigEndian) {
+          //两个符号分段进行反转
+          return hex.match(/.{2}/g)?.reverse().join('') || hex;
+        }
+        return hex;
       }
       return '';
     })
@@ -267,7 +289,21 @@ export const initializeHexValues = (instance: {
 
   instance.fields.forEach((field) => {
     if (NUMBER_DATA_TYPES.includes(field.dataType) && field.value) {
-      hexValues[field.id] = `0x${convertToHex(field.value, field.dataType, field.length)}`;
+      if (field.isASCII) {
+        hexValues[field.id] = convertToHex(
+          field.value,
+          field.dataType,
+          field.length,
+          field.isASCII,
+        );
+      } else {
+        hexValues[field.id] = `0x${convertToHex(
+          field.value,
+          field.dataType,
+          field.length,
+          field.isASCII,
+        )}`;
+      }
     }
   });
 

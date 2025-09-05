@@ -2,7 +2,7 @@
  * 帧结构相关类型定义
  */
 
-import type { ProtocolType, FrameType, FrameDirection } from './basic';
+import type { FrameDirection } from './basic';
 import type { FrameField } from './fields';
 
 // 帧选项
@@ -27,8 +27,6 @@ export interface Frame {
   name: string;
   description: string;
   direction: FrameDirection;
-  protocol: ProtocolType;
-  frameType: FrameType;
   fields: FrameField[];
   paramCount?: number;
   value?: number | string;

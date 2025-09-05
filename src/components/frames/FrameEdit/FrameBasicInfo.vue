@@ -26,11 +26,6 @@
           <div class="flex flex-col space-y-4">
             <q-select v-model="frameEditorStore.editorFrame.direction" :options="FRAME_DIRECTION_OPTIONS" label="帧方向"
               dense dark outlined emit-value map-options />
-            <q-select v-model="frameEditorStore.editorFrame.protocol" :options="PROTOCOL_OPTIONS" label="协议类型" dense
-              dark outlined emit-value map-options />
-
-            <q-select v-model="frameEditorStore.editorFrame.frameType" :options="frameTypeOptions" label="帧类型" dense
-              dark outlined emit-value map-options />
 
             <!-- 描述 -->
             <q-input v-model="frameEditorStore.editorFrame.description" type="textarea" label="描述" dense outlined
@@ -84,8 +79,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import {
-  FRAME_TYPE_OPTIONS,
-  PROTOCOL_OPTIONS,
   FRAME_DIRECTION_OPTIONS,
 } from '../../../config/frameDefaults';
 import { useFrameEditorStore } from '../../../stores/frames/frameEditorStore';
@@ -112,13 +105,6 @@ const saveIdentifierRules = () => {
 const closeRulesDialog = () => {
   showRulesDialog.value = false;
 };
-
-// 根据选择的方向显示不同的帧类型选项
-const frameTypeOptions = computed(() =>
-  FRAME_TYPE_OPTIONS.filter(
-    (option) => option.direction === frameEditorStore.editorFrame?.direction,
-  ),
-);
 
 // 状态检查
 const isFrameLoaded = computed(() => {

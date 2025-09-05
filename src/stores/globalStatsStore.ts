@@ -22,6 +22,7 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
     minute: 0,
     second: 0,
     millisecond: 0,
+    allSeconds: 0,
     startTime: 0, // 启动时间戳
     uptime: 0, // 运行时间(秒)
     latitude: 0, // 纬度（整数，精确到分）
@@ -61,6 +62,7 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
     minute: systemStats.value.minute,
     second: systemStats.value.second,
     millisecond: systemStats.value.millisecond,
+    allSeconds: systemStats.value.allSeconds,
     // 位置相关
     latitude: systemStats.value.latitude,
     longitude: systemStats.value.longitude,
@@ -113,6 +115,7 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
     systemStats.value.minute = date.getMinutes();
     systemStats.value.second = date.getSeconds();
     systemStats.value.millisecond = date.getMilliseconds();
+    systemStats.value.allSeconds = Math.floor(Date.now() / 1000);
   };
 
   // 更新位置信息
@@ -179,6 +182,7 @@ export const useGlobalStatsStore = defineStore('globalStats', () => {
       minute: 0,
       second: 0,
       millisecond: 0,
+      allSeconds: 0,
       startTime: 0,
       uptime: 0,
       latitude: 0,

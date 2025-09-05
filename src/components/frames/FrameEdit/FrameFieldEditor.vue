@@ -2,7 +2,7 @@
   <q-card class="w-full h-full bg-card border-primary p-4">
     <div class="flex h-full w-full">
       <!-- 左侧基础信息和设置 -->
-      <div class="w-3/5 h-full pr-4 overflow-auto">
+      <div class="w-500px h-full pr-4 overflow-auto">
         <div class="flex flex-col space-y-4">
           <!-- 字段名称 -->
           <q-input v-model="fieldStore.tempField.name" label="字段名称" dense outlined class="input-bg w-full"
@@ -18,11 +18,14 @@
                 @update:model-value="fieldStore.updateTempField('dataType')" />
 
               <!-- 长度 -->
-              <q-input v-if="
+              <div v-if="
                 fieldStore.tempField.dataType &&
-                ['bytes', 'string'].includes(fieldStore.tempField.dataType)
-              " v-model.number="fieldStore.tempField.length" type="number" label="字节长度" dense outlined
-                class="input-bg" min="1" placeholder="字段长度(字节)" hide-bottom-space />
+                ['bytes', 'string'].includes(fieldStore.tempField.dataType)" class="flex gap-8">
+                <q-input v-model.number="fieldStore.tempField.length" label="字节长度" dense outlined
+                  class="input-bg flex-1" min="1" placeholder="字段长度(字节)" hide-bottom-space />
+                <q-checkbox v-model="fieldStore.tempField.isASCII" label="ASCII" color="grey-7"
+                  class="text-secondary-color flex-1" dense />
+              </div>
               <q-input v-else v-model="fieldStore.tempField.factor" label="倍率" dense outlined class="input-bg"
                 placeholder="倍率" hide-bottom-space />
             </div>
@@ -64,12 +67,13 @@
             </q-select>
           </div>
 
-          <!-- 可配置选项 -->
-          <div class="flex items-center mb-4 text-secondary-color">
-            <q-checkbox v-model="fieldStore.tempField.configurable" label="可在发送用例中配置" color="grey-7" dense />
-            <q-tooltip>
-              设置该字段是否可在发送用例中进行配置，不可配置的字段将使用默认值
-            </q-tooltip>
+          <div class="flex justify-between items-center">
+            <!-- 可配置选项 -->
+            <q-checkbox v-model="fieldStore.tempField.configurable" label="可在发送用例中配置" color="grey-7"
+              class="text-secondary-color" dense />
+            <q-option-group v-model="fieldStore.tempField.bigEndian" :options="BIG_ENDIAN_OPTIONS" option-value="value"
+              option-label="label" emit-value map-options label="大端序" dense outlined class="input-bg flex" type="radio"
+              hide-bottom-space />
           </div>
 
           <!-- 字段描述 -->
@@ -112,9 +116,9 @@
       </div>
 
       <!-- 右侧配置面板 -->
-      <div class="w-2/5 pl-4">
+      <div class="flex-1 h-full">
         <!-- 右侧面板根据inputType动态显示 -->
-        <div v-if="showInputConfigPanel" class="h-[75vh]">
+        <div v-if="showInputConfigPanel" class="h-full">
           <FieldInputConfigPanel :field="fieldStore.tempField as FrameField" @update:field="updateTempField" />
         </div>
         <div v-else class="flex items-center justify-center h-full text-center text-industrial-secondary">
@@ -136,6 +140,7 @@ import {
   INPUT_TYPE_OPTIONS,
   CHECKSUM_METHOD_OPTIONS,
   DATA_PARTICIPATION_TYPE_OPTIONS,
+  BIG_ENDIAN_OPTIONS,
 } from '../../../config/frameDefaults';
 import FieldInputConfigPanel from './FieldInputConfigPanel.vue';
 import type {

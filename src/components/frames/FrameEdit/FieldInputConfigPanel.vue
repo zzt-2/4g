@@ -85,6 +85,7 @@ const globalStatsOptions = computed(() => [
   { label: '分', value: 'minute' },
   { label: '秒', value: 'second' },
   { label: '毫秒', value: 'millisecond' },
+  { label: '总秒数', value: 'allSeconds' },
 
   // 通信统计
   { label: '发送包数', value: 'sentPackets' },

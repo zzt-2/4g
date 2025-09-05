@@ -223,6 +223,10 @@ export function useSendTaskTriggerListener() {
   const executeTriggerTask = async (taskId: string, listener: TriggerListener): Promise<void> => {
     const sendTasksStore = useSendTasksStore();
 
+    // 动态导入 taskExecutor 避免循环依赖（移到函数开头以便在catch中也能使用）
+    const { useSendTaskExecutor } = await import('./useSendTaskExecutor');
+    const taskExecutor = useSendTaskExecutor();
+
     try {
       // 添加响应延时
       if (listener.responseDelay > 0) {
@@ -240,18 +244,14 @@ export function useSendTaskTriggerListener() {
         return;
       }
 
-      // 动态导入 taskExecutor 避免循环依赖
-      const { useSendTaskExecutor } = await import('./useSendTaskExecutor');
-      const taskExecutor = useSendTaskExecutor();
-
       // 获取任务配置
       const config = task.config as TriggerTaskConfig;
       if (!config || !config.instances || config.instances.length === 0) {
         throw new Error('任务配置无效: 没有实例');
       }
 
-      // 创建空的定时器数组（触发任务不需要定时器）
-      const timers: string[] = [];
+      // 初始化实例缓存（触发任务执行时需要）
+      taskExecutor.initializeFrameInstanceCache(taskId, config.instances);
 
       let success = false;
 
@@ -265,27 +265,22 @@ export function useSendTaskTriggerListener() {
         }
 
         success = await taskExecutor.processInstance(
-          instanceConfig,
           taskId,
-          task.name,
-          timers,
           0, // instanceIndex
           1, // totalInstances
           true, // isLastInstance = true
         );
       } else {
         // 多实例：使用 processMultipleInstances（已包含完整状态管理）
-        success = await taskExecutor.processMultipleInstances(
-          config.instances,
-          taskId,
-          task.name,
-          timers,
-        );
+        success = await taskExecutor.processMultipleInstances(taskId);
       }
 
       if (!success) {
         throw new Error('任务执行失败');
       }
+
+      // 清理本次执行的实例缓存（无论是否继续监听，每次执行后都要清理）
+      taskExecutor.clearFrameInstanceCache(taskId);
 
       // 根据 continueListening 决定是否继续监听
       if (!listener.continueListening) {
@@ -304,8 +299,9 @@ export function useSendTaskTriggerListener() {
         error instanceof Error ? error.message : '触发执行异常',
       );
 
-      // 执行失败时也要清理监听器
+      // 执行失败时也要清理监听器和缓存
       unregisterTriggerListener(taskId);
+      taskExecutor.clearFrameInstanceCache(taskId);
     }
   };
 

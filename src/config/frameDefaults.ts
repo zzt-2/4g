@@ -15,37 +15,12 @@ export const SORT_OPTIONS = {
 } as const;
 
 /**
- * 协议选项
- * 用于UI下拉选择
- */
-export const PROTOCOL_OPTIONS = [
-  { label: 'Modbus', value: 'modbus' },
-  { label: '自定义', value: 'custom' },
-  { label: 'Profibus', value: 'profibus' },
-] as const;
-
-/**
  * 帧方向选项
  * 用于UI下拉选择
  */
 export const FRAME_DIRECTION_OPTIONS = [
   { label: '发送', value: 'send' },
   { label: '接收', value: 'receive' },
-] as const;
-
-/**
- * 帧类型选项
- * 用于UI下拉选择
- */
-export const FRAME_TYPE_OPTIONS = [
-  { label: '命令帧', value: 'command', direction: 'send' },
-  { label: '查询帧', value: 'query', direction: 'send' },
-  { label: '控制帧', value: 'control', direction: 'send' },
-  { label: '响应帧', value: 'response', direction: 'receive' },
-  { label: '状态帧', value: 'status', direction: 'receive' },
-  { label: '事件帧', value: 'event', direction: 'receive' },
-  { label: '数据帧', value: 'data', direction: 'receive' },
-  { label: '自定义', value: 'custom', direction: ['send', 'receive'] },
 ] as const;
 
 /**
@@ -231,6 +206,14 @@ export const INPUT_TYPE_OPTIONS = [
 export const DATA_PARTICIPATION_TYPE_OPTIONS = [
   { label: '直接数据', value: 'direct', description: '参与组帧发送或从帧中直接解析' },
   { label: '间接数据', value: 'indirect', description: '不参与组帧，通过计算得出或作为计算参数' },
+];
+
+/**
+ * 大端序选项
+ */
+export const BIG_ENDIAN_OPTIONS = [
+  { label: '大端序', value: true },
+  { label: '小端序', value: false },
 ];
 
 /**

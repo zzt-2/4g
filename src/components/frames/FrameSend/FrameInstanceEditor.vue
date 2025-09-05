@@ -165,14 +165,14 @@ function calculateAllExpressions() {
 function getFieldRules(field: SendInstanceField) {
   const rules = [];
 
-  if (['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64'].includes(field.dataType)) {
+  if (['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64', 'bytes'].includes(field.dataType)) {
     rules.push((val: string) => {
       if (val === '') return true;
 
       // 处理十六进制格式 (0x开头)
-      if (val.trim().toLowerCase().startsWith('0x')) {
+      if (val.trim().toLowerCase().startsWith('0x') || field.dataType === 'bytes') {
         // 基本格式验证
-        if (!/^0x[ 0-9a-f]+$/i.test(val.trim())) {
+        if (!/^(0x)?[ 0-9a-fA-F]+$/i.test(val.trim()) && !field.isASCII) {
           return '十六进制格式仅支持0-9、a-f、A-F字符';
         }
 
@@ -183,7 +183,11 @@ function getFieldRules(field: SendInstanceField) {
 
         if (field.length && field.dataType === 'bytes') {
           // bytes类型特殊处理，根据field.length检查
-          if (actualHexLength > field.length * 2) {
+          if (field.isASCII) {
+            if (actualHexLength > field.length) {
+              return `超出字段长度限制，最大${field.length}字符`;
+            }
+          } else if (actualHexLength > field.length * 2) {
             return `超出字段长度限制，最大${field.length}字节`;
           }
         } else if (actualHexLength > hexLength) {
@@ -252,7 +256,7 @@ function getDefaultOptions(field: SendInstanceField) {
   if (hasValidOptions(field) && field.options) return field.options;
 
   // 否则根据数据类型生成默认选项
-  if (['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64'].includes(field.dataType)) {
+  if (['uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64', 'bytes'].includes(field.dataType)) {
     return [
       { value: '0', label: '0' },
       { value: '1', label: '1' },
@@ -289,7 +293,7 @@ function getDefaultOptions(field: SendInstanceField) {
             <div class="flex items-center gap-1">
               <q-icon name="list" size="xs" class="text-green-5" />
               <span class="text-industrial-secondary">总计: {{ sendFrameInstancesStore.localInstance.fields.length
-                }}</span>
+              }}</span>
             </div>
             <div class="flex items-center gap-1" v-if="expressionFields.length > 0">
               <q-icon name="functions" size="xs" class="text-warning" />
@@ -312,8 +316,8 @@ function getDefaultOptions(field: SendInstanceField) {
         <!-- 并排布局的ID和备注编辑 - 更加紧凑 -->
         <div class="flex flex-row gap-2">
           <!-- ID编辑 -->
-          <div class="flex items-center gap-2 flex-1">
-            <div class="text-xs font-medium text-industrial-primary w-16 flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <div class="text-xs font-medium text-industrial-primary w-400px flex-shrink-0">
               <q-icon name="label" size="xs" class="mr-1 text-blue-5" />
               实例ID
             </div>
@@ -349,7 +353,7 @@ function getDefaultOptions(field: SendInstanceField) {
       </div>
 
       <!-- 统一的字段分组显示 -->
-      <div class="flex flex-col gap-1" v-if="sendFrameInstancesStore.localInstance.fields.length > 0">
+      <div class="flex flex-col gap-3" v-if="sendFrameInstancesStore.localInstance.fields.length > 0">
         <template v-for="group in allFieldGroups" :key="group.config.type">
           <!-- 分组标题 -->
           <div class="text-blue-grey-4 text-xs uppercase font-medium mb-1 flex items-center"
@@ -413,7 +417,7 @@ function getDefaultOptions(field: SendInstanceField) {
                   <!-- 只读字段显示值 -->
                   <template v-if="!fieldItem.groupConfig.editable">
                     <div
-                      class="flex-1 font-mono text-xs text-industrial-secondary py-1 px-2 bg-industrial-secondary rounded-md">
+                      class="w-400px flex font-mono text-xm text-industrial-secondary items-center justify-start h-40px pl-4 bg-industrial-secondary rounded-md">
                       {{ fieldItem.field.value }}
                     </div>
 
@@ -434,9 +438,9 @@ function getDefaultOptions(field: SendInstanceField) {
                     <!-- 左侧输入控件 -->
                     <div class="flex-1">
                       <!-- 表达式字段特殊显示 -->
-                      <div v-if="fieldItem.field.inputType === 'expression'" class="flex items-center gap-2">
+                      <div v-if="fieldItem.field.inputType === 'expression'" class="flex-1 items-center gap-2">
                         <q-input v-model="fieldItem.field.value" :disable="!isEditing" dense outlined dark
-                          :bg-color="fieldItem.groupConfig.bgColorClass" class="flex-1 text-xs" input-class="py-0.5"
+                          :bg-color="fieldItem.groupConfig.bgColorClass" class="text-xs" input-class="py-0.5"
                           hide-bottom-space @update:model-value="handleValueChange(fieldItem.field, $event)" />
                       </div>
 
@@ -492,7 +496,9 @@ function getDefaultOptions(field: SendInstanceField) {
                       )
                     "
                       class="flex-1 px-2 py-1 h-40px bg-industrial-secondary rounded-md font-mono text-xs text-industrial-accent flex items-center justify-left">
-                      <span>HEX: {{ sendFrameInstancesStore.hexValues[fieldItem.field.id] }}</span>
+                      <span>{{ fieldItem.field.isASCII ? 'ASCII: ' : 'HEX: ' }} {{
+                        sendFrameInstancesStore.hexValues[fieldItem.field.id]
+                      }}</span>
                     </div>
                   </template>
                 </div>

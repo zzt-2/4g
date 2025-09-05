@@ -1,9 +1,7 @@
 <template>
   <div class="flex flex-col h-full w-full bg-[#0a1929] text-[#e2e8f0] overflow-hidden">
     <!-- 页面头部 -->
-    <FrameEditorHeader :is-new-frame="isNewFrame" :protocol="(editorStore.editorFrame?.protocol as any) || 'custom'"
-      :frame-direction="(editorStore.editorFrame?.direction as any) || 'send'"
-      :frame-type="(editorStore.editorFrame?.frameType as any) || 'custom'" :has-changes="editorStore.hasChanges"
+    <FrameEditorHeader :is-new-frame="isNewFrame" :has-changes="editorStore.hasChanges"
       :is-frame-valid="editorStore.isValid" @go-back="goBack" @save="saveFrame" class="flex-shrink-0 w-full" />
 
     <!-- 主体内容 -->
@@ -32,8 +30,8 @@
     </div>
 
     <!-- 字段编辑对话框 -->
-    <q-dialog v-model="showFieldEditorDialog" persistent maximized>
-      <q-card class="flex flex-col no-wrap bg-[#0a1929] h-full">
+    <q-dialog v-model="showFieldEditorDialog">
+      <q-card class="flex flex-col no-wrap bg-[#0a1929] h-80vh" style="min-width: 60vw">
         <q-card-section class="flex justify-between items-center bg-[#12233f]">
           <div class="text-h6 text-[#93c5fd]">
             {{ fieldStore.editingFieldIndex === null ? '添加字段' : '编辑字段' }}
@@ -43,13 +41,12 @@
         <q-separator dark />
 
         <q-card-section class="q-pa-md overflow-hidden flex-grow">
-          <!-- 这里放入原有的FrameFieldEditor组件 -->
           <FrameFieldEditor />
         </q-card-section>
 
         <q-separator dark />
 
-        <q-card-actions align="right" class="bg-[#12233f] q-py-md">
+        <q-card-actions align="right" class="bg-[#12233f] q-py-md space-x-6 pr-8">
           <q-btn flat label="取消" color="primary" @click="closeFieldEditor" />
           <q-btn label="保存" color="primary" @click="saveFieldAndClose" class="bg-[#3b82f6]" />
         </q-card-actions>
