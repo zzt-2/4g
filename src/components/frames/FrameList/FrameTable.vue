@@ -1,41 +1,21 @@
 <template>
-  <q-table
-    :rows="frames"
-    :columns="qColumns"
-    :loading="!!isLoading"
-    row-key="id"
-    v-model:selected="selectedRow"
-    selection="single"
-    virtual-scroll
-    :virtual-scroll-slice-size="7"
-    :rows-per-page-options="[0]"
-    hide-pagination
-    flat
-    dark
-    dense
-    class="frame-table-container"
-    @row-click="onRowClick"
-  >
+  <q-table :rows="frames" :columns="qColumns" :loading="!!isLoading" row-key="id" v-model:selected="selectedRow"
+    selection="single" virtual-scroll :virtual-scroll-slice-size="7" :rows-per-page-options="[0]" hide-pagination flat
+    dark dense class="frame-table-container" @row-click="onRowClick">
     <!-- 自定义表头样式 -->
     <template v-slot:header="props">
       <q-tr :props="props" class="bg-industrial-table-header border-b border-industrial">
-        <q-th
-          v-for="col in props.cols"
-          :key="col.name"
-          :props="props"
-          :class="[
-            col.align === 'center'
-              ? 'text-center'
-              : col.align === 'right'
-                ? 'text-right'
-                : 'text-left',
-            'text-xs px-2 text-industrial-primary font-medium h-10',
-          ]"
-          :style="{
+        <q-th v-for="col in props.cols" :key="col.name" :props="props" :class="[
+          col.align === 'center'
+            ? 'text-center'
+            : col.align === 'right'
+              ? 'text-right'
+              : 'text-left',
+          'text-xs px-2 text-industrial-primary font-medium h-10',
+        ]" :style="{
             width: col.width,
             minWidth: col.width,
-          }"
-        >
+          }">
           {{ col.label }}
         </q-th>
       </q-tr>
@@ -43,36 +23,26 @@
 
     <!-- 自定义行样式 -->
     <template v-slot:body="props">
-      <q-tr
-        :props="props"
-        :class="[
-          {
-            'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
-              props.row.id === selectedFrameId,
-          },
-          props.rowIndex % 2 === 1 ? 'bg-industrial-secondary' : 'bg-industrial-panel',
-          'border-b border-industrial hover:bg-industrial-highlight transition-colors duration-200 cursor-pointer h-10',
-        ]"
-        @click="onRowClick($event, props.row)"
-      >
-        <q-td
-          v-for="col in props.cols"
-          :key="col.name"
-          :props="props"
-          :class="[
-            col.align === 'center'
-              ? 'text-center'
-              : col.align === 'right'
-                ? 'text-right'
-                : 'text-left',
-            col.name === 'id' ? 'font-mono text-industrial-id' : 'text-industrial-primary',
-            'text-xs px-2 overflow-hidden text-ellipsis',
-          ]"
-          :style="{
+      <q-tr :props="props" :class="[
+        {
+          'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2':
+            props.row.id === selectedFrameId,
+        },
+        props.rowIndex % 2 === 1 ? 'bg-industrial-secondary' : 'bg-industrial-panel',
+        'border-b border-industrial hover:bg-industrial-highlight transition-colors duration-200 cursor-pointer h-10',
+      ]" @click="onRowClick($event, props.row)">
+        <q-td v-for="col in props.cols" :key="col.name" :props="props" :class="[
+          col.align === 'center'
+            ? 'text-center'
+            : col.align === 'right'
+              ? 'text-right'
+              : 'text-left',
+          col.name === 'id' ? 'font-mono text-industrial-id' : 'text-industrial-primary',
+          'text-xs px-2 overflow-hidden text-ellipsis',
+        ]" :style="{
             width: col.width,
             minWidth: col.width,
-          }"
-        >
+          }">
           <!-- 序号列 -->
           <template v-if="col.name === 'index'">
             {{ props.rowIndex + 1 }}
@@ -189,7 +159,7 @@ const qColumns = [
     name: 'timestamp',
     label: '时间',
     field: 'timestamp',
-    width: '120px',
+    width: '160px',
     align: 'center' as const,
     sortable: true,
   },
