@@ -1,0 +1,42 @@
+[
+  {
+    "id": "1",
+    "satelliteId": "1",
+    "sendConfig": {
+      "satelliteIdentifier": "123",
+      "messageIdentifier": "",
+      "sourceIdentifier": "",
+      "destinationIdentifier": ""
+    },
+    "receiveConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "",
+      "sourceIdentifier": "",
+      "destinationIdentifier": "",
+      "modelId": "",
+      "satelliteId": "",
+      "udpIpAddress": "",
+      "udpPort": 0
+    }
+  },
+  {
+    "id": "2",
+    "satelliteId": "2",
+    "sendConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "",
+      "sourceIdentifier": "",
+      "destinationIdentifier": ""
+    },
+    "receiveConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "",
+      "sourceIdentifier": "",
+      "destinationIdentifier": "",
+      "modelId": "",
+      "satelliteId": "",
+      "udpIpAddress": "",
+      "udpPort": 0
+    }
+  }
+]

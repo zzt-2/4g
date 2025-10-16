@@ -339,7 +339,7 @@ onMounted(() => {
             </div>
 
             <!-- 发送目标与按钮 -->
-            <div class="flex gap-2 items-center">
+            <div class="flex gap-2 items-center no-wrap">
               <SendTargetSelector v-model="selectedTargetId" :disabled="isSending" class="flex-1" />
 
               <q-btn color="primary" icon="send" label='发送帧' :disable="!canSendInstance" @click="sendCurrentInstance"

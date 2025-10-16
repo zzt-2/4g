@@ -101,6 +101,24 @@ fileRegistry.register('deleteFile', async (_, filePath: string) => {
   }
 });
 
+// 读取文本文件
+fileRegistry.register('readTextFile', async (_, filePath: string) => {
+  try {
+    if (!existsSync(filePath)) {
+      return { success: false, message: '文件不存在' };
+    }
+
+    const content = await readFile(filePath, 'utf-8');
+    return { success: true, content };
+  } catch (error) {
+    console.error('读取文本文件失败:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
 export function registerFileMetadataHandlers() {
   return fileRegistry.registerAll();
 }

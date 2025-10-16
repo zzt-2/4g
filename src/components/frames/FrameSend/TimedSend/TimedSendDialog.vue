@@ -26,7 +26,7 @@ const connectionTargetsStore = useConnectionTargetsStore();
 const selectedTargetId = ref<string>('');
 
 // 使用任务管理器
-const { createTimedSingleTask, startTask, stopTask, isProcessing, processingError } =
+const { createTimedTask, startTask, stopTask, isProcessing, processingError } =
   useSendTaskManager();
 
 // 当前实例的策略配置
@@ -241,10 +241,24 @@ async function startTimedSend() {
   });
 
   try {
+    // 获取当前实例的完整对象
+    const instance = sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId);
+    if (!instance) {
+      throw new Error('找不到指定的实例');
+    }
+
+    // 构建任务实例配置（只有一个实例）
+    const instances = [
+      {
+        id: `task_instance_${Date.now()}`,
+        instance: instance,
+        targetId: selectedTargetId.value,
+      },
+    ];
+
     // 使用任务管理器创建并启动任务
-    const taskId = createTimedSingleTask(
-      props.instanceId,
-      selectedTargetId.value,
+    const taskId = createTimedTask(
+      instances,
       interval.value,
       repeatCount.value,
       isInfinite.value,

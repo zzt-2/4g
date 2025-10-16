@@ -165,9 +165,9 @@ function handleInputTypeChange(newType: FieldInputType) {
   fieldStore.updateTempField('inputType');
 
   // 当输入类型变为表达式时，自动设置为间接数据参与类型
-  if (newType === 'expression') {
-    fieldStore.tempField.dataParticipationType = 'indirect';
-  }
+  // if (newType === 'expression') {
+  //   fieldStore.tempField.dataParticipationType = 'indirect';
+  // }
 }
 
 // 处理数据参与类型变化

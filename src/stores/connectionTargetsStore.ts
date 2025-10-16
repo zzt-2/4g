@@ -80,6 +80,21 @@ export const useConnectionTargetsStore = defineStore('connectionTargets', () => 
             description: tcpDescription,
             connectionId: connection.id,
           });
+        } else if (connection.type === 'tcp-server') {
+          // TCP Server：创建单一连接目标，代表整个TCP Server
+          const tcpServerTargetId = `network:${connection.id}`;
+          const tcpServerDescription =
+            connection.description || `TCP Server - ${connection.host}:${connection.port}`;
+
+          newTargets.push({
+            id: tcpServerTargetId,
+            name: connection.name || `${connection.host}:${connection.port}`,
+            type: 'network',
+            address: `${connection.host}:${connection.port}`,
+            status: connection.isConnected ? 'connected' : 'disconnected',
+            description: tcpServerDescription,
+            connectionId: connection.id,
+          });
         } else if (connection.type === 'udp') {
           // UDP连接：只添加远程主机目标（UDP绑定地址不是发送目标）
           if (connection.remoteHosts && connection.remoteHosts.length > 0) {

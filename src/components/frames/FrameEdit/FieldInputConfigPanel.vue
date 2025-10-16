@@ -12,6 +12,7 @@ import { useReceiveFramesStore } from '../../../stores/frames/receiveFramesStore
 import { INPUT_TYPE_CONFIG } from '../../../config/frameDefaults';
 import { useNotification } from '../../../composables/frames/useNotification';
 import { validateCompleteExpressionConfig } from '../../../utils/frames/fieldValidation';
+import { getScoeDataSourceOptions } from '../../../types/scoe';
 
 // Props
 const props = defineProps<{
@@ -56,6 +57,7 @@ const dataSourceTypeOptions = computed(() => [
   },
   { label: getDataSourceTypeLabel(DataSourceType.FRAME_FIELD), value: DataSourceType.FRAME_FIELD },
   { label: getDataSourceTypeLabel(DataSourceType.GLOBAL_STAT), value: DataSourceType.GLOBAL_STAT },
+  { label: getDataSourceTypeLabel(DataSourceType.SCOE_DATA), value: DataSourceType.SCOE_DATA },
 ]);
 
 // 当前帧字段选项（允许包含自己）
@@ -105,6 +107,9 @@ const globalStatsOptions = computed(() => [
   { label: '总错误数', value: 'totalErrors' },
 ]);
 
+// SCOE数据源选项
+const scoeDataOptions = computed(() => getScoeDataSourceOptions());
+
 // 更新字段
 function updateField() {
   emit('update:field', { ...localField.value });
@@ -150,7 +155,7 @@ function addConditionalExpression() {
 
   const newCondition = {
     condition: 'true',
-    expression: '0',
+    expression: 'var1',
   };
 
   localField.value.expressionConfig.expressions.push(newCondition);
@@ -277,6 +282,9 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
   } else if (field === 'sourceId' && mapping.sourceType === DataSourceType.GLOBAL_STAT) {
     // 全局统计直接设置sourceId
     mapping.sourceId = value;
+  } else if (field === 'sourceId' && mapping.sourceType === DataSourceType.SCOE_DATA) {
+    // SCOE数据直接设置sourceId
+    mapping.sourceId = value;
   } else if (field === 'sourceType') {
     // 切换数据源类型时重置相关字段
     mapping.sourceType = value as DataSourceType;
@@ -364,6 +372,22 @@ function updateVariableMapping(mapping: VariableMapping, field: string, value: s
                 <q-select v-model="mapping.sourceId" :options="globalStatsOptions" option-value="value"
                   option-label="label" emit-value map-options label="选择统计项" placeholder="选择统计项" outlined dense dark
                   class="flex-1" @update:model-value="updateVariableMapping(mapping, 'sourceId', $event)" />
+              </div>
+
+              <!-- SCOE数据选择 -->
+              <div v-else-if="mapping.sourceType === DataSourceType.SCOE_DATA" class="flex gap-2">
+                <q-select v-model="mapping.sourceId" :options="scoeDataOptions" option-value="value"
+                  option-label="label" emit-value map-options label="选择SCOE数据" placeholder="选择数据项" outlined dense dark
+                  class="flex-1" @update:model-value="updateVariableMapping(mapping, 'sourceId', $event)">
+                  <template #option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                        <q-item-label caption class="text-industrial-tertiary">{{ scope.opt.group }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
               </div>
             </div>
           </div>

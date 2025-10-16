@@ -170,6 +170,8 @@ export function getDataSourceTypeLabel(sourceType: DataSourceType): string {
       return '接收帧';
     case DataSourceType.GLOBAL_STAT:
       return '全局统计';
+    case DataSourceType.SCOE_DATA:
+      return 'SCOE数据';
     default:
       return '未知类型';
   }

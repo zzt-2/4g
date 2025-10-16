@@ -8,7 +8,6 @@ import { useSendTasksStore } from '../../../stores/frames/sendTasksStore';
 import { useSendTaskCreator } from './useSendTaskCreator';
 import { useSendTaskExecutor } from './useSendTaskExecutor';
 import { useSendTaskController } from './useSendTaskController';
-import { useSendTaskConfigManager } from './useSendTaskConfigManager';
 
 /**
  * 任务管理器可组合函数 - 主入口
@@ -21,7 +20,6 @@ export function useSendTaskManager() {
   const taskCreator = useSendTaskCreator();
   const taskExecutor = useSendTaskExecutor();
   const taskController = useSendTaskController();
-  const taskConfigManager = useSendTaskConfigManager();
 
   // 本地状态
   const currentTaskId = ref<string | null>(null);
@@ -39,8 +37,7 @@ export function useSendTaskManager() {
     return (
       taskCreator.processingError.value ||
       taskExecutor.processingError.value ||
-      taskController.processingError.value ||
-      taskConfigManager.processingError.value
+      taskController.processingError.value
     );
   });
 
@@ -56,58 +53,26 @@ export function useSendTaskManager() {
     return taskId;
   };
 
-  const createTimedSingleTask = (...args: Parameters<typeof taskCreator.createTimedSingleTask>) => {
-    const taskId = taskCreator.createTimedSingleTask(...args);
+  const createTimedTask = (...args: Parameters<typeof taskCreator.createTimedTask>) => {
+    const taskId = taskCreator.createTimedTask(...args);
     if (taskId) {
       currentTaskId.value = taskId;
     }
     return taskId;
   };
 
-  const createTimedMultipleTask = (
-    ...args: Parameters<typeof taskCreator.createTimedMultipleTask>
-  ) => {
-    const taskId = taskCreator.createTimedMultipleTask(...args);
+  const createTriggeredTask = (...args: Parameters<typeof taskCreator.createTriggeredTask>) => {
+    const taskId = taskCreator.createTriggeredTask(...args);
     if (taskId) {
       currentTaskId.value = taskId;
     }
     return taskId;
   };
 
-  const createTriggeredSingleTask = (
-    ...args: Parameters<typeof taskCreator.createTriggeredSingleTask>
+  const createTimedTriggeredTask = (
+    ...args: Parameters<typeof taskCreator.createTimedTriggeredTask>
   ) => {
-    const taskId = taskCreator.createTriggeredSingleTask(...args);
-    if (taskId) {
-      currentTaskId.value = taskId;
-    }
-    return taskId;
-  };
-
-  const createTriggeredMultipleTask = (
-    ...args: Parameters<typeof taskCreator.createTriggeredMultipleTask>
-  ) => {
-    const taskId = taskCreator.createTriggeredMultipleTask(...args);
-    if (taskId) {
-      currentTaskId.value = taskId;
-    }
-    return taskId;
-  };
-
-  const createTimedTriggeredSingleTask = (
-    ...args: Parameters<typeof taskCreator.createTimedTriggeredSingleTask>
-  ) => {
-    const taskId = taskCreator.createTimedTriggeredSingleTask(...args);
-    if (taskId) {
-      currentTaskId.value = taskId;
-    }
-    return taskId;
-  };
-
-  const createTimedTriggeredMultipleTask = (
-    ...args: Parameters<typeof taskCreator.createTimedTriggeredMultipleTask>
-  ) => {
-    const taskId = taskCreator.createTimedTriggeredMultipleTask(...args);
+    const taskId = taskCreator.createTimedTriggeredTask(...args);
     if (taskId) {
       currentTaskId.value = taskId;
     }
@@ -147,6 +112,71 @@ export function useSendTaskManager() {
     };
   };
 
+  const getTaskById = (taskId: string) => {
+    return sendTasksStore.getTaskById(taskId);
+  };
+
+  const getTaskByName = (taskName: string) => {
+    return sendTasksStore.getTaskByName(taskName);
+  };
+
+  /**
+   * 验证配置文件格式
+   */
+  function validateTaskConfig(configData: unknown): boolean {
+    try {
+      if (!configData || typeof configData !== 'object') {
+        return false;
+      }
+
+      const data = configData as Record<string, unknown>;
+
+      // 检查必需的字段
+      if (!data.taskType || !data.instances || !Array.isArray(data.instances)) {
+        return false;
+      }
+
+      // 检查实例数据
+      for (const instance of data.instances) {
+        if (
+          !instance ||
+          typeof instance !== 'object' ||
+          !(instance as Record<string, unknown>).instanceId ||
+          !(instance as Record<string, unknown>).targetId
+        ) {
+          return false;
+        }
+      }
+
+      // 检查类型特定配置
+      if (typeof data.taskType === 'string' && data.taskType.includes('timed')) {
+        const typeConfig = data.typeSpecificConfig as Record<string, unknown>;
+        if (
+          !typeConfig ||
+          typeof typeConfig.sendInterval !== 'number' ||
+          typeof typeConfig.repeatCount !== 'number'
+        ) {
+          return false;
+        }
+      } else if (typeof data.taskType === 'string' && data.taskType.includes('triggered')) {
+        const typeConfig = data.typeSpecificConfig as Record<string, unknown>;
+        if (
+          !typeConfig ||
+          !typeConfig.sourceId ||
+          !typeConfig.triggerFrameId ||
+          !Array.isArray(typeConfig.conditions)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (e) {
+      console.error('验证配置文件格式失败:', e);
+      return false;
+    }
+  }
+
   return {
     // 状态
     currentTaskId,
@@ -157,12 +187,9 @@ export function useSendTaskManager() {
 
     // 任务创建 (从 taskCreator)
     createSequentialTask,
-    createTimedSingleTask,
-    createTimedMultipleTask,
-    createTriggeredSingleTask,
-    createTriggeredMultipleTask,
-    createTimedTriggeredSingleTask,
-    createTimedTriggeredMultipleTask,
+    createTimedTask,
+    createTriggeredTask,
+    createTimedTriggeredTask,
 
     // 任务执行 (从 taskExecutor)
     startTask: taskExecutor.startTask,
@@ -175,18 +202,14 @@ export function useSendTaskManager() {
     forceCleanupTask: taskController.forceCleanupTask,
 
     // 状态查询 (从 taskController)
+    getTaskById,
+    getTaskByName,
     getRunningTasksCount: taskController.getRunningTasksCount,
     getActiveTasksCount: taskController.getActiveTasksCount,
     canStopTask: taskController.canStopTask,
     canPauseTask: taskController.canPauseTask,
     canResumeTask: taskController.canResumeTask,
-
-    // 配置管理 (从 taskConfigManager)
-    saveTaskConfigToFile: taskConfigManager.saveTaskConfigToFile,
-    loadTaskConfigFromFile: taskConfigManager.loadTaskConfigFromFile,
-    saveMultipleTaskConfigs: taskConfigManager.saveMultipleTaskConfigs,
-    loadMultipleTaskConfigs: taskConfigManager.loadMultipleTaskConfigs,
-    validateTaskConfig: taskConfigManager.validateTaskConfig,
+    validateTaskConfig,
 
     // 触发监听器功能 (从 sendTasksStore)
     getActiveTriggerListeners: sendTasksStore.getActiveTriggerListeners,

@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, shallowRef } from 'vue';
 import { nanoid } from 'nanoid';
-import type { TriggerCondition } from '../../types/frames/sendInstances';
+import type { SendFrameInstance, TriggerCondition } from '../../types/frames/sendInstances';
 import type { DataItem } from '../../types/frames/receive';
 import { useSendTaskTriggerListener } from '../../composables/frames/sendFrame/useSendTaskTriggerListener';
 
@@ -14,10 +14,8 @@ import { useSendTaskTriggerListener } from '../../composables/frames/sendFrame/u
  */
 export type TaskType =
   | 'sequential' // 顺序发送
-  | 'timed-single' // 单实例定时发送
-  | 'timed-multiple' // 多实例定时发送
-  | 'triggered-single' // 单实例触发发送
-  | 'triggered-multiple'; // 多实例触发发送
+  | 'timed' // 定时发送
+  | 'triggered'; // 触发发送
 
 /**
  * 任务状态枚举
@@ -44,7 +42,7 @@ export interface FieldVariation {
  */
 export interface FrameInstanceInTask {
   id: string;
-  instanceId: string;
+  instance: SendFrameInstance; // 完整的帧实例对象
   targetId: string;
   interval?: number;
   status?: TaskStatus;
@@ -390,8 +388,11 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
    * 根据ID获取任务
    */
   function getTaskById(id: string): SendTask | undefined {
-    // 🚀 使用Map查找，O(1)时间复杂度
     return taskMap.value.get(id);
+  }
+
+  function getTaskByName(name: string): SendTask | undefined {
+    return tasks.value.find((task) => task.name === name);
   }
 
   /**
@@ -416,8 +417,12 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
       task.startedAt = new Date().toISOString();
     }
 
-    if (status === 'completed' || status === 'error') {
+    if (status === 'error') {
       task.completedAt = new Date().toISOString();
+    }
+
+    if (status === 'completed') {
+      removeTask(id);
     }
 
     if (errorInfo) {
@@ -582,6 +587,7 @@ export const useSendTasksStore = defineStore('sendTasks', () => {
     // 方法
     addTask,
     getTaskById,
+    getTaskByName,
     updateTaskStatus,
     updateTask,
     removeTask,

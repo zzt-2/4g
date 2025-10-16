@@ -55,6 +55,21 @@ export interface ReceiveFrameStats {
   lastReceivedFrame?: Uint8Array; // 最后接收到的帧原始数据
 }
 
+export interface ReceiveScoeFrameStats {
+  isScoeFrame: boolean; // 是否为SCOE帧
+  satelliteIdentifier: string; //卫星识别字
+  messageIdentifier: string; //信息标识
+  sourceIdentifier: string; //信源标识
+  destinationIdentifier: string; //信宿标识
+  orderSource: string; //指令源
+  orderType: string; //指令类型
+  orderNumber: string; //指令号
+  orderChar: string; //指令代号
+  modelId: string; //型号ID
+  satelliteId: string; //卫星ID
+  orderCode: string; //指令码
+}
+
 // 配置数据结构（用于文件存储）
 export interface ReceiveConfig {
   groups: DataGroup[]; // 数据分组配置

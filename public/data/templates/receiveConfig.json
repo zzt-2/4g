@@ -260,7 +260,7 @@
             "isFavorite": false,
             "dataType": "uint8",
             "value": null,
-            "displayValue": "-",
+            "displayValue": "",
             "useLabel": true,
             "labelOptions": [
               {
@@ -511,50 +511,6 @@
             "useLabel": false,
             "labelOptions": [],
             "id": 34
-          },
-          {
-            "label": "新字段",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "-",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 36
-          },
-          {
-            "label": "新字段2",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": null,
-            "displayValue": "-",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 37
-          },
-          {
-            "label": "新字段4",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "bytes",
-            "value": null,
-            "displayValue": "数据不足",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 38
-          },
-          {
-            "label": "新字段3",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "bytes",
-            "value": null,
-            "displayValue": "-",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 39
           }
         ]
       },
@@ -568,7 +524,7 @@
             "isFavorite": false,
             "dataType": "bytes",
             "value": null,
-            "displayValue": "-",
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 1
@@ -579,7 +535,7 @@
             "isFavorite": false,
             "dataType": "bytes",
             "value": null,
-            "displayValue": "-",
+            "displayValue": "",
             "useLabel": false,
             "labelOptions": [],
             "id": 2
@@ -856,7 +812,7 @@
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-09-05T03:18:01.913Z",
-    "updatedAt": "2025-09-05T03:18:01.913Z"
+    "createdAt": "2025-10-16T01:46:47.808Z",
+    "updatedAt": "2025-10-16T01:46:47.808Z"
   }
 ]

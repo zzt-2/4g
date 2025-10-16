@@ -7,36 +7,21 @@
       </div>
     </div>
 
-    <div
-      class="flex-1 w-full overflow-y-auto border border-blue-500/30 rounded bg-[#0f172a]/50 p-2"
-    >
+    <div class="flex-1 w-full overflow-y-auto border border-blue-500/30 rounded bg-[#0f172a]/50 p-2">
       <div v-if="fieldStore.fields.length > 0" class="h-full w-full">
         <!-- 多列容器：使用grid自动调整列数并平均分配宽度 -->
-        <div
-          class="grid gap-2"
-          :style="{ gridTemplateColumns: `repeat(${columnCount}, minmax(10px,1fr))` }"
-        >
+        <div class="grid gap-2" :style="{ gridTemplateColumns: `repeat(${columnCount}, minmax(10px,1fr))` }">
           <!-- 每一列 -->
-          <div
-            v-for="(column, colIndex) in fieldColumns"
-            :key="colIndex"
-            class="flex flex-col max-w-[250px]"
-          >
+          <div v-for="(column, colIndex) in fieldColumns" :key="colIndex" class="flex flex-col max-w-[250px]">
             <!-- 每列中的字段项 -->
-            <div
-              v-for="field in column"
-              :key="field.id"
+            <div v-for="field in column" :key="field.id"
               class="flex items-center text-[#e2e8f0] px-1 py-1 border-b border-b-slate-700/50 hover:bg-slate-700/30 cursor-pointer transition-colors"
               :class="{
                 'bg-blue-900/40': fieldStore.selectedFieldIndex === getOriginalIndex(field.id),
-              }"
-              @click="startEditField(getOriginalIndex(field.id))"
-            >
+              }" @click="startEditField(getOriginalIndex(field.id))">
               <!-- 序号 -->
               <div class="w-7 flex-shrink-0 text-right">
-                <span class="text-[10px] text-[#94a3b8] font-mono mr-1"
-                  >[{{ getOriginalIndex(field.id) + 1 }}]</span
-                >
+                <span class="text-[10px] text-[#94a3b8] font-mono mr-1">[{{ getOriginalIndex(field.id) + 1 }}]</span>
               </div>
 
               <!-- 字段ID与名称 -->
@@ -53,20 +38,16 @@
                   {{ getFieldShortType(field.dataType) }}
                 </span>
                 <span class="text-[9px] text-[#94a3b8]">{{ getFieldBitsB(field) }}</span>
-                <span
-                  v-if="field.validOption!.isChecksum"
-                  class="text-[9px] text-amber-300 bg-amber-900/70 px-1 py-0.5 rounded"
-                >
+                <span v-if="field.validOption!.isChecksum"
+                  class="text-[9px] text-amber-300 bg-amber-900/70 px-1 py-0.5 rounded">
                   校验
                 </span>
               </div>
 
               <!-- 十六进制预览 -->
               <div class="ml-auto text-right overflow-auto text-ellipsis">
-                <span
-                  class="text-[10px] font-mono text-[#cbd5e1] whitespace-nowrap"
-                  :class="{ 'text-amber-300': field.validOption!.isChecksum }"
-                >
+                <span class="text-[10px] font-mono text-[#cbd5e1] whitespace-nowrap"
+                  :class="{ 'text-amber-300': field.validOption!.isChecksum }">
                   {{ getFieldHexPreview(field) }}
                 </span>
               </div>
@@ -75,10 +56,7 @@
         </div>
       </div>
 
-      <div
-        v-else
-        class="flex flex-col items-center justify-center h-full min-h-40 text-[#64748b] text-xs text-center"
-      >
+      <div v-else class="flex flex-col items-center justify-center h-full min-h-40 text-[#64748b] text-xs text-center">
         <span class="material-icons text-2xl mb-2">preview</span>
         <p>添加字段后在此处预览帧结构</p>
       </div>

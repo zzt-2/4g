@@ -46,10 +46,8 @@ const filteredTasks = computed(() => {
 // 任务类型显示
 const taskTypeLabels: Record<TaskType, string> = {
   sequential: '顺序发送',
-  'timed-single': '定时发送',
-  'timed-multiple': '多实例定时',
-  'triggered-single': '触发发送',
-  'triggered-multiple': '多实例触发',
+  timed: '定时发送',
+  triggered: '触发发送',
 };
 
 // 任务状态显示
@@ -77,10 +75,8 @@ const taskStatusColors: Record<TaskStatus, string> = {
 // 任务类型图标
 const taskTypeIcons: Record<TaskType, string> = {
   sequential: 'queue_play_next',
-  'timed-single': 'schedule',
-  'timed-multiple': 'schedule_send',
-  'triggered-single': 'sensors',
-  'triggered-multiple': 'device_hub',
+  timed: 'schedule',
+  triggered: 'sensors',
 };
 
 // 任务操作

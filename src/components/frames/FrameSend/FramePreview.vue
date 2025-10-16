@@ -38,7 +38,7 @@ const formattedConfigurableFields = computed(() => {
   // 使用更高效的映射方式，避免对象展开
   return configFields.map((field: SendInstanceField) => ({
     ...field,
-    label: field.bigEndian ? field.label : field.label + ' (小端序)',
+    label: field.bigEndian !== false ? field.label : field.label + ' (小端序)',
     hexValue: getFieldHexValue(field),
   }));
 });
@@ -51,7 +51,7 @@ const formatDate = (date: Date | undefined | null) => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full">
+  <div class="flex flex-col no-wrap h-full w-full">
     <!-- 实例信息头部 -->
     <div class="flex flex-col p-3 border-b border-solid border-[#2A2F45]"
       v-if="sendFrameInstancesStore.currentInstance">
@@ -80,7 +80,7 @@ const formatDate = (date: Date | undefined | null) => {
       <!-- 完整帧十六进制显示 -->
       <div class="mt-3 bg-[#0d1117] rounded-md border border-[#1E293B]" v-if="fullHexString">
         <div class="text-xs text-blue-grey-4 mb-1">完整帧十六进制:</div>
-        <div class="font-mono text-blue-400 text-sm break-all select-all">
+        <div class="font-mono text-blue-400 text-sm break-all select-all  overflow-y-auto max-h-300px">
           {{ fullHexString }}
         </div>
       </div>

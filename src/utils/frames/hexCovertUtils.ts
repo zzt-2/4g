@@ -265,7 +265,7 @@ export const getFullHexString = (fields: SendInstanceField[]): string => {
     .map((field) => {
       if (field && field.dataType && field.value && NUMBER_DATA_TYPES.includes(field.dataType)) {
         const hex = convertToHex(field.value, field.dataType, field.length, field.isASCII);
-        if (!field.bigEndian) {
+        if (field.bigEndian === false) {
           //两个符号分段进行反转
           return hex.match(/.{2}/g)?.reverse().join('') || hex;
         }

@@ -4,7 +4,6 @@
  * 负责各种类型任务的执行
  */
 import { ref } from 'vue';
-import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 import {
   useSendTasksStore,
   SendTask,
@@ -32,8 +31,6 @@ interface CachedFrameInstance {
  * 任务执行器可组合函数
  */
 export function useSendTaskExecutor() {
-  // 获取store实例
-  const sendFrameInstancesStore = useSendFrameInstancesStore();
   const sendTasksStore = useSendTasksStore();
 
   // 获取统一发送路由器
@@ -52,17 +49,6 @@ export function useSendTaskExecutor() {
   // ============= 内部辅助函数 =============
 
   /**
-   * 获取发送帧实例
-   */
-  const getSendFrameInstance = (instanceId: string): SendFrameInstance => {
-    const instance = sendFrameInstancesStore.instances.find((i) => i.id === instanceId);
-    if (!instance) {
-      throw new Error(`找不到实例: ${instanceId}`);
-    }
-    return instance;
-  };
-
-  /**
    * 初始化任务的帧实例缓存
    */
   const initializeFrameInstanceCache = (
@@ -72,7 +58,7 @@ export function useSendTaskExecutor() {
     const cache: CachedFrameInstance[] = [];
 
     for (const instanceConfig of instances) {
-      const originalInstance = getSendFrameInstance(instanceConfig.instanceId);
+      const originalInstance = instanceConfig.instance;
       const cachedInstance = deepClone(originalInstance);
 
       cache.push({
@@ -349,14 +335,16 @@ export function useSendTaskExecutor() {
     });
 
     // 使用缓存版本以提高性能
-    if (
-      task.type === 'sequential' ||
-      task.type === 'timed-single' ||
-      task.type === 'triggered-single'
-    ) {
+    // 注意：对于定时任务(timed)，进度由 createTimedSender 管理，这里只更新 currentInstanceIndex
+    if (task.type === 'sequential' || task.type === 'triggered') {
       sendTasksStore.updateTaskProgressCached(taskId, {
         currentCount: instanceIndex,
         percentage: Math.floor((instanceIndex / totalInstances) * 100),
+        currentInstanceIndex: instanceIndex,
+      });
+    } else if (task.type === 'timed') {
+      // 定时任务只更新当前实例索引，不更新 currentCount（由轮次管理）
+      sendTasksStore.updateTaskProgressCached(taskId, {
         currentInstanceIndex: instanceIndex,
       });
     }
@@ -479,14 +467,10 @@ export function useSendTaskExecutor() {
       switch (task.type) {
         case 'sequential':
           return await startSequentialTask(task);
-        case 'timed-single':
-          return await startTimedSingleTask(task);
-        case 'timed-multiple':
-          return await startTimedMultipleTask(task);
-        case 'triggered-single':
-          return await startTriggeredSingleTask(task);
-        case 'triggered-multiple':
-          return await startTriggeredMultipleTask(task);
+        case 'timed':
+          return await startTimedTask(task);
+        case 'triggered':
+          return await startTriggeredTask(task);
         default:
           throw new Error(`未知的任务类型: ${task.type}`);
       }
@@ -672,9 +656,9 @@ export function useSendTaskExecutor() {
   };
 
   /**
-   * 开始单实例定时发送任务
+   * 开始定时发送任务
    */
-  async function startTimedSingleTask(task: SendTask): Promise<boolean> {
+  async function startTimedTask(task: SendTask): Promise<boolean> {
     if (
       !task.config ||
       !('instances' in task.config) ||
@@ -686,68 +670,7 @@ export function useSendTaskExecutor() {
 
     const config = task.config as TimedTaskConfig;
 
-    try {
-      // 初始化实例缓存
-      initializeFrameInstanceCache(task.id, config.instances);
-
-      // 创建任务定时器ID管理器
-      const taskTimerIds = createTaskTimerIds(task.id);
-
-      // 更新任务状态
-      sendTasksStore.updateTaskStatus(task.id, 'running');
-
-      // 计算总发送次数
-      const totalCount = config.isInfinite ? Number.MAX_SAFE_INTEGER : config.repeatCount;
-
-      sendTasksStore.updateTaskProgressCached(task.id, {
-        currentCount: 0,
-        totalCount,
-        percentage: 0,
-      });
-
-      // 创建发送函数
-      const sendFunction = async (): Promise<boolean> => {
-        return await processSingleInstance(task.id, 0, true);
-      };
-
-      // 使用通用定时发送器
-      const timedSender = createTimedSender(task, config, taskTimerIds, sendFunction);
-      await timedSender.start();
-
-      // 存储定时器ID
-      sendTasksStore.updateTask(task.id, {
-        timers: taskTimerIds.getTimerIds(),
-      });
-
-      return true;
-    } catch (error) {
-      console.error(`单实例定时发送任务 ${task.name} 执行失败:`, error);
-      sendTasksStore.updateTaskStatus(
-        task.id,
-        'error',
-        error instanceof Error ? error.message : '执行失败',
-      );
-      clearFrameInstanceCache(task.id);
-      return false;
-    }
-  }
-
-  /**
-   * 开始多实例定时发送任务
-   */
-  async function startTimedMultipleTask(task: SendTask): Promise<boolean> {
-    if (
-      !task.config ||
-      !('instances' in task.config) ||
-      !task.config.instances.length ||
-      !('sendInterval' in task.config)
-    ) {
-      throw new Error('任务配置无效');
-    }
-
-    const config = task.config as TimedTaskConfig;
-
-    console.log('启动多实例定时发送任务:', {
+    console.log('启动定时发送任务:', {
       taskId: task.id,
       sendInterval: config.sendInterval,
       repeatCount: config.repeatCount,
@@ -791,7 +714,7 @@ export function useSendTaskExecutor() {
 
       return true;
     } catch (error) {
-      console.error(`多实例定时发送任务 ${task.name} 执行失败:`, error);
+      console.error(`定时发送任务 ${task.name} 执行失败:`, error);
       sendTasksStore.updateTaskStatus(
         task.id,
         'error',
@@ -803,9 +726,9 @@ export function useSendTaskExecutor() {
   }
 
   /**
-   * 开始单实例触发发送任务
+   * 开始触发发送任务
    */
-  async function startTriggeredSingleTask(task: SendTask): Promise<boolean> {
+  async function startTriggeredTask(task: SendTask): Promise<boolean> {
     if (!task.config || !('instances' in task.config) || !task.config.instances.length) {
       throw new Error('任务配置无效');
     }
@@ -819,7 +742,7 @@ export function useSendTaskExecutor() {
       // 根据触发类型处理
       if (config.triggerType === 'time') {
         // 时间触发逻辑
-        return await startTimedTriggeredSingleTask(task, config);
+        return await startTimedTriggeredTask(task, config);
       } else {
         // 条件触发逻辑 (原有逻辑)
         if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
@@ -842,66 +765,6 @@ export function useSendTaskExecutor() {
           conditionsCount: config.conditions?.length || 0,
           continueListening: config.continueListening ?? true,
           responseDelay: config.responseDelay || 0,
-        });
-
-        // 注册触发监听器
-        sendTasksStore.registerTaskTriggerListener(task.id, {
-          sourceId: config.sourceId,
-          triggerFrameId: config.triggerFrameId,
-          conditions: config.conditions || [],
-          continueListening: config.continueListening ?? true,
-          responseDelay: config.responseDelay || 0,
-        });
-
-        return true;
-      }
-    } catch (error) {
-      console.error(`启动单实例触发发送任务失败:`, error);
-      clearFrameInstanceCache(task.id);
-      throw error;
-    }
-  }
-
-  /**
-   * 开始多实例触发发送任务
-   */
-  async function startTriggeredMultipleTask(task: SendTask): Promise<boolean> {
-    if (!task.config || !('instances' in task.config) || !task.config.instances.length) {
-      throw new Error('任务配置无效');
-    }
-
-    const config = task.config as TriggerTaskConfig;
-
-    try {
-      // 初始化实例缓存
-      initializeFrameInstanceCache(task.id, config.instances);
-
-      // 根据触发类型处理
-      if (config.triggerType === 'time') {
-        // 时间触发逻辑
-        return await startTimedTriggeredMultipleTask(task, config);
-      } else {
-        // 条件触发逻辑 (原有逻辑)
-        if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
-          throw new Error('条件触发配置无效');
-        }
-
-        // 更新任务状态为等待触发
-        sendTasksStore.updateTaskStatus(task.id, 'waiting-trigger');
-
-        sendTasksStore.updateTaskProgressCached(task.id, {
-          currentCount: 0,
-          totalCount: 0,
-          percentage: 0,
-        });
-
-        // 设置监听逻辑
-        console.log(`注册多实例触发监听器: ${task.id}`, {
-          sourceId: config.sourceId,
-          triggerFrameId: config.triggerFrameId,
-          conditionsCount: config.conditions?.length || 0,
-          continueListening: config.continueListening ?? true,
-          responseDelay: config.responseDelay || 0,
           instancesCount: config.instances.length,
         });
 
@@ -917,7 +780,7 @@ export function useSendTaskExecutor() {
         return true;
       }
     } catch (error) {
-      console.error(`启动多实例触发发送任务失败:`, error);
+      console.error(`启动触发发送任务失败:`, error);
       clearFrameInstanceCache(task.id);
       throw error;
     }
@@ -1072,48 +935,9 @@ export function useSendTaskExecutor() {
   };
 
   /**
-   * 开始单实例时间触发任务
+   * 开始时间触发任务
    */
-  async function startTimedTriggeredSingleTask(
-    task: SendTask,
-    config: TriggerTaskConfig,
-  ): Promise<boolean> {
-    // 创建任务定时器ID管理器
-    const taskTimerIds = createTaskTimerIds(task.id);
-
-    // 创建发送函数
-    const sendFunction = async (): Promise<boolean> => {
-      return await processSingleInstance(task.id, 0, true);
-    };
-
-    try {
-      // 使用通用时间触发执行器
-      const scheduledExecutor = createScheduledExecutor(task, config, taskTimerIds, sendFunction);
-      await scheduledExecutor.start();
-
-      // 存储定时器ID
-      sendTasksStore.updateTask(task.id, {
-        timers: taskTimerIds.getTimerIds(),
-      });
-
-      return true;
-    } catch (error) {
-      console.error(`单实例时间触发任务 ${task.name} 执行失败:`, error);
-      sendTasksStore.updateTaskStatus(
-        task.id,
-        'error',
-        error instanceof Error ? error.message : '执行失败',
-      );
-      await taskTimerIds.cleanup();
-      clearFrameInstanceCache(task.id);
-      return false;
-    }
-  }
-
-  /**
-   * 开始多实例时间触发任务
-   */
-  async function startTimedTriggeredMultipleTask(
+  async function startTimedTriggeredTask(
     task: SendTask,
     config: TriggerTaskConfig,
   ): Promise<boolean> {
@@ -1137,7 +961,7 @@ export function useSendTaskExecutor() {
 
       return true;
     } catch (error) {
-      console.error(`多实例时间触发任务 ${task.name} 执行失败:`, error);
+      console.error(`时间触发任务 ${task.name} 执行失败:`, error);
       sendTasksStore.updateTaskStatus(
         task.id,
         'error',
@@ -1157,10 +981,8 @@ export function useSendTaskExecutor() {
     // 任务执行
     startTask,
     startSequentialTask,
-    startTimedSingleTask,
-    startTimedMultipleTask,
-    startTriggeredSingleTask,
-    startTriggeredMultipleTask,
+    startTimedTask,
+    startTriggeredTask,
 
     // 触发任务专用方法
     processSingleInstance,

@@ -382,12 +382,21 @@ function getDefaultOptions(field: SendInstanceField) {
                 </div>
 
                 <!-- 左侧字段标签和类型垂直排列 -->
-                <div class="w-32 min-w-32 flex-shrink-0 flex flex-col">
-                  <div class="text-xs font-medium flex items-center gap-1" :class="fieldItem.groupConfig.type === 'readonly'
+                <div class="w-40 flex-shrink-0 flex flex-col">
+                  <div class="w-full text-xs font-medium flex items-center gap-1" :class="fieldItem.groupConfig.type === 'readonly'
                     ? 'text-industrial-secondary'
                     : 'text-industrial-primary'
                     ">
-                    {{ fieldItem.field.label }}
+                    <span class="whitespace-nowrap overflow-hidden text-ellipsis">{{ fieldItem.field.label }}</span>
+                    <q-tooltip class="bg-industrial-secondary text-industrial-primary max-w-xl" anchor="top middle"
+                      self="bottom middle" :offset="[0, 8]">
+                      {{ fieldItem.field.label }}
+                    </q-tooltip>
+                  </div>
+                  <div class="flex gap-2 pt-1">
+                    <q-badge outline :color="fieldItem.groupConfig.badgeColor" class="text-2xs px-1">
+                      {{ fieldItem.field.dataType }}
+                    </q-badge>
                     <!-- 表达式字段图标 -->
                     <q-icon v-if="fieldItem.field.inputType === 'expression'" name="functions" color="warning"
                       size="xs">
@@ -404,11 +413,6 @@ function getDefaultOptions(field: SendInstanceField) {
                         <div v-else>表达式计算字段（未配置）</div>
                       </q-tooltip>
                     </q-icon>
-                  </div>
-                  <div class="mt-0.5">
-                    <q-badge outline :color="fieldItem.groupConfig.badgeColor" class="text-2xs px-1">
-                      {{ fieldItem.field.dataType }}
-                    </q-badge>
                   </div>
                 </div>
 

@@ -12,6 +12,7 @@ import type {
   ReceivedDataPacket,
   ReceiveFrameStats,
   DataReceiveStats,
+  ReceiveScoeFrameStats,
 } from '../../../src/types/frames/receive';
 import type { IpcMainInvokeEvent } from 'electron';
 import {
@@ -21,29 +22,46 @@ import {
   processReceivedData,
   validateMappings,
 } from 'src/utils/receive';
+import { receiveConfigCache } from './receiveConfigCache';
 
 // ==================== IPC处理器接口 ====================
 
 /**
- * 统一数据接收处理接口
+ * 统一数据接收处理接口（优化版 - 使用缓存配置）
  */
 async function handleReceivedData(
   event: IpcMainInvokeEvent,
   source: 'serial' | 'network',
   sourceId: string,
   data: Uint8Array,
-  frames: Frame[],
-  mappings: FrameFieldMapping[],
-  groups: DataGroup[],
 ): Promise<{
   success: boolean;
   updatedGroups?: DataGroup[];
   recentPacket?: ReceivedDataPacket;
   frameStats?: Partial<ReceiveFrameStats>;
+  scoeFrameStats?: Partial<ReceiveScoeFrameStats>;
   receiveStats?: Partial<DataReceiveStats>;
   errors?: string[];
 }> {
   try {
+    // 从缓存获取配置
+    const frames = receiveConfigCache.getDirectDataFrames();
+    const mappings = receiveConfigCache.getMappings();
+    const groups = receiveConfigCache.getGroups();
+
+    // 检查缓存是否有效
+    if (frames.length === 0 && mappings.length === 0 && groups.length === 0) {
+      return {
+        success: false,
+        receiveStats: {
+          totalPackets: 1,
+          errorPackets: 1,
+          bytesReceived: data.length,
+        },
+        errors: ['接收配置缓存为空，请先同步配置'],
+      };
+    }
+
     // 创建数据包
     const packet = createDataPacket(source, sourceId, data);
 
@@ -152,12 +170,109 @@ async function validateMappingsHandler(
   }
 }
 
+/**
+ * 更新配置缓存接口
+ */
+async function updateConfigCache(
+  event: IpcMainInvokeEvent,
+  frames: Frame[],
+  mappings: FrameFieldMapping[],
+  groups: DataGroup[],
+): Promise<{ success: boolean; status?: ReturnType<typeof receiveConfigCache.getStatus> }> {
+  try {
+    receiveConfigCache.updateConfig(frames, mappings, groups);
+    return {
+      success: true,
+      status: receiveConfigCache.getStatus(),
+    };
+  } catch (error) {
+    console.error('更新配置缓存失败:', error);
+    return {
+      success: false,
+    };
+  }
+}
+
+/**
+ * 只更新帧模板缓存
+ */
+async function updateFramesCache(
+  event: IpcMainInvokeEvent,
+  frames: Frame[],
+): Promise<{ success: boolean }> {
+  try {
+    receiveConfigCache.updateFrames(frames);
+    return { success: true };
+  } catch (error) {
+    console.error('更新帧模板缓存失败:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * 只更新映射关系缓存
+ */
+async function updateMappingsCache(
+  event: IpcMainInvokeEvent,
+  mappings: FrameFieldMapping[],
+): Promise<{ success: boolean }> {
+  try {
+    receiveConfigCache.updateMappings(mappings);
+    return { success: true };
+  } catch (error) {
+    console.error('更新映射关系缓存失败:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * 只更新数据分组缓存
+ */
+async function updateGroupsCache(
+  event: IpcMainInvokeEvent,
+  groups: DataGroup[],
+): Promise<{ success: boolean }> {
+  try {
+    receiveConfigCache.updateGroups(groups);
+    return { success: true };
+  } catch (error) {
+    console.error('更新数据分组缓存失败:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * 获取缓存状态
+ */
+async function getCacheStatus(): Promise<ReturnType<typeof receiveConfigCache.getStatus>> {
+  return receiveConfigCache.getStatus();
+}
+
+/**
+ * 清空配置缓存
+ */
+async function clearConfigCache(): Promise<{ success: boolean }> {
+  try {
+    receiveConfigCache.clear();
+    return { success: true };
+  } catch (error) {
+    console.error('清空配置缓存失败:', error);
+    return { success: false };
+  }
+}
+
 // ==================== 注册处理器 ====================
 
 const receiveRegistry = createHandlerRegistry('receive');
 
 receiveRegistry.register('handleReceivedData', handleReceivedData);
 receiveRegistry.register('validateMappings', validateMappingsHandler);
+receiveRegistry.register('updateConfigCache', updateConfigCache);
+receiveRegistry.register('updateFramesCache', updateFramesCache);
+receiveRegistry.register('updateMappingsCache', updateMappingsCache);
+receiveRegistry.register('updateGroupsCache', updateGroupsCache);
+receiveRegistry.register('getCacheStatus', getCacheStatus);
+receiveRegistry.register('clearConfigCache', clearConfigCache);
 
 export function registerReceiveHandlers() {
   return receiveRegistry.registerAll();

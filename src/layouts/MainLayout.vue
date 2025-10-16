@@ -21,97 +21,30 @@
         </div>
       </q-page-container>
     </div>
+
+    <!-- 全局文件对话框 -->
+    <FileListDialog v-if="fileDialogState.isOpen" :title="fileDialogState.title" :isOpen="fileDialogState.isOpen"
+      :storageDir="fileDialogState.storageDir" :operation="fileDialogState.operation" @select="handleFileSelect"
+      @create="handleFileCreate" @close="handleFileDialogClose" />
   </q-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, provide, onMounted, onUnmounted } from 'vue';
 import HeaderBar from '../components/layout/HeaderBar.vue';
 import SidePanel from '../components/layout/SidePanel.vue';
-import { useReceiveFramesStore } from 'src/stores/frames/receiveFramesStore';
-import { useConnectionTargetsStore } from 'src/stores/connectionTargetsStore';
-import { useFrameTemplateStore, useSendFrameInstancesStore } from 'src/stores/framesStore';
-import { useSerialStore } from 'src/stores/serialStore';
-import { useDataDisplayStore } from 'src/stores/frames/dataDisplayStore';
-import { useSettingsStore } from 'src/stores/settingsStore';
-import { useGlobalStatsStore } from 'src/stores/globalStatsStore';
+import FileListDialog from '../components/common/FileListDialog.vue';
+import { useFileDialog } from './useFileDialog';
+import { useAppLifecycle } from './useAppLifecycle';
+import { useLayoutDrawer } from './useLayoutDrawer';
 
-const leftDrawerOpen = ref(true);
-const drawerWidth = ref(120); // 默认宽度，单位是像素
-const miniState = ref(true); // 默认为mini模式
-const receiveFramesStore = useReceiveFramesStore();
-const frameTemplateStore = useFrameTemplateStore();
-const sendFrameInstancesStore = useSendFrameInstancesStore();
-const serialStore = useSerialStore();
-const dataDisplayStore = useDataDisplayStore();
-const settingsStore = useSettingsStore();
-const globalStatsStore = useGlobalStatsStore();
+// 抽屉/侧边栏逻辑
+const { leftDrawerOpen, drawerWidth, miniState } = useLayoutDrawer();
 
-// 方法：清理数据项值
-const clearDataItemValues = async (): Promise<void> => {
-  try {
-    console.log('页面卸载，开始清理接收帧数据项值...');
+// 文件对话框逻辑
+const { fileDialogState, handleFileSelect, handleFileCreate, handleFileDialogClose } = useFileDialog();
 
-    // 使用store中的清理方法
-    receiveFramesStore.clearDataItemValues();
-
-    // 保存配置
-    await receiveFramesStore.saveConfig();
-    console.log('接收帧数据项值已清理并保存');
-  } catch (error) {
-    console.error('清理接收帧数据项值失败:', error);
-  }
-};
-
-const connectionTargetsStore = useConnectionTargetsStore();
-
-// 计算抽屉宽度为视窗宽度的百分比
-onMounted(async () => {
-  try {
-    await frameTemplateStore.fetchFrames();
-    await sendFrameInstancesStore.fetchInstances();
-    await receiveFramesStore.loadConfig();
-    await serialStore.refreshPorts();
-    sendFrameInstancesStore.resetSendStats();
-    connectionTargetsStore.refreshTargets(); // 刷新可用的连接目标
-
-    // 初始化全局统计数据
-    globalStatsStore.initialize();
-
-    // 启动数据收集定时器（常开模式）
-    dataDisplayStore.startDataCollection();
-
-    // 根据设置自动开始记录
-    if (settingsStore.autoStartRecording && !dataDisplayStore.recordingStatus.isRecording) {
-      console.log('自动开始数据记录...');
-      dataDisplayStore.startRecording();
-    }
-  } catch (error) {
-    console.error('加载数据失败:', error);
-  }
-});
-
-// 清理监听器
-onUnmounted(() => {
-  // 停止数据记录
-  if (dataDisplayStore.recordingStatus.isRecording) {
-    console.log('页面卸载，停止数据记录...');
-    dataDisplayStore.stopRecording();
-  }
-
-  // 停止数据收集定时器
-  dataDisplayStore.stopDataCollection();
-
-  // 清理全局统计数据
-  globalStatsStore.cleanup();
-
-  clearDataItemValues();
-});
-const toggleDrawer = () => {
-  leftDrawerOpen.value = !leftDrawerOpen.value;
-};
-
-provide('toggleDrawer', toggleDrawer);
+// 应用生命周期逻辑
+useAppLifecycle();
 </script>
 
 <style>

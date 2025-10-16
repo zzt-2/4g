@@ -76,7 +76,7 @@ export const networkAPI = {
       timestamp: Date;
     }) => void,
   ) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data as any);
+    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data);
     ipcRenderer.on('network:data', listener);
 
     // 返回清理函数
@@ -98,7 +98,7 @@ export const networkAPI = {
       timestamp: Date;
     }) => void,
   ) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data as any);
+    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data);
     ipcRenderer.on('network:connectionEvent', listener);
 
     // 返回清理函数
@@ -113,7 +113,7 @@ export const networkAPI = {
    * @returns 清理函数
    */
   onStatusChange: (callback: (data: { connectionId: string; status: NetworkStatus }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data as any);
+    const listener = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data);
     ipcRenderer.on('network:statusChange', listener);
 
     // 返回清理函数

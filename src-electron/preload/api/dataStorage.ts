@@ -41,7 +41,7 @@ export const dataStorageAPI = Object.fromEntries(
   }),
 ) as {
   [K in DataType]: {
-    list: () => Promise<unknown[]>;
+    list: () => Promise<unknown[] | unknown>;
     save: (item: unknown) => Promise<{ success: boolean; message?: string }>;
     delete: (id: string) => Promise<{ success: boolean; message?: string }>;
     saveAll: (items: unknown[]) => Promise<{ success: boolean; message?: string }>;

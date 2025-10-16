@@ -54,8 +54,9 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
         updatedAt: new Date(),
       };
 
-      await dataStorageAPI.framesConfig.save(newFrame);
       frames.value.push(newFrame);
+      await dataStorageAPI.framesConfig.saveAll(frames.value);
+
       return newFrame;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '创建帧配置失败';
@@ -67,31 +68,24 @@ export const useFrameTemplateStore = defineStore('frameTemplates', () => {
   }
 
   async function updateFrame(frame: Frame): Promise<Frame> {
-    try {
-      isLoading.value = true;
-      error.value = null;
+    isLoading.value = true;
+    error.value = null;
 
-      const updatedFrame = {
-        ...deepClone(frame),
-        updatedAt: new Date(),
-      };
+    const updatedFrame = {
+      ...deepClone(frame),
+      updatedAt: new Date(),
+    };
 
-      await dataStorageAPI.framesConfig.save(updatedFrame);
-
-      // 更新本地数据
-      const index = frames.value.findIndex((f) => f.id === frame.id);
-      if (index !== -1) {
-        frames.value[index] = updatedFrame;
-      }
-
-      return updatedFrame;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '更新帧配置失败';
-      error.value = errorMessage;
-      throw err;
-    } finally {
-      isLoading.value = false;
+    // 更新本地数据
+    const index = frames.value.findIndex((f) => f.id === frame.id);
+    if (index !== -1) {
+      frames.value[index] = updatedFrame;
+    } else {
+      frames.value.push(updatedFrame);
     }
+
+    await dataStorageAPI.framesConfig.saveAll(frames.value);
+    return updatedFrame;
   }
 
   async function deleteFrame(id: string): Promise<boolean> {

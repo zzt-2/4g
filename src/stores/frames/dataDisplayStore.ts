@@ -353,14 +353,14 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
 
   // 优化的数据收集方法 - 高性能版本
   const collectCurrentData = (): void => {
-    const perfStart = performance.now();
-    const perfTimes: Record<string, number> = {};
+    // const perfStart = performance.now();
+    // const perfTimes: Record<string, number> = {};
 
     const timestamp = Date.now();
     const currentHour = getHourKey(timestamp);
 
     // 步骤1：小时边界检查
-    const step1Start = performance.now();
+    // const step1Start = performance.now();
     if (
       recordingStatus.value.lastRecordTime > 0 &&
       isNewHour(recordingStatus.value.lastRecordTime, timestamp)
@@ -372,10 +372,10 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
         saveCurrentHistoryBatch(recordingStatus.value.currentHour);
       }
     }
-    perfTimes['1_hourBoundaryCheck'] = performance.now() - step1Start;
+    // perfTimes['1_hourBoundaryCheck'] = performance.now() - step1Start;
 
     // 步骤2：状态更新
-    const step2Start = performance.now();
+    // const step2Start = performance.now();
     const newRecordingStatus = {
       ...recordingStatus.value,
       currentHour,
@@ -387,38 +387,38 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
       : 0;
     recordingStatus.value = newRecordingStatus;
 
-    perfTimes['2_statusUpdate'] = performance.now() - step2Start;
+    // perfTimes['2_statusUpdate'] = performance.now() - step2Start;
 
     // 步骤3：模式检查
-    const step3Start = performance.now();
+    // const step3Start = performance.now();
     const isChartMode1 =
       table1Config.value.displayMode === 'chart' && table1Config.value.selectedGroupId;
     const isChartMode2 =
       table2Config.value.displayMode === 'chart' && table2Config.value.selectedGroupId;
 
     if (!isChartMode1 && !isChartMode2 && !recordingStatus.value.isRecording) {
-      perfTimes['3_modeCheck'] = performance.now() - step3Start;
-      perfTimes['total'] = performance.now() - perfStart;
-      console.log('collectCurrentData性能统计（早期退出）:', perfTimes);
+      // perfTimes['3_modeCheck'] = performance.now() - step3Start;
+      // perfTimes['total'] = performance.now() - perfStart;
+      // console.log('collectCurrentData性能统计（早期退出）:', perfTimes);
       return; // 没有需要数据的地方，直接返回
     }
-    perfTimes['3_modeCheck'] = performance.now() - step3Start;
+    // perfTimes['3_modeCheck'] = performance.now() - step3Start;
 
     // 步骤4：预计算选中项
-    const step4Start = performance.now();
+    // const step4Start = performance.now();
     const table1SelectedIds = new Set(
       table1Config.value.displayMode === 'chart' ? table1Config.value.chartSelectedItems : [],
     );
     const table2SelectedIds = new Set(
       table2Config.value.displayMode === 'chart' ? table2Config.value.chartSelectedItems : [],
     );
-    perfTimes['4_precomputeSelected'] = performance.now() - step4Start;
+    // perfTimes['4_precomputeSelected'] = performance.now() - step4Start;
 
     // 步骤5：数据收集
-    const step5Start = performance.now();
-    let processedGroups = 0;
-    let processedItems = 0;
-    let hexConversions = 0;
+    // const step5Start = performance.now();
+    // let processedGroups = 0;
+    // let processedItems = 0;
+    // let hexConversions = 0;
 
     receiveFramesStore.groups.forEach((group) => {
       if (group.dataItems.length === 0) return;
@@ -431,7 +431,7 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
 
       if (!isGroupUsed) return;
 
-      processedGroups++;
+      // processedGroups++;
 
       // 获取需要存储的数据项
       const shouldStoreAllItems = recordingStatus.value.isRecording;
@@ -456,11 +456,11 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
 
         if (!shouldInclude) continue;
 
-        processedItems++;
+        // processedItems++;
 
         // 使用缓存的hex转换
         const hexValue = cachedConvertToHex(String(item.value || ''), item.dataType);
-        hexConversions++;
+        // hexConversions++;
 
         dataItems.push({
           id: item.id,
@@ -495,20 +495,20 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
 
       historyRecordsCache.get(group.id)!.push(dataRecord);
     });
-    perfTimes['5_dataCollection'] = performance.now() - step5Start;
+    // perfTimes['5_dataCollection'] = performance.now() - step5Start;
 
     // 步骤6：延迟清理
-    const step6Start = performance.now();
+    // const step6Start = performance.now();
     performDelayedCleanup();
-    perfTimes['6_delayedCleanup'] = performance.now() - step6Start;
+    // perfTimes['6_delayedCleanup'] = performance.now() - step6Start;
 
     // 步骤7：更新计数器
-    const step7Start = performance.now();
+    // const step7Start = performance.now();
     historyUpdateCounter.value++;
-    perfTimes['7_updateCounter'] = performance.now() - step7Start;
+    // perfTimes['7_updateCounter'] = performance.now() - step7Start;
 
     // 步骤8：历史数据保存
-    const step8Start = performance.now();
+    // const step8Start = performance.now();
     if (recordingStatus.value.isRecording && displaySettings.value.enableHistoryStorage) {
       if (!historyBatches.value.has(currentHour)) {
         historyBatches.value.set(currentHour, {
@@ -521,34 +521,34 @@ export const useDataDisplayStore = defineStore('dataDisplay', () => {
       batch.metadata.updatedAt = timestamp;
       batch.records.push(createHistoryDataRecord(timestamp));
     }
-    perfTimes['8_historyDataSave'] = performance.now() - step8Start;
+    // perfTimes['8_historyDataSave'] = performance.now() - step8Start;
 
     // 总耗时统计
-    perfTimes['total'] = performance.now() - perfStart;
+    // perfTimes['total'] = performance.now() - perfStart;
 
     // 每100次调用输出一次详细统计
-    if (historyUpdateCounter.value % 100 === 0) {
-      const stats = {
-        processedGroups,
-        processedItems,
-        hexConversions,
-        cacheSize: hexConversionCache.size,
-        bufferCount: historyRecordsCache.size,
-      };
+    // if (historyUpdateCounter.value % 100 === 0) {
+    //   const stats = {
+    //     processedGroups,
+    //     processedItems,
+    //     hexConversions,
+    //     cacheSize: hexConversionCache.size,
+    //     bufferCount: historyRecordsCache.size,
+    //   };
 
-      console.log('collectCurrentData性能统计:', {
-        耗时详情: Object.entries(perfTimes)
-          .map(([step, time]) => `${step}: ${time.toFixed(3)}ms`)
-          .join(', '),
-        处理统计: stats,
-        最耗时步骤: Object.entries(perfTimes)
-          .filter(([key]) => key !== 'total')
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, 3)
-          .map(([step, time]) => `${step}(${time.toFixed(3)}ms)`)
-          .join(', '),
-      });
-    }
+    //   console.log('collectCurrentData性能统计:', {
+    //     耗时详情: Object.entries(perfTimes)
+    //       .map(([step, time]) => `${step}: ${time.toFixed(3)}ms`)
+    //       .join(', '),
+    //     处理统计: stats,
+    //     最耗时步骤: Object.entries(perfTimes)
+    //       .filter(([key]) => key !== 'total')
+    //       .sort(([, a], [, b]) => b - a)
+    //       .slice(0, 3)
+    //       .map(([step, time]) => `${step}(${time.toFixed(3)}ms)`)
+    //       .join(', '),
+    //   });
+    // }
   };
 
   // 方法：启动数据收集定时器（常开）

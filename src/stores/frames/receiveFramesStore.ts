@@ -18,6 +18,11 @@ import { useFrameTemplateStore } from './frameTemplateStore';
 import { dataStorageAPI, receiveAPI } from '../../api/common';
 import { useGlobalStatsStore } from '../globalStatsStore';
 import { useFrameExpressionManager } from '../../composables/frames/useFrameExpressionManager';
+import { isScoeFrame } from '../../utils/receive/scoeFrame';
+import { useScoeStore } from '../scoeStore';
+import { useScoeFrameInstancesStore } from './scoeFrameInstancesStore';
+import { useScoeCommandExecutor } from '../../composables/scoe/useScoeCommandExecutor';
+import { ScoeErrorReason } from 'src/types/scoe';
 
 // 辅助函数：数据项查找
 const findGroupById = (groups: DataGroup[], groupId: number): DataGroup | undefined => {
@@ -79,11 +84,26 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   const selectedGroupId = ref<number>(0);
   const isLoading = ref<boolean>(false);
 
-  // 获取全局统计store
   const globalStatsStore = useGlobalStatsStore();
-
-  // 获取帧表达式管理器
   const frameExpressionManager = useFrameExpressionManager();
+  const frameTemplateStore = useFrameTemplateStore();
+
+  // SCOE 相关依赖（延迟初始化，避免循环依赖）
+  let scoeStore: ReturnType<typeof useScoeStore> | null = null;
+  let scoeFrameInstancesStore: ReturnType<typeof useScoeFrameInstancesStore> | null = null;
+  let scoeCommandExecutor: ReturnType<typeof useScoeCommandExecutor> | null = null;
+
+  const initializeScoeComponents = () => {
+    if (!scoeStore) {
+      scoeStore = useScoeStore();
+    }
+    if (!scoeFrameInstancesStore) {
+      scoeFrameInstancesStore = useScoeFrameInstancesStore();
+    }
+    if (!scoeCommandExecutor) {
+      scoeCommandExecutor = useScoeCommandExecutor();
+    }
+  };
 
   // 最近接收的数据包（用于调试和监控）
   const recentPackets = ref<ReceivedDataPacket[]>([]);
@@ -106,9 +126,6 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       isLoading.value = false;
     }
   };
-
-  // 获取帧模板Store
-  const frameTemplateStore = useFrameTemplateStore();
 
   // 获取发送任务Store（动态导入避免循环依赖）
   const getSendTasksStore = async () => {
@@ -154,7 +171,42 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   // 上一次的配置状态（用于比较）
   const lastConfigState = ref<string>('');
 
-  // 监听配置变化并自动保存
+  // 防抖同步到主进程缓存
+  let syncCacheTimeout: NodeJS.Timeout | null = null;
+  const debouncedSyncCache = (): void => {
+    if (syncCacheTimeout) {
+      clearTimeout(syncCacheTimeout);
+    }
+    syncCacheTimeout = setTimeout(() => {
+      syncConfigToMainProcess();
+    }, 500); // 500ms防抖，比保存更快
+  };
+
+  // 同步配置到主进程缓存
+  const syncConfigToMainProcess = async (): Promise<void> => {
+    try {
+      // 过滤出接收帧（包含直接和间接数据字段的完整帧）
+      const receiveFrames = frameTemplateStore.frames.filter(
+        (frame: Frame) => frame.direction === 'receive',
+      );
+
+      const result = await receiveAPI.updateConfigCache(
+        receiveFrames,
+        mappings.value,
+        groups.value,
+      );
+
+      if (result.success && result.status) {
+        console.log('✅ 配置已同步到主进程缓存:', result.status);
+      } else {
+        console.warn('⚠️ 同步配置到主进程失败');
+      }
+    } catch (error) {
+      console.error('❌ 同步配置到主进程异常:', error);
+    }
+  };
+
+  // 监听配置变化并自动保存 + 同步到主进程
   watch(
     configForWatch,
     (newConfig) => {
@@ -167,10 +219,23 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
           console.log('检测到接收帧配置变化，将在1秒后自动保存...');
           lastConfigState.value = newConfigString;
           debouncedSaveConfig();
+          debouncedSyncCache(); // 同步到主进程缓存
         }
       } else {
         // 初始加载时记录配置状态，但不触发保存
         lastConfigState.value = JSON.stringify(newConfig);
+      }
+    },
+    { deep: true },
+  );
+
+  // 监听帧模板变化，同步到主进程
+  watch(
+    () => frameTemplateStore.frames,
+    () => {
+      if (!isLoading.value) {
+        console.log('检测到帧模板变化，同步到主进程缓存...');
+        debouncedSyncCache();
       }
     },
     { deep: true },
@@ -272,7 +337,8 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   // 方法：加载配置
   const loadConfig = async (): Promise<void> => {
     await withLoading(async () => {
-      const result = (await dataStorageAPI.receiveConfig.list())[0] as ReceiveConfig | undefined;
+      const configList = (await dataStorageAPI.receiveConfig.list()) as ReceiveConfig[];
+      const result = configList[0] as ReceiveConfig | undefined;
 
       // 临时模拟数据
       const mockConfig = buildConfig([], []);
@@ -282,6 +348,9 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
       // 验证映射关系
       await validateMappings();
+
+      // 加载完成后立即同步到主进程缓存
+      await syncConfigToMainProcess();
     });
   };
 
@@ -333,6 +402,9 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
 
       // 验证映射关系
       await validateMappings();
+
+      // 导入完成后立即同步到主进程缓存
+      await syncConfigToMainProcess();
 
       console.log('接收配置导入成功:', config);
     });
@@ -707,6 +779,107 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   };
 
   /**
+   * 处理 SCOE 帧
+   * @param data 接收到的数据包
+   * @returns 是否成功处理为 SCOE 帧
+   */
+  const handleScoeFrame = async (data: Uint8Array): Promise<boolean> => {
+    try {
+      // 初始化 SCOE 组件
+      initializeScoeComponents();
+
+      if (!scoeStore || !scoeFrameInstancesStore || !scoeCommandExecutor) {
+        console.warn('[SCOE] SCOE 组件未初始化');
+        return false;
+      }
+
+      // 检查是否为 SCOE 帧
+      const checkResult = isScoeFrame(
+        data,
+        scoeStore.loadedConfig,
+        scoeStore.globalConfig,
+        scoeStore.status.scoeFramesLoaded,
+        scoeFrameInstancesStore.receiveCommands,
+      );
+
+      if (!checkResult.isScoe) {
+        // 不是 SCOE 帧，记录详细信息用于调试
+        console.log('[SCOE] 不是有效的 SCOE 帧:', checkResult.error);
+        return false;
+      }
+
+      if (!checkResult.commandCode) {
+        scoeStore.status.commandErrorCount++;
+        scoeStore.status.lastErrorReason = ScoeErrorReason.COMMAND_CODE_NOT_FOUND;
+        console.log('[SCOE] 识别到 SCOE 帧，但未找到对应指令码');
+        return false;
+      }
+
+      console.log('[SCOE] 识别到 SCOE 帧，指令码:', checkResult.commandCode);
+
+      // 1. 校验和检查
+      const { validateChecksums, extractAndResolveParams } = await import(
+        '../../utils/receive/scoeFrame'
+      );
+      const checksumResult = validateChecksums(data, checkResult.commandCode.checksums);
+      if (!checksumResult.valid) {
+        console.warn('[SCOE] 校验和错误:', checksumResult.error);
+        scoeStore.status.commandErrorCount++;
+        scoeStore.status.lastErrorReason = ScoeErrorReason.CHECKSUM_ERROR;
+        scoeStore.addReceiveData(
+          Array.from(data)
+            .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+            .join(''),
+          false, // 校验失败
+        );
+        return true;
+      }
+
+      // 2. 参数解析
+      const params: Record<string, unknown> = {};
+      if (checkResult.commandCode.params?.length) {
+        const paramValues = extractAndResolveParams(data, checkResult.commandCode.params);
+        params.resolvedParams = paramValues;
+      }
+
+      // 3. 添加卫星ID
+      if (checkResult.extractedSatelliteId) {
+        params.satelliteId = checkResult.extractedSatelliteId;
+      }
+
+      // 4. 记录接收数据（校验成功）
+      scoeStore.addReceiveData(
+        Array.from(data)
+          .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+          .join(''),
+        true, // 校验成功
+      );
+
+      // 5. 执行对应的指令（统计信息会在 useScoeCommandExecutor 中更新 scoeStore.status）
+      const result = await scoeCommandExecutor.executeCommand(checkResult.commandCode, params);
+
+      if (result) {
+        if (result.success) {
+          console.log('[SCOE] 指令执行成功:', result.message);
+        } else {
+          console.warn('[SCOE] 指令执行失败:', result.message);
+        }
+      } else {
+        console.warn('[SCOE] 未找到指令码对应的指令');
+      }
+
+      return true; // 已作为 SCOE 帧处理
+    } catch (error) {
+      console.error('[SCOE] SCOE 帧处理异常:', error);
+      // 异常情况下增加错误计数
+      if (scoeStore) {
+        scoeStore.status.commandErrorCount++;
+      }
+      return false;
+    }
+  };
+
+  /**
    * 内部数据处理函数
    */
   const processDataInternal = async (
@@ -719,15 +892,16 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       globalStatsStore.incrementReceivedPackets();
       globalStatsStore.addReceivedBytes(data.length);
 
-      // 调用主进程的统一数据处理接口，只传递包含直接数据字段的帧
-      const result = await receiveAPI.handleReceivedData(
-        source,
-        sourceId,
-        data,
-        directDataFrames.value, // 使用computed缓存的过滤帧列表
-        mappings.value,
-        groups.value, // 确保使用最新的groups状态
-      );
+      // ⭐ SCOE 帧检测和处理（仅处理来自 scoe-tcp-server 的数据）
+      if (sourceId === 'scoe-tcp-server') {
+        const scoeHandled = await handleScoeFrame(data);
+        if (scoeHandled) {
+          return; // SCOE 帧处理完毕，直接返回
+        }
+      }
+
+      // 调用主进程的统一数据处理接口（优化版：只传输数据，配置从缓存读取）
+      const result = await receiveAPI.handleReceivedData(source, sourceId, data);
 
       // 处理返回结果
       if (!result.success) {
@@ -906,19 +1080,14 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
           if (
             mapping &&
             mapping.frameId === frameId &&
-            dataItem.value !== null &&
-            dataItem.value !== undefined
+            dataItem.value &&
+            dataItem.dataType === 'bytes'
           ) {
-            // 确保value是数字类型
-            // 星座图需要原始的hex数据，不是单个数值
-            if (dataItem.value && typeof dataItem.value === 'object') {
-              // 将Uint8Array转换为hex字符串
-              const uint8Array = dataItem.value as Uint8Array;
-              const hexString = Array.from(uint8Array)
-                .map((byte) => byte.toString(16).padStart(2, '0'))
-                .join('');
-              dataDisplayStore.collectConstellationFieldData(frameId, mapping.fieldId, hexString);
-            }
+            dataDisplayStore.collectConstellationFieldData(
+              frameId,
+              mapping.fieldId,
+              dataItem.value as string,
+            );
           }
         });
       });

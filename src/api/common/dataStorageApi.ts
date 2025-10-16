@@ -21,7 +21,7 @@ type DataType = keyof typeof DATA_PATH_MAP;
 // 创建类型安全的数据存储API
 export const dataStorageAPI = {} as {
   [K in DataType]: {
-    list: () => Promise<unknown[]>;
+    list: () => Promise<unknown[] | unknown>;
     save: (item: unknown) => Promise<{ success: boolean; message?: string }>;
     delete: (id: string) => Promise<{ success: boolean; message?: string }>;
     saveAll: (items: unknown[]) => Promise<{ success: boolean; message?: string }>;

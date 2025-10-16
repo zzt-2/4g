@@ -143,6 +143,7 @@ const handleClose = () => {
 // 连接类型选项
 const connectionTypes = [
   { label: 'TCP Client', value: 'tcp' },
+  { label: 'TCP Server', value: 'tcp-server' },
   { label: 'UDP', value: 'udp' },
   { label: 'WebSocket', value: 'websocket' },
 ];

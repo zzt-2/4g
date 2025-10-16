@@ -1,5 +1,5 @@
 <template>
-  <div class="identifier-rules-editor w-full">
+  <div class="w-60vw">
     <div class="text-subtitle1 mb-2 text-primary-color font-medium">通过位值规则识别接收帧</div>
     <p class="text-caption text-accent-color mb-4">
       设置帧识别规则，用于在接收数据时自动识别匹配的帧类型。至少需要一条规则才能成功识别帧。
@@ -10,82 +10,37 @@
       <div v-for="(rule, index) in tempRules" :key="index" class="rule-item">
         <div class="flex justify-between items-center mb-2">
           <div class="rule-number">规则 #{{ index + 1 }}</div>
-          <q-btn
-            flat
-            round
-            dense
-            icon="delete"
-            color="negative"
-            size="sm"
-            @click="removeRule(index)"
-          />
+          <q-btn flat round dense icon="delete" color="negative" size="sm" @click="removeRule(index)" />
         </div>
 
         <div class="rule-content bg-darker p-3 rounded-md">
           <div class="grid grid-cols-2 gap-3">
             <!-- 起始位 -->
-            <q-input
-              v-model="rule.startIndex"
-              type="number"
-              min="0"
-              max="1024"
-              label="起始字节"
-              dense
-              outlined
-              dark
-            />
+            <q-input v-model="rule.startIndex" type="number" min="0" max="1024" label="起始字节" dense outlined dark />
 
             <!-- 结束位 -->
-            <q-input
-              v-model="rule.endIndex"
-              type="number"
-              min="0"
-              max="1024"
-              label="结束字节"
-              dense
-              outlined
-              dark
-            />
+            <q-input v-model="rule.endIndex" type="number" min="0" max="1024" label="结束字节" dense outlined dark />
 
             <!-- 操作符 -->
-            <q-select
-              v-model="rule.operator"
-              :options="[
-                { label: '等于', value: 'eq' },
-                { label: '不等于', value: 'neq' },
-                { label: '大于', value: 'gt' },
-                { label: '小于', value: 'lt' },
-                { label: '大于等于', value: 'gte' },
-                { label: '小于等于', value: 'lte' },
-                { label: '包含', value: 'contains' },
-                { label: '不包含', value: 'not_contains' },
-              ]"
-              label="操作符"
-              dense
-              outlined
-              dark
-              emit-value
-              map-options
-            />
+            <q-select v-model="rule.operator" :options="[
+              { label: '等于', value: 'eq' },
+              { label: '不等于', value: 'neq' },
+              { label: '大于', value: 'gt' },
+              { label: '小于', value: 'lt' },
+              { label: '大于等于', value: 'gte' },
+              { label: '小于等于', value: 'lte' },
+              { label: '包含', value: 'contains' },
+              { label: '不包含', value: 'not_contains' },
+            ]" label="操作符" dense outlined dark emit-value map-options />
 
             <!-- 预期值 -->
             <q-input v-model="rule.value" label="预期值" dense outlined dark />
 
             <!-- 逻辑操作符 -->
-            <q-select
-              v-if="index < tempRules.length - 1"
-              v-model="rule.logicOperator"
-              :options="[
-                { label: '与 (AND)', value: 'and' },
-                { label: '或 (OR)', value: 'or' },
-              ]"
-              label="逻辑操作符"
-              dense
-              outlined
-              dark
-              emit-value
-              map-options
-            />
+            <q-select v-if="index < tempRules.length - 1" v-model="rule.logicOperator" :options="[
+              { label: '与 (AND)', value: 'and' },
+              { label: '或 (OR)', value: 'or' },
+            ]" label="逻辑操作符" dense outlined dark emit-value map-options />
           </div>
         </div>
       </div>
@@ -191,11 +146,6 @@ const cancelEdit = () => {
 </script>
 
 <style scoped>
-.identifier-rules-editor {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
 .rule-item {
   border-left: 3px solid var(--q-primary);
   padding-left: 12px;

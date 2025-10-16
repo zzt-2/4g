@@ -1,0 +1,65 @@
+{
+  "satelliteConfigs": [
+    {
+      "id": "1",
+      "satelliteId": "2",
+      "sendConfig": {
+        "satelliteIdentifier": "",
+        "messageIdentifier": "ab",
+        "sourceIdentifier": "14",
+        "destinationIdentifier": "8",
+        "udpIpAddress": "127.0.0.1",
+        "udpPort": "1000"
+      },
+      "receiveConfig": {
+        "satelliteIdentifier": "",
+        "messageIdentifier": "1",
+        "sourceIdentifier": "2",
+        "destinationIdentifier": "3",
+        "modelId": "4",
+        "satelliteId": "2",
+        "recognitionMessageId": true,
+        "recognitionSourceId": true,
+        "recognitionDestinationId": true
+      }
+    },
+    {
+      "id": "2",
+      "satelliteId": "",
+      "sendConfig": {
+        "satelliteIdentifier": "",
+        "messageIdentifier": "",
+        "sourceIdentifier": "",
+        "destinationIdentifier": "",
+        "udpIpAddress": "",
+        "udpPort": 0
+      },
+      "receiveConfig": {
+        "satelliteIdentifier": "",
+        "messageIdentifier": "",
+        "sourceIdentifier": "",
+        "destinationIdentifier": "",
+        "modelId": "",
+        "satelliteId": "",
+        "recognitionMessageId": true,
+        "recognitionSourceId": true,
+        "recognitionDestinationId": true
+      }
+    }
+  ],
+  "globalConfig": {
+    "scoeIdentifier": "12",
+    "tcpServerIp": "127.0.0.1",
+    "tcpServerPort": 10000,
+    "tcpServerAutoConnect": true,
+    "udpUploadInterval": "2000",
+    "udpIpAddress": "127.0.0.1",
+    "udpPort": "8080",
+    "messageIdentifierOffset": 4,
+    "sourceIdentifierOffset": 5,
+    "destinationIdentifierOffset": 6,
+    "modelIdOffset": 36,
+    "satelliteIdOffset": 40,
+    "functionCodeOffset": 46
+  }
+}

@@ -331,14 +331,6 @@ export function validateFrame(frame: Frame): { valid: boolean; errors: string[] 
     errors.push('帧名称不能为空');
   }
 
-  if (!frame.protocol) {
-    errors.push('协议类型不能为空');
-  }
-
-  if (!frame.frameType) {
-    errors.push('帧类型不能为空');
-  }
-
   // 字段验证
   const fieldsResult = validateFields(frame.fields);
   if (!fieldsResult.valid) {
@@ -404,16 +396,6 @@ function filterFramesBySearchQuery(frames: Frame[], query: string): Frame[] {
  */
 function applyFilters(frames: Frame[], filters: FilterOptions): Frame[] {
   return frames.filter((frame) => {
-    // 协议过滤
-    if (filters.protocol && frame.protocol !== filters.protocol) {
-      return false;
-    }
-
-    // 帧类型过滤
-    if (filters.frameType && frame.frameType !== filters.frameType) {
-      return false;
-    }
-
     // 方向过滤
     if (filters.direction && frame.direction !== filters.direction) {
       return false;

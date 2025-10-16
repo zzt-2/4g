@@ -66,4 +66,16 @@ export const filesAPI = {
       message: 'Electron files API(deleteFile) 不可用',
     });
   },
+
+  // 读取文本文件
+  readTextFile: (filePath: string) => {
+    if (window.electron?.files?.readTextFile) {
+      return window.electron.files.readTextFile(filePath);
+    }
+    return Promise.resolve({
+      success: false,
+      message: 'Electron files API(readTextFile) 不可用',
+      content: '',
+    });
+  },
 };

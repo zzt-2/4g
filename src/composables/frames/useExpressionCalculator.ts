@@ -11,6 +11,7 @@ import type {
 } from '../../types/frames/fields';
 import { DataSourceType } from '../../types/frames/fields';
 import { useGlobalStatsStore } from '../../stores/globalStatsStore';
+import { useScoeStore } from '../../stores/scoeStore';
 
 // 计算上下文
 export interface CalculationContext {
@@ -48,6 +49,8 @@ export function useExpressionCalculator() {
 
   // 获取全局统计store
   const globalStatsStore = useGlobalStatsStore();
+  // 获取SCOE store
+  const scoeStore = useScoeStore();
 
   // 解析单个变量的值
   const resolveVariableValue = (mapping: VariableMapping, context: CalculationContext): unknown => {
@@ -81,11 +84,51 @@ export function useExpressionCalculator() {
           return 0;
         }
 
+      case DataSourceType.SCOE_DATA:
+        // SCOE数据（配置和状态）
+        try {
+          return resolveScoeData(mapping.sourceId);
+        } catch (error) {
+          console.error('获取SCOE数据失败:', error);
+          return 0;
+        }
+
       default:
         return undefined;
     }
 
     return undefined;
+  };
+
+  // 解析SCOE数据路径
+  const resolveScoeData = (path: string): unknown => {
+    if (!path) return undefined;
+
+    const parts = path.split('.');
+    if (parts.length === 0) return undefined;
+
+    // 获取根对象
+    let current: Record<string, unknown> | undefined;
+    if (parts[0] === 'status') {
+      current = scoeStore.status as unknown as Record<string, unknown>;
+    } else if (parts[0] === 'config') {
+      current = scoeStore.loadedConfig as unknown as Record<string, unknown>;
+      if (!current) return undefined;
+    } else {
+      return undefined;
+    }
+
+    // 遍历路径
+    for (let i = 1; i < parts.length; i++) {
+      if (!current || typeof current !== 'object') {
+        return undefined;
+      }
+      const key = parts[i];
+      if (!key) return undefined;
+      current = current[key] as Record<string, unknown> | undefined;
+    }
+
+    return current;
   };
 
   // 解析所有变量

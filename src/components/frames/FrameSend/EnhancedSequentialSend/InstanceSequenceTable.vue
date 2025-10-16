@@ -32,7 +32,7 @@
           <q-td :props="props" :style="props.col.style">
             <div class="flex items-center text-xs text-industrial-primary">
               <q-icon name="list_alt" size="xs" class="mr-2 text-industrial-accent" />
-              {{ getInstanceLabel(props.row.instanceId) }}
+              {{ getInstanceLabel(props.row.instance.id) }}
             </div>
           </q-td>
         </template>
@@ -45,7 +45,7 @@
               <div v-for="(fieldVar, varIndex) in props.row.fieldVariations" :key="`${props.row.id}-${varIndex}`"
                 class="flex items-center gap-1 bg-industrial-highlight rounded text-xs pb-1">
                 <!-- 字段选择 -->
-                <q-select :model-value="fieldVar.fieldId" :options="getFieldOptionsForInstance(props.row.instanceId)"
+                <q-select :model-value="fieldVar.fieldId" :options="getFieldOptionsForInstance(props.row.instance.id)"
                   option-value="id" option-label="label" dense outlined emit-value map-options dark
                   class="bg-industrial-panel w-36" :disable="isLoading" placeholder="选择字段"
                   @update:model-value="$emit('update-field-selection', props.rowIndex, varIndex, $event)"

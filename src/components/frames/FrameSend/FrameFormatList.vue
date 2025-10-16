@@ -75,7 +75,7 @@ function toggleFavorite(event: Event, frameId: string) {
           <q-icon name="star" size="xs" class="mr-1 text-amber-400" />
           收藏
         </div>
-        <div class="max-h-[200px] overflow-y-auto pr-1">
+        <div class=" pr-1">
           <div v-for="frame in favoriteFrames" :key="frame.id"
             class="flex justify-between items-center px-3 py-2 rounded-md my-1 cursor-pointer transition-colors h-[34px] min-h-[34px] hover:bg-[#232b3f]"
             :class="{

@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full w-full flex flex-col gap-4">
+  <div class="flex flex-col gap-4">
     <!-- 基本信息 -->
     <q-card class="flex flex-col flex-grow">
       <q-card-section class="q-py-sm q-pb-xs">
@@ -14,25 +14,25 @@
       </q-card-section>
 
       <q-card-section v-else class="q-pt-none flex flex-col flex-grow">
-        <div class="flex flex-col flex-grow">
-          <!-- 帧名称 -->
-          <q-input v-model="frameEditorStore.editorFrame.name" label="名称" dense dark outlined placeholder="输入帧配置名称"
-            :rules="[(val) => !!val || '名称不能为空']" />
+        <!-- 帧名称 -->
+        <q-input v-model="frameEditorStore.editorFrame.name" label="名称" dense dark outlined placeholder="输入帧配置名称"
+          :rules="[(val) => !!val || '名称不能为空']" />
 
-          <!-- 帧ID -->
-          <q-input v-model="frameEditorStore.editorFrame.id" label="帧ID" dense dark outlined placeholder="输入帧ID"
-            :rules="[(val) => !!val || '帧ID不能为空']" />
+        <!-- 帧ID -->
+        <q-input v-model="frameEditorStore.editorFrame.id" label="帧ID" dense dark outlined placeholder="输入帧ID"
+          :rules="[(val) => !!val || '帧ID不能为空']" />
 
-          <div class="flex flex-col space-y-4">
-            <q-select v-model="frameEditorStore.editorFrame.direction" :options="FRAME_DIRECTION_OPTIONS" label="帧方向"
-              dense dark outlined emit-value map-options />
-
-            <!-- 描述 -->
-            <q-input v-model="frameEditorStore.editorFrame.description" type="textarea" label="描述" dense outlined
-              autogrow class="input-bg flex-grow" style="max-height: 28vh; overflow-y: auto" placeholder="输入帧配置描述"
-              hide-bottom-space />
-          </div>
+        <div class="flex justify-between gap-4 mb-4">
+          <q-select v-model="frameEditorStore.editorFrame.direction" :options="FRAME_DIRECTION_OPTIONS" label="帧方向"
+            class="flex-grow-2" dense dark outlined emit-value map-options />
+          <q-checkbox v-model="frameEditorStore.editorFrame.isSCOEFrame" class="flex-grow-1" label="SCOE帧" dense dark
+            outlined />
         </div>
+
+        <!-- 描述 -->
+        <q-input v-model="frameEditorStore.editorFrame.description" type="textarea" label="描述" dense outlined autogrow
+          class="input-bg flex-grow" style="max-height: 28vh; overflow-y: auto" placeholder="输入帧配置描述"
+          hide-bottom-space />
       </q-card-section>
     </q-card>
 
@@ -59,8 +59,8 @@
     </q-card>
 
     <!-- 帧识别规则对话框 -->
-    <q-dialog v-model="showRulesDialog" persistent maximized>
-      <q-card class="bg-darker">
+    <q-dialog v-model="showRulesDialog" persistent>
+      <q-card class="bg-darker" style="max-width: 90vw">
         <q-card-section class="flex justify-between items-center">
           <div class="text-h6 text-primary-color">帧识别规则</div>
           <q-btn flat round dense icon="close" @click="closeRulesDialog" />

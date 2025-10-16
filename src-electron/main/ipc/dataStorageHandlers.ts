@@ -47,16 +47,12 @@ class DataStorageManager<T> {
    * 加载数据
    * @returns 加载的数据数组
    */
-  async loadData(): Promise<T[]> {
+  async loadData(): Promise<T[] | unknown> {
     try {
-      const data = await loadJsonData<T>(this.filePath);
-      // 确保返回的数据是数组类型
-      this.data = Array.isArray(data) ? data : [];
-      return this.data;
+      return loadJsonData<T>(this.filePath);
     } catch (error) {
       logError(`加载数据失败: ${this.filePath}`, error);
-      this.data = [];
-      return this.data;
+      return [];
     }
   }
 

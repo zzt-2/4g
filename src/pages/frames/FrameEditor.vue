@@ -5,11 +5,9 @@
       :is-frame-valid="editorStore.isValid" @go-back="goBack" @save="saveFrame" class="flex-shrink-0 w-full" />
 
     <!-- 主体内容 -->
-    <div class="flex flex-1 w-full pt-3 overflow-hidden">
+    <div class="flex flex-1 w-full p-3">
       <!-- 左侧面板 -->
-      <div class="w-[15vw] h-full flex-shrink-0 flex flex-col gap-3 overflow-y-auto">
-        <FrameBasicInfo />
-      </div>
+      <FrameBasicInfo class="w-300px h-full" />
 
       <!-- 主要区域 -->
       <div class="flex-1 h-full flex flex-col rounded-md bg-[#12233f] border border-[#1a3663] overflow-hidden ml-2">
@@ -17,7 +15,7 @@
         <div class="flex flex-1 max-h-[100vh] overflow-hidden">
           <!-- 字段列表组件 - 直接使用共享的 composable -->
           <FrameFieldList class="!max-w-[25%] w-[30%] border-r border-[#1a3663] bg-[#0f2744] flex-shrink-0"
-            @edit-field="showFieldEditor" />
+            style="max-height: calc(100vh - 150px);" @edit-field="showFieldEditor" />
 
           <!-- 字段编辑区域和字段预览区域的垂直分隔 -->
           <div class="flex-1 flex flex-col overflow-hidden">

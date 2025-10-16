@@ -25,7 +25,7 @@ export interface SendInstanceField {
   factor?: number;
   length: number;
   configurable?: boolean; // 是否可配置
-  bigEndian?: boolean; // 是否大端序
+  bigEndian?: boolean | undefined; // 是否大端序
   isASCII?: boolean | undefined; // 是否为ASCII字符
   description?: string; // 字段说明/描述
   options: {
@@ -68,6 +68,8 @@ export interface SendFrameInstance {
   updatedAt: Date; // 修改时间
   fields: SendInstanceField[]; // 字段值集合
   isFavorite: boolean; // 是否收藏
+  isSCOEFrame?: boolean; // 是否为SCOE帧
+  targetId?: string; // 目标ID
   // 新增：实例级策略配置
   strategyConfig?: InstanceStrategyConfig;
   // 新增：发送统计

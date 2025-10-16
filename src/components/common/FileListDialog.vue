@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useFileStorage } from '../../stores/common/fileStorageStore';
 import type { FileRecord } from '../../types/files';
 import { filesAPI } from '../../api/common';
+import type { QTableColumn } from 'quasar';
 
 const props = defineProps<{
   title: string;
@@ -65,7 +66,14 @@ const handleCreate = () => {
 };
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleString('zh-CN');
+  return new Date(dateString).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 };
 
 const confirmDelete = (file: FileRecord, event: Event) => {
@@ -100,230 +108,224 @@ const executeDelete = async () => {
     isLoading.value = false;
   }
 };
+
+// q-table 列定义
+const columns: QTableColumn[] = [
+  {
+    name: 'index',
+    label: '#',
+    field: 'index',
+    align: 'left',
+    sortable: false,
+    style: 'width: 50px',
+    headerStyle: 'width: 50px',
+  },
+  {
+    name: 'name',
+    label: '文件名称',
+    field: 'name',
+    align: 'left',
+    sortable: true,
+    style: 'min-width: 200px',
+  },
+  {
+    name: 'createTime',
+    label: '创建时间',
+    field: 'createTime',
+    align: 'left',
+    sortable: true,
+    style: 'width: 180px',
+    format: (val: string) => formatDate(val),
+  },
+  {
+    name: 'lastModified',
+    label: '最后修改',
+    field: 'lastModified',
+    align: 'left',
+    sortable: true,
+    style: 'width: 180px',
+    format: (val: string) => formatDate(val),
+  },
+  {
+    name: 'actions',
+    label: '操作',
+    field: 'actions',
+    align: 'center',
+    sortable: false,
+    style: 'width: 80px',
+    headerStyle: 'width: 80px',
+  },
+];
+
+// 添加行序号
+const tableData = computed(() => {
+  return filteredRecords.value.map((record, index) => ({
+    ...record,
+    index: index + 1,
+  }));
+});
+
+// 使用 computed 来代理 isOpen，支持 q-dialog 的 v-model
+const dialogModel = computed({
+  get: () => props.isOpen,
+  set: (value: boolean) => {
+    if (!value) {
+      emit('close');
+    }
+  },
+});
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-    <div
-      class="bg-industrial-panel border border-industrial rounded-md w-full max-w-2xl shadow-lg"
-      @click.stop
-    >
+  <q-dialog v-model="dialogModel">
+    <q-card class="file-dialog-card">
       <!-- 对话框标题栏 -->
-      <div
-        class="p-3 border-b border-industrial flex justify-between items-center bg-industrial-secondary"
-      >
-        <h3 class="text-industrial-primary text-base font-medium flex items-center">
-          <i class="q-icon material-icons mr-2 text-blue-400">{{
-            props.operation === 'import' ? 'folder_open' : 'save'
-          }}</i>
-          {{ title }}
-        </h3>
-      </div>
+      <q-card-section class="dialog-header">
+        <div class="text-base font-medium flex items-center gap-2" style="color: #ffffff;">
+          <q-icon :name="props.operation === 'import' ? 'folder_open' : 'save'" color="blue-4" size="sm" />
+          <span>{{ title }}</span>
+        </div>
+      </q-card-section>
 
       <!-- 对话框内容区域 -->
-      <div class="p-4">
+      <q-card-section class="q-pt-md">
         <!-- 搜索输入框 -->
-        <div
-          class="flex items-center bg-industrial-secondary border border-industrial rounded mb-4 focus-within:border-blue-500"
-        >
-          <i class="q-icon material-icons mx-2 text-industrial-secondary">search</i>
-          <input
-            v-model="searchText"
-            @input="console.log($event)"
-            type="text"
-            placeholder="搜索文件..."
-            class="flex-1 bg-transparent border-0 outline-none p-2 text-industrial-primary"
-          />
-        </div>
+        <q-input v-model="searchText" placeholder="搜索文件..." dense outlined clearable class="q-mb-md file-search-input">
+          <template v-slot:prepend>
+            <q-icon name="search" color="grey-6" />
+          </template>
+        </q-input>
 
-        <!-- 文件列表 - 添加最大高度限制 -->
-        <div class="border border-industrial rounded overflow-hidden mb-4">
-          <div class="max-h-[40vh] overflow-y-auto">
-            <table class="w-full text-sm border-collapse">
-              <thead class="bg-industrial-table-header sticky top-0 z-10">
-                <tr>
-                  <th class="p-2 text-industrial-primary text-left font-medium">#</th>
-                  <th class="p-2 text-industrial-primary text-left font-medium">文件名称</th>
-                  <th class="p-2 text-industrial-primary text-left font-medium">创建时间</th>
-                  <th class="p-2 text-industrial-primary text-left font-medium">最后修改</th>
-                  <th class="p-2 text-industrial-primary text-center font-medium w-16">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(record, index) in filteredRecords"
-                  :key="record.id"
-                  @click="handleSelect(record)"
-                  class="border-t border-industrial hover:bg-industrial-highlight cursor-pointer"
-                >
-                  <td class="p-2 text-industrial-id">{{ index + 1 }}</td>
-                  <td class="p-2 text-industrial-primary">{{ record.name }}</td>
-                  <td class="p-2 text-industrial-secondary">{{ formatDate(record.createTime) }}</td>
-                  <td class="p-2 text-industrial-secondary">
-                    {{ formatDate(record.lastModified) }}
-                  </td>
-                  <td class="p-2 text-center">
-                    <button
-                      @click="confirmDelete(record, $event)"
-                      class="btn-industrial-danger p-1 rounded"
-                      title="删除文件"
-                    >
-                      <i class="q-icon material-icons text-sm">delete</i>
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="filteredRecords.length === 0 && !isLoading">
-                  <td colspan="5" class="p-4 text-center text-industrial-secondary">
-                    没有找到匹配的文件
-                  </td>
-                </tr>
-                <tr v-if="isLoading">
-                  <td colspan="5" class="p-4 text-center text-industrial-secondary">
-                    <div class="flex justify-center items-center gap-2">
-                      <span
-                        class="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
-                      ></span>
-                      加载中...
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <!-- 文件列表表格 -->
+        <q-table :rows="tableData" :columns="columns" row-key="id" :loading="isLoading" :rows-per-page-options="[0]"
+          hide-pagination flat bordered dense dark class="file-table" virtual-scroll
+          :virtual-scroll-sticky-size-start="48" style="max-height: 60vh">
+          <!-- 序号列 -->
+          <template v-slot:body-cell-index="props">
+            <q-td :props="props">
+              <span class="font-mono text-sm" style="color: #ffcb6b;">{{ props.value }}</span>
+            </q-td>
+          </template>
+
+          <!-- 文件名列 -->
+          <template v-slot:body-cell-name="props">
+            <q-td :props="props" class="cursor-pointer" @click="handleSelect(props.row)">
+              <div class="flex items-center gap-2">
+                <q-icon name="description" color="blue-4" size="xs" />
+                <span class="text-sm" style="color: #ffffff;">{{ props.value }}</span>
+              </div>
+            </q-td>
+          </template>
+
+          <!-- 创建时间列 -->
+          <template v-slot:body-cell-createTime="props">
+            <q-td :props="props" class="cursor-pointer" @click="handleSelect(props.row)">
+              <span class="text-sm" style="color: #94a3b8;">{{ props.value }}</span>
+            </q-td>
+          </template>
+
+          <!-- 最后修改列 -->
+          <template v-slot:body-cell-lastModified="props">
+            <q-td :props="props" class="cursor-pointer" @click="handleSelect(props.row)">
+              <span class="text-sm" style="color: #94a3b8;">{{ props.value }}</span>
+            </q-td>
+          </template>
+
+          <!-- 操作列 -->
+          <template v-slot:body-cell-actions="props">
+            <q-td :props="props">
+              <q-btn flat dense round icon="delete" color="red-5" size="sm"
+                @click.stop="confirmDelete(props.row, $event)">
+                <q-tooltip>删除文件</q-tooltip>
+              </q-btn>
+            </q-td>
+          </template>
+
+          <!-- 加载中提示 -->
+          <template v-slot:loading>
+            <q-inner-loading showing color="blue-4">
+              <div class="text-industrial-secondary">加载中...</div>
+            </q-inner-loading>
+          </template>
+
+          <!-- 无数据提示 -->
+          <template v-slot:no-data>
+            <div class="full-width row flex-center q-gutter-sm text-industrial-secondary">
+              <q-icon name="folder_open" size="sm" />
+              <span>没有找到匹配的文件</span>
+            </div>
+          </template>
+        </q-table>
 
         <!-- 导出模式下的新建文件输入区域 -->
-        <div v-if="operation === 'export'" class="mt-4">
+        <div v-if="operation === 'export'" class="q-mt-md">
           <div class="flex items-center gap-2">
-            <div
-              class="flex-1 flex items-center bg-industrial-secondary border border-industrial rounded focus-within:border-blue-500"
-            >
-              <i class="q-icon material-icons mx-2 text-industrial-secondary">description</i>
-              <input
-                v-model="newFileName"
-                placeholder="输入文件名"
-                class="flex-1 bg-transparent border-0 outline-none p-2 text-industrial-primary"
-              />
-            </div>
-            <button
-              @click="handleCreate"
-              class="btn-industrial-primary px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="!newFileName.trim()"
-            >
-              保存
-            </button>
+            <q-input v-model="newFileName" placeholder="输入文件名" dense outlined class="flex-1 file-name-input"
+              @keyup.enter="handleCreate">
+              <template v-slot:prepend>
+                <q-icon name="description" color="grey-6" />
+              </template>
+            </q-input>
+            <q-btn label="保存" color="primary" unelevated :disable="!newFileName.trim()" @click="handleCreate"
+              class="btn-save" />
           </div>
         </div>
-      </div>
+      </q-card-section>
 
       <!-- 对话框底部操作栏 -->
-      <div class="p-3 border-t border-industrial flex justify-end gap-2 bg-industrial-primary">
-        <button
-          @click="emit('close')"
-          class="btn-industrial-secondary px-4 py-2 rounded hover:bg-industrial-highlight"
-        >
-          取消
-        </button>
-        <button
-          v-if="operation === 'import' && filteredRecords.length > 0"
-          @click="filteredRecords.length > 0 && handleSelect(filteredRecords[0]!)"
-          class="btn-industrial-primary px-4 py-2 rounded"
-        >
-          选择
-        </button>
-      </div>
-    </div>
+      <q-card-actions align="right" class="dialog-footer">
+        <q-btn label="取消" flat @click="emit('close')" class="btn-industrial-secondary" />
+        <q-btn v-if="operation === 'import' && filteredRecords.length > 0" label="选择" unelevated
+          @click="filteredRecords.length > 0 && handleSelect(filteredRecords[0]!)" class="btn-industrial-primary" />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 
-    <!-- 删除确认对话框 -->
-    <div
-      v-if="showDeleteConfirm"
-      class="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]"
-      @click.self="cancelDelete"
-    >
-      <div class="bg-industrial-panel border border-industrial rounded-md w-full max-w-md p-5">
-        <h3 class="text-industrial-primary text-base font-medium mb-4">确认删除</h3>
-        <p class="text-industrial-secondary mb-6">
-          确定要删除文件
-          <span class="text-industrial-primary">{{ fileToDelete?.name }}</span> 吗？此操作不可恢复。
-        </p>
-        <div class="flex justify-end gap-3">
-          <button @click="cancelDelete" class="btn-industrial-secondary px-4 py-2 rounded">
-            取消
-          </button>
-          <button @click="executeDelete" class="btn-industrial-danger px-4 py-2 rounded">
-            删除
-          </button>
+  <!-- 删除确认对话框 -->
+  <q-dialog v-model="showDeleteConfirm" persistent>
+    <q-card class="delete-confirm-card" style="min-width: 400px">
+      <q-card-section class="dialog-header">
+        <div class="text-base font-medium flex items-center gap-2" style="color: #ffffff;">
+          <q-icon name="warning" color="red-5" size="sm" />
+          <span>确认删除</span>
         </div>
-      </div>
-    </div>
-  </div>
+      </q-card-section>
+
+      <q-card-section style="color: #94a3b8; background-color: #0d1117;">
+        确定要删除文件
+        <span class="font-medium" style="color: #ffffff;">{{ fileToDelete?.name }}</span>
+        吗？此操作不可恢复。
+      </q-card-section>
+
+      <!-- 对话框底部 -->
+      <q-card-actions class="bg-industrial-secondary border-t border-industrial justify-end gap-2 p-4">
+        <q-btn flat label="取消" class="btn-industrial-secondary" @click="cancelDelete" />
+        <q-btn label="删除" unelevated @click="executeDelete" class="btn-industrial-primary" />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
-<style>
-/* 确保输入框可以正常交互 */
-
-/* .border-industrial {
-  border-color: #2a2f45;
-} */
-
-.text-industrial-primary {
-  color: #ffffff;
+<style scoped lang="scss">
+.file-dialog-card {
+  min-width: 800px;
+  max-width: 60vw;
 }
 
-.text-industrial-secondary {
-  color: #94a3b8;
+.dialog-header {
+  background-color: #1a1e2e;
+  border-bottom: 1px solid #2a2f45;
+  padding: 12px 16px;
 }
 
-.text-industrial-id {
-  color: #ffcb6b;
+.dialog-footer {
+  background-color: #131725;
+  border-top: 1px solid #2a2f45;
+  padding: 12px 16px;
 }
 
-.btn-industrial-primary {
-  background-color: #3b82f6;
-  color: #ffffff;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-industrial-primary:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-
-.btn-industrial-secondary {
-  background-color: #475569;
-  color: #ffffff;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-industrial-secondary:hover {
-  background-color: #334155;
-}
-
-.btn-industrial-danger {
-  background-color: #ef4444;
-  color: #ffffff;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-industrial-danger:hover {
-  background-color: #dc2626;
-}
-
-/* 修复输入框样式 */
-input {
-  color: #ffffff !important;
-  background-color: transparent !important;
-  border: none !important;
-  outline: none !important;
-  width: 100%;
-}
-
-input::placeholder {
-  color: #64748b !important;
+.delete-confirm-card {
+  background-color: #0d1117;
+  border: 1px solid #2a2f45;
 }
 </style>

@@ -121,9 +121,9 @@ const connectionTargetsStore = useConnectionTargetsStore();
 // 使用任务管理器
 const {
   createSequentialTask,
-  createTimedMultipleTask,
-  createTriggeredMultipleTask,
-  createTimedTriggeredMultipleTask,
+  createTimedTask,
+  createTriggeredTask,
+  createTimedTriggeredTask,
   startTask,
   stopTask,
   isProcessing,
@@ -289,7 +289,7 @@ function addInstanceToSequence(instanceId: string) {
 
   selectedInstances.value.push({
     id: `seq_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    instanceId,
+    instance: instance,
     targetId: defaultTargetId,
     interval: 1000,
   });
@@ -536,15 +536,10 @@ function handleGetTaskConfigData() {
     throw new Error('没有可导出的配置');
   }
 
-  const instances = selectedInstances.value
-    .map((item) => {
-      const instance = sendFrameInstancesStore.instances.find((i) => i.id === item.instanceId);
-      return instance!;
-    })
-    .filter(Boolean);
+  const instances = selectedInstances.value.map((item) => item.instance);
 
   const targets = selectedInstances.value.map((item) => ({
-    instanceId: item.instanceId,
+    instanceId: item.instance.id,
     targetId: item.targetId,
     interval: item.interval || 1000,
     enableVariation: item.enableVariation || false,
@@ -594,14 +589,20 @@ async function handleSetTaskConfigData(configFileContent: unknown) {
     // 解析配置数据
     const configData = parseTaskConfigData(configFileContent);
 
-    selectedInstances.value = configData.targets.map((target) => ({
-      id: `loaded_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      instanceId: target.instanceId,
-      targetId: target.targetId,
-      interval: target.interval || 1000,
-      enableVariation: target.enableVariation || false,
-      fieldVariations: target.fieldVariations || [],
-    }));
+    selectedInstances.value = configData.targets.map((target) => {
+      const instance = sendFrameInstancesStore.instances.find((i) => i.id === target.instanceId);
+      if (!instance) {
+        throw new Error(`找不到实例: ${target.instanceId}`);
+      }
+      return {
+        id: `loaded_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        instance: instance,
+        targetId: target.targetId,
+        interval: target.interval || 1000,
+        enableVariation: target.enableVariation || false,
+        fieldVariations: target.fieldVariations || [],
+      };
+    });
 
     // 应用导入的策略配置，包括具体的配置参数
     if (configData.strategy) {
@@ -652,7 +653,7 @@ async function startSendingTask() {
         if (!timedConfig.value) {
           throw new Error('定时配置不完整');
         }
-        taskId = createTimedMultipleTask(
+        taskId = createTimedTask(
           selectedInstances.value,
           timedConfig.value.sendInterval,
           timedConfig.value.repeatCount,
@@ -668,7 +669,7 @@ async function startSendingTask() {
           if (!config.sourceId || !config.triggerFrameId || !config.conditions) {
             throw new Error('条件触发配置不完整');
           }
-          taskId = createTriggeredMultipleTask(
+          taskId = createTriggeredTask(
             selectedInstances.value,
             config.sourceId,
             config.triggerFrameId,
@@ -682,7 +683,7 @@ async function startSendingTask() {
           if (!config.executeTime) {
             throw new Error('时间触发配置不完整：缺少执行时间');
           }
-          taskId = createTimedTriggeredMultipleTask(
+          taskId = createTimedTriggeredTask(
             selectedInstances.value,
             config.executeTime,
             config.isRecurring || false,
@@ -732,7 +733,7 @@ async function startSendingTask() {
         }
 
         // 使用定时发送，发送间隔1秒，重复次数为参数数组长度
-        taskId = createTimedMultipleTask(
+        taskId = createTimedTask(
           selectedInstances.value,
           variableInterval.value, // 1秒间隔
           maxLength, // 重复次数为参数数组长度

@@ -35,6 +35,7 @@ export interface Frame {
   updatedAt?: Date;
   usageCount?: number;
   isFavorite?: boolean;
+  isSCOEFrame?: boolean;
   options: FrameOptions;
   identifierRules: Array<IdentifierRule>;
 }

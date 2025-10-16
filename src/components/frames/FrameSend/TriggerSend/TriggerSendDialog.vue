@@ -31,8 +31,8 @@ const selectedTargetId = ref<string>('');
 
 // 使用任务管理器composable
 const {
-  createTriggeredSingleTask,
-  createTimedTriggeredSingleTask,
+  createTriggeredTask,
+  createTimedTriggeredTask,
   startTask,
   isProcessing,
   processingError,
@@ -297,6 +297,21 @@ async function startMonitoring() {
     // 先保存当前配置到实例
     setTriggerConfig();
 
+    // 获取当前实例的完整对象
+    const instance = sendFrameInstancesStore.instances.find((i) => i.id === props.instanceId);
+    if (!instance) {
+      throw new Error('找不到指定的实例');
+    }
+
+    // 构建任务实例配置（只有一个实例）
+    const instances = [
+      {
+        id: `task_instance_${Date.now()}`,
+        instance: instance,
+        targetId: selectedTargetId.value,
+      },
+    ];
+
     let taskId: string | null = null;
 
     if (triggerType.value === 'condition') {
@@ -305,13 +320,13 @@ async function startMonitoring() {
         throw new Error('条件触发配置不完整');
       }
 
-      taskId = createTriggeredSingleTask(
-        props.instanceId,
-        selectedTargetId.value,
+      taskId = createTriggeredTask(
+        instances,
         sourceId.value,
         triggerFrameId.value,
         conditions.value,
         `触发发送-${sendFrameInstancesStore.currentInstance.label}`,
+        '',
         continueListening.value,
       );
     } else if (triggerType.value === 'time') {
@@ -320,8 +335,8 @@ async function startMonitoring() {
         throw new Error('时间触发配置不完整：缺少执行时间');
       }
 
-      // 确保 recurringType 与 createTimedTriggeredSingleTask 方法参数类型匹配
-      const validRecurringTypes = ['daily', 'weekly', 'monthly'] as const;
+      // 确保 recurringType 与 createTimedTriggeredTask 方法参数类型匹配
+      const validRecurringTypes = ['second', 'minute', 'hour', 'daily', 'weekly', 'monthly'] as const;
       type ValidRecurringType = (typeof validRecurringTypes)[number];
 
       const recurringTypeValue =
@@ -330,9 +345,8 @@ async function startMonitoring() {
           ? (recurringType.value as ValidRecurringType)
           : undefined;
 
-      taskId = createTimedTriggeredSingleTask(
-        props.instanceId,
-        selectedTargetId.value,
+      taskId = createTimedTriggeredTask(
+        instances,
         executeTime.value,
         isRecurring.value,
         recurringTypeValue,

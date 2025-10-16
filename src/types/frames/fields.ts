@@ -15,6 +15,7 @@ export enum DataSourceType {
   CURRENT_FIELD = 'current_field', // 当前帧字段（包括自引用）
   FRAME_FIELD = 'frame_field', // 其他帧字段
   GLOBAL_STAT = 'global_stat', // 全局统计数据
+  SCOE_DATA = 'scoe_data', // SCOE数据（配置和状态）
 }
 
 // 变量映射接口

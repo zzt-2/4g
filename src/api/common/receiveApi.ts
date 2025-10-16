@@ -12,35 +12,27 @@ import type {
   ReceivedDataPacket,
   ReceiveFrameStats,
   DataReceiveStats,
+  ReceiveScoeFrameStats,
 } from '../../types/frames/receive';
 
 // 导出接收数据处理API
 export const receiveAPI = {
-  // 统一数据接收处理
+  // 统一数据接收处理（优化版 - 使用主进程缓存）
   handleReceivedData: (
     source: 'serial' | 'network',
     sourceId: string,
     data: Uint8Array,
-    frames: Frame[],
-    mappings: FrameFieldMapping[],
-    groups: DataGroup[],
   ): Promise<{
     success: boolean;
     updatedGroups?: DataGroup[];
     recentPacket?: ReceivedDataPacket;
     frameStats?: Partial<ReceiveFrameStats>;
+    scoeFrameStats?: Partial<ReceiveScoeFrameStats>;
     receiveStats?: Partial<DataReceiveStats>;
     errors?: string[];
   }> => {
     if (window.electron?.receive?.handleReceivedData) {
-      return window.electron.receive.handleReceivedData(
-        source,
-        sourceId,
-        data,
-        deepClone(frames),
-        deepClone(mappings),
-        deepClone(groups),
-      );
+      return window.electron.receive.handleReceivedData(source, sourceId, data);
     }
     return Promise.resolve({
       success: false,
@@ -65,5 +57,87 @@ export const receiveAPI = {
       isValid: false,
       errors: ['Electron receive API(validateMappings) 不可用'],
     });
+  },
+
+  // 更新配置缓存
+  updateConfigCache: (
+    frames: Frame[],
+    mappings: FrameFieldMapping[],
+    groups: DataGroup[],
+  ): Promise<{
+    success: boolean;
+    status?: {
+      hasData: boolean;
+      framesCount: number;
+      mappingsCount: number;
+      groupsCount: number;
+      directDataFramesCount: number;
+      lastUpdateTime: string;
+    };
+  }> => {
+    if (window.electron?.receive?.updateConfigCache) {
+      return window.electron.receive.updateConfigCache(
+        deepClone(frames),
+        deepClone(mappings),
+        deepClone(groups),
+      );
+    }
+    return Promise.resolve({
+      success: false,
+    });
+  },
+
+  // 只更新帧模板缓存
+  updateFramesCache: (frames: Frame[]): Promise<{ success: boolean }> => {
+    if (window.electron?.receive?.updateFramesCache) {
+      return window.electron.receive.updateFramesCache(deepClone(frames));
+    }
+    return Promise.resolve({ success: false });
+  },
+
+  // 只更新映射关系缓存
+  updateMappingsCache: (mappings: FrameFieldMapping[]): Promise<{ success: boolean }> => {
+    if (window.electron?.receive?.updateMappingsCache) {
+      return window.electron.receive.updateMappingsCache(deepClone(mappings));
+    }
+    return Promise.resolve({ success: false });
+  },
+
+  // 只更新数据分组缓存
+  updateGroupsCache: (groups: DataGroup[]): Promise<{ success: boolean }> => {
+    if (window.electron?.receive?.updateGroupsCache) {
+      return window.electron.receive.updateGroupsCache(deepClone(groups));
+    }
+    return Promise.resolve({ success: false });
+  },
+
+  // 获取缓存状态
+  getCacheStatus: (): Promise<{
+    hasData: boolean;
+    framesCount: number;
+    mappingsCount: number;
+    groupsCount: number;
+    directDataFramesCount: number;
+    lastUpdateTime: string;
+  }> => {
+    if (window.electron?.receive?.getCacheStatus) {
+      return window.electron.receive.getCacheStatus();
+    }
+    return Promise.resolve({
+      hasData: false,
+      framesCount: 0,
+      mappingsCount: 0,
+      groupsCount: 0,
+      directDataFramesCount: 0,
+      lastUpdateTime: 'Never',
+    });
+  },
+
+  // 清空配置缓存
+  clearConfigCache: (): Promise<{ success: boolean }> => {
+    if (window.electron?.receive?.clearConfigCache) {
+      return window.electron.receive.clearConfigCache();
+    }
+    return Promise.resolve({ success: false });
   },
 };

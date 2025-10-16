@@ -22,6 +22,8 @@ import { storageManager } from './highSpeedStorageHandlers';
 class NetworkConnectionManager {
   private connections = new Map<string, NetworkConnection>();
   private tcpSockets = new Map<string, net.Socket>();
+  private tcpServers = new Map<string, net.Server>();
+  private tcpServerClients = new Map<string, net.Socket[]>(); // TCP Server的客户端连接列表
   private udpSockets = new Map<string, dgram.Socket>();
   private connectionStats = new Map<string, NetworkStatus>();
 
@@ -59,6 +61,8 @@ class NetworkConnectionManager {
 
       if (config.type === 'tcp') {
         return await this.connectTcp(config, options as TcpConnectionOptions);
+      } else if (config.type === 'tcp-server') {
+        return await this.connectTcpServer(config);
       } else if (config.type === 'udp') {
         return await this.connectUdp(config, options as UdpConnectionOptions);
       } else {
@@ -134,6 +138,89 @@ class NetworkConnectionManager {
         resolve({ success: false, error: '连接超时' });
       });
     });
+  }
+
+  /**
+   * 创建TCP Server（服务器模式）
+   */
+  private async connectTcpServer(config: NetworkConnectionConfig): Promise<NetworkOperationResult> {
+    try {
+      const server = net.createServer((socket) => {
+        console.log(`[TCP Server] 新客户端连接: ${socket.remoteAddress}:${socket.remotePort}`);
+
+        // 设置Socket选项
+        socket.setKeepAlive(false);
+        socket.setNoDelay(true);
+
+        // 保存客户端连接
+        if (!this.tcpServerClients.has(config.id)) {
+          this.tcpServerClients.set(config.id, []);
+        }
+        this.tcpServerClients.get(config.id)!.push(socket);
+
+        // 处理客户端数据
+        socket.on('data', (data: Buffer) => {
+          this.handleTcpData(config.id, new Uint8Array(data));
+        });
+
+        // 处理客户端断开
+        socket.on('close', () => {
+          console.log(`[TCP Server] 客户端断开: ${socket.remoteAddress}:${socket.remotePort}`);
+          const clients = this.tcpServerClients.get(config.id);
+          if (clients) {
+            const index = clients.indexOf(socket);
+            if (index > -1) {
+              clients.splice(index, 1);
+            }
+          }
+        });
+
+        // 处理客户端错误
+        socket.on('error', (error) => {
+          console.error(`[TCP Server] 客户端错误: ${error.message}`);
+        });
+      });
+
+      return new Promise((resolve) => {
+        server.listen(config.port, config.host, () => {
+          const address = server.address() as net.AddressInfo;
+          console.log(`[TCP Server] 服务器启动成功: ${address.address}:${address.port}`);
+
+          const connection = this.connections.get(config.id)!;
+          connection.isConnected = true;
+          connection.status = 'connected';
+          connection.lastActivity = new Date();
+
+          this.tcpServers.set(config.id, server);
+          this.tcpServerClients.set(config.id, []);
+          this.updateConnectionStats(config.id, { isConnected: true, connectionTime: new Date() });
+          this.emitConnectionEvent(config.id, 'connected');
+
+          resolve({
+            success: true,
+            message: `TCP Server 启动成功 ${address.address}:${address.port}`,
+          });
+        });
+
+        server.on('error', (error) => {
+          console.error('[TCP Server] 服务器错误:', error);
+          this.handleConnectionError(config.id, error.message);
+          this.connections.delete(config.id);
+          this.connectionStats.delete(config.id);
+          resolve({ success: false, error: error.message });
+        });
+
+        server.on('close', () => {
+          console.log('[TCP Server] 服务器已关闭');
+          this.handleConnectionClosed(config.id);
+        });
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'TCP Server 启动失败',
+      };
+    }
   }
 
   /**
@@ -220,6 +307,19 @@ class NetworkConnectionManager {
           socket.destroy();
           this.tcpSockets.delete(connectionId);
         }
+      } else if (connection.type === 'tcp-server') {
+        // 关闭所有客户端连接
+        const clients = this.tcpServerClients.get(connectionId);
+        if (clients) {
+          clients.forEach((client) => client.destroy());
+          this.tcpServerClients.delete(connectionId);
+        }
+        // 关闭服务器
+        const server = this.tcpServers.get(connectionId);
+        if (server) {
+          server.close();
+          this.tcpServers.delete(connectionId);
+        }
       } else {
         const socket = this.udpSockets.get(connectionId);
         if (socket) {
@@ -281,6 +381,37 @@ class NetworkConnectionManager {
           });
           const duration = Date.now() - startTime;
           return { success: true, message: `TCP发送完成，耗时: ${duration}ms` };
+        }
+      } else if (connection.type === 'tcp-server') {
+        // TCP Server 向所有连接的客户端发送数据
+        const clients = this.tcpServerClients.get(connectionId);
+        if (clients && clients.length > 0) {
+          let successCount = 0;
+          clients.forEach((client) => {
+            try {
+              client.write(Buffer.from(data));
+              successCount++;
+            } catch (error) {
+              console.error('[TCP Server] 发送失败:', error);
+            }
+          });
+
+          if (successCount > 0) {
+            this.updateConnectionStats(connectionId, {
+              bytesSent: data.length * successCount,
+              messagesSent: successCount,
+              lastActivity: new Date(),
+            });
+            const duration = Date.now() - startTime;
+            return {
+              success: true,
+              message: `TCP Server 发送完成，成功发送到 ${successCount} 个客户端，耗时: ${duration}ms`,
+            };
+          } else {
+            return { success: false, error: '所有客户端发送失败' };
+          }
+        } else {
+          return { success: false, error: '没有连接的客户端' };
         }
       } else {
         const socket = this.udpSockets.get(connectionId);

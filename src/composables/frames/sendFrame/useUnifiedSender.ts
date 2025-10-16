@@ -10,6 +10,7 @@ import { useConnectionTargetsStore } from '../../../stores/connectionTargetsStor
 import { useSendFrameInstancesStore } from '../../../stores/frames/sendFrameInstancesStore';
 import { useGlobalStatsStore } from '../../../stores/globalStatsStore';
 import { useFrameExpressionManager } from '../useFrameExpressionManager';
+import { useScoeStore } from 'src/stores/scoeStore';
 
 /**
  * 统一发送结果
@@ -57,6 +58,7 @@ export function useUnifiedSender() {
   const connectionTargetsStore = useConnectionTargetsStore();
   const globalStatsStore = useGlobalStatsStore();
   const frameExpressionManager = useFrameExpressionManager();
+  const scoeStore = useScoeStore();
 
   /**
    * 发送帧实例到指定目标
@@ -149,6 +151,13 @@ export function useUnifiedSender() {
           // 更新全局统计
           globalStatsStore.incrementSentPackets();
           globalStatsStore.addSentBytes(data.length);
+          if (targetId === 'network:scoe-udp:scoe-udp-remote') {
+            scoeStore.addSendData(
+              Array.from(data)
+                .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+                .join(''),
+            );
+          }
         }, 0);
       } else {
         // 发送失败时更新错误统计

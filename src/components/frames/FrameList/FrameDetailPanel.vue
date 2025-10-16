@@ -120,8 +120,8 @@ const qColumns = [
     name: 'name',
     label: '参数名称',
     field: 'name',
-    width: '160px',
-    maxWidth: '160px',
+    width: '200px',
+    maxWidth: '200px',
     align: 'left' as const,
     sortable: true,
   },
@@ -131,7 +131,7 @@ const qColumns = [
     field: 'type',
     width: '90px',
     maxWidth: '90px',
-    align: 'center' as const,
+    align: 'left' as const,
     sortable: true,
   },
   {
@@ -201,7 +201,7 @@ const formattedParams = computed(() => {
 
 <style>
 .frame-detail-table {
-  max-height: 568px;
+  max-height: calc(100vh - 320px);
   overflow: auto;
 }
 

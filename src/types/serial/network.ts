@@ -3,7 +3,7 @@
  */
 
 // 网络连接类型
-export type NetworkConnectionType = 'tcp' | 'udp';
+export type NetworkConnectionType = 'tcp' | 'tcp-server' | 'udp';
 
 // 网络连接状态
 export type NetworkConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error';

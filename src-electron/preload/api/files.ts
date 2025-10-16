@@ -35,4 +35,11 @@ export const filesAPI = {
   async deleteFile(filePath: string): Promise<{ success: boolean; message?: string }> {
     return ipcRenderer.invoke('files:deleteFile', filePath);
   },
+
+  // 读取文本文件
+  async readTextFile(
+    filePath: string,
+  ): Promise<{ success: boolean; content?: string; message?: string }> {
+    return ipcRenderer.invoke('files:readTextFile', filePath);
+  },
 };

@@ -10,6 +10,8 @@ export enum EventType {
   CATEGORY_UPDATED = 'category-updated',
   MENU_UPDATED = 'menu-updated',
   SEARCH_UPDATED = 'search-updated',
+  FILE_DIALOG_OPEN = 'file-dialog-open',
+  FILE_DIALOG_RESULT = 'file-dialog-result',
 }
 
 // 创建事件总线实例
