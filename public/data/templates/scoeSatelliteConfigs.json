@@ -5,7 +5,7 @@
       "satelliteId": "2",
       "sendConfig": {
         "satelliteIdentifier": "",
-        "messageIdentifier": "ab",
+        "messageIdentifier": "0xab",
         "sourceIdentifier": "14",
         "destinationIdentifier": "8",
         "udpIpAddress": "127.0.0.1",

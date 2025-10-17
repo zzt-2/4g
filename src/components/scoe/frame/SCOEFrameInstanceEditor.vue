@@ -52,13 +52,13 @@
         <div v-if="localCommand" class="flex-1 flex flex-col gap-2">
           <label class="text-industrial-secondary text-sm font-medium">功能码（十六进制）</label>
           <q-input v-model="localCommand.code" dense outlined dark bg-color="industrial-panel"
-            input-class="text-industrial-primary font-mono" placeholder="例如: abcd"
-            @update:model-value="(val) => updateField('code', String(val || ''))">
+            input-class="text-industrial-primary font-mono" placeholder="例如: ab"
+            @update:model-value="(val) => updateField('code', String(val || '00').toUpperCase().padStart(2, '0').slice(-2))">
             <template v-slot:prepend>
               <q-icon name="code" size="xs" /><span class="text-sm">0x</span>
             </template>
           </q-input>
-          <div class="text-industrial-tertiary text-xs">输入格式：十六进制数，如 abcd</div>
+          <div class="text-industrial-tertiary text-xs">输入格式：单字节十六进制数，如 ab</div>
         </div>
 
         <!-- Function 选择 -->

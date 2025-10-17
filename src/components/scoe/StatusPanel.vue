@@ -108,7 +108,7 @@ const statusItems: StatusItem[] = [
     label: '最近一条指令功能码',
     icon: 'code',
     iconColor: 'text-industrial-accent',
-    getValue: (s: ScoeStatus) => s.lastCommandCode ? `0x${s.lastCommandCode}` : '无'
+    getValue: (s: ScoeStatus) => s.lastCommandCode ? `${s.lastCommandCode}` : '无'
   },
   {
     key: 'lastErrorReason',

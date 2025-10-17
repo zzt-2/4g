@@ -98,7 +98,7 @@ export function useScoeCommandExecutor() {
 
     try {
       // 更新状态：记录最近一条指令功能码
-      scoeStore.status.lastCommandCode = `${scoeStore.globalConfig.scoeIdentifier.toUpperCase().padStart(2, '0')}${command.code.replace(/^0x/i, '').toUpperCase().padStart(2, '0')}AAAA`;
+      scoeStore.status.lastCommandCode = `0x${scoeStore.globalConfig.scoeIdentifier.toUpperCase().padStart(2, '0')}${command.code.replace(/^0x/i, '').toUpperCase().padStart(2, '0')}AAAA`;
       scoeStore.status.commandReceiveCount++;
 
       // 创建执行上下文

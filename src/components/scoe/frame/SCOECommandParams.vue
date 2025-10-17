@@ -119,7 +119,11 @@
             <q-label class="text-sm text-industrial-secondary">发送间隔: </q-label>
             <q-input v-model="localCommand.sendInterval" dense outlined dark bg-color="industrial-panel"
               class="w-40 text-xs" hide-bottom-space
-              @update:model-value="store.updateReceiveCommandField('sendInterval', Number($event) || undefined)" />
+              @update:model-value="store.updateReceiveCommandField('sendInterval', Number($event) || undefined)">
+              <template #append>
+                <span class="text-xs text-industrial-secondary">ms</span>
+              </template>
+            </q-input>
           </div>
           <q-label class="text-sm text-industrial-secondary">选择帧: </q-label>
           <q-select v-model="selectedFrameId" :options="availableSendFrames" dense outlined dark option-value="id"
