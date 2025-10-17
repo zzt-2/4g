@@ -60,6 +60,162 @@
     "destinationIdentifierOffset": 6,
     "modelIdOffset": 36,
     "satelliteIdOffset": 40,
-    "functionCodeOffset": 46
+    "functionCodeOffset": 46,
+    "highlightConfigs": {
+      "sendConfigs": [
+        {
+          "name": "信息标识",
+          "offset": 4,
+          "length": 1,
+          "id": "1"
+        },
+        {
+          "name": "信源标识",
+          "offset": 5,
+          "length": 1,
+          "id": "2"
+        },
+        {
+          "name": "信宿标识",
+          "offset": 6,
+          "length": 1,
+          "id": "3"
+        },
+        {
+          "name": "指令类型",
+          "offset": 18,
+          "length": 1,
+          "id": "4"
+        },
+        {
+          "name": "指令号",
+          "offset": 19,
+          "length": 4,
+          "id": "5"
+        },
+        {
+          "name": "参数个数",
+          "offset": 42,
+          "length": 2,
+          "id": "6"
+        },
+        {
+          "name": "软件启动累计秒",
+          "offset": 48,
+          "length": 4,
+          "id": "7"
+        },
+        {
+          "name": "指令接收总计数",
+          "offset": 56,
+          "length": 4,
+          "id": "8"
+        },
+        {
+          "name": "指令执行成功总计数",
+          "offset": 64,
+          "length": 4,
+          "id": "9"
+        },
+        {
+          "name": "最近一条指令功能码",
+          "offset": 72,
+          "length": 4,
+          "id": "10"
+        },
+        {
+          "name": "指令执行出错计数",
+          "offset": 80,
+          "length": 4,
+          "id": "11"
+        },
+        {
+          "name": "指令执行出错原因",
+          "offset": 88,
+          "length": 4,
+          "id": "12"
+        },
+        {
+          "name": "已加载配置的卫星 ID",
+          "offset": 96,
+          "length": 4,
+          "id": "13"
+        },
+        {
+          "name": "健康状态",
+          "offset": 104,
+          "length": 4,
+          "id": "14"
+        },
+        {
+          "name": "链路自检结果",
+          "offset": 112,
+          "length": 4,
+          "id": "15"
+        }
+      ],
+      "receiveConfigs": [
+        {
+          "name": "信息标识",
+          "offset": 4,
+          "length": 1,
+          "id": "1"
+        },
+        {
+          "name": "信源标识",
+          "offset": 5,
+          "length": 1,
+          "id": "2"
+        },
+        {
+          "name": "信宿标识",
+          "offset": 6,
+          "length": 1,
+          "id": "3"
+        },
+        {
+          "name": "指令类型",
+          "offset": 18,
+          "length": 1,
+          "id": "4"
+        },
+        {
+          "name": "指令号",
+          "offset": 19,
+          "length": 4,
+          "id": "5"
+        },
+        {
+          "name": "指令码长度",
+          "offset": 33,
+          "length": 2,
+          "id": "6"
+        },
+        {
+          "name": "型号任务标识",
+          "offset": 36,
+          "length": 4,
+          "id": "7"
+        },
+        {
+          "name": "航天器标识",
+          "offset": 40,
+          "length": 4,
+          "id": "8"
+        },
+        {
+          "name": "SCOE标识",
+          "offset": 46,
+          "length": 1,
+          "id": "9"
+        },
+        {
+          "name": "SCOE指令码",
+          "offset": 47,
+          "length": 1,
+          "id": "10"
+        }
+      ]
+    }
   }
 }

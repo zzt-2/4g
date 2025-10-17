@@ -2,6 +2,8 @@
 
 // 导出接收指令相关类型
 export * from './receiveCommand';
+// 导出高亮配置相关类型
+export * from './highlightConfig';
 
 export interface ScoeSendConfig {
   /** 卫星识别字 */
@@ -115,6 +117,9 @@ export interface ScoeGlobalConfig {
   satelliteIdOffset: number;
   /** 功能码起始字节 */
   functionCodeOffset: number;
+
+  /** 测试工具高亮配置 */
+  highlightConfigs?: import('./highlightConfig').HighlightConfigs;
 }
 
 export interface ScoeData {
@@ -182,6 +187,11 @@ export const defaultScoeGlobalConfig: ScoeGlobalConfig = {
   modelIdOffset: 3,
   satelliteIdOffset: 7,
   functionCodeOffset: 11,
+  // 默认高亮配置
+  highlightConfigs: {
+    sendConfigs: [],
+    receiveConfigs: [],
+  },
 };
 
 // 表单字段配置类型

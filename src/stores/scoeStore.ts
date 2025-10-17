@@ -30,6 +30,11 @@ export const useScoeStore = defineStore('scoe', () => {
     maxRecordLines,
     sendStopped,
     receiveStopped,
+    highlightConfigs,
+    addHighlightConfig,
+    updateHighlightConfig,
+    deleteHighlightConfig,
+    loadHighlightConfigs,
   } = useScoeTestTool();
 
   // ==================== 配置相关状态 ====================
@@ -84,6 +89,9 @@ export const useScoeStore = defineStore('scoe', () => {
       satelliteConfigs.value = configsData.satelliteConfigs || [];
       globalConfig.value = configsData.globalConfig || defaultScoeGlobalConfig;
 
+      // 加载高亮配置
+      loadHighlightConfigs(globalConfig.value.highlightConfigs);
+
       // 如果有配置且没有选中项，选中第一个
       if (satelliteConfigs.value.length > 0 && !selectedConfigId.value) {
         selectedConfigId.value = satelliteConfigs.value[0]?.id || '';
@@ -104,6 +112,9 @@ export const useScoeStore = defineStore('scoe', () => {
    */
   const saveAllConfigs = async () => {
     try {
+      // 保存高亮配置到全局配置
+      globalConfig.value.highlightConfigs = highlightConfigs.value;
+
       const dataToSave = {
         satelliteConfigs: satelliteConfigs.value,
         globalConfig: globalConfig.value,
@@ -355,6 +366,10 @@ export const useScoeStore = defineStore('scoe', () => {
     addReceiveData,
     setMaxRecordLines,
     initializeTestTool,
+    highlightConfigs,
+    addHighlightConfig,
+    updateHighlightConfig,
+    deleteHighlightConfig,
 
     // ==================== 初始化 ====================
     initialize,

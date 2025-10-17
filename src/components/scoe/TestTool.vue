@@ -10,6 +10,7 @@
             接收数据
           </h4>
           <div class="flex gap-2">
+            <q-btn size="sm" icon="settings" flat round dense @click="handleOpenHighlightConfig('receive')" />
             <q-btn size="sm" :class="receiveStopped ? 'btn-industrial-primary' : 'btn-industrial-danger'"
               @click="handleToggleReceive">
               <q-icon :name="receiveStopped ? 'play_arrow' : 'pause'" class="mr-1" />
@@ -32,21 +33,20 @@
             <div v-for="(item, index) in receiveDataList" :key="index" :class="[
               'p-1 border border-dashed rounded text-xs',
               item.checksumValid === false
-                ? 'border-negative bg-red-900/20'
+                ? 'border-negative'
                 : 'border-industrial'
             ]">
               <div class="text-industrial-secondary mb-1">
                 {{ item.timestamp }}
                 <span v-if="item.checksumValid === false" class="text-negative ml-2">
-                  [校验失败]
+                  [{{ item.failedReason }}]
                 </span>
               </div>
-              <div :class="[
-                'font-mono break-all',
-                item.checksumValid === false ? 'text-negative' : 'text-industrial-primary'
-              ]">
-                {{ item.data }}
-              </div>
+              <div class="font-mono break-all leading-relaxed text-industrial-primary"><span
+                  v-for="(segment, segIndex) in item.segments" :key="segIndex"
+                  :style="segment.highlight && segment.color ? { backgroundColor: segment.color } : {}">{{ segment.text
+                  }}<q-tooltip v-if="segment.highlight && segment.color" :offset="[0, 8]">{{ segment.label
+                  }}</q-tooltip></span></div>
             </div>
           </template>
         </div>
@@ -63,6 +63,7 @@
             发送数据
           </h4>
           <div class="flex gap-2">
+            <q-btn size="sm" icon="settings" flat round dense @click="handleOpenHighlightConfig('send')" />
             <q-btn size="sm" :class="sendStopped ? 'btn-industrial-primary' : 'btn-industrial-danger'"
               @click="handleToggleSend">
               <q-icon :name="sendStopped ? 'play_arrow' : 'pause'" class="mr-1" />
@@ -85,7 +86,11 @@
             <div v-for="(item, index) in sendDataList" :key="index"
               class="p-1 border border-dashed border-industrial rounded text-xs">
               <div class="text-industrial-secondary mb-1">{{ item.timestamp }}</div>
-              <div class="text-industrial-primary font-mono break-all">{{ item.data }}</div>
+              <div class="text-industrial-primary font-mono break-all leading-relaxed"><span
+                  v-for="(segment, segIndex) in item.segments" :key="segIndex"
+                  :style="segment.highlight && segment.color ? { backgroundColor: segment.color } : {}">{{ segment.text
+                  }}<q-tooltip v-if="segment.highlight && segment.color" :offset="[0, 8]">{{ segment.label
+                  }}</q-tooltip></span></div>
             </div>
           </template>
         </div>
@@ -105,6 +110,9 @@
         发送
       </q-btn>
     </div>
+
+    <!-- 高亮配置弹窗 -->
+    <HighlightConfigDialog ref="highlightConfigDialogRef" />
   </div>
 </template>
 
@@ -113,19 +121,55 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useScoeStore } from '../../stores/scoeStore';
 import { useQuasar } from 'quasar';
+import HighlightConfigDialog from './HighlightConfigDialog.vue';
+import { useConnectionTargetsStore } from '../../stores/connectionTargetsStore';
+import { useUnifiedSender } from '../../composables/frames/sendFrame/useUnifiedSender';
 
 const $q = useQuasar();
 const scoeStore = useScoeStore();
+const connectionTargetsStore = useConnectionTargetsStore();
 const { sendDataList, receiveDataList, sendStopped, receiveStopped } = storeToRefs(scoeStore);
+const { sendToNetwork } = useUnifiedSender();
 
 // 发送输入框内容
 const sendInput = ref('');
 
+// 高亮配置弹窗引用
+const highlightConfigDialogRef = ref<InstanceType<typeof HighlightConfigDialog> | null>(null);
+
 // 发送数据
-const handleSendData = () => {
+const handleSendData = async () => {
   if (!sendInput.value.trim()) return;
 
-  scoeStore.addSendData(sendInput.value.trim());
+  const targetId = 'network:scoe-udp:scoe-udp-remote';
+
+  // 确保十六进制字符串长度为偶数
+  const paddedHex = sendInput.value.trim().length % 2 ? sendInput.value.trim() + '0' : sendInput.value.trim();
+
+  // 计算要写入的字节数
+  const bytesCount = paddedHex.length / 2;
+
+  const data = new Uint8Array(bytesCount);
+  let newOffset = 0;
+  // 将十六进制字符串转换为字节并写入
+  for (let i = 0; i < bytesCount; i++) {
+    const byteValue = parseInt(paddedHex.substring(i * 2, i * 2 + 2), 16);
+    data[newOffset++] = byteValue;
+  }
+
+  const targetPath = connectionTargetsStore.getValidatedTargetPath(targetId);
+
+  if (targetPath) {
+    const parts = targetPath.split(':');
+    const connectionId = parts[0];
+    const targetHost = parts[1] + ':' + parts[2];
+    if (connectionId && targetHost) {
+      const result = await sendToNetwork(connectionId, data, targetId, targetHost);
+      if (result.success) {
+        scoeStore.addSendData(sendInput.value.trim(), false);
+      }
+    }
+  }
 };
 
 // 清空发送记录
@@ -172,5 +216,12 @@ const handleToggleReceive = () => {
     message: receiveStopped.value ? '接收记录已停止' : '接收记录已开始',
     position: 'top-right'
   })
+}
+
+// 打开高亮配置弹窗
+const handleOpenHighlightConfig = (type: 'send' | 'receive') => {
+  if (highlightConfigDialogRef.value) {
+    highlightConfigDialogRef.value.open(type)
+  }
 }
 </script>

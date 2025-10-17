@@ -304,6 +304,7 @@ export function useUnifiedSender() {
 
   return {
     sendFrameInstance,
+    sendToNetwork,
     isTargetAvailable,
     getTargetStatus,
     parseTargetId,

@@ -4982,6 +4982,26 @@
         }
       },
       {
+        "id": "cpaJnAJ-dF8Q_qqJVGVBX",
+        "name": "扩展",
+        "dataType": "int32",
+        "length": 4,
+        "factor": 1,
+        "description": "",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "defaultValue": "0",
+        "inputType": "input",
+        "configurable": false,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
         "id": "6rbhzKtCCrEMnN0rImHqO",
         "name": "指令源",
         "dataType": "uint8",
@@ -5738,9 +5758,9 @@
         }
       }
     ],
-    "timestamp": 1760598922856,
+    "timestamp": 1760668431085,
     "createdAt": "2025-10-11T00:52:33.042Z",
-    "updatedAt": "2025-10-16T07:15:22.856Z",
+    "updatedAt": "2025-10-17T02:33:51.085Z",
     "isFavorite": false,
     "options": {
       "autoChecksum": true,

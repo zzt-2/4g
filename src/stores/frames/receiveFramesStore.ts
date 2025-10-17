@@ -18,7 +18,11 @@ import { useFrameTemplateStore } from './frameTemplateStore';
 import { dataStorageAPI, receiveAPI } from '../../api/common';
 import { useGlobalStatsStore } from '../globalStatsStore';
 import { useFrameExpressionManager } from '../../composables/frames/useFrameExpressionManager';
-import { isScoeFrame } from '../../utils/receive/scoeFrame';
+import {
+  extractAndResolveParams,
+  isScoeFrame,
+  validateChecksums,
+} from '../../utils/receive/scoeFrame';
 import { useScoeStore } from '../scoeStore';
 import { useScoeFrameInstancesStore } from './scoeFrameInstancesStore';
 import { useScoeCommandExecutor } from '../../composables/scoe/useScoeCommandExecutor';
@@ -805,6 +809,13 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       if (!checkResult.isScoe) {
         // 不是 SCOE 帧，记录详细信息用于调试
         console.log('[SCOE] 不是有效的 SCOE 帧:', checkResult.error);
+        scoeStore.addReceiveData(
+          Array.from(data)
+            .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+            .join(''),
+          false, // 校验失败
+          '不是有效的 SCOE 帧',
+        );
         return false;
       }
 
@@ -812,15 +823,19 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         scoeStore.status.commandErrorCount++;
         scoeStore.status.lastErrorReason = ScoeErrorReason.COMMAND_CODE_NOT_FOUND;
         console.log('[SCOE] 识别到 SCOE 帧，但未找到对应指令码');
+        scoeStore.addReceiveData(
+          Array.from(data)
+            .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+            .join(''),
+          false, // 校验失败
+          '未找到对应指令码',
+        );
         return false;
       }
 
       console.log('[SCOE] 识别到 SCOE 帧，指令码:', checkResult.commandCode);
 
       // 1. 校验和检查
-      const { validateChecksums, extractAndResolveParams } = await import(
-        '../../utils/receive/scoeFrame'
-      );
       const checksumResult = validateChecksums(data, checkResult.commandCode.checksums);
       if (!checksumResult.valid) {
         console.warn('[SCOE] 校验和错误:', checksumResult.error);
@@ -831,6 +846,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
             .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
             .join(''),
           false, // 校验失败
+          '校验和错误',
         );
         return true;
       }
@@ -847,26 +863,17 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         params.satelliteId = checkResult.extractedSatelliteId;
       }
 
-      // 4. 记录接收数据（校验成功）
+      // 4. 执行对应的指令（统计信息会在 useScoeCommandExecutor 中更新 scoeStore.status）
+      const result = await scoeCommandExecutor.executeCommand(checkResult.commandCode, params);
+
+      // 5. 记录接收数据
       scoeStore.addReceiveData(
         Array.from(data)
           .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
           .join(''),
-        true, // 校验成功
+        result.success, // 校验成功
+        result.message,
       );
-
-      // 5. 执行对应的指令（统计信息会在 useScoeCommandExecutor 中更新 scoeStore.status）
-      const result = await scoeCommandExecutor.executeCommand(checkResult.commandCode, params);
-
-      if (result) {
-        if (result.success) {
-          console.log('[SCOE] 指令执行成功:', result.message);
-        } else {
-          console.warn('[SCOE] 指令执行失败:', result.message);
-        }
-      } else {
-        console.warn('[SCOE] 未找到指令码对应的指令');
-      }
 
       return true; // 已作为 SCOE 帧处理
     } catch (error) {

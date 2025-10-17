@@ -5,8 +5,8 @@
     "frameId": "SCOE-S-001",
     "description": "",
     "paramCount": 16,
-    "createdAt": "2025-10-16T07:02:21.456Z",
-    "updatedAt": "2025-10-16T07:04:06.282Z",
+    "createdAt": "2025-10-17T02:34:12.535Z",
+    "updatedAt": "2025-10-17T02:34:24.735Z",
     "fields": [
       {
         "id": "fghw0m14y_351ALmf1R7W",
@@ -238,6 +238,26 @@
         }
       },
       {
+        "id": "cpaJnAJ-dF8Q_qqJVGVBX",
+        "label": "扩展",
+        "dataType": "int32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
         "id": "6rbhzKtCCrEMnN0rImHqO",
         "label": "指令源",
         "dataType": "uint8",
@@ -296,7 +316,7 @@
         "dataType": "uint32",
         "inputType": "input",
         "description": "",
-        "value": "0",
+        "value": "aa1111bb",
         "validOption": {
           "isChecksum": false,
           "startFieldIndex": "0",
@@ -316,7 +336,7 @@
         "dataType": "bytes",
         "inputType": "input",
         "description": "",
-        "value": "aabbccdd1",
+        "value": "123456789",
         "validOption": {
           "isChecksum": false,
           "startFieldIndex": "0",
@@ -902,16 +922,16 @@
         "expressionConfig": {
           "expressions": [
             {
-              "condition": "var1 === 'healthy'",
+              "condition": "var1 === 'unknown'",
               "expression": "0"
             },
             {
-              "condition": "var1 === 'warning'",
+              "condition": "var1 === 'healthy'",
               "expression": "1"
             },
             {
               "condition": "var1 === 'error'",
-              "expression": "2"
+              "expression": "9"
             }
           ],
           "variables": [
@@ -967,20 +987,16 @@
         "expressionConfig": {
           "expressions": [
             {
-              "condition": "var1 === 'pass'",
+              "condition": "var1 === 'unknown'",
               "expression": "0"
             },
             {
-              "condition": "var1 === 'fail'",
+              "condition": "var1 === 'pass'",
               "expression": "1"
             },
             {
-              "condition": "var1 === 'testing'",
+              "condition": "var1 === 'fail'",
               "expression": "2"
-            },
-            {
-              "condition": "var1 === 'unknown'",
-              "expression": "3"
             }
           ],
           "variables": [
@@ -999,7 +1015,7 @@
     "isSCOEFrame": true,
     "strategyConfig": {
       "type": "none",
-      "updatedAt": "2025-10-16T07:02:21.456Z"
+      "updatedAt": "2025-10-17T02:34:12.535Z"
     },
     "sendCount": 0
   }
