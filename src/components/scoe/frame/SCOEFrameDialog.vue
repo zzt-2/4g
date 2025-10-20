@@ -1,6 +1,9 @@
 <template>
   <q-dialog v-model="dialogVisible">
-    <q-card class="flex flex-col no-wrap bg-industrial-panel" style="width: 80vw; max-width: 90vw; height: 90vh;">
+    <q-card
+      class="flex flex-col no-wrap bg-industrial-panel"
+      style="width: 80vw; max-width: 90vw; height: 90vh"
+    >
       <!-- 标题栏 -->
       <q-card-section class="bg-industrial-secondary border-b border-industrial">
         <div class="flex items-center justify-between">
@@ -18,7 +21,9 @@
         <SCOEFrameInstanceList class="w-64 min-h-0 h-full border border-industrial rounded-lg" />
 
         <!-- 右侧：帧实例编辑器 -->
-        <SCOEFrameInstanceEditor class="flex-1 min-w-0 min-h-0 h-full border border-industrial rounded-lg" />
+        <SCOEFrameInstanceEditor
+          class="flex-1 min-w-0 min-h-0 h-full border border-industrial rounded-lg"
+        />
       </q-card-section>
 
       <!-- 底部操作栏 -->
