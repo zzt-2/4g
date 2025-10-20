@@ -2,6 +2,7 @@
  * 健康自检指令执行器
  */
 
+import { useConnectionTargetsStore } from 'src/stores/connectionTargetsStore';
 import type { CommandExecutionResult, CommandExecutionContext } from '../useScoeCommandExecutor';
 
 /**
@@ -13,6 +14,7 @@ export async function executeHealthCheck(
   context: CommandExecutionContext,
 ): Promise<CommandExecutionResult> {
   const { scoeStore } = context;
+  const connectionTargetsStore = useConnectionTargetsStore();
 
   // TODO: 实现实际的健康检查逻辑
   // 这里可以检查：
@@ -21,11 +23,13 @@ export async function executeHealthCheck(
   // 3. 配置完整性
   // 4. 资源使用情况等
 
-  // 简单示例：基于当前状态判断健康状况
+  const targetPath = connectionTargetsStore.getValidatedTargetPath(
+    'network:scoe-udp:scoe-udp-remote',
+  );
   const isHealthy =
-    scoeStore.status.commandErrorCount === 0 || scoeStore.status.commandErrorCount < 10;
+    scoeStore.status.loadedSatelliteId && scoeStore.status.scoeFramesLoaded && targetPath;
 
-  scoeStore.status.healthStatus = isHealthy ? 'healthy' : 'warning';
+  scoeStore.status.healthStatus = isHealthy ? 'healthy' : 'error';
 
   return {
     success: true,

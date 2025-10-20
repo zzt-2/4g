@@ -7,7 +7,7 @@
     <ConfigForm class="flex-1 min-w-0 border border-solid border-industrial rounded-lg" />
 
     <!-- 右侧：状态面板 -->
-    <StatusPanel class="w-72 flex-shrink-0 border border-solid border-industrial rounded-lg" />
+    <StatusPanel class="w-64 flex-shrink-0 border border-solid border-industrial rounded-lg" />
   </div>
 </template>
 

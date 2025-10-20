@@ -26,6 +26,7 @@ class TimerInstance {
   private timerId: NodeJS.Timeout | undefined;
   private pausedAt?: number;
   private pausedTimeElapsed = 0;
+  private expectedExecutionTime?: number; // 预期执行时间，用于时间校准
 
   constructor(config: TimerConfig) {
     this.config = config;
@@ -50,6 +51,7 @@ class TimerInstance {
 
     this.status = 'running';
     this.startedAt = Date.now();
+    this.expectedExecutionTime = this.startedAt + this.config.interval;
 
     const executeCallback = () => {
       this.executionCount++;
@@ -68,19 +70,51 @@ class TimerInstance {
       // 一次性定时器
       this.timerId = setTimeout(executeCallback, this.config.interval);
     } else if (this.config.type === 'interval') {
-      // 周期性定时器
-      this.timerId = setInterval(executeCallback, this.config.interval);
+      // 周期性定时器 - 使用自校准机制
+      this.startSelfCalibratingInterval(executeCallback);
     } else if (this.config.type === 'delayed') {
       // 延迟后周期执行
       const delay = this.config.delay || 0;
       setTimeout(() => {
         if (this.status === 'running') {
-          this.timerId = setInterval(executeCallback, this.config.interval);
+          this.expectedExecutionTime = Date.now() + this.config.interval;
+          this.startSelfCalibratingInterval(executeCallback);
         }
       }, delay);
     }
 
     return true;
+  }
+
+  // 自校准的定时器实现
+  private startSelfCalibratingInterval(callback: () => void): void {
+    const tick = () => {
+      if (this.status !== 'running') return;
+
+      const now = Date.now();
+      const drift = now - (this.expectedExecutionTime || now);
+
+      // 执行回调
+      callback();
+
+      // 计算下次执行时间
+      this.expectedExecutionTime = (this.expectedExecutionTime || now) + this.config.interval;
+
+      // 计算实际需要等待的时间（考虑漂移）
+      const nextDelay = Math.max(0, this.config.interval - drift);
+
+      // 如果漂移过大（超过1个周期），重新校准
+      if (Math.abs(drift) > this.config.interval) {
+        console.warn(`定时器 ${this.config.id} 漂移过大 (${drift}ms)，重新校准`);
+        this.expectedExecutionTime = Date.now() + this.config.interval;
+        this.timerId = setTimeout(tick, this.config.interval);
+      } else {
+        this.timerId = setTimeout(tick, nextDelay);
+      }
+    };
+
+    // 首次执行
+    this.timerId = setTimeout(tick, this.config.interval);
   }
 
   // 停止定时器
@@ -131,7 +165,9 @@ class TimerInstance {
         }
       };
 
-      this.timerId = setInterval(executeCallback, this.config.interval);
+      // 重新设置预期执行时间
+      this.expectedExecutionTime = Date.now() + this.config.interval;
+      this.startSelfCalibratingInterval(executeCallback);
     }
 
     return true;

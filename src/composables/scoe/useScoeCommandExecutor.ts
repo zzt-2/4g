@@ -18,10 +18,9 @@ import {
   executeUnloadSatelliteId,
   executeHealthCheck,
   executeLinkCheck,
-  executeCustomCommand,
+  executeSendFrame,
+  executeReadFileAndSend,
 } from './commands';
-import { executeSendFrame } from './commands/sendFrame';
-import { executeReadFileAndSend } from './commands/readFileAndSend';
 
 /**
  * 指令执行结果
@@ -79,7 +78,6 @@ export function useScoeCommandExecutor() {
     [ScoeCommandFunction.LINK_CHECK]: executeLinkCheck,
     [ScoeCommandFunction.SEND_FRAME]: executeSendFrame,
     [ScoeCommandFunction.READ_FILE_AND_SEND]: executeReadFileAndSend,
-    [ScoeCommandFunction.CUSTOM]: executeCustomCommand,
   };
 
   // ==================== 核心执行方法 ====================
@@ -99,7 +97,6 @@ export function useScoeCommandExecutor() {
     try {
       // 更新状态：记录最近一条指令功能码
       scoeStore.status.lastCommandCode = `0x${scoeStore.globalConfig.scoeIdentifier.toUpperCase().padStart(2, '0')}${command.code.replace(/^0x/i, '').toUpperCase().padStart(2, '0')}AAAA`;
-      scoeStore.status.commandReceiveCount++;
 
       // 创建执行上下文
       const context: CommandExecutionContext = {
@@ -137,7 +134,6 @@ export function useScoeCommandExecutor() {
       // 统一更新状态计数器
       if (result.success) {
         scoeStore.status.commandSuccessCount++;
-        scoeStore.status.lastErrorReason = ScoeErrorReason.NONE;
       } else {
         scoeStore.status.commandErrorCount++;
         // 如果执行器返回了错误原因，使用它；否则使用消息

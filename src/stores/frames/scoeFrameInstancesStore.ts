@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, shallowRef } from 'vue';
+import { ref, computed } from 'vue';
 import { dataStorageAPI } from '../../api/common/dataStorageApi';
 import { useFrameTemplateStore } from '../framesStore';
 import type { SendFrameInstance } from '../../types/frames/sendInstances';
@@ -27,7 +27,7 @@ export const useScoeFrameInstancesStore = defineStore('scoeFrameInstances', () =
   const sendInstances = ref<SendFrameInstance[]>([]);
 
   // 接收指令列表
-  const receiveCommands = shallowRef<ScoeReceiveCommand[]>([]);
+  const receiveCommands = ref<ScoeReceiveCommand[]>([]);
 
   // 当前选中的发送帧实例ID
   const selectedSendInstanceId = ref<string>('');

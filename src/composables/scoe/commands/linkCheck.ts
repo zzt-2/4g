@@ -2,7 +2,9 @@
  * 链路自检指令执行器
  */
 
+import { useReceiveFramesStore } from 'src/stores/frames/receiveFramesStore';
 import type { CommandExecutionResult, CommandExecutionContext } from '../useScoeCommandExecutor';
+import { DataGroup, DataItem } from 'src/types/frames/receive';
 
 /**
  * 执行链路自检指令
@@ -13,16 +15,22 @@ export async function executeLinkCheck(
   context: CommandExecutionContext,
 ): Promise<CommandExecutionResult> {
   const { scoeStore } = context;
+  const receiveFramesStore = useReceiveFramesStore();
 
-  // TODO: 实现实际的链路检查逻辑
-  // 这里可以检查：
-  // 1. TCP连接状态
-  // 2. UDP连接状态
-  // 3. 网络延迟
-  // 4. 丢包率等
-
-  // 简单示例：基于当前加载状态判断链路
-  const isLinkOk = scoeStore.status.scoeFramesLoaded && scoeStore.status.loadedSatelliteId;
+  let isLinkOk = true;
+  receiveFramesStore.groups.forEach((group: DataGroup) => {
+    group.dataItems.forEach((item: DataItem) => {
+      if (item.label === '载波同步锁定' && item.value !== 1) {
+        isLinkOk = false;
+      }
+      if (item.label === '定时同步锁定' && item.value !== 1) {
+        isLinkOk = false;
+      }
+      if (item.label === '帧同步锁定' && item.value !== 1) {
+        isLinkOk = false;
+      }
+    });
+  });
 
   scoeStore.status.linkTestResult = isLinkOk ? 'pass' : 'fail';
 

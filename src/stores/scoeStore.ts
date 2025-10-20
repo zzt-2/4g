@@ -7,6 +7,7 @@ import {
   defaultScoeSatelliteConfig,
   defaultScoeStatus,
   defaultScoeStatusUpdate,
+  ScoeErrorReason,
 } from '../types/scoe';
 import { useTimerManager } from 'src/composables/common/useTimerManager';
 import { useNetworkStore } from './netWorkStore';
@@ -292,6 +293,13 @@ export const useScoeStore = defineStore('scoe', () => {
       status.value.satelliteIdRuntimeSeconds++;
     } else {
       status.value.satelliteIdRuntimeSeconds = 0;
+      status.value.commandReceiveCount = 0;
+      status.value.commandSuccessCount = 0;
+      status.value.lastCommandCode = '';
+      status.value.commandErrorCount = 0;
+      status.value.lastErrorReason = ScoeErrorReason.NONE;
+      status.value.healthStatus = 'unknown';
+      status.value.linkTestResult = 'unknown';
     }
 
     await checkSatelliteLoad();

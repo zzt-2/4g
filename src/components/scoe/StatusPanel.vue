@@ -47,7 +47,7 @@ const statusMaps = {
   health: {
     healthy: { icon: 'check_circle', color: 'text-green-400', text: '正常' },
     unknown: { icon: 'help', color: 'text-industrial-tertiary', text: '未自检' },
-    error: { icon: 'error', color: 'text-red-400', text: '错误' }
+    error: { icon: 'error', color: 'text-red-400', text: '异常' }
   },
   linkTest: {
     pass: { icon: 'check_circle', color: 'text-green-400', text: '通过' },

@@ -21,7 +21,7 @@
         </div>
 
         <!-- 操作按钮 -->
-        <div class="flex-1 max-w-130 flex no-wrap items-center gap-2 ml-auto">
+        <div class="flex-1 max-w-130 flex items-center gap-2 ml-auto">
           <q-btn class="flex-1" size="sm" @click="showConfigForm = !showConfigForm">
             <q-icon name="settings" class="mr-1" />
             {{ showConfigForm ? '隐藏配置' : '显示配置' }}
@@ -145,15 +145,15 @@
         <div class="w-full flex gap-4">
           <!-- SCOE 指令接收配置 -->
           <div class="flex-1 bg-industrial-secondary border border-industrial rounded p-4">
-            <div class="flex items-start justify-between gap-4">
-              <h4 class="text-industrial-primary text-base font-medium pb-5 mt-0 flex items-center">
+            <div class="flex no-wrap items-start justify-between">
+              <h4 class="text-industrial-primary text-base font-medium pb-3 mt-2 flex items-center no-wrap">
                 <q-icon name="download" class="mr-2" />
                 SCOE 指令接收配置
               </h4>
-              <div class="flex gap-3">
-                <q-checkbox v-model="localSatelliteConfig.receiveConfig.recognitionMessageId" label="识别信息标识" />
-                <q-checkbox v-model="localSatelliteConfig.receiveConfig.recognitionSourceId" label="识别信源标识" />
-                <q-checkbox v-model="localSatelliteConfig.receiveConfig.recognitionDestinationId" label="识别信宿标识" />
+              <div class="flex no-wrap">
+                <q-checkbox v-model="localSatelliteConfig.receiveConfig.recognitionMessageId" label="信息标识" />
+                <q-checkbox v-model="localSatelliteConfig.receiveConfig.recognitionSourceId" label="信源标识" />
+                <q-checkbox v-model="localSatelliteConfig.receiveConfig.recognitionDestinationId" label="信宿标识" />
               </div>
             </div>
 
@@ -171,7 +171,7 @@
 
           <!-- SCOE 遥测参数配置 -->
           <div class="flex-1 bg-industrial-secondary border border-industrial rounded p-4">
-            <h4 class="text-industrial-primary text-base font-medium pb-5 mt-0 flex items-center">
+            <h4 class="text-industrial-primary text-base font-medium pb-3 mt-2 flex items-center">
               <q-icon name="upload" class="mr-2" />
               SCOE 遥测参数配置
             </h4>

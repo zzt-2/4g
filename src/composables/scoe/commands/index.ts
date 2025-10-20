@@ -6,4 +6,5 @@ export { executeLoadSatelliteId } from './loadSatelliteId';
 export { executeUnloadSatelliteId } from './unloadSatelliteId';
 export { executeHealthCheck } from './healthCheck';
 export { executeLinkCheck } from './linkCheck';
-export { executeCustomCommand } from './customCommand';
+export { executeSendFrame } from './sendFrame';
+export { executeReadFileAndSend } from './readFileAndSend';

@@ -1,5 +1,7 @@
 // SCOE相关类型定义
 
+import { ScoeErrorReason } from './receiveCommand';
+
 // 导出接收指令相关类型
 export * from './receiveCommand';
 // 导出高亮配置相关类型
@@ -158,7 +160,7 @@ export const defaultScoeStatus: ScoeStatus = {
   commandSuccessCount: 0,
   lastCommandCode: '',
   commandErrorCount: 0,
-  lastErrorReason: '无错误',
+  lastErrorReason: ScoeErrorReason.NONE,
   loadedSatelliteId: '',
   healthStatus: 'unknown',
   linkTestResult: 'unknown',

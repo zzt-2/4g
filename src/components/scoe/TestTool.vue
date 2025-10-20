@@ -31,14 +31,14 @@
           </div>
           <template v-else>
             <div v-for="(item, index) in receiveDataList" :key="index" :class="[
-              'p-1 border border-dashed rounded text-xs',
+              'p-1 border border-dashed text-xs',
               item.checksumValid === false
                 ? 'border-negative'
                 : 'border-industrial'
             ]">
               <div class="text-industrial-secondary mb-1">
                 {{ item.timestamp }}
-                <span v-if="item.checksumValid === false" class="text-negative ml-2">
+                <span v-if="item.checksumValid === false" class="text-red-5 ml-2">
                   [{{ item.failedReason }}]
                 </span>
               </div>
@@ -46,7 +46,7 @@
                   v-for="(segment, segIndex) in item.segments" :key="segIndex"
                   :style="segment.highlight && segment.color ? { backgroundColor: segment.color } : {}">{{ segment.text
                   }}<q-tooltip v-if="segment.highlight && segment.color" :offset="[0, 8]">{{ segment.label
-                  }}</q-tooltip></span></div>
+                    }}</q-tooltip></span></div>
             </div>
           </template>
         </div>
@@ -90,7 +90,7 @@
                   v-for="(segment, segIndex) in item.segments" :key="segIndex"
                   :style="segment.highlight && segment.color ? { backgroundColor: segment.color } : {}">{{ segment.text
                   }}<q-tooltip v-if="segment.highlight && segment.color" :offset="[0, 8]">{{ segment.label
-                  }}</q-tooltip></span></div>
+                    }}</q-tooltip></span></div>
             </div>
           </template>
         </div>

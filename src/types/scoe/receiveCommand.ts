@@ -23,8 +23,6 @@ export enum ScoeCommandFunction {
   SEND_FRAME = 'send_frame',
   /** 读取文件并发送 */
   READ_FILE_AND_SEND = 'read_file_and_send',
-  /** 自定义指令 */
-  CUSTOM = 'custom',
 }
 
 /**
@@ -37,7 +35,6 @@ export const commandFunctionOptions = [
   { label: '链路自检', value: ScoeCommandFunction.LINK_CHECK },
   { label: '发送帧', value: ScoeCommandFunction.SEND_FRAME },
   { label: '读取文件并发送', value: ScoeCommandFunction.READ_FILE_AND_SEND },
-  { label: '自定义指令', value: ScoeCommandFunction.CUSTOM },
 ];
 
 /**
@@ -124,7 +121,7 @@ export function createDefaultReceiveCommand(id: string): ScoeReceiveCommand {
     id,
     label: `指令 ${id}`,
     code: '00',
-    function: ScoeCommandFunction.CUSTOM,
+    function: ScoeCommandFunction.LOAD_SATELLITE_ID,
     checksums: [],
     params: [],
     frameInstances: [],

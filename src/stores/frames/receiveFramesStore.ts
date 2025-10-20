@@ -819,6 +819,8 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         return false;
       }
 
+      scoeStore.status.commandReceiveCount++;
+
       if (!checkResult.commandCode) {
         scoeStore.status.commandErrorCount++;
         scoeStore.status.lastErrorReason = ScoeErrorReason.COMMAND_CODE_NOT_FOUND;
