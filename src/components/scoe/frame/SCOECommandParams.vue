@@ -1,5 +1,5 @@
 <template>
-  <div v-if="localCommand && shouldShow" class="flex-1 flex flex-col no-wrap gap-4 min-h-0 overflow-y-auto">
+  <div v-if="localCommand && shouldShow" class="flex-1 flex flex-col">
     <!-- 参数配置 -->
     <div class="bg-industrial-secondary border border-industrial rounded p-2">
       <div class="flex items-center justify-between mb-2">
@@ -109,25 +109,25 @@
 
     <!-- 帧实例配置 -->
     <div class="bg-industrial-secondary border border-industrial rounded p-2">
-      <div class="flex items-center justify-between mb-2">
+      <div class="w-full flex items-center justify-between mb-2">
         <h4 class="text-sm font-medium text-industrial-primary flex items-center">
           <q-icon name="inventory" size="xs" class="mr-1 text-blue-5" />
           帧实例配置
         </h4>
-        <div class="flex items-center gap-4">
-          <div v-if="localCommand.function === ScoeCommandFunction.READ_FILE_AND_SEND" class="flex items-center gap-4">
-            <q-label class="text-sm text-industrial-secondary">发送间隔: </q-label>
+        <div class="flex-1 max-w-120 flex no-wrap items-center justify-end gap-4">
+          <template v-if="localCommand.function === ScoeCommandFunction.READ_FILE_AND_SEND">
+            <q-label class="flex-1 truncate text-sm text-industrial-secondary">发送间隔: </q-label>
             <q-input v-model="localCommand.sendInterval" dense outlined dark bg-color="industrial-panel"
-              class="w-40 text-xs" hide-bottom-space
+              class="flex-1 min-w-16 text-xs" hide-bottom-space
               @update:model-value="store.updateReceiveCommandField('sendInterval', Number($event) || undefined)">
               <template #append>
                 <span class="text-xs text-industrial-secondary">ms</span>
               </template>
             </q-input>
-          </div>
-          <q-label class="text-sm text-industrial-secondary">选择帧: </q-label>
+          </template>
+          <q-label class="flex-1 min-w-0 truncate text-sm text-industrial-secondary">选择帧: </q-label>
           <q-select v-model="selectedFrameId" :options="availableSendFrames" dense outlined dark option-value="id"
-            option-label="name" emit-value map-options bg-color="industrial-panel" class="w-40 text-xs"
+            option-label="name" emit-value map-options bg-color="industrial-panel" class="flex-1 flex-grow-3 text-xs"
             hide-bottom-space />
           <q-btn flat dense round size="xs" icon="add" color="positive" :disable="!selectedFrameId"
             @click="handleAddFrameInstance">

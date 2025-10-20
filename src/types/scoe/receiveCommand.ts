@@ -34,7 +34,7 @@ export const commandFunctionOptions = [
   { label: '健康自检', value: ScoeCommandFunction.HEALTH_CHECK },
   { label: '链路自检', value: ScoeCommandFunction.LINK_CHECK },
   { label: '发送帧', value: ScoeCommandFunction.SEND_FRAME },
-  { label: '读取文件并发送', value: ScoeCommandFunction.READ_FILE_AND_SEND },
+  { label: '读取文件发送', value: ScoeCommandFunction.READ_FILE_AND_SEND },
 ];
 
 /**

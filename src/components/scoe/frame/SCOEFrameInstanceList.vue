@@ -81,7 +81,7 @@
     </div>
 
     <!-- 底部：添加按钮 -->
-    <div class="bg-industrial-secondary p-3 border-t border-industrial">
+    <div class="w-full bg-industrial-secondary p-3 border-t border-industrial">
       <!-- 发送帧：选择可用帧 -->
       <div v-if="scoeFrameInstancesStore.direction === 'send'" class="flex items-center gap-2">
         <q-select v-model="selectedFrameId" :options="availableFrameOptions" dense outlined dark option-value="value"

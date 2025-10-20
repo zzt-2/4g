@@ -15,7 +15,7 @@
       <!-- 主内容区 -->
       <q-card-section class="flex-1 flex min-h-0 gap-2 p-4">
         <!-- 左侧：帧实例列表 -->
-        <SCOEFrameInstanceList class="w-80 min-h-0 h-full border border-industrial rounded-lg" />
+        <SCOEFrameInstanceList class="w-64 min-h-0 h-full border border-industrial rounded-lg" />
 
         <!-- 右侧：帧实例编辑器 -->
         <SCOEFrameInstanceEditor class="flex-1 min-w-0 min-h-0 h-full border border-industrial rounded-lg" />

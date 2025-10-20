@@ -97,12 +97,10 @@
       </div>
     </div>
     <!-- 发送输入框 -->
-    <div class="w-full flex p-3 gap-6">
-      <div class="flex justify-between gap-6 h-0">
-        <q-input v-model="maxRecordLines" label="最大记录行数" outlined dense />
-        <q-btn label="确定" size="md" class="btn-industrial-secondary w-16" color="primary" outlined dense
-          @click="handleMaxRecordLines" />
-      </div>
+    <div class="w-full flex justify-between p-1 gap-6">
+      <q-input v-model="maxRecordLines" label="记录行数" class="w-16" outlined dense />
+      <q-btn label="确定" size="md" class="btn-industrial-secondary w-16" color="primary" outlined dense
+        @click="handleMaxRecordLines" />
       <q-input v-model="sendInput" dense outlined bg-color="industrial-panel" class="flex-1"
         input-class="text-industrial-primary text-sm" placeholder="输入要发送的数据（HEX格式）" @keyup.enter="handleSendData" />
       <q-btn size="sm" class="btn-industrial-primary" :disable="!sendInput" @click="handleSendData">

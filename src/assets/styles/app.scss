@@ -3,3 +3,11 @@
 @import './pages/main-layout.scss';
 @import './pages/index.scss';
 @import './variables/quasar.variables.scss';
+
+// html {
+//   font-size: max(calc(100vw / 1440 * 10), 10px);
+// }
+
+html {
+  font-size: 16px;
+}

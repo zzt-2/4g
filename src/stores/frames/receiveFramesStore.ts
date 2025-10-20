@@ -807,15 +807,17 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       );
 
       if (!checkResult.isScoe) {
-        // 不是 SCOE 帧，记录详细信息用于调试
-        console.log('[SCOE] 不是有效的 SCOE 帧:', checkResult.error);
-        scoeStore.addReceiveData(
-          Array.from(data)
-            .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
-            .join(''),
-          false, // 校验失败
-          '不是有效的 SCOE 帧',
-        );
+        if (!scoeStore.status.scoeFramesLoaded) {
+          // 不是 SCOE 帧，记录详细信息用于调试
+          console.log('[SCOE] 不是有效的 SCOE 帧:', checkResult.error);
+          scoeStore.addReceiveData(
+            Array.from(data)
+              .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+              .join(''),
+            false, // 校验失败
+            '不是有效的 SCOE 帧',
+          );
+        }
         return false;
       }
 

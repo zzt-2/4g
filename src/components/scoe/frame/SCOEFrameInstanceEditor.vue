@@ -39,9 +39,9 @@
     <!-- 接收指令编辑 -->
     <div v-else-if="scoeFrameInstancesStore.localReceiveCommand && scoeFrameInstancesStore.direction === 'receive'"
       class="flex flex-col h-full gap-4 p-4">
-      <div class="flex gap-4">
+      <div class="w-full flex no-wrap gap-4">
         <!-- Label 编辑 -->
-        <div v-if="localCommand" class="flex-1 flex flex-col gap-2">
+        <div v-if="localCommand" class="flex-1 min-w-0 flex flex-col gap-2">
           <label class="text-industrial-secondary text-sm font-medium">指令标签</label>
           <q-input v-model="localCommand.label" dense outlined dark bg-color="industrial-panel"
             input-class="text-industrial-primary" placeholder="输入指令标签..."
@@ -49,8 +49,8 @@
         </div>
 
         <!-- Code 编辑 -->
-        <div v-if="localCommand" class="flex-1 flex flex-col gap-2">
-          <label class="text-industrial-secondary text-sm font-medium">功能码（十六进制）</label>
+        <div v-if="localCommand" class="flex-1 min-w-0 flex flex-col gap-2">
+          <label class="w-full truncate text-industrial-secondary text-sm font-medium">功能码（十六进制）</label>
           <q-input v-model="localCommand.code" dense outlined dark bg-color="industrial-panel"
             input-class="text-industrial-primary font-mono" placeholder="例如: ab"
             @update:model-value="(val) => updateField('code', String(val || '00').toUpperCase().padStart(2, '0').slice(-2))">
@@ -58,75 +58,81 @@
               <q-icon name="code" size="xs" /><span class="text-sm">0x</span>
             </template>
           </q-input>
-          <div class="text-industrial-tertiary text-xs">输入格式：单字节十六进制数，如 ab</div>
+          <span class="w-full truncate text-industrial-tertiary text-xs">
+            输入格式：单字节十六进制数，如 ab
+          </span>
         </div>
 
         <!-- Function 选择 -->
-        <div v-if="localCommand" class="flex-1 flex flex-col gap-2">
-          <label class="text-industrial-secondary text-sm font-medium">执行功能</label>
-          <q-select v-model="localCommand.function" :options="functionOptions" dense outlined dark option-value="value"
-            option-label="label" emit-value map-options bg-color="industrial-panel"
-            popup-content-class="bg-industrial-panel"
+        <div v-if="localCommand" class="flex-1 min-w-0 flex flex-col gap-2">
+          <label class="w-full truncate text-industrial-secondary text-sm font-medium">执行功能</label>
+          <q-select v-model="localCommand.function" class="w-full" :options="functionOptions" dense outlined dark
+            hide-bottom-space option-value="value" option-label="label" emit-value map-options
+            bg-color="industrial-panel" popup-content-class="bg-industrial-panel"
             @update:model-value="(val) => updateField('function', String(val || ''))">
             <template v-slot:prepend>
               <q-icon name="settings" size="xs" />
             </template>
           </q-select>
-          <div class="text-industrial-tertiary text-xs">
+          <div class="w-full truncate text-industrial-tertiary text-xs">
             选择该指令对应的执行功能
           </div>
         </div>
       </div>
 
-      <!-- 校验和配置 -->
-      <div class="mt-2 bg-industrial-secondary border border-industrial rounded p-2">
-        <div class="flex items-center justify-between mb-2">
-          <h4 class="text-xs font-medium text-industrial-primary flex items-center">
-            <q-icon name="verified_user" size="xs" class="mr-1 text-blue-5" />
-            校验和配置
-          </h4>
-          <q-btn flat dense round size="xs" icon="add" color="positive" @click="scoeFrameInstancesStore.addChecksum()">
-            <q-tooltip>添加校验</q-tooltip>
-          </q-btn>
-        </div>
+      <div class="flex-1 flex flex-col no-wrap gap-4 min-h-0 overflow-y-auto">
 
-        <!-- 校验列表 -->
-        <div v-if="localCommand?.checksums?.length" class="space-y-1">
-          <div v-for="(checksum, index) in localCommand.checksums" :key="index"
-            class="flex items-center gap-6 px-6 py-2 bg-industrial-highlight rounded text-xs">
-            <!-- 启用开关 -->
-            <q-checkbox :model-value="checksum.enabled" dense dark size="xs"
-              @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { enabled: $event })" />
-
-            <!-- 偏移 -->
-            <q-input :model-value="checksum.offset" type="number" dense outlined dark bg-color="industrial-panel"
-              class="flex-1" label="偏移" hide-bottom-space
-              @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { offset: Number($event) || 0 })" />
-
-            <!-- 长度 -->
-            <q-input :model-value="checksum.length" type="number" dense outlined dark bg-color="industrial-panel"
-              class="flex-1" label="长度" hide-bottom-space
-              @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { length: Number($event) || 0 })" />
-
-            <!-- 校验位偏移 -->
-            <q-input :model-value="checksum.checksumOffset" type="number" dense outlined dark
-              bg-color="industrial-panel" class="flex-1" label="校验位偏移" hide-bottom-space
-              @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { checksumOffset: Number($event) || 0 })" />
-
-            <!-- 删除 -->
-            <q-btn flat dense round size="xs" icon="delete_outline" color="negative"
-              @click="scoeFrameInstancesStore.deleteChecksum(index)">
-              <q-tooltip>删除</q-tooltip>
+        <!-- 校验和配置 -->
+        <div class="mt-2 bg-industrial-secondary border border-industrial rounded p-2">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-medium text-industrial-primary flex items-center">
+              <q-icon name="verified_user" size="xs" class="mr-1 text-blue-5" />
+              校验和配置
+            </h4>
+            <q-btn flat dense round size="xs" icon="add" color="positive"
+              @click="scoeFrameInstancesStore.addChecksum()">
+              <q-tooltip>添加校验</q-tooltip>
             </q-btn>
           </div>
-        </div>
-        <div v-else class="text-industrial-tertiary text-xs text-center py-1">
-          暂无校验配置
-        </div>
-      </div>
 
-      <!-- 参数和帧实例配置 -->
-      <SCOECommandParams />
+          <!-- 校验列表 -->
+          <div v-if="localCommand?.checksums?.length" class="space-y-1">
+            <div v-for="(checksum, index) in localCommand.checksums" :key="index"
+              class="flex items-center gap-6 px-6 py-2 bg-industrial-highlight rounded text-xs">
+              <!-- 启用开关 -->
+              <q-checkbox :model-value="checksum.enabled" dense dark size="xs"
+                @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { enabled: $event })" />
+
+              <!-- 偏移 -->
+              <q-input :model-value="checksum.offset" type="number" dense outlined dark bg-color="industrial-panel"
+                class="flex-1" label="偏移" hide-bottom-space
+                @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { offset: Number($event) || 0 })" />
+
+              <!-- 长度 -->
+              <q-input :model-value="checksum.length" type="number" dense outlined dark bg-color="industrial-panel"
+                class="flex-1" label="长度" hide-bottom-space
+                @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { length: Number($event) || 0 })" />
+
+              <!-- 校验位偏移 -->
+              <q-input :model-value="checksum.checksumOffset" type="number" dense outlined dark
+                bg-color="industrial-panel" class="flex-1" label="校验位偏移" hide-bottom-space
+                @update:model-value="scoeFrameInstancesStore.updateChecksum(index, { checksumOffset: Number($event) || 0 })" />
+
+              <!-- 删除 -->
+              <q-btn flat dense round size="xs" icon="delete_outline" color="negative"
+                @click="scoeFrameInstancesStore.deleteChecksum(index)">
+                <q-tooltip>删除</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+          <div v-else class="text-industrial-tertiary text-xs text-center py-1">
+            暂无校验配置
+          </div>
+        </div>
+
+        <!-- 参数和帧实例配置 -->
+        <SCOECommandParams />
+      </div>
     </div>
 
     <!-- 空状态提示 -->
