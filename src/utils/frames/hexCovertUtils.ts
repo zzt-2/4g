@@ -4,6 +4,7 @@
  */
 import { NUMBER_DATA_TYPES } from 'src/types/frames';
 import type { SendInstanceField } from '../../types/frames/sendInstances';
+import { MatchOperator } from 'src/types/scoe/receiveCommand';
 
 /**
  * 将值转换为十六进制字符串
@@ -309,3 +310,66 @@ export const initializeHexValues = (instance: {
 
   return hexValues;
 };
+
+/**
+ * 解析值（支持十六进制和十进制）
+ * @param value 值字符串
+ * @returns 数值
+ */
+export function parseValue(value: string): number {
+  const trimmed = value.trim();
+  // 检查是否为十六进制（0x开头或包含a-f/A-F）
+  if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+    return parseInt(trimmed, 16);
+  }
+  if (/[a-fA-F]/.test(trimmed)) {
+    return parseInt(trimmed, 16);
+  }
+  return parseFloat(trimmed);
+}
+
+/**
+ * 比较两个值
+ * @param sourceValue 来源值
+ * @param targetValue 目标值
+ * @param operator 匹配运算符
+ * @returns 是否匹配
+ */
+export function compareValues(
+  sourceValue: unknown,
+  targetValue: string,
+  operator: import('../../types/scoe').MatchOperator,
+): boolean {
+  // 转换来源值为字符串
+  const sourceStr = String(sourceValue);
+
+  // 尝试数值比较
+  const sourceNum = parseValue(sourceStr);
+  const targetNum = parseValue(targetValue);
+
+  // 如果都是有效数值，进行数值比较
+  if (!isNaN(sourceNum) && !isNaN(targetNum)) {
+    if (operator === MatchOperator.EQUAL) {
+      return sourceNum === targetNum;
+    } else if (operator === MatchOperator.NOT_EQUAL) {
+      return sourceNum !== targetNum;
+    } else if (operator === MatchOperator.GREATER_THAN) {
+      return sourceNum > targetNum;
+    } else if (operator === MatchOperator.LESS_THAN) {
+      return sourceNum < targetNum;
+    } else if (operator === MatchOperator.GREATER_EQUAL) {
+      return sourceNum >= targetNum;
+    } else if (operator === MatchOperator.LESS_EQUAL) {
+      return sourceNum <= targetNum;
+    }
+    return false;
+  }
+
+  // 否则进行字符串比较
+  if (operator === MatchOperator.EQUAL) {
+    return sourceStr === targetValue;
+  } else if (operator === MatchOperator.NOT_EQUAL) {
+    return sourceStr !== targetValue;
+  }
+  return false;
+}

@@ -473,6 +473,7 @@ export function processReceivedData(
     const updatedDataItems: {
       groupId: number;
       dataItemId: number;
+      fieldId: string;
       value: unknown;
       displayValue: string;
     }[] = [];
@@ -535,6 +536,7 @@ export function processReceivedData(
         updatedDataItems.push({
           groupId: mapping.groupId,
           dataItemId: mapping.dataItemId,
+          fieldId: mapping.fieldId,
           value,
           displayValue: finalDisplayValue,
         });

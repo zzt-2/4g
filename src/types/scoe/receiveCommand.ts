@@ -99,6 +99,12 @@ export interface ScoeReceiveCommand {
   checksums: ChecksumConfig[];
   /** 帧实例数组 */
   frameInstances?: SendFrameInstance[];
+  /** 完成条件数组 */
+  completionConditions?: CompletionCondition[];
+  /** 完成条件超时时间（毫秒） */
+  completionTimeout?: number;
+  /** 执行成功发送帧ID */
+  successFrameId?: string;
 }
 
 /**
@@ -111,6 +117,66 @@ export enum ScoeErrorReason {
   SATELLITE_ID_LOADING = '存在正在加载的卫星ID',
   COMMAND_CODE_NOT_FOUND = '不存在该指令码',
   CHECKSUM_ERROR = '校验和错误',
+  COMPLETION_CONDITION_TIMEOUT = '指令完成条件超时',
+}
+
+/**
+ * 匹配运算符枚举
+ */
+export enum MatchOperator {
+  EQUAL = 'equal',
+  NOT_EQUAL = 'not_equal',
+  GREATER_THAN = 'greater_than',
+  LESS_THAN = 'less_than',
+  GREATER_EQUAL = 'greater_equal',
+  LESS_EQUAL = 'less_equal',
+}
+
+/**
+ * 匹配运算符选项
+ */
+export const matchOperatorOptions = [
+  { label: '等于', value: MatchOperator.EQUAL },
+  { label: '不等于', value: MatchOperator.NOT_EQUAL },
+  { label: '大于', value: MatchOperator.GREATER_THAN },
+  { label: '小于', value: MatchOperator.LESS_THAN },
+  { label: '大于等于', value: MatchOperator.GREATER_EQUAL },
+  { label: '小于等于', value: MatchOperator.LESS_EQUAL },
+];
+
+/**
+ * 条件选项（当使用参数时）
+ * 直接使用参数的选项，只需配置匹配规则和匹配值
+ */
+export interface CompletionConditionOption {
+  /** 匹配运算符 */
+  operator: MatchOperator;
+  /** 匹配值 */
+  matchValue: string;
+}
+
+/**
+ * 指令完成条件
+ */
+export interface CompletionCondition {
+  /** 唯一标识 */
+  id: string;
+  /** 标签 */
+  label: string;
+  /** 来源帧ID */
+  sourceFrameId: string;
+  /** 来源字段ID */
+  sourceFieldId: string;
+  /** 是否使用参数 */
+  useParam: boolean;
+  /** 目标参数ID（当useParam为true时） */
+  targetParamId?: string;
+  /** 目标固定值（当useParam为false时） */
+  targetFixedValue?: string;
+  /** 匹配运算符（当useParam为false时） */
+  operator?: MatchOperator;
+  /** 条件选项列表（当useParam为true时，索引对应参数选项索引） */
+  options?: CompletionConditionOption[];
 }
 
 /**
@@ -125,5 +191,7 @@ export function createDefaultReceiveCommand(id: string): ScoeReceiveCommand {
     checksums: [],
     params: [],
     frameInstances: [],
+    completionConditions: [],
+    completionTimeout: 5000,
   };
 }

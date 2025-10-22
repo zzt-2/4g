@@ -703,6 +703,8 @@ export function useSendTaskExecutor() {
         return await processMultipleInstances(task.id);
       };
 
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // 使用通用定时发送器
       const timedSender = createTimedSender(task, config, taskTimerIds, sendFunction);
       await timedSender.start();

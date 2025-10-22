@@ -12,6 +12,7 @@
 
 import { useScoeStore } from '../../stores/scoeStore';
 import { useScoeFrameInstancesStore } from '../../stores/frames/scoeFrameInstancesStore';
+import { useFrameTemplateStore } from '../../stores/framesStore';
 import { ScoeCommandFunction, ScoeErrorReason, type ScoeReceiveCommand } from '../../types/scoe';
 import {
   executeLoadSatelliteId,
@@ -21,6 +22,9 @@ import {
   executeSendFrame,
   executeReadFileAndSend,
 } from './commands';
+import { waitForCompletionConditions } from '../../utils/receive/scoeFrame';
+import { createSendFrameInstance } from '../../types/frames/sendInstanceFactories';
+import { useUnifiedSender } from '../frames/sendFrame/useUnifiedSender';
 
 /**
  * 指令执行结果
@@ -65,6 +69,8 @@ type CommandExecutor = (context: CommandExecutionContext) => Promise<CommandExec
 export function useScoeCommandExecutor() {
   const scoeStore = useScoeStore();
   const scoeFrameInstancesStore = useScoeFrameInstancesStore();
+  const frameTemplateStore = useFrameTemplateStore();
+  const { sendFrameInstance } = useUnifiedSender();
 
   // ==================== 执行器映射表 ====================
 
@@ -78,6 +84,32 @@ export function useScoeCommandExecutor() {
     [ScoeCommandFunction.LINK_CHECK]: executeLinkCheck,
     [ScoeCommandFunction.SEND_FRAME]: executeSendFrame,
     [ScoeCommandFunction.READ_FILE_AND_SEND]: executeReadFileAndSend,
+  };
+
+  // ==================== 辅助方法 ====================
+
+  /**
+   * 发送成功帧
+   */
+  const sendSuccessFrame = async (): Promise<void> => {
+    const successFrameId = scoeStore.globalConfig.successFrameId;
+    if (!successFrameId) {
+      return;
+    }
+
+    const frame = frameTemplateStore.frames.find((f) => f.id === successFrameId);
+    if (!frame) {
+      console.warn(`[SCOE] 未找到成功发送帧: ${successFrameId}`);
+      return;
+    }
+
+    try {
+      const instance = createSendFrameInstance(frame);
+      await sendFrameInstance('network:scoe-udp:scoe-udp-remote', instance);
+      console.log(`[SCOE] 成功发送帧: ${frame.name}`);
+    } catch (error) {
+      console.error('[SCOE] 发送成功帧失败:', error);
+    }
   };
 
   // ==================== 核心执行方法 ====================
@@ -131,13 +163,28 @@ export function useScoeCommandExecutor() {
       const duration = performance.now() - startTime;
       result.duration = duration;
 
-      // 统一更新状态计数器
-      if (result.success) {
-        scoeStore.status.commandSuccessCount++;
-      } else {
+      if (!result.success) {
         scoeStore.status.commandErrorCount++;
-        // 如果执行器返回了错误原因，使用它；否则使用消息
         scoeStore.status.lastErrorReason = result.errorReason || result.message;
+      } else {
+        // 执行成功，异步等待完成条件（不阻塞后续数据接收）
+        const resolvedParams = params?.resolvedParams as Record<string, string> | undefined;
+
+        // 不使用 await，让条件检查在后台运行，避免阻塞数据接收
+        waitForCompletionConditions(command, resolvedParams)
+          .then(async () => {
+            // 条件满足，发送成功帧
+            scoeStore.status.commandSuccessCount++;
+            scoeStore.status.receiveCommandSuccess = true;
+            await sendSuccessFrame();
+            console.log(`[SCOE] ✅ 指令 ${command.label} 完成条件已满足`);
+          })
+          .catch((error) => {
+            // 条件超时或失败
+            scoeStore.status.commandErrorCount++;
+            scoeStore.status.lastErrorReason = error instanceof Error ? error.message : '条件超时';
+            console.warn(`[SCOE] ❌ 指令 ${command.label} 完成条件检查失败:`, error);
+          });
       }
 
       console.log(`[SCOE] 指令执行完成: ${command.label}`, {

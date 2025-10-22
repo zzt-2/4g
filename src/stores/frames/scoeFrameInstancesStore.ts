@@ -11,8 +11,9 @@ import type {
   ChecksumConfig,
   ScoeCommandParams,
   ScoeCommandParamsOption,
+  CompletionCondition,
 } from '../../types/scoe';
-import { createDefaultReceiveCommand } from '../../types/scoe';
+import { createDefaultReceiveCommand, MatchOperator } from '../../types/scoe';
 
 /**
  * SCOE 帧实例 Store
@@ -48,6 +49,7 @@ export const useScoeFrameInstancesStore = defineStore('scoeFrameInstances', () =
   // UI 展开状态
   const expandedParamIds = ref<Set<string>>(new Set());
   const expandedInstanceIds = ref<Set<string>>(new Set());
+  const expandedConditionIds = ref<Set<string>>(new Set());
 
   // 计算属性：可用的 SCOE 帧（发送方向）
   const availableSendFrames = computed(() => {
@@ -505,6 +507,70 @@ export const useScoeFrameInstancesStore = defineStore('scoeFrameInstances', () =
     }
   };
 
+  // ==================== 完成条件管理 ====================
+  const addCompletionCondition = () => {
+    if (!localReceiveCommand.value) return;
+    if (!localReceiveCommand.value.completionConditions) {
+      localReceiveCommand.value.completionConditions = [];
+    }
+    const newId = `condition_${Date.now()}`;
+    localReceiveCommand.value.completionConditions.push({
+      id: newId,
+      label: '新条件',
+      sourceFrameId: '',
+      sourceFieldId: '',
+      useParam: false,
+      targetFixedValue: '',
+      operator: MatchOperator.EQUAL,
+      options: [],
+    });
+  };
+
+  const deleteCompletionCondition = (conditionId: string) => {
+    if (!localReceiveCommand.value?.completionConditions) return;
+    const index = localReceiveCommand.value.completionConditions.findIndex(
+      (c) => c.id === conditionId,
+    );
+    if (index !== -1) {
+      localReceiveCommand.value.completionConditions.splice(index, 1);
+      expandedConditionIds.value.delete(conditionId);
+    }
+  };
+
+  const duplicateCompletionCondition = (conditionId: string) => {
+    if (!localReceiveCommand.value?.completionConditions) return;
+    const condition = localReceiveCommand.value.completionConditions.find(
+      (c) => c.id === conditionId,
+    );
+    if (!condition) return;
+    const newCondition = deepClone(condition);
+    newCondition.id = `condition_${Date.now()}`;
+    localReceiveCommand.value.completionConditions.push(newCondition);
+  };
+
+  const updateCompletionCondition = (
+    conditionId: string,
+    updates: Partial<CompletionCondition>,
+  ) => {
+    if (!localReceiveCommand.value?.completionConditions) return;
+    const condition = localReceiveCommand.value.completionConditions.find(
+      (c) => c.id === conditionId,
+    );
+    if (condition) {
+      Object.assign(condition, updates);
+    }
+  };
+
+  const toggleConditionExpansion = (conditionId: string) => {
+    if (expandedConditionIds.value.has(conditionId)) {
+      expandedConditionIds.value.delete(conditionId);
+    } else {
+      expandedConditionIds.value.add(conditionId);
+    }
+  };
+
+  // 条件选项管理已移至组件内部，不再需要这些方法
+
   return {
     // 状态
     direction,
@@ -556,6 +622,7 @@ export const useScoeFrameInstancesStore = defineStore('scoeFrameInstances', () =
     // 展开状态
     expandedParamIds,
     expandedInstanceIds,
+    expandedConditionIds,
 
     // 校验和管理
     addChecksum,
@@ -579,5 +646,12 @@ export const useScoeFrameInstancesStore = defineStore('scoeFrameInstances', () =
     duplicateFrameInstance,
     updateFrameInstanceField,
     toggleInstanceExpansion,
+
+    // 完成条件管理
+    addCompletionCondition,
+    deleteCompletionCondition,
+    duplicateCompletionCondition,
+    updateCompletionCondition,
+    toggleConditionExpansion,
   };
 });

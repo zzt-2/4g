@@ -132,6 +132,9 @@
 
         <!-- 参数和帧实例配置 -->
         <SCOECommandParams />
+
+        <!-- 完成条件配置 -->
+        <SCOECompletionConditions />
       </div>
     </div>
 
@@ -151,6 +154,7 @@ import {
   type ScoeReceiveCommand,
 } from '../../../types/scoe';
 import SCOECommandParams from './SCOECommandParams.vue';
+import SCOECompletionConditions from './SCOECompletionConditions.vue';
 import ConfigurableFieldsList from './ConfigurableFieldsList.vue';
 
 const scoeFrameInstancesStore = useScoeFrameInstancesStore();

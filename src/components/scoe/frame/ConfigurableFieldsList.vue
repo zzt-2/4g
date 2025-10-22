@@ -17,9 +17,8 @@
 
         <!-- 输入控件 -->
         <div class="flex-1">
-          <q-select v-if="field.inputType === 'select'" :model-value="field.value"
-            :options="field.options?.length ? field.options : defaultOptions" dense outlined dark option-value="value"
-            option-label="label" emit-value map-options bg-color="industrial-panel" class="q-input-class"
+          <q-select v-if="field.inputType === 'select'" :model-value="field.value" :options="field.options" dense
+            outlined dark emit-value map-options bg-color="industrial-panel" class="q-input-class"
             @update:model-value="$emit('update:field-value', field.id, $event)" />
 
           <q-option-group v-else-if="field.inputType === 'radio'" :model-value="field.value" :options="(field.options?.length ? field.options : defaultOptions).map(opt => ({

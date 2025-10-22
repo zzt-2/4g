@@ -50,28 +50,33 @@ export async function executeReadFileAndSend(
         continue;
       }
 
-      // 拼接文件路径
-      const filePath = await pathAPI.resolve(
-        dataPath,
-        SCOE_PARAMS_BASE_PATH,
-        resolvedParams[param.id] || '',
-      );
+      if (resolvedParams[param.id]?.includes('.txt')) {
+        // 拼接文件路径
+        const filePath = await pathAPI.resolve(
+          dataPath,
+          SCOE_PARAMS_BASE_PATH,
+          resolvedParams[param.id] || '',
+        );
 
-      // 读取文件
-      const result = await filesAPI.readTextFile(filePath);
-      if (!result.success || !result.content) {
-        console.warn(`[SCOE] 读取文件失败: ${filePath}`, result.message);
-        continue;
+        // 读取文件
+        const result = await filesAPI.readTextFile(filePath);
+        if (!result.success || !result.content) {
+          console.warn(`[SCOE] 读取文件失败: ${filePath}`, result.message);
+          continue;
+        }
+
+        // 解析文件内容：按行分割，过滤空行
+        const values = result.content
+          .split(/[\n\r]+/)
+          .map((v) => v.trim())
+          .filter((v) => v !== '');
+
+        fieldVariationsMap[param.id] = values;
+        maxLength = Math.max(maxLength, values.length);
+      } else {
+        fieldVariationsMap[param.id] = resolvedParams[param.id]?.split(',') || [''];
+        maxLength = Math.max(maxLength, fieldVariationsMap[param.id]?.length || 0);
       }
-
-      // 解析文件内容：按行分割，过滤空行
-      const values = result.content
-        .split(/[\n\r]+/)
-        .map((v) => v.trim())
-        .filter((v) => v !== '');
-
-      fieldVariationsMap[param.id] = values;
-      maxLength = Math.max(maxLength, values.length);
     }
 
     if (maxLength === 0) {

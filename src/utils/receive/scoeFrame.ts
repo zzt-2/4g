@@ -2,6 +2,7 @@
  * SCOE 帧识别和处理工具函数
  */
 
+import { useReceiveFramesStore } from 'src/stores/frames/receiveFramesStore';
 import type {
   ScoeSatelliteConfig,
   ScoeGlobalConfig,
@@ -9,7 +10,7 @@ import type {
   ChecksumConfig,
   ScoeCommandParams,
 } from '../../types/scoe';
-import { convertToHex } from '../frames/hexCovertUtils';
+import { convertToHex, compareValues } from '../frames/hexCovertUtils';
 
 /**
  * SCOE 帧识别结果
@@ -50,14 +51,14 @@ function validateFunctionCode(
   // 提取功能码的4个字节
   const byte1 = data[offset]; // SCOE标识
   const byte2 = data[offset + 1]; // 指令码
-  const byte3 = data[offset + 2]; // 应为 0xAA
-  const byte4 = data[offset + 3]; // 应为 0xAA
+  // const byte3 = data[offset + 2]; // 应为 0xAA
+  // const byte4 = data[offset + 3]; // 应为 0xAA
 
   // 转换为十六进制字符串进行比对
   const byte1Hex = convertToHex(byte1 || 0, 'uint8');
   const byte2Hex = convertToHex(byte2 || 0, 'uint8');
-  const byte3Hex = convertToHex(byte3 || 0, 'uint8');
-  const byte4Hex = convertToHex(byte4 || 0, 'uint8');
+  // const byte3Hex = convertToHex(byte3 || 0, 'uint8');
+  // const byte4Hex = convertToHex(byte4 || 0, 'uint8');
 
   // 标准化 SCOE 标识（移除0x前缀，转大写）
   const normalizedScoeId = scoeIdentifier.replace(/^0x/i, '').toUpperCase().padStart(2, '0');
@@ -71,12 +72,12 @@ function validateFunctionCode(
   }
 
   // 验证第3、4字节：应为 AA
-  if (byte3Hex !== 'AA' || byte4Hex !== 'AA') {
-    return {
-      valid: false,
-      error: `功能码第3、4字节应为 AA，实际 ${byte3Hex} ${byte4Hex}`,
-    };
-  }
+  // if (byte3Hex !== 'AA' || byte4Hex !== 'AA') {
+  //   return {
+  //     valid: false,
+  //     error: `功能码第3、4字节应为 AA，实际 ${byte3Hex} ${byte4Hex}`,
+  //   };
+  // }
 
   // 查找匹配的指令码
   const matchedCommand = receiveCommands.find((cmd) => {
@@ -387,24 +388,153 @@ export function extractAndResolveParams(
     const normalizedHex = hexString.toUpperCase();
 
     // 在选项中查找匹配的 receiveCode
-    let resolvedValue = normalizedHex; // 默认返回原始十六进制
-
     if (param.options && param.options.length > 0) {
       const matchedOption = param.options.find((opt) => {
         const normalizedReceiveCode = opt.receiveCode
           .replace(/^0x/i, '')
           .toUpperCase()
           .padStart(param.length * 2, '0');
-        return normalizedReceiveCode === normalizedHex;
+        return normalizedReceiveCode === normalizedHex || opt.receiveCode === '';
       });
 
       if (matchedOption) {
-        resolvedValue = matchedOption.value;
+        result[param.id] = matchedOption.value;
       }
     }
-
-    result[param.id] = resolvedValue;
   }
 
   return result;
+}
+
+/**
+ * 检查完成条件是否满足
+ * @param command 指令对象（包含参数信息）
+ * @param allFrameData 所有接收帧数据
+ * @param resolvedParams 已解析的参数映射
+ * @returns 是否所有条件都满足
+ */
+export function checkCompletionConditions(
+  command: ScoeReceiveCommand,
+  resolvedParams?: Record<string, string>,
+): boolean {
+  const conditions = command.completionConditions;
+  if (!conditions || conditions.length === 0) {
+    return true;
+  }
+
+  const allFrameData = useReceiveFramesStore().allReceiveFrameData;
+
+  for (const condition of conditions) {
+    // 获取来源字段的值
+    const frameData = allFrameData.get(condition.sourceFrameId);
+    if (!frameData) {
+      console.warn(`[SCOE] 条件检查失败：未找到帧 ${condition.sourceFrameId} 的数据`);
+      return false;
+    }
+
+    const sourceValue = frameData.get(condition.sourceFieldId);
+    if (sourceValue === undefined) {
+      console.warn(`[SCOE] 条件检查失败：未找到字段 ${condition.sourceFieldId} 的值`);
+      return false;
+    }
+
+    // 判断是否使用参数
+    if (condition.useParam && condition.targetParamId && resolvedParams) {
+      // 使用参数：根据参数值查找对应的匹配规则
+      const paramValue = resolvedParams[condition.targetParamId];
+      if (!paramValue) {
+        console.warn(`[SCOE] 条件检查失败：未找到参数 ${condition.targetParamId} 的值`);
+        return false;
+      }
+
+      // 通过索引匹配：找到参数选项的索引，然后使用相同索引的条件选项
+      const param = command.params?.find((p) => p.id === condition.targetParamId);
+      if (!param?.options) {
+        console.warn(`[SCOE] 条件检查失败：参数 ${condition.targetParamId} 没有选项`);
+        return false;
+      }
+
+      // 找到参数值对应的选项索引
+      const paramOptionIndex = param.options.findIndex((opt) => opt.value === paramValue);
+      if (paramOptionIndex === -1) {
+        console.warn(`[SCOE] 条件检查失败：参数值 ${paramValue} 不在参数选项中`);
+        return false;
+      }
+
+      // 使用相同索引的条件选项
+      const matchedOption = condition.options?.[paramOptionIndex];
+
+      if (!matchedOption) {
+        console.warn(`[SCOE] 条件检查失败：参数值 ${paramValue} 没有对应的匹配规则`);
+        return false;
+      }
+
+      // 使用匹配规则进行比较
+      if (!compareValues(sourceValue, matchedOption.matchValue, matchedOption.operator)) {
+        return false;
+      }
+    } else {
+      // 不使用参数：直接比较固定值
+      if (!condition.targetFixedValue || !condition.operator) {
+        console.warn(`[SCOE] 条件检查失败：缺少目标值或匹配符`);
+        return false;
+      }
+
+      if (!compareValues(sourceValue, condition.targetFixedValue, condition.operator)) {
+        return false;
+      }
+    }
+  }
+
+  // 所有条件都满足
+  return true;
+}
+
+/**
+ * 等待完成条件满足（使用定时器轮询）
+ * @param command 指令对象（包含参数信息）
+ * @param getAllFrameData 获取所有接收帧数据的函数
+ * @param resolvedParams 已解析的参数
+ * @param checkInterval 检查间隔（毫秒），默认100ms
+ * @returns Promise，满足时resolve，超时时reject
+ */
+export function waitForCompletionConditions(
+  command: ScoeReceiveCommand,
+  resolvedParams: Record<string, string> | undefined,
+  checkInterval = 100,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // 如果没有条件，直接resolve
+    if (!command.completionConditions || command.completionConditions.length === 0) {
+      resolve();
+      return;
+    }
+
+    const timeout = command.completionTimeout || 5000;
+    const startTime = Date.now();
+
+    // 定时检查函数
+    const checkConditions = () => {
+      // 检查是否超时
+      if (Date.now() - startTime >= timeout) {
+        clearInterval(intervalId);
+        reject(new Error('指令完成条件超时'));
+        return;
+      }
+
+      // 检查条件是否满足
+      const satisfied = checkCompletionConditions(command, resolvedParams);
+
+      if (satisfied) {
+        clearInterval(intervalId);
+        resolve();
+      }
+    };
+
+    // 设置定时器定期检查
+    const intervalId = setInterval(checkConditions, checkInterval);
+
+    // 立即检查一次
+    checkConditions();
+  });
 }

@@ -118,6 +118,7 @@ export interface DataProcessResult {
   updatedDataItems?: {
     groupId: number;
     dataItemId: number;
+    fieldId: string; // 新增：字段ID，用于直接更新帧数据缓存
     value: unknown;
     displayValue: string;
   }[]; // 更新的数据项

@@ -25,6 +25,13 @@ export const receiveAPI = {
   ): Promise<{
     success: boolean;
     updatedGroups?: DataGroup[];
+    updatedDataItems?: {
+      groupId: number;
+      dataItemId: number;
+      fieldId: string;
+      value: unknown;
+      displayValue: string;
+    }[];
     recentPacket?: ReceivedDataPacket;
     frameStats?: Partial<ReceiveFrameStats>;
     scoeFrameStats?: Partial<ReceiveScoeFrameStats>;

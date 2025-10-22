@@ -1113,7 +1113,98 @@
         "targetId": "network:scoe-udp:scoe-udp-remote"
       }
     ],
-    "updatedAt": "2025-10-21T08:16:38.833Z"
+    "updatedAt": "2025-10-22T09:29:35.848Z",
+    "completionConditions": [
+      {
+        "id": "condition_1761125336736",
+        "label": "新条件",
+        "sourceFrameId": "R-FPGA-003",
+        "sourceFieldId": "zEnfG5hlybqqEbAZcHSCM",
+        "useParam": true,
+        "targetFixedValue": "",
+        "operator": "equal",
+        "options": [
+          {
+            "operator": "equal",
+            "matchValue": "0"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "1"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "2"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "3"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "4"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "5"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "6"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "7"
+          }
+        ],
+        "targetParamId": "param_1761034183708"
+      },
+      {
+        "id": "condition_1761125361440",
+        "label": "新条件",
+        "sourceFrameId": "R-FPGA-003",
+        "sourceFieldId": "K_zm7f9H0zDYTppA0unrX",
+        "useParam": true,
+        "targetFixedValue": "",
+        "operator": "equal",
+        "options": [
+          {
+            "operator": "equal",
+            "matchValue": "4"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "3"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "2"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "1"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "0"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "7"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "6"
+          },
+          {
+            "operator": "equal",
+            "matchValue": "5"
+          }
+        ],
+        "targetParamId": "param_1761034189893"
+      }
+    ],
+    "completionTimeout": 5000
   },
   {
     "id": "8",
@@ -1151,7 +1242,7 @@
             "receiveCode": "04"
           }
         ],
-        "targetInstanceId": "1",
+        "targetInstanceId": "0",
         "targetFieldId": "jkzNsigeDOaFJPnvhxGks"
       }
     ],
@@ -1220,7 +1311,7 @@
             "dataType": "uint16",
             "inputType": "select",
             "description": "",
-            "value": "0x0020",
+            "value": "0x0002",
             "validOption": {
               "isChecksum": false,
               "startFieldIndex": "0",
@@ -1282,6 +1373,589 @@
         "targetId": "network:scoe-udp:scoe-udp-remote"
       }
     ],
-    "updatedAt": "2025-10-21T08:17:47.731Z"
+    "updatedAt": "2025-10-22T09:26:35.984Z",
+    "completionTimeout": 5000,
+    "completionConditions": []
+  },
+  {
+    "id": "9",
+    "label": "距离模拟",
+    "code": "A0",
+    "function": "read_file_and_send",
+    "checksums": [],
+    "params": [
+      {
+        "id": "param_1761100667688",
+        "label": "新参数",
+        "value": "",
+        "type": "string",
+        "offset": 0,
+        "length": 1,
+        "options": [
+          {
+            "label": "新选项",
+            "value": "1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,",
+            "receiveCode": "11"
+          }
+        ],
+        "targetInstanceId": "0",
+        "targetFieldId": "vi2ZPUkkfghm5v5v730M_"
+      }
+    ],
+    "frameInstances": [
+      {
+        "id": "1761102117638",
+        "label": "距离模拟",
+        "frameId": "S-FPGA-005",
+        "description": "",
+        "paramCount": 3,
+        "createdAt": "2025-10-22T03:01:57.638Z",
+        "updatedAt": "2025-10-22T03:01:57.638Z",
+        "fields": [
+          {
+            "id": "CkmZkov98vbh2H79XP23l",
+            "label": "帧头",
+            "dataType": "uint32",
+            "inputType": "input",
+            "description": "",
+            "value": "0x1acf8005",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct"
+          },
+          {
+            "id": "Xvq_Q-hoDcZAzRNsxusv9",
+            "label": "距离步进(km)",
+            "dataType": "float",
+            "inputType": "input",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect"
+          },
+          {
+            "id": "vi2ZPUkkfghm5v5v730M_",
+            "label": "距离(km)",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "距离+距离步进"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "距离步进",
+                  "sourceType": "current_field",
+                  "sourceId": "Xvq_Q-hoDcZAzRNsxusv9",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "距离",
+                  "sourceType": "current_field",
+                  "sourceId": "vi2ZPUkkfghm5v5v730M_",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "Pq6vtflJ7nFYHgcMfltCD",
+            "label": "帧距",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "速率==0",
+                  "expression": "479.6679328"
+                },
+                {
+                  "condition": "速率==1",
+                  "expression": "959.3358656"
+                },
+                {
+                  "condition": "速率==2",
+                  "expression": "1918.6717312"
+                },
+                {
+                  "condition": "速率==3",
+                  "expression": "3837.3434624"
+                },
+                {
+                  "condition": "速率==4",
+                  "expression": "7674.6869248"
+                },
+                {
+                  "condition": "速率==5",
+                  "expression": "1951.7738151"
+                },
+                {
+                  "condition": "速率==6",
+                  "expression": "3903.5476302"
+                },
+                {
+                  "condition": "速率==7",
+                  "expression": "7807.0952604"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "速率",
+                  "sourceType": "frame_field",
+                  "sourceId": "zEnfG5hlybqqEbAZcHSCM",
+                  "frameId": "R-FPGA-003",
+                  "fieldId": "zEnfG5hlybqqEbAZcHSCM"
+                }
+              ]
+            }
+          },
+          {
+            "id": "P-nyZr8R3KRfyT8L6_UXA",
+            "label": "处理时钟对应距离",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "1.9186717312",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "v<=4",
+                  "expression": "1.9186717312"
+                },
+                {
+                  "condition": "v>4",
+                  "expression": "1.9060291163"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "v",
+                  "sourceType": "current_field",
+                  "sourceId": "pQwI-Fdx0S6CA7TNFrkOT",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "-mUCuzDOTu__Ymhnj-BEv",
+            "label": "采样时钟对应距离",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0.0299792458",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "v<=4",
+                  "expression": "0.0299792458"
+                },
+                {
+                  "condition": "v>4",
+                  "expression": "0.0297817049"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "v",
+                  "sourceType": "current_field",
+                  "sourceId": "pQwI-Fdx0S6CA7TNFrkOT",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "90F6loNP96Z0aigVCH55I",
+            "label": "光速",
+            "dataType": "uint32",
+            "inputType": "input",
+            "description": "",
+            "value": "299792458",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect"
+          },
+          {
+            "id": "DCAcBSYGy8nMeQotWdrvt",
+            "label": "帧数n",
+            "dataType": "uint32",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "距离*1000/帧距"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "距离",
+                  "sourceType": "current_field",
+                  "sourceId": "vi2ZPUkkfghm5v5v730M_",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "光速",
+                  "sourceType": "current_field",
+                  "sourceId": "90F6loNP96Z0aigVCH55I",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧距",
+                  "sourceType": "current_field",
+                  "sourceId": "Pq6vtflJ7nFYHgcMfltCD",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "twKzEBKDGLg7B9NMKSgcY",
+            "label": "处理时钟数m",
+            "dataType": "uint16",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 2,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "(距离*1000-帧数*帧距)/处理时钟对应距离"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "光速",
+                  "sourceType": "current_field",
+                  "sourceId": "90F6loNP96Z0aigVCH55I",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "距离",
+                  "sourceType": "current_field",
+                  "sourceId": "vi2ZPUkkfghm5v5v730M_",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧数",
+                  "sourceType": "current_field",
+                  "sourceId": "DCAcBSYGy8nMeQotWdrvt",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧距",
+                  "sourceType": "current_field",
+                  "sourceId": "Pq6vtflJ7nFYHgcMfltCD",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "处理时钟对应距离",
+                  "sourceType": "current_field",
+                  "sourceId": "P-nyZr8R3KRfyT8L6_UXA",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "Zz7Y-Cec9AsMILSLAi7OG",
+            "label": "采样时钟数k",
+            "dataType": "uint8",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 1,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "(距离*1000-帧数*帧距-处理时钟数*处理时钟对应距离)/采样时钟对应距离"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "光速",
+                  "sourceType": "current_field",
+                  "sourceId": "90F6loNP96Z0aigVCH55I",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "距离",
+                  "sourceType": "current_field",
+                  "sourceId": "vi2ZPUkkfghm5v5v730M_",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧数",
+                  "sourceType": "current_field",
+                  "sourceId": "DCAcBSYGy8nMeQotWdrvt",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧距",
+                  "sourceType": "current_field",
+                  "sourceId": "Pq6vtflJ7nFYHgcMfltCD",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "处理时钟对应距离",
+                  "sourceType": "current_field",
+                  "sourceId": "P-nyZr8R3KRfyT8L6_UXA",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "处理时钟数",
+                  "sourceType": "current_field",
+                  "sourceId": "twKzEBKDGLg7B9NMKSgcY",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "采样时钟对应距离",
+                  "sourceType": "current_field",
+                  "sourceId": "-mUCuzDOTu__Ymhnj-BEv",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "kEa-mpjrg7kQ4_Tdwv2J_",
+            "label": "残余距离h",
+            "dataType": "uint32",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "(距离*1000-帧数*帧距-处理时钟数*处理时钟对应距离-采样时钟数*采样时钟对应距离)*10000"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "光速",
+                  "sourceType": "current_field",
+                  "sourceId": "90F6loNP96Z0aigVCH55I",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "距离",
+                  "sourceType": "current_field",
+                  "sourceId": "vi2ZPUkkfghm5v5v730M_",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧数",
+                  "sourceType": "current_field",
+                  "sourceId": "DCAcBSYGy8nMeQotWdrvt",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "帧距",
+                  "sourceType": "current_field",
+                  "sourceId": "Pq6vtflJ7nFYHgcMfltCD",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "处理时钟对应距离",
+                  "sourceType": "current_field",
+                  "sourceId": "P-nyZr8R3KRfyT8L6_UXA",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "处理时钟数",
+                  "sourceType": "current_field",
+                  "sourceId": "twKzEBKDGLg7B9NMKSgcY",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "采样时钟对应距离",
+                  "sourceType": "current_field",
+                  "sourceId": "-mUCuzDOTu__Ymhnj-BEv",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "采样时钟数",
+                  "sourceType": "current_field",
+                  "sourceId": "Zz7Y-Cec9AsMILSLAi7OG",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          }
+        ],
+        "isFavorite": false,
+        "isSCOEFrame": false,
+        "strategyConfig": {
+          "type": "none",
+          "updatedAt": "2025-10-22T03:01:57.638Z"
+        },
+        "sendCount": 0,
+        "targetId": "network:scoe-tcp-server"
+      }
+    ],
+    "updatedAt": "2025-10-22T03:02:02.670Z",
+    "sendInterval": 20
   }
 ]

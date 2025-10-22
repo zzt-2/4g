@@ -1,9 +1,24 @@
 <template>
   <div class="bg-industrial-panel flex flex-col">
     <!-- 顶部控制区 -->
-    <div class="bg-industrial-secondary p-3 border-b border-industrial">
+    <div class="flex flex-col bg-industrial-secondary p-3 gap-3 border-b border-industrial">
+      <div class="flex items-center gap-2">
+        <!-- 搜索框 -->
+        <q-input v-model="searchText" class="flex-1" dense outlined dark
+          :placeholder="scoeFrameInstancesStore.direction === 'send' ? '搜索帧实例...' : '搜索接收指令...'"
+          bg-color="industrial-panel" input-class="text-industrial-primary text-sm">
+          <template v-slot:prepend>
+            <q-icon name="search" size="xs" />
+          </template>
+        </q-input>
+
+        <!-- 导入导出按钮 -->
+        <ImportExportActions :getData="handleGetScoeConfig" :setData="handleSetScoeConfig"
+          storageDir="data/scoe/scoeConfigs" exportTitle="导出SCOE配置" importTitle="导入SCOE配置" />
+      </div>
+
       <!-- 方向选择 -->
-      <div class="flex gap-2 mb-3">
+      <div class="flex gap-2">
         <q-btn
           :class="scoeFrameInstancesStore.direction === 'send' ? 'btn-industrial-primary' : 'btn-industrial-secondary'"
           size="sm" class="flex-1" @click="scoeFrameInstancesStore.direction = 'send'">
@@ -17,15 +32,6 @@
           接收
         </q-btn>
       </div>
-
-      <!-- 搜索框 -->
-      <q-input v-model="searchText" dense outlined dark
-        :placeholder="scoeFrameInstancesStore.direction === 'send' ? '搜索帧实例...' : '搜索接收指令...'"
-        bg-color="industrial-panel" input-class="text-industrial-primary text-sm">
-        <template v-slot:prepend>
-          <q-icon name="search" size="xs" />
-        </template>
-      </q-input>
     </div>
 
     <!-- 中间：帧实例/接收指令列表 -->
@@ -115,6 +121,7 @@ import { useQuasar } from 'quasar';
 import { useScoeFrameInstancesStore } from '../../../stores/frames/scoeFrameInstancesStore';
 import type { SendFrameInstance } from '../../../types/frames/sendInstances';
 import type { ScoeReceiveCommand } from '../../../types/scoe';
+import ImportExportActions from '../../common/ImportExportActions.vue';
 
 const $q = useQuasar();
 const scoeFrameInstancesStore = useScoeFrameInstancesStore();
@@ -258,6 +265,16 @@ const handleDeleteInstance = (instanceId: string) => {
       });
     }
   });
+};
+
+const handleGetScoeConfig = () => {
+  return { sendInstances: scoeFrameInstancesStore.sendInstances, receiveCommands: scoeFrameInstancesStore.receiveCommands };
+};
+
+const handleSetScoeConfig = async (data: unknown) => {
+  const dataConfig = data as { sendInstances: SendFrameInstance[], receiveCommands: ScoeReceiveCommand[] };
+  scoeFrameInstancesStore.sendInstances = dataConfig.sendInstances;
+  scoeFrameInstancesStore.receiveCommands = dataConfig.receiveCommands;
 };
 
 </script>

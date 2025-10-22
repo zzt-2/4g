@@ -37,6 +37,13 @@ async function handleReceivedData(
 ): Promise<{
   success: boolean;
   updatedGroups?: DataGroup[];
+  updatedDataItems?: {
+    groupId: number;
+    dataItemId: number;
+    fieldId: string;
+    value: unknown;
+    displayValue: string;
+  }[];
   recentPacket?: ReceivedDataPacket;
   frameStats?: Partial<ReceiveFrameStats>;
   scoeFrameStats?: Partial<ReceiveScoeFrameStats>;
@@ -134,6 +141,7 @@ async function handleReceivedData(
     return {
       success: true,
       updatedGroups,
+      ...(processResult.updatedDataItems && { updatedDataItems: processResult.updatedDataItems }),
       recentPacket: packet,
       frameStats,
       receiveStats,

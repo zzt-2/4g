@@ -4,7 +4,7 @@
 
 import type { CommandExecutionContext, CommandExecutionResult } from '../useScoeCommandExecutor';
 import { useUnifiedSender } from '../../frames/sendFrame/useUnifiedSender';
-import { deepClone } from '../../../utils/frames/frameUtils';
+import { useScoeFrameInstancesStore } from 'src/stores/frames/scoeFrameInstancesStore';
 
 /**
  * 执行发送帧指令
@@ -19,7 +19,9 @@ export async function executeSendFrame(
 
   try {
     // 获取帧实例列表
-    const frameInstances = command.frameInstances;
+    const frameInstances = useScoeFrameInstancesStore().receiveCommands.find(
+      (cmd) => cmd.id === command.id,
+    )?.frameInstances;
     if (!frameInstances || frameInstances.length === 0) {
       return {
         success: false,
@@ -30,15 +32,12 @@ export async function executeSendFrame(
     const { sendFrameInstance } = useUnifiedSender();
 
     // 遍历每个帧实例
-    for (const instance of frameInstances) {
-      // 深拷贝帧实例，避免修改原始数据
-      const instanceCopy = deepClone(instance);
-
+    frameInstances.forEach(async (instance) => {
       // 如果有参数，将参数值赋给对应字段
       if (command.params && resolvedParams) {
         for (const param of command.params) {
           if (param.targetFieldId && resolvedParams[param.id]) {
-            const field = instanceCopy.fields.find((f) => f.id === param.targetFieldId);
+            const field = instance.fields.find((f) => f.id === param.targetFieldId);
             if (field) {
               field.value = resolvedParams[param.id] || '';
             }
@@ -47,11 +46,9 @@ export async function executeSendFrame(
       }
 
       // 发送帧实例
-      await sendFrameInstance(
-        instanceCopy.targetId || 'network:scoe-udp:scoe-udp-remote',
-        instanceCopy,
-      );
-    }
+      await sendFrameInstance(instance.targetId || 'network:scoe-udp:scoe-udp-remote', instance);
+      await new Promise((resolve) => setTimeout(resolve, command.sendInterval || 0));
+    });
 
     return {
       success: true,

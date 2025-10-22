@@ -28,7 +28,7 @@ export function useScoeTestTool() {
   const maxRecordLines = ref(30);
 
   // 发送是否停止
-  const sendStopped = ref(false);
+  const sendStopped = ref(true);
 
   // 接收是否停止
   const receiveStopped = ref(false);

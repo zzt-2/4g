@@ -77,6 +77,8 @@ export interface ScoeStatus {
   linkTestResult: 'unknown' | 'pass' | 'fail';
   /** SCOE帧是否加载 */
   scoeFramesLoaded: boolean;
+  /** 接收指令执行完成 */
+  receiveCommandSuccess: boolean;
 }
 
 export interface ScoeStatusUpdate {
@@ -119,6 +121,9 @@ export interface ScoeGlobalConfig {
   satelliteIdOffset: number;
   /** 功能码起始字节 */
   functionCodeOffset: number;
+
+  /** 执行成功发送帧ID */
+  successFrameId?: string;
 
   /** 测试工具高亮配置 */
   highlightConfigs?: import('./highlightConfig').HighlightConfigs;
@@ -165,6 +170,7 @@ export const defaultScoeStatus: ScoeStatus = {
   healthStatus: 'unknown',
   linkTestResult: 'unknown',
   scoeFramesLoaded: false,
+  receiveCommandSuccess: false,
 };
 
 export const defaultScoeStatusUpdate: ScoeStatusUpdate = {
@@ -242,6 +248,7 @@ export function getScoeDataSourceOptions(): Array<{ label: string; value: string
     { label: '健康状态', value: 'status.healthStatus', group: '状态信息' },
     { label: '链路自检结果', value: 'status.linkTestResult', group: '状态信息' },
     { label: 'SCOE帧是否加载', value: 'status.scoeFramesLoaded', group: '状态信息' },
+    { label: '接收指令执行完成', value: 'status.receiveCommandSuccess', group: '状态信息' },
 
     // 配置信息 - 卫星ID
     { label: '配置-卫星ID', value: 'config.satelliteId', group: '配置信息' },

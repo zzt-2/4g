@@ -25,22 +25,22 @@
     },
     {
       "id": "2",
-      "satelliteId": "",
+      "satelliteId": "3",
       "sendConfig": {
         "satelliteIdentifier": "",
-        "messageIdentifier": "",
-        "sourceIdentifier": "",
-        "destinationIdentifier": "",
-        "udpIpAddress": "",
-        "udpPort": 0
+        "messageIdentifier": "2",
+        "sourceIdentifier": "3",
+        "destinationIdentifier": "4",
+        "udpIpAddress": "127.0.0.1",
+        "udpPort": "1000"
       },
       "receiveConfig": {
         "satelliteIdentifier": "",
-        "messageIdentifier": "",
-        "sourceIdentifier": "",
-        "destinationIdentifier": "",
-        "modelId": "",
-        "satelliteId": "",
+        "messageIdentifier": "4",
+        "sourceIdentifier": "5",
+        "destinationIdentifier": "6",
+        "modelId": "1",
+        "satelliteId": "3",
         "recognitionMessageId": true,
         "recognitionSourceId": true,
         "recognitionDestinationId": true
@@ -152,6 +152,12 @@
           "offset": 112,
           "length": 4,
           "id": "15"
+        },
+        {
+          "name": "接收指令执行完成",
+          "offset": 120,
+          "length": 4,
+          "id": "16"
         }
       ],
       "receiveConfigs": [
@@ -216,6 +222,7 @@
           "id": "10"
         }
       ]
-    }
+    },
+    "successFrameId": "SCOE-S-002"
   }
 }

@@ -289,6 +289,7 @@ export const useScoeStore = defineStore('scoe', () => {
    */
   const updateStatus = async () => {
     status.value.runtimeSeconds++;
+    status.value.receiveCommandSuccess = false;
     if (status.value.scoeFramesLoaded) {
       status.value.satelliteIdRuntimeSeconds++;
     } else {

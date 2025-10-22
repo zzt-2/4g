@@ -7,8 +7,8 @@ export const DATA_PATH_MAP = {
   sendInstances: 'data/templates/sendInstances',
   receiveConfig: 'data/templates/receiveConfig',
   scoeSatelliteConfigs: 'data/templates/scoeSatelliteConfigs',
-  scoeFramesSendInstances: 'data/scoeSendInstances',
-  scoeFramesReceiveCommands: 'data/scoeReceiveCommands',
+  scoeFramesSendInstances: 'data/templates/scoeSendInstances',
+  scoeFramesReceiveCommands: 'data/templates/scoeReceiveCommands',
 };
 
 /**

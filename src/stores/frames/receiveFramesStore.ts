@@ -313,30 +313,11 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
       }));
   });
 
-  // 计算属性：获取所有接收帧的当前数据值（用于表达式计算）
-  const allReceiveFrameData = computed(() => {
-    const result = new Map<string, Map<string, unknown>>();
+  // 帧数据缓存：直接存储接收帧的字段值，避免每次都遍历groups和mappings
+  const frameDataCache = ref<Map<string, Map<string, unknown>>>(new Map());
 
-    // 遍历所有接收帧
-    receiveFrames.value.forEach((frame) => {
-      const frameData = new Map<string, unknown>();
-
-      // 获取该帧的映射关系
-      const frameMappings = mappings.value.filter((mapping) => mapping.frameId === frame.id);
-
-      // 根据映射关系获取字段值
-      frameMappings.forEach((mapping) => {
-        const dataItem = findDataItem(groups.value, mapping.groupId, mapping.dataItemId);
-        if (dataItem?.dataItem) {
-          frameData.set(mapping.fieldId, dataItem.dataItem.value);
-        }
-      });
-
-      result.set(frame.id, frameData);
-    });
-
-    return result;
-  });
+  // 计算属性：获取所有接收帧的当前数据值（用于表达式计算和条件检查）
+  const allReceiveFrameData = computed(() => frameDataCache.value);
 
   // 方法：加载配置
   const loadConfig = async (): Promise<void> => {
@@ -946,6 +927,23 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
         addRecentPacket(result.recentPacket);
       }
 
+      // 更新帧数据缓存（直接更新，避免从groups重新计算）
+      if (result.frameStats?.frameId && result.updatedGroups) {
+        const frameId = result.frameStats.frameId;
+        let frameData = frameDataCache.value.get(frameId);
+        if (!frameData) {
+          frameData = new Map<string, unknown>();
+          frameDataCache.value.set(frameId, frameData);
+        }
+
+        // 直接使用 updatedDataItems 中的 fieldId 和 value 更新缓存
+        if (result.updatedDataItems) {
+          result.updatedDataItems.forEach((item) => {
+            frameData!.set(item.fieldId, item.value);
+          });
+        }
+      }
+
       // 智能更新数据分组（保留表达式计算结果）
       if (result.updatedGroups) {
         // 保存当前所有表达式字段的计算结果
@@ -1163,6 +1161,7 @@ export const useReceiveFramesStore = defineStore('receiveFrames', () => {
   const clearReceiveStats = (): void => {
     recentPackets.value = [];
     frameStats.value.clear();
+    frameDataCache.value.clear();
   };
 
   /**
