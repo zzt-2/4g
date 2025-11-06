@@ -272,7 +272,7 @@ const canStartMonitor = computed(() => {
 
   if (triggerType.value === 'condition') {
     // 检查条件触发的必要字段
-    return !!(sourceId.value && triggerFrameId.value && conditions.value.length);
+    return !!(sourceId.value && triggerFrameId.value);
   } else if (triggerType.value === 'time') {
     // 检查时间触发的必要字段
     return !!executeTime.value;
@@ -316,7 +316,7 @@ async function startMonitoring() {
 
     if (triggerType.value === 'condition') {
       // 条件触发
-      if (!sourceId.value || !triggerFrameId.value || !conditions.value.length) {
+      if (!sourceId.value || !triggerFrameId.value) {
         throw new Error('条件触发配置不完整');
       }
 
@@ -665,7 +665,7 @@ function removeCondition(index: number) {
           @click="handleClose" :disable="isProcessing" />
         <div>
           <q-btn color="primary" icon="sensors" label="开始监听" class="rounded-md px-4 text-xs" @click="startMonitoring"
-            :disable="!canStartMonitor || isProcessing" :loading="isProcessing" />
+            :loading="isProcessing" />
         </div>
       </div>
     </div>

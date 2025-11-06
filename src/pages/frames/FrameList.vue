@@ -2,15 +2,8 @@
   <div class="flex flex-col h-full bg-industrial-primary text-industrial-primary">
     <div class="flex justify-between items-center p-3 border-b border-industrial">
       <div class="flex-1 max-w-[400px]">
-        <q-input
-          v-model="searchQuery"
-          placeholder="搜索帧..."
-          dense
-          dark
-          outlined
-          class="bg-industrial-primary"
-          @input="handleSearch"
-        >
+        <q-input v-model="searchQuery" placeholder="搜索帧..." dense dark outlined class="bg-industrial-primary"
+          @input="handleSearch">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -21,31 +14,14 @@
       </div>
       <div class="flex gap-2">
         <q-btn icon="add" color="primary" label="新建帧" @click="createNewFrame()" />
-        <q-btn
-          icon="file_upload"
-          color="secondary"
-          flat
-          @click="handleImport"
-          :loading="isImporting"
-        >
+        <q-btn icon="file_upload" color="secondary" flat @click="handleImport" :loading="isImporting">
           <q-tooltip>导入配置</q-tooltip>
         </q-btn>
-        <q-btn
-          icon="file_download"
-          color="secondary"
-          flat
-          @click="handleExport"
-          :loading="isExporting"
-        >
+        <q-btn icon="file_download" color="secondary" flat @click="handleExport" :loading="isExporting">
           <q-tooltip>导出配置</q-tooltip>
         </q-btn>
-        <q-btn
-          icon="filter_list"
-          color="secondary"
-          flat
-          @click="toggleFilterPanel"
-          :class="{ 'bg-industrial-highlight bg-opacity-30': showFilterPanel }"
-        >
+        <q-btn icon="filter_list" color="secondary" flat @click="toggleFilterPanel"
+          :class="{ 'bg-industrial-highlight bg-opacity-30': showFilterPanel }">
           <q-tooltip>过滤</q-tooltip>
         </q-btn>
         <q-btn icon="refresh" color="secondary" flat @click="refreshData">
@@ -55,45 +31,34 @@
     </div>
 
     <div class="flex flex-1 overflow-hidden h-full gap-3">
-      <div
-        class="flex-1 flex flex-col overflow-hidden rounded-lg border border-solid border-industrial shadow-lg"
-      >
+      <div class="flex-1 flex flex-col overflow-hidden rounded-lg border border-solid border-industrial shadow-lg">
         <div v-if="showFilterPanel" class="bg-industrial-panel border-b border-industrial">
           <FrameFilterPanel @filter="handleFilter" @close="toggleFilterPanel" closable />
         </div>
 
         <div class="flex-1 overflow-auto">
-          <div
-            v-if="templateStore.isLoading"
-            class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary"
-          >
+          <div v-if="templateStore.isLoading"
+            class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary">
             <q-spinner color="primary" size="40px" />
             <div class="mt-4 mb-4">加载中...</div>
           </div>
 
-          <div
-            v-else-if="!filteredFrames.length"
-            class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary"
-          >
+          <div v-else-if="!filteredFrames.length"
+            class="flex flex-col items-center justify-center h-full p-10 text-industrial-secondary">
             <q-icon name="inventory_2" size="48px" color="grey-7" />
             <div class="mt-4 mb-4">没有找到帧配置</div>
             <q-btn label="创建新帧" color="primary" @click="createNewFrame()" />
           </div>
 
           <template v-else>
-            <FrameTable
-              :frames="mappedFrames"
-              :is-loading="templateStore.isLoading"
-              @frame-selected="selectFrame"
-              @action="handleFrameAction"
-            />
+            <FrameTable :frames="mappedFrames" :is-loading="templateStore.isLoading" @frame-selected="selectFrame"
+              @action="handleFrameAction" />
           </template>
         </div>
       </div>
 
       <div
-        class="w-[30vw] rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg"
-      >
+        class="w-[30vw] rounded-lg overflow-hidden border border-solid border-industrial bg-industrial-panel shadow-lg">
         <FrameDetailPanel v-if="selectedFrameData" :frame="selectedFrameData" />
         <div v-else class="flex items-center justify-center h-full text-industrial-secondary">
           选择一个帧查看详情
@@ -354,7 +319,7 @@ async function handleExport() {
     // 使用fileDialogManager打开导出对话框
     const result = await fileDialogManager.exportFile(
       '导出帧配置',
-      `${pathAPI.getDataPath()}/data/frames/configs`, // 存储目录
+      `${pathAPI.getDataPath()}data/frames/configs`, // 存储目录
       framesData, // 直接传递数据对象
     );
 
@@ -389,7 +354,7 @@ async function handleImport() {
     // 使用fileDialogManager打开导入对话框
     const result = await fileDialogManager.importFile(
       '导入帧配置',
-      `${pathAPI.getDataPath()}/data/frames/configs`, // 从指定目录加载
+      `${pathAPI.getDataPath()}data/frames/configs`, // 从指定目录加载
     );
 
     if (!result.canceled && result.fileData) {

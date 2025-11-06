@@ -1386,16 +1386,16 @@
     "params": [
       {
         "id": "param_1761100667688",
-        "label": "新参数",
+        "label": "距离变化",
         "value": "",
         "type": "string",
-        "offset": 0,
+        "offset": 48,
         "length": 1,
         "options": [
           {
-            "label": "新选项",
-            "value": "1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,",
-            "receiveCode": "11"
+            "label": "距离1",
+            "value": "500,600",
+            "receiveCode": "03"
           }
         ],
         "targetInstanceId": "0",
@@ -1955,7 +1955,490 @@
         "targetId": "network:scoe-tcp-server"
       }
     ],
-    "updatedAt": "2025-10-22T03:02:02.670Z",
-    "sendInterval": 20
+    "updatedAt": "2025-10-23T08:12:41.874Z",
+    "sendInterval": 60000
+  },
+  {
+    "id": "10",
+    "label": "速度模拟",
+    "code": "A1",
+    "function": "read_file_and_send",
+    "checksums": [],
+    "params": [
+      {
+        "id": "param_1761100667688",
+        "label": "速度变化",
+        "value": "",
+        "type": "string",
+        "offset": 48,
+        "length": 1,
+        "options": [
+          {
+            "label": "0到6",
+            "value": "1,2,3,4,5,6",
+            "receiveCode": "01"
+          },
+          {
+            "label": "6到-6",
+            "value": "5,4,3,2,1,0,-1,-2,-3,-4,-5,-6",
+            "receiveCode": "02"
+          },
+          {
+            "label": "-6到0",
+            "value": "-5,-4,-3,-2,-1,0",
+            "receiveCode": "03"
+          }
+        ],
+        "targetInstanceId": "0",
+        "targetFieldId": "lOsGa8u4Oe0jmYGsCYWOU"
+      }
+    ],
+    "frameInstances": [
+      {
+        "id": "1761207004512",
+        "label": "速度模拟",
+        "frameId": "S-FPGA-004",
+        "description": "",
+        "paramCount": 6,
+        "createdAt": "2025-10-23T08:10:04.512Z",
+        "updatedAt": "2025-10-23T08:10:04.512Z",
+        "fields": [
+          {
+            "id": "wgx_yyTyOc8xKF8smWXUC",
+            "label": "帧头",
+            "dataType": "uint32",
+            "inputType": "input",
+            "description": "",
+            "value": "0x1acf8004",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct"
+          },
+          {
+            "id": "1MFHFjwWXRfgeNBDAGfMl",
+            "label": "模式选择",
+            "dataType": "uint8",
+            "inputType": "radio",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 1,
+            "configurable": true,
+            "bigEndian": false,
+            "options": [
+              {
+                "value": "0",
+                "label": "星间链路"
+              },
+              {
+                "value": "1",
+                "label": "接入链路"
+              }
+            ],
+            "dataParticipationType": "direct"
+          },
+          {
+            "id": "p2_Tp4UPWDutIZopqgtsA",
+            "label": "速度步进",
+            "dataType": "float",
+            "inputType": "input",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect"
+          },
+          {
+            "id": "lOsGa8u4Oe0jmYGsCYWOU",
+            "label": "速度(km/s)",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "速度+速度步进"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "速度步进",
+                  "sourceType": "current_field",
+                  "sourceId": "p2_Tp4UPWDutIZopqgtsA",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "速度",
+                  "sourceType": "current_field",
+                  "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "qqucn8VfXkwCuTqW1fkmQ",
+            "label": "整数分频比N",
+            "dataType": "uint32",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "速度>0",
+                  "expression": "3200"
+                },
+                {
+                  "condition": "速度<=0",
+                  "expression": "3199"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "速度",
+                  "sourceType": "current_field",
+                  "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "0Zs6QFZprhyzjTbASqp0N",
+            "label": "小数分频比Num",
+            "dataType": "uint32",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "速度>0",
+                  "expression": "13743895344000000/299792458*速度"
+                },
+                {
+                  "condition": "速度<=0",
+                  "expression": "4294967295+13743895344000000/299792458*速度"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "速度",
+                  "sourceType": "current_field",
+                  "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "90F6loNP96Z0aigVCH55I",
+            "label": "光速",
+            "dataType": "uint32",
+            "inputType": "input",
+            "description": "",
+            "value": "299792458",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect"
+          },
+          {
+            "id": "JjRsaCbTCZpmFG74KhWI5",
+            "label": "参考时钟频率变化量(kHz)",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "v>0",
+                  "expression": "3125*Num/4294967295/32"
+                },
+                {
+                  "condition": "v<=0",
+                  "expression": "3125*(Num-4294967295)/4294967295/32"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "N",
+                  "sourceType": "current_field",
+                  "sourceId": "qqucn8VfXkwCuTqW1fkmQ",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "Num",
+                  "sourceType": "current_field",
+                  "sourceId": "0Zs6QFZprhyzjTbASqp0N",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "v",
+                  "sourceType": "current_field",
+                  "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "dzNHfNgbZlY0lF56R11es",
+            "label": "波长",
+            "dataType": "float",
+            "inputType": "radio",
+            "description": "",
+            "value": "1540.56",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [
+              {
+                "value": "1540.56",
+                "label": "1540nm"
+              },
+              {
+                "value": "1563.05",
+                "label": "1563nm"
+              }
+            ],
+            "dataParticipationType": "indirect"
+          },
+          {
+            "id": "I2sJlqufbDxBeNY1uwWMz",
+            "label": "十六进制数",
+            "dataType": "uint32",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": false,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "direct",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "175000000-v/lamda*10000000000"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "v",
+                  "sourceType": "current_field",
+                  "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "lamda",
+                  "sourceType": "current_field",
+                  "sourceId": "dzNHfNgbZlY0lF56R11es",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "Azw4MXTCiXogCD8TAvzlR",
+            "label": "码多普勒(kHz)",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "16*var1"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "var1",
+                  "sourceType": "current_field",
+                  "sourceId": "JjRsaCbTCZpmFG74KhWI5",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "fjBX6l0CNAQx-XcqlNnJa",
+            "label": "光多普勒(MHz)",
+            "dataType": "float",
+            "inputType": "expression",
+            "description": "",
+            "value": "0",
+            "validOption": {
+              "isChecksum": false,
+              "startFieldIndex": "0",
+              "endFieldIndex": "0",
+              "checksumMethod": "sum8"
+            },
+            "factor": 1,
+            "length": 4,
+            "configurable": true,
+            "bigEndian": true,
+            "options": [],
+            "dataParticipationType": "indirect",
+            "expressionConfig": {
+              "expressions": [
+                {
+                  "condition": "true",
+                  "expression": "v/lamda*1000000"
+                }
+              ],
+              "variables": [
+                {
+                  "identifier": "v",
+                  "sourceType": "current_field",
+                  "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+                  "frameId": "",
+                  "fieldId": ""
+                },
+                {
+                  "identifier": "lamda",
+                  "sourceType": "current_field",
+                  "sourceId": "dzNHfNgbZlY0lF56R11es",
+                  "frameId": "",
+                  "fieldId": ""
+                }
+              ]
+            }
+          }
+        ],
+        "isFavorite": false,
+        "isSCOEFrame": false,
+        "strategyConfig": {
+          "type": "none",
+          "updatedAt": "2025-10-23T08:10:04.512Z"
+        },
+        "sendCount": 0,
+        "targetId": "network:scoe-tcp-server"
+      }
+    ],
+    "updatedAt": "2025-10-23T08:12:12.449Z",
+    "sendInterval": 60000
   }
 ]

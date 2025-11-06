@@ -91,6 +91,25 @@ const toggleContentMode = (mode: ContentMode): void => {
   emit('toggle-mode', mode);
 };
 
+// 方法：清理无效映射
+const cleanupInvalidMappings = (): void => {
+  // 执行清理
+  const result = receiveFramesStore.removeInvalidMappings();
+
+  if (result.removedCount > 0) {
+    const mappingsList = result.removedMappings
+      .map(
+        (mapping) =>
+          `• 帧ID: ${mapping.frameId}, 字段ID: ${mapping.fieldId}, 分组ID: ${mapping.groupId}, 数据项ID: ${mapping.dataItemId}`
+      )
+      .join('\n');
+
+    alert(`成功删除 ${result.removedCount} 个无效映射：\n\n${mappingsList}`);
+  } else {
+    alert('没有发现无效的映射关系。');
+  }
+};
+
 // 方法：清理孤立数据项
 const cleanupOrphanedDataItems = (): void => {
   // 先检查有多少孤立数据项
@@ -119,7 +138,6 @@ const cleanupOrphanedDataItems = (): void => {
     const removedList = result.removedItems
       .map((item) => `• ${item.groupLabel} - ${item.dataItemLabel}`)
       .join('\n');
-
     alert(`成功删除 ${result.removedCount} 个孤立数据项：\n\n${removedList}`);
   } else {
     alert('没有删除任何数据项。');
@@ -130,53 +148,50 @@ const cleanupOrphanedDataItems = (): void => {
 <template>
   <div class="h-full flex flex-col bg-industrial-secondary min-w-[240px] max-w-[240px]">
     <!-- 标题栏 -->
-    <div
-      class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header"
-    >
-      <h6
-        class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center"
-      >
-        <q-icon name="folder" size="xs" class="mr-1 text-blue-5" />
+    <div class="flex justify-between items-center p-3 border-b border-industrial bg-industrial-table-header">
+      <h6 class="m-0 text-sm font-medium uppercase tracking-wider text-industrial-primary flex items-center">
         数据分组
       </h6>
 
       <div class="flex items-center space-x-2">
-        <!-- 清理孤立数据项按钮 -->
-        <q-btn
-          v-if="contentMode === 'display'"
-          flat
-          dense
-          size="sm"
-          icon="cleaning_services"
-          color="orange"
-          class="text-xs"
-          @click="cleanupOrphanedDataItems"
-        >
+        <!-- 清理功能下拉菜单 -->
+        <q-btn-dropdown v-if="contentMode === 'display'" flat dense size="sm" icon="cleaning_services" color="orange"
+          class="text-xs" :menu-offset="[0, 8]">
+          <q-list class="bg-industrial-panel text-industrial-primary min-w-[200px]">
+            <q-item clickable v-close-popup class="hover:bg-industrial-highlight" @click="cleanupInvalidMappings">
+              <q-item-section avatar>
+                <q-icon name="link_off" color="orange" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>清理无效映射</q-item-label>
+                <q-item-label caption class="text-industrial-secondary">
+                  删除无效的映射关系
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup class="hover:bg-industrial-highlight" @click="cleanupOrphanedDataItems">
+              <q-item-section avatar>
+                <q-icon name="delete_outline" color="orange" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>清理孤立数据项</q-item-label>
+                <q-item-label caption class="text-industrial-secondary">
+                  删除没有映射的数据项
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
           <q-tooltip class="bg-industrial-panel text-industrial-primary">
-            清理没有对应接收帧的孤立数据项
+            清理工具
           </q-tooltip>
-        </q-btn>
+        </q-btn-dropdown>
 
         <!-- 编辑/显示模式切换按钮 -->
         <div class="flex bg-industrial-secondary rounded">
-          <q-btn
-            flat
-            dense
-            size="sm"
-            :color="contentMode === 'edit' ? 'blue' : 'grey'"
-            label="编辑"
-            class="text-xs px-3 py-1"
-            @click="toggleContentMode('edit')"
-          />
-          <q-btn
-            flat
-            dense
-            size="sm"
-            :color="contentMode === 'display' ? 'blue' : 'grey'"
-            label="显示"
-            class="text-xs px-3 py-1"
-            @click="toggleContentMode('display')"
-          />
+          <q-btn flat dense size="sm" :color="contentMode === 'edit' ? 'blue' : 'grey'" label="编辑"
+            class="text-xs px-3 py-1" @click="toggleContentMode('edit')" />
+          <q-btn flat dense size="sm" :color="contentMode === 'display' ? 'blue' : 'grey'" label="显示"
+            class="text-xs px-3 py-1" @click="toggleContentMode('display')" />
         </div>
       </div>
     </div>
@@ -192,57 +207,31 @@ const cleanupOrphanedDataItems = (): void => {
 
       <!-- 分组表格 -->
       <div v-else class="divide-y divide-industrial">
-        <div
-          v-for="group in groups"
-          :key="group.id"
+        <div v-for="group in groups" :key="group.id"
           class="px-3 py-2 cursor-pointer transition-colors duration-200 hover:bg-industrial-highlight relative group"
           :class="{
             'bg-blue-800 bg-opacity-30 border-l-4 border-l-blue-500 pl-2': isSelected(group),
-          }"
-          @click="selectGroup(group)"
-          @dblclick="editGroup(group)"
-        >
+          }" @click="selectGroup(group)" @dblclick="editGroup(group)">
           <!-- 分组名称 -->
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2 min-w-0 flex-1">
               <q-icon name="folder" :color="isSelected(group) ? 'blue' : 'grey-5'" size="14px" />
-              <span
-                class="text-industrial-primary text-sm font-medium truncate"
-                :title="group.label"
-              >
+              <span class="text-industrial-primary text-sm font-medium truncate" :title="group.label">
                 {{ group.label }}
               </span>
             </div>
 
             <!-- 操作按钮（编辑模式下显示） -->
-            <div
-              v-if="contentMode === 'display'"
-              class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <q-btn
-                flat
-                dense
-                size="xs"
-                icon="edit"
-                color="blue"
-                class="text-xs"
-                @click.stop="editGroup(group)"
-              />
-              <q-btn
-                flat
-                dense
-                size="xs"
-                icon="delete"
-                color="red"
-                class="text-xs"
-                @click.stop="deleteGroup(group)"
-              />
+            <div v-if="contentMode === 'display'"
+              class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <q-btn flat dense size="xs" icon="edit" color="blue" class="text-xs" @click.stop="editGroup(group)" />
+              <q-btn flat dense size="xs" icon="delete" color="red" class="text-xs" @click.stop="deleteGroup(group)" />
             </div>
 
             <!-- 数据项数量（仅在编辑模式且不悬停时显示） -->
             <div v-if="contentMode === 'display'" class="flex-shrink-0 group-hover:hidden">
               <span class="text-industrial-secondary text-xs">
-                {{ group.dataItems.filter((item) => item.isVisible).length }}
+                {{group.dataItems.filter((item) => item.isVisible).length}}
               </span>
             </div>
           </div>
@@ -251,20 +240,9 @@ const cleanupOrphanedDataItems = (): void => {
     </div>
 
     <!-- 底部添加按钮区域 -->
-    <div
-      v-if="contentMode === 'display'"
-      class="p-3 border-t border-industrial bg-industrial-panel"
-    >
-      <q-btn
-        flat
-        dense
-        size="sm"
-        icon="add"
-        color="blue"
-        label="添加分组"
-        class="w-full text-xs"
-        @click="showAddDialog = true"
-      />
+    <div v-if="contentMode === 'display'" class="p-3 border-t border-industrial bg-industrial-panel">
+      <q-btn flat dense size="sm" icon="add" color="blue" label="添加分组" class="w-full text-xs"
+        @click="showAddDialog = true" />
     </div>
 
     <!-- 添加分组对话框 -->
@@ -275,25 +253,13 @@ const cleanupOrphanedDataItems = (): void => {
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-input
-            v-model="newGroupLabel"
-            autofocus
-            label="分组名称"
-            outlined
-            class="bg-industrial-secondary text-industrial-primary"
-            @keyup.enter="addGroup"
-          />
+          <q-input v-model="newGroupLabel" autofocus label="分组名称" outlined
+            class="bg-industrial-secondary text-industrial-primary" @keyup.enter="addGroup" />
         </q-card-section>
 
         <q-card-actions align="right">
           <q-btn flat label="取消" color="grey" @click="cancelAdd" />
-          <q-btn
-            flat
-            label="添加"
-            color="blue"
-            :disable="!newGroupLabel.trim()"
-            @click="addGroup"
-          />
+          <q-btn flat label="添加" color="blue" :disable="!newGroupLabel.trim()" @click="addGroup" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -306,25 +272,13 @@ const cleanupOrphanedDataItems = (): void => {
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-input
-            v-model="editingGroup!.label"
-            autofocus
-            label="分组名称"
-            outlined
-            class="bg-industrial-secondary text-industrial-primary"
-            @keyup.enter="saveEdit"
-          />
+          <q-input v-model="editingGroup!.label" autofocus label="分组名称" outlined
+            class="bg-industrial-secondary text-industrial-primary" @keyup.enter="saveEdit" />
         </q-card-section>
 
         <q-card-actions align="right">
           <q-btn flat label="取消" color="grey" @click="cancelEdit" />
-          <q-btn
-            flat
-            label="保存"
-            color="blue"
-            :disable="!editingGroup?.label.trim()"
-            @click="saveEdit"
-          />
+          <q-btn flat label="保存" color="blue" :disable="!editingGroup?.label.trim()" @click="saveEdit" />
         </q-card-actions>
       </q-card>
     </q-dialog>

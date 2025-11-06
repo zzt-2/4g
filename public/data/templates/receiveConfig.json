@@ -6,178 +6,6 @@
         "label": "第1路",
         "dataItems": [
           {
-            "label": "LocOp",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0xAA",
-                "label": "C18"
-              },
-              {
-                "value": "0x55",
-                "label": "C46"
-              }
-            ],
-            "id": 12
-          },
-          {
-            "label": "SigOp",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0x000000A0",
-                "label": "激光器复位，需要重新发送开关波长控制指令及初始化控制指令"
-              },
-              {
-                "value": "0x00000000",
-                "label": "无效"
-              },
-              {
-                "value": "0xCC",
-                "label": "C18调制"
-              },
-              {
-                "value": "0xDD",
-                "label": "C46调制"
-              }
-            ],
-            "id": 2
-          },
-          {
-            "label": "信号光发射衰减",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "float",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 3
-          },
-          {
-            "label": "信号光接收衰减",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "float",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 4
-          },
-          {
-            "label": "光开关1状态",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0xAA",
-                "label": "STATE_A"
-              },
-              {
-                "value": "0x55",
-                "label": "STATE_B"
-              }
-            ],
-            "id": 9
-          },
-          {
-            "label": "光开关2状态",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0xAA",
-                "label": "STATE_A"
-              },
-              {
-                "value": "0x55",
-                "label": "STATE_B"
-              }
-            ],
-            "id": 6
-          },
-          {
-            "label": "光开关3状态",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint8",
-            "value": null,
-            "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0xAA",
-                "label": "STATE_A"
-              },
-              {
-                "value": "0x55",
-                "label": "STATE_B"
-              }
-            ],
-            "id": 7
-          },
-          {
-            "label": "复位告知指令",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "bytes",
-            "value": null,
-            "displayValue": "",
-            "useLabel": true,
-            "labelOptions": [
-              {
-                "value": "0x000000A0",
-                "label": "激光器复位，需要重新发送开关波长控制指令及初始化控制指令"
-              },
-              {
-                "value": "0x00000000",
-                "label": "无效"
-              }
-            ],
-            "id": 8
-          },
-          {
-            "label": "信号光发射衰减-接收数据",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint16",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 10
-          },
-          {
-            "label": "信号光接收衰减-接收数据",
-            "isVisible": false,
-            "isFavorite": false,
-            "dataType": "uint16",
-            "value": null,
-            "displayValue": "",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 11
-          },
-          {
             "label": "信号功率",
             "isVisible": true,
             "isFavorite": false,
@@ -541,79 +369,353 @@
             "id": 2
           }
         ]
+      },
+      {
+        "id": 6,
+        "label": "调制探测",
+        "dataItems": [
+          {
+            "label": "本振激光状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "C18"
+              },
+              {
+                "value": "0x55",
+                "label": "C46"
+              }
+            ],
+            "id": 1
+          },
+          {
+            "label": "信号激光状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "C18多普勒"
+              },
+              {
+                "value": "0xBB",
+                "label": "C46多普勒"
+              },
+              {
+                "value": "0xCC",
+                "label": "C18调制"
+              },
+              {
+                "value": "0xDD",
+                "label": "C46调制"
+              }
+            ],
+            "id": 2
+          },
+          {
+            "label": "信号光发射衰减",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 3
+          },
+          {
+            "label": "信号光接收衰减",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 4
+          },
+          {
+            "label": "光开关1状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "STATE_A"
+              },
+              {
+                "value": "0x55",
+                "label": "STATE_B"
+              }
+            ],
+            "id": 5
+          },
+          {
+            "label": "光开关2状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "STATE_A"
+              },
+              {
+                "value": "0x55",
+                "label": "STATE_B"
+              }
+            ],
+            "id": 6
+          },
+          {
+            "label": "光开关3状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "STATE_A"
+              },
+              {
+                "value": "0x55",
+                "label": "STATE_B"
+              }
+            ],
+            "id": 7
+          },
+          {
+            "label": "本振激光器状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "开启"
+              },
+              {
+                "value": "0x55",
+                "label": "关闭"
+              }
+            ],
+            "id": 8
+          },
+          {
+            "label": "信号激光器状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "开启"
+              },
+              {
+                "value": "0x55",
+                "label": "关闭"
+              }
+            ],
+            "id": 9
+          },
+          {
+            "label": "本振激光器选择",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "C18"
+              },
+              {
+                "value": "0x55",
+                "label": "C46"
+              }
+            ],
+            "id": 10
+          },
+          {
+            "label": "信号激光器选择",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "C18"
+              },
+              {
+                "value": "0x55",
+                "label": "C46"
+              }
+            ],
+            "id": 11
+          },
+          {
+            "label": "本振激光器就绪",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "就绪"
+              },
+              {
+                "value": "0x00",
+                "label": "未就绪"
+              }
+            ],
+            "id": 12
+          },
+          {
+            "label": "信号激光器就绪",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0xAA",
+                "label": "就绪"
+              },
+              {
+                "value": "0x00",
+                "label": "未就绪"
+              }
+            ],
+            "id": 13
+          },
+          {
+            "label": "本振激光器频偏(MHz)",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 14
+          },
+          {
+            "label": "信号激光器频偏(MHz)",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 15
+          },
+          {
+            "label": "本振激光器电流",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 16
+          },
+          {
+            "label": "信号激光器电流",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 17
+          },
+          {
+            "label": "激光器总电流",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 18
+          },
+          {
+            "label": "本振激光器温度",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "int8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 19
+          },
+          {
+            "label": "信号激光器温度",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "int8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 20
+          },
+          {
+            "label": "激光器机体温度",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "int8",
+            "value": null,
+            "displayValue": "",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 21
+          }
+        ]
       }
     ],
     "mappings": [
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "6GXQ9w-i70bKFBHq_3vfO",
-        "fieldName": "SigOp",
-        "groupId": 4,
-        "dataItemId": 2
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "szeDR6q_L6IPqxgkNCbov",
-        "fieldName": "信号光发射衰减",
-        "groupId": 4,
-        "dataItemId": 3
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "SgoBqHial8bTUijpvPGgx",
-        "fieldName": "信号光接收衰减",
-        "groupId": 4,
-        "dataItemId": 4
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "yso_3XV26Rk5nQmFE6oSj",
-        "fieldName": "光开关2状态",
-        "groupId": 4,
-        "dataItemId": 6
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "O5AtEwJ5YNvFU6nuMhb3r",
-        "fieldName": "光开关3状态",
-        "groupId": 4,
-        "dataItemId": 7
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "bUJ4w_NHdeDORgyG4iKiq",
-        "fieldName": "复位告知指令",
-        "groupId": 4,
-        "dataItemId": 8
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "jPVLCHXj1FGdgCm9EYx-m",
-        "fieldName": "光开关1状态",
-        "groupId": 4,
-        "dataItemId": 9
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "tvGS_fTyn_dxPgc9VHXxu",
-        "fieldName": "信号光发射衰减-接收数据",
-        "groupId": 4,
-        "dataItemId": 10
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "auhk_5C15R-qd_pOmgKKx",
-        "fieldName": "信号光接收衰减-接收数据",
-        "groupId": 4,
-        "dataItemId": 11
-      },
-      {
-        "frameId": "JGXT_R002",
-        "fieldId": "N2QblvSF0-97n2PXceq7Y",
-        "fieldName": "LocOp",
-        "groupId": 4,
-        "dataItemId": 12
-      },
       {
         "frameId": "R-FPGA-003",
         "fieldId": "Y1uW6Ez-IPtiBuoQ20CIn",
@@ -783,36 +885,155 @@
         "dataItemId": 2
       },
       {
-        "frameId": "rQIkd8tQC_9g0Vp8Qyu-R",
-        "fieldId": "VzNs98Sp96pyGlK03jDn1",
-        "fieldName": "新字段",
-        "groupId": 4,
-        "dataItemId": 36
+        "frameId": "R-JGXT-002",
+        "fieldId": "N2QblvSF0-97n2PXceq7Y",
+        "fieldName": "本振激光状态",
+        "groupId": 6,
+        "dataItemId": 1
       },
       {
-        "frameId": "rQIkd8tQC_9g0Vp8Qyu-R",
-        "fieldId": "GlVzcJSpV0f6yffPWhdgi",
-        "fieldName": "新字段2",
-        "groupId": 4,
-        "dataItemId": 37
+        "frameId": "R-JGXT-002",
+        "fieldId": "6GXQ9w-i70bKFBHq_3vfO",
+        "fieldName": "信号激光状态",
+        "groupId": 6,
+        "dataItemId": 2
       },
       {
-        "frameId": "J9hf--R9WjkCT6jrw0rke",
-        "fieldId": "iclZMWXcXM8TqO4vpdivA",
-        "fieldName": "新字段4",
-        "groupId": 4,
-        "dataItemId": 38
+        "frameId": "R-JGXT-002",
+        "fieldId": "tvGS_fTyn_dxPgc9VHXxu",
+        "fieldName": "信号光发射衰减",
+        "groupId": 6,
+        "dataItemId": 3
       },
       {
-        "frameId": "J9hf--R9WjkCT6jrw0rke",
-        "fieldId": "k-apqibs8KGg5n0dWrbfa",
-        "fieldName": "新字段3",
-        "groupId": 4,
-        "dataItemId": 39
+        "frameId": "R-JGXT-002",
+        "fieldId": "auhk_5C15R-qd_pOmgKKx",
+        "fieldName": "信号光接收衰减",
+        "groupId": 6,
+        "dataItemId": 4
+      },
+      {
+        "frameId": "R-JGXT-002",
+        "fieldId": "jPVLCHXj1FGdgCm9EYx-m",
+        "fieldName": "光开关1状态",
+        "groupId": 6,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "R-JGXT-002",
+        "fieldId": "yso_3XV26Rk5nQmFE6oSj",
+        "fieldName": "光开关2状态",
+        "groupId": 6,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "R-JGXT-002",
+        "fieldId": "O5AtEwJ5YNvFU6nuMhb3r",
+        "fieldName": "光开关3状态",
+        "groupId": 6,
+        "dataItemId": 7
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "N2QblvSF0-97n2PXceq7Y",
+        "fieldName": "本振激光器状态",
+        "groupId": 6,
+        "dataItemId": 8
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "Z1Jw1f99W4Je8RWqVwDFW",
+        "fieldName": "信号激光器状态",
+        "groupId": 6,
+        "dataItemId": 9
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "6GXQ9w-i70bKFBHq_3vfO",
+        "fieldName": "本振激光器选择",
+        "groupId": 6,
+        "dataItemId": 10
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "_JRVdKFUkNJ8Ng3XWNIVw",
+        "fieldName": "信号激光器选择",
+        "groupId": 6,
+        "dataItemId": 11
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "7RQgK69Gx6kLWw2zlDRF6",
+        "fieldName": "本振激光器就绪",
+        "groupId": 6,
+        "dataItemId": 12
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "xYeaZaThJJcc3Dxu6mU58",
+        "fieldName": "信号激光器就绪",
+        "groupId": 6,
+        "dataItemId": 13
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "tvGS_fTyn_dxPgc9VHXxu",
+        "fieldName": "本振激光器频偏(MHz)",
+        "groupId": 6,
+        "dataItemId": 14
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "KoLvn1DdcX2QeoBs9lA2x",
+        "fieldName": "信号激光器频偏(MHz)",
+        "groupId": 6,
+        "dataItemId": 15
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "auhk_5C15R-qd_pOmgKKx",
+        "fieldName": "本振激光器电流",
+        "groupId": 6,
+        "dataItemId": 16
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "oq0cd-kyiWaG1qxswsgOQ",
+        "fieldName": "信号激光器电流",
+        "groupId": 6,
+        "dataItemId": 17
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "CwumZnlYqm31W8357g0RH",
+        "fieldName": "激光器总电流",
+        "groupId": 6,
+        "dataItemId": 18
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "j8rP-fRgtyL-1fhNGl4xd",
+        "fieldName": "本振激光器温度",
+        "groupId": 6,
+        "dataItemId": 19
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "w_uUrxo1eyjTS7FxKf1D0",
+        "fieldName": "信号激光器温度",
+        "groupId": 6,
+        "dataItemId": 20
+      },
+      {
+        "frameId": "R-JGXT-001",
+        "fieldId": "jsh4q462AsHQaYSEcqdBn",
+        "fieldName": "激光器机体温度",
+        "groupId": 6,
+        "dataItemId": 21
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-10-16T01:46:47.808Z",
-    "updatedAt": "2025-10-16T01:46:47.808Z"
+    "createdAt": "2025-11-06T02:30:57.320Z",
+    "updatedAt": "2025-11-06T02:30:57.320Z"
   }
 ]

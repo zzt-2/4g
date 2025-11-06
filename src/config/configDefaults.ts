@@ -3,12 +3,12 @@
  */
 
 export const DATA_PATH_MAP = {
-  framesConfig: 'data/templates/framesConfig',
-  sendInstances: 'data/templates/sendInstances',
-  receiveConfig: 'data/templates/receiveConfig',
-  scoeSatelliteConfigs: 'data/templates/scoeSatelliteConfigs',
-  scoeFramesSendInstances: 'data/templates/scoeSendInstances',
-  scoeFramesReceiveCommands: 'data/templates/scoeReceiveCommands',
+	framesConfig: 'data/templates/framesConfig',
+	sendInstances: 'data/templates/sendInstances',
+	receiveConfig: 'data/templates/receiveConfig',
+	scoeSatelliteConfigs: 'data/templates/scoeSatelliteConfigs',
+	scoeFramesSendInstances: 'data/templates/scoeSendInstances',
+	scoeFramesReceiveCommands: 'data/templates/scoeReceiveCommands',
 };
 
 /**

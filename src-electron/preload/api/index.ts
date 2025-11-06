@@ -13,18 +13,18 @@ import { timerManagerAPI } from './timerManager';
 
 // 动态导入所有API模块
 const apiModules = {
-  window: windowAPI,
-  menu: menuAPI,
-  autoLaunch: autoLaunchApi,
-  serial: serialAPI,
-  network: networkAPI,
-  files: filesAPI,
-  dataStorage: dataStorageAPI,
-  path: pathAPI,
-  receive: receiveAPI,
-  highSpeedStorage: highSpeedStorageAPI,
-  historyData: historyDataAPI,
-  timerManager: timerManagerAPI,
+	window: windowAPI,
+	menu: menuAPI,
+	autoLaunch: autoLaunchApi,
+	serial: serialAPI,
+	network: networkAPI,
+	files: filesAPI,
+	dataStorage: dataStorageAPI,
+	path: pathAPI,
+	receive: receiveAPI,
+	highSpeedStorage: highSpeedStorageAPI,
+	historyData: historyDataAPI,
+	timerManager: timerManagerAPI,
 };
 
 // 导出组合的API对象

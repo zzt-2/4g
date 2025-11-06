@@ -37,7 +37,7 @@ async function handleExport() {
     }
 
     // 构建完整的存储路径
-    const fullStorageDir = `${pathAPI.getDataPath()}/${props.storageDir}`;
+    const fullStorageDir = `${pathAPI.getDataPath()}${props.storageDir}`;
 
     // 使用fileDialogManager打开导出对话框
     const result = await fileDialogManager.exportFile(
@@ -78,7 +78,7 @@ async function handleImport() {
   isImporting.value = true;
   try {
     // 构建完整的存储路径
-    const fullStorageDir = `${pathAPI.getDataPath()}/${props.storageDir}`;
+    const fullStorageDir = `${pathAPI.getDataPath()}${props.storageDir}`;
 
     // 使用fileDialogManager打开导入对话框
     const result = await fileDialogManager.importFile(props.importTitle, fullStorageDir);

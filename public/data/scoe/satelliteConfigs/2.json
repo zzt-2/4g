@@ -1,0 +1,48 @@
+[
+  {
+    "id": "1",
+    "satelliteId": "2",
+    "sendConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "0xab",
+      "sourceIdentifier": "14",
+      "destinationIdentifier": "8",
+      "udpIpAddress": "127.0.0.1",
+      "udpPort": "1000"
+    },
+    "receiveConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "1",
+      "sourceIdentifier": "2",
+      "destinationIdentifier": "3",
+      "modelId": "4",
+      "satelliteId": "2",
+      "recognitionMessageId": true,
+      "recognitionSourceId": true,
+      "recognitionDestinationId": true
+    }
+  },
+  {
+    "id": "2",
+    "satelliteId": "3",
+    "sendConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "2",
+      "sourceIdentifier": "3",
+      "destinationIdentifier": "4",
+      "udpIpAddress": "127.0.0.1",
+      "udpPort": "1000"
+    },
+    "receiveConfig": {
+      "satelliteIdentifier": "",
+      "messageIdentifier": "4",
+      "sourceIdentifier": "5",
+      "destinationIdentifier": "6",
+      "modelId": "1",
+      "satelliteId": "3",
+      "recognitionMessageId": true,
+      "recognitionSourceId": true,
+      "recognitionDestinationId": true
+    }
+  }
+]
