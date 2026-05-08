@@ -1,0 +1,10 @@
+@use 'sass:map';
+
+$rw-border-width: (
+  'none': 0,
+  'subtle': 1px
+);
+
+@function rw-border-width($name) {
+  @return map.get($rw-border-width, $name);
+}

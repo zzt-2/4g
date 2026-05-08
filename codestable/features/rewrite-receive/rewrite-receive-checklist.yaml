@@ -1,0 +1,289 @@
+version: 1
+feature: rewrite-receive
+status: draft
+date: "2026-05-04"
+purpose: "后续 cs-feat-impl 的入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/compound/2026-04-28-rewrite-scope-default-preserve.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-system-architecture.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/architecture/rewrite-connection-transport-boundary.md"
+  - "codestable/quality/rewrite-validation-fixture-oracle-baseline.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+  - "codestable/features/rewrite-frame/rewrite-frame-design.md"
+  - "codestable/features/rewrite-frame/rewrite-frame-checklist.yaml"
+  - "codestable/features/rewrite-connection/rewrite-connection-design.md"
+  - "codestable/features/rewrite-connection/rewrite-connection-checklist.yaml"
+  - "rewrite/src/features/frame"
+  - "rewrite/src/features/connection if present; if absent, use connection design/checklist only"
+
+boundary_guards:
+  - "只做 receive feature design/checklist，不实现 receive。"
+  - "不写 serial/TCP/UDP/preload/main schema。"
+  - "不冻结 receive API schema、DTO、channel、事件 payload、错误码或枚举。"
+  - "不进入 send/task/SCOE/result/report/northbound 内部实现。"
+  - "receive owns 接收匹配、接收运行事实、解析输入流到 frame reference 的匹配结果、接收统计 read model 候选。"
+  - "receive 不拥有 frame definition、connection transport facts、send task state、SCOE semantics、report、northbound。"
+  - "高频数据流只锁 buffer、batch、backpressure、snapshot、UI refresh、统计 read model 分层原则。"
+  - "统计 read model 禁止写回 frame definition、field definition、表达式定义、展示配置或其他静态资产。"
+  - "跨 feature 只能通过 frame/connection public API、runtime 编排、显式事件或只读 selector，不 import internal state。"
+  - "不把 connection target/sourceId 等同 northbound deviceId。"
+  - "不把 history、CSV、本地文件导出等同 TestReport 或 northbound file delivery。"
+  - "renderer 不直接访问 Node、Electron、ipcRenderer、fs、path、net、serialport 或旧 window.electron。"
+  - "main 只允许平台资源和必要高频性能处理，不承载 receive 匹配、字段解析、task/SCOE/result/report/northbound 语义。"
+  - "旧 src/src-electron/public 只作为 evidence、fixture、oracle 或 migration input。"
+  - "不读取或修改前端自动生成 types 文件。"
+
+items:
+  - id: RECV-IMPL-001
+    title: "实现前重新确认 owner / not owner"
+    status: pending
+    scope: "receive design guard"
+    acceptance:
+      - "实现说明列出 receive owner 和 not owner。"
+      - "实现范围只包含输入承接、匹配解析、receive runtime facts、receive statistics read model、UI-safe snapshot 和显式输出边界。"
+      - "实现范围不包含 frame definition、connection transport facts、task lifecycle、SCOE semantics、result/report/northbound 内部规则。"
+      - "实现范围不冻结本 checklist 外的 schema、DTO、channel、事件 payload、错误码或枚举。"
+    validation:
+      - "manual checklist"
+      - "static scan"
+
+  - id: RECV-IMPL-002
+    title: "建立 receive core 纯 TypeScript 规则"
+    status: pending
+    scope: "rewrite/src/features/receive/core"
+    acceptance:
+      - "core 只接收显式 byte batch、source snapshot、frame reference snapshot 和 receive mapping/reference input。"
+      - "core 覆盖 byte batch -> frame reference match -> field parse -> receive result 的确定性链路。"
+      - "core 覆盖 no config、unmatched、invalid bytes、truncated packet、mapping missing、parse error 和 direct-data-only 行为。"
+      - "core 不依赖 Vue、Pinia、Electron、platform、Node、connection store、frame store、task/SCOE/status/result/report/northbound internal state 或全局 store。"
+      - "core 不写 frame definition，不管理 connection lifecycle，不推进 task，不执行 SCOE command，不定义 result/report/northbound 语义。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "oracle comparison"
+      - "static scan"
+
+  - id: RECV-IMPL-003
+    title: "建立 frame reference 消费边界"
+    status: pending
+    scope: "frame public selector -> receive"
+    acceptance:
+      - "receive 只能通过 frame public selector、runtime injection 或明确只读 snapshot 读取 receive-direction frame references。"
+      - "receive 不 import frame internal state、service implementation、adapter、composable、Vue ref 或 mutable collection。"
+      - "receive 对 frame reference 的使用只覆盖 identifier rules、fields、expression definition input 和必要 display/reference metadata。"
+      - "receive reference refresh 有明确触发、stale snapshot 处理和 reset/read model 更新规则。"
+      - "运行统计、last value、error count、rate、recent packet 不写回 frame definition 或 field definition。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+      - "runtime validation"
+
+  - id: RECV-IMPL-004
+    title: "建立 receive service 用例层"
+    status: pending
+    scope: "rewrite/src/features/receive/services"
+    acceptance:
+      - "service 负责 ingest input batch、调用 core、写入 receive state、输出 receive result event、处理 reference refresh、reset/clear 和错误归一。"
+      - "service 依赖通过构造函数、工厂或明确 context 注入，便于 fake input source、fake frame snapshot 和 fake event sink 测试。"
+      - "service 不直接访问 platform、preload、main、Node/Electron、connection internal state 或 frame internal state。"
+      - "service 不直接修改 task/status/result/storage/SCOE/report/northbound internal state。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "fake adapter test"
+      - "static scan"
+
+  - id: RECV-IMPL-005
+    title: "建立 receive state 和统计 read model"
+    status: pending
+    scope: "rewrite/src/features/receive/state"
+    acceptance:
+      - "state 分离 static config references、runtime receive facts、statistics read model 和 UI-independent selector。"
+      - "state 只维护 receive-owned runtime facts、recent input snapshot、matched frame reference、field value delta、frame stats、error/unmatched counters 和 selector。"
+      - "state 不保存 frame definition mutable reference、connection internal state、socket/serialport object、task lifecycle、SCOE state、result truth、report state 或 northbound transaction。"
+      - "每个统计项说明 owner、reader、reset 时机、生命周期、是否持久化和验证方式。"
+      - "高频更新使用 batch、delta、queue、throttle 或 snapshot，不以每包全量替换大对象作为默认实现。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+      - "runtime validation"
+
+  - id: RECV-IMPL-006
+    title: "建立 receive public boundary 和显式输出"
+    status: pending
+    scope: "receive public API and explicit event boundary"
+    acceptance:
+      - "receive 对外只暴露 input ingestion、result output、statistics selector、lifecycle/reset、validation 和 test boundary 类能力。"
+      - "receive result 输出包含 frame match material、field value delta、unmatched/parse error 和 stats delta 类别，但不冻结字段 payload。"
+      - "receive -> task/status/result/storage/SCOE 通过 explicit event、runtime orchestration、public service 或只读 selector 发生。"
+      - "receive 不直接输出 report/northbound/TestReport/file delivery 语义。"
+      - "receive public boundary 不暴露 mutable store、internal service、raw platform event、raw IPC channel 或其他 feature internal state。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+      - "runtime validation"
+
+  - id: RECV-IMPL-007
+    title: "登记 runtime 装配与跨 feature 路由"
+    status: pending
+    scope: "rewrite/src/runtime"
+    acceptance:
+      - "runtime 负责 connection byte batch -> receive 的装配和 cleanup，不让 receive import connection internals。"
+      - "runtime 负责 frame reference snapshot refresh -> receive 的装配，不让 receive import frame internals。"
+      - "runtime 负责 receive output -> task/status/result/storage/SCOE 的显式路由，不承载 receive parser 或消费者领域规则。"
+      - "runtime 处理 startup/shutdown、subscription cleanup、stale event rejection 和 reference refresh during input。"
+      - "runtime 不定义 task lifecycle、SCOE completion、result truth、report generation 或 northbound semantics。"
+    validation:
+      - "manual checklist"
+      - "runtime validation"
+      - "static scan"
+
+  - id: RECV-IMPL-008
+    title: "锁定高频数据 buffer / batch / backpressure / snapshot 原则"
+    status: pending
+    scope: "receive high-frequency path"
+    acceptance:
+      - "实现说明列出 ingress buffer、receive parse queue、batch window、overflow/drop/defer policy 或明确 deferred。"
+      - "实现说明列出 backpressure、latency observation、event ordering 和 stale input 处理方式。"
+      - "UI 通过 throttled snapshot、selector、pagination、virtualization candidate 或 coalesced refresh 读取，不订阅 raw byte stream。"
+      - "statistics read model 按 stable key 增量维护，不写回 frame definition 或 receive static config。"
+      - "未完成 runtime evidence 前，不声明 high-frequency steady-state accepted。"
+    validation:
+      - "fixture test"
+      - "fake adapter test"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: RECV-IMPL-009
+    title: "收口 task / status / result / storage / SCOE 消费边界"
+    status: pending
+    scope: "receive cross-feature consumers"
+    acceptance:
+      - "task 只消费 receive result 或 trigger candidate，task owns trigger strategy and lifecycle。"
+      - "status 只消费 receive material，status owns health/status summary。"
+      - "result 只消费 receive output as material，result owns internal result truth。"
+      - "storage/history 只消费 receive material，storage owns persistence/file/history facts。"
+      - "SCOE 只通过声明的 SCOE candidate/exception 消费 receive material，SCOE owns command semantics and completion。"
+      - "send/report/northbound 不直接消费 receive internals；后续必须经 task/result/report/storage/northbound 设计。"
+    validation:
+      - "fixture test"
+      - "runtime validation"
+      - "static scan"
+      - "customer validation"
+
+  - id: RECV-IMPL-010
+    title: "迁移 receive 页面和 UI snapshot 边界"
+    status: pending
+    scope: "rewrite/src/pages and rewrite/src/features/receive/components"
+    acceptance:
+      - "接收页面入口仍可从路由和导航访问。"
+      - "接收帧选择、统计面板、数据结构、数据表、近期事件、错误和未匹配状态保留用户可见 workflow。"
+      - "页面和组件只通过 receive composable/service/selector 或 runtime page entry 使用能力。"
+      - "页面不解析协议、不累计统计、不直接访问 platform、connection internals、frame internals 或 raw byte stream。"
+      - "表格、图表、近期事件和错误展示使用 UI snapshot，不反向定义 receive runtime facts。"
+    validation:
+      - "manual checklist"
+      - "runtime validation"
+
+  - id: RECV-TEST-001
+    title: "沉淀 receive fixtures 和 oracle"
+    status: pending
+    scope: "rewrite/src/features/receive/fixtures and oracles"
+    acceptance:
+      - "fixture 覆盖最小合法 byte -> frame match -> fields -> receive result 正例。"
+      - "fixture 覆盖 no config、empty frame list、unmatched、invalid bytes、truncated packet、mapping missing、parse error、direct-data-only、identifier legacy AND behavior。"
+      - "fixture 覆盖 stats delta、recent input snapshot、reset/reference refresh 和 stale input candidate。"
+      - "legacy sample 只作为 oracle/material，不作为新核心 schema。"
+      - "oracle comparison 记录旧 matcher/parser 可判定行为和 visible receive stats/data snapshot。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "oracle comparison"
+
+  - id: RECV-TEST-002
+    title: "建立 fake input / fake frame / fake event sink 测试边界"
+    status: pending
+    scope: "receive fake adapter tests"
+    acceptance:
+      - "fake connection input source 可注入 serial/network/TCP server/UDP-like byte batches、source snapshot、lifecycle error、burst input、stale event 和 shutdown cleanup。"
+      - "fake frame snapshot provider 可注入 receive-direction frame references、empty snapshot、changed snapshot 和 invalid reference。"
+      - "fake runtime event sink 可记录 receive result、parse error、trigger candidate 和 stats delta。"
+      - "fake adapter 不模拟真实 serial/TCP/UDP、preload/main 或 platform behavior。"
+    validation:
+      - "fake adapter test"
+      - "fixture test"
+      - "Vitest unit"
+
+  - id: RECV-RUNTIME-001
+    title: "完成 runtime validation 计划"
+    status: pending
+    scope: "runtime validation"
+    acceptance:
+      - "实现说明列出 startup/shutdown、connection route、frame snapshot refresh、receive output route 和 subscription cleanup 的 runtime validation 项。"
+      - "实现说明列出 batch/window/overflow/backpressure/UI snapshot/event ordering/stale rejection 的 runtime validation 项。"
+      - "high-speed storage bypass、TCP split compatibility、SCOE fixed source exception 如触达，必须登记 owner、exit condition 和验证方式。"
+      - "没有 runtime evidence 时，只能声明 static/fixture/fake adapter 通过。"
+    validation:
+      - "runtime validation"
+      - "manual checklist"
+
+  - id: RECV-HW-001
+    title: "登记真实 serial/TCP/TCP server/UDP hardware validation"
+    status: pending
+    scope: "hardware validation"
+    acceptance:
+      - "真实串口 enumerate/open/close/reopen/send/receive/error/unplug 到 receive 的链路必须有硬件验证记录。"
+      - "真实 TCP client connect/send/receive/close/error/timeout 到 receive 的链路必须有运行或硬件验证记录。"
+      - "真实 TCP server listen/client accept/client data/client close/server close 到 receive 的链路必须有运行或硬件验证记录。"
+      - "真实 UDP bind/send/receive/remote route/broadcast candidate 到 receive 的链路必须有运行或硬件验证记录。"
+      - "没有这些证据时，不能声明 hardware receive accepted。"
+    validation:
+      - "hardware validation"
+      - "runtime validation"
+
+  - id: RECV-PACKAGE-001
+    title: "登记 package validation guard"
+    status: pending
+    scope: "package validation"
+    acceptance:
+      - "实现触达 packaged bridge、native module、data path、高速存储路径、extraResources 或打包态订阅差异时，必须列 package validation。"
+      - "package validation 不能由 Vitest、fixture、fake adapter 或开发态 Electron 替代。"
+      - "未完成 package validation 时，不能声明 packaged receive chain accepted。"
+    validation:
+      - "package validation"
+      - "manual checklist"
+
+  - id: RECV-CUSTOMER-001
+    title: "保持 report / northbound / customer validation 边界"
+    status: pending
+    scope: "customer validation guard"
+    acceptance:
+      - "receive 不声明 northbound、HTTP/FTP、TestReport、customer 状态/错误码/枚举完成。"
+      - "receive 只提供内部接收事实材料，不把接收值、history、CSV、connection target 或 sourceId 升级为客户对外交付语义。"
+      - "涉及 report/northbound/customer 的后续实现必须由 result/report/northbound/customer validation 解锁。"
+    validation:
+      - "customer validation"
+      - "static scan"
+
+  - id: RECV-DEFER-001
+    title: "保留阻塞和延期项"
+    status: pending
+    scope: "deferred and blockers"
+    acceptance:
+      - "保留 concrete receive input schema、event names、payload、DTO、error categories、receive mapping/reference model、sourceId normalization、UDP remote route、TCP split ownership。"
+      - "保留 queue depth、batch window、overflow/drop policy、backpressure、sampling、UI refresh interval 和 throughput target。"
+      - "保留 expression runtime safety、task trigger contract、SCOE fixed source/target、high-speed storage short-circuit、status/global stats owner split、result/report/northbound consumption。"
+      - "缺 connection public API implementation、runtime route design、hardware environment 或 customer materials 时，不声明对应链路完成。"
+    validation:
+      - "manual checklist"
+      - "static scan"

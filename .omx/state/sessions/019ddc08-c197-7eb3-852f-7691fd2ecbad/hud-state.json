@@ -1,0 +1,6 @@
+{
+  "last_turn_at": "2026-04-30T01:37:24.061Z",
+  "turn_count": 1,
+  "last_progress_at": "2026-04-30T01:37:24.061Z",
+  "last_agent_output": "[1) preload 暴露面清单](#)\n\n- 全局暴露点：`src-electron/preload/index.ts` 使用 `contextBridge.exposeInMainWorld('"
+}

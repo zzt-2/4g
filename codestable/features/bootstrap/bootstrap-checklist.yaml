@@ -1,0 +1,62 @@
+# bootstrap — Checklist
+
+slug: bootstrap
+feature: bootstrap
+status: pending
+
+steps:
+  - id: 1
+    title: "Extend RewriteRuntime with tick driver"
+    description: |
+      在 runtime/index.ts 中：
+      - 添加 ROUTING_TICK_DEFAULT_INTERVAL_MS = 100 常量
+      - 在 createRewriteRuntime 返回对象中新增 startTickDriver(intervalMs?) / stopTickDriver() / isTickDriverRunning
+      - startTickDriver 用 setInterval 调 routingTick()，error 不抛
+      - stopTickDriver 清 clearInterval
+      - destroy() 自动调 stopTickDriver
+    files:
+      - rewrite/src/runtime/index.ts
+    status: pending
+
+  - id: 2
+    title: "Add bootstrapRewriteRuntime to app/rewriteRuntime.ts"
+    description: |
+      在 app/rewriteRuntime.ts 中新增 bootstrapRewriteRuntime()：
+      - 调 platform/getTransportFacade() 检测 bridge
+      - 有 bridge → createRealSerialAdapter({ transport })
+      - 无 bridge → 不传 adapter（runtime 内部默认 noOp）
+      - 调 createRewriteRuntime({ connectionAdapter }) 创建 runtime
+      - 返回 { runtime, mode }
+    files:
+      - rewrite/src/app/rewriteRuntime.ts
+    status: pending
+
+  - id: 3
+    title: "Update AppShell.vue to use bootstrap and cleanup"
+    description: |
+      AppShell.vue 变更：
+      - 用 bootstrapRewriteRuntime() 替代裸 provideRewriteRuntime()
+      - 调 runtime.startTickDriver() 启动定时驱动
+      - 用 onUnmounted 调 runtime.destroy() 清理
+    files:
+      - rewrite/src/app/AppShell.vue
+    status: pending
+
+  - id: 4
+    title: "Write end-to-end integration test skeleton"
+    description: |
+      新建 runtime/__tests__/bootstrap-integration.spec.ts：
+      - 用 FakeConnectionTransportAdapter 创建 runtime
+      - connect → pushData → routingTick → 断言 RoutingTickResult
+      - 通过 receiveEventSourceBridge.subscribe 验证 match emit
+      - 标注 task/send/result 未来扩展点注释
+    files:
+      - rewrite/src/runtime/__tests__/bootstrap-integration.spec.ts
+    status: pending
+
+  - id: 5
+    title: "Build and lint verification"
+    description: |
+      运行 pnpm -C rewrite build 和 pnpm -C rewrite lint 确认通过。
+      运行新测试确认通过。
+    status: pending

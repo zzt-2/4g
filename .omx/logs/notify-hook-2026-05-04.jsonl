@@ -1,0 +1,25 @@
+{"timestamp":"2026-05-04T06:38:42.136Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019dddaf-644c-7b70-a248-86863c6b581b","turn_id":"019df1b5-5756-7eb1-95a4-daabba48046a"}
+{"timestamp":"2026-05-04T06:51:40.641Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df1bc-b749-71c0-bb76-b433c6f5f0bb","turn_id":"019df1bb-b8f7-7eb2-841b-b00e00e469c5"}
+{"timestamp":"2026-05-04T06:53:03.066Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019dd833-1ff3-7b33-963b-0741eb0a8f08","turn_id":"019df1c2-8373-7ed3-ac3e-1487d867775d"}
+{"timestamp":"2026-05-04T07:14:59.357Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df1d1-30c1-7801-9a74-0ed9e068035f","turn_id":"019df1ca-5b2e-7363-b00e-f0bb08b5b869"}
+{"timestamp":"2026-05-04T07:22:16.568Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df1d1-30c1-7801-9a74-0ed9e068035f","turn_id":"019df1dc-6c5d-7f13-8056-6cfc06f383cd"}
+{"timestamp":"2026-05-04T07:43:04.228Z","verdict":"PASS","raw_match":"verdict:\npass","session_id":"019df1f0-4ff2-7da1-b3ec-f710f9f59e99","turn_id":"019df1e4-8ad9-7df3-b665-0a7643f24b93","level":"info","type":"visual_verdict_persisted"}
+{"timestamp":"2026-05-04T07:45:48.488Z","verdict":"PASS","raw_match":"verdict:\npass","session_id":"019df1f0-4ff2-7da1-b3ec-f710f9f59e99","turn_id":"019df1e4-9f2b-7163-85be-ed9f3789058d","level":"info","type":"visual_verdict_persisted"}
+{"timestamp":"2026-05-04T07:47:44.850Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df1f0-4ff2-7da1-b3ec-f710f9f59e99","turn_id":"019df1f4-8fd5-7191-bbb3-3ff3cf66ca4d"}
+{"timestamp":"2026-05-04T07:57:46.967Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df1f6-0ea7-7af3-8560-b5c1188ca1d9","turn_id":"019df1f5-2d16-7ef3-8adc-51c32c159125"}
+{"timestamp":"2026-05-04T08:00:27.937Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df200-5bb5-7b10-b918-ea9d84703e40","turn_id":"019df1ff-de12-7d92-aa91-c2d76ca6804a"}
+{"timestamp":"2026-05-04T08:04:22.030Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df202-6967-7d71-8317-e747b6438327","turn_id":"019df200-e5c9-7bc3-956d-7c87634bbdb1"}
+{"timestamp":"2026-05-04T08:05:53.065Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df202-6967-7d71-8317-e747b6438327","turn_id":"019df201-738c-75f2-b55f-d2b74b2dde7d"}
+{"timestamp":"2026-05-04T08:09:01.612Z","verdict":"PASS","raw_match":"verdict: pass","session_id":"019df202-6967-7d71-8317-e747b6438327","turn_id":"019df201-0eea-7af3-a742-8d13ed6fdcb9","level":"info","type":"visual_verdict_persisted"}
+{"timestamp":"2026-05-04T08:16:11.442Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df20e-9529-7211-94cc-110aaf050fd2","turn_id":"019df20e-63b2-7d63-95b8-fd2a2a82043c"}
+{"timestamp":"2026-05-04T08:25:25.939Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df215-ac76-74e0-afe7-ab5c5cd2bf3a","turn_id":"019df20f-7f25-71e0-a132-d574b71493e7"}
+{"timestamp":"2026-05-04T08:38:15.633Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df220-f2a9-7701-8a05-746862d1a7b5","turn_id":"019df20f-1552-7672-804a-1a921d6d2064"}
+{"timestamp":"2026-05-04T08:41:43.352Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df225-46a4-7ea3-8347-b177462a9cb6","turn_id":"019df20f-626e-79a1-9b4e-2439ac53b15e"}
+{"timestamp":"2026-05-04T09:10:27.522Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"","turn_id":"019df240-0330-7001-bb18-147cc61337f2"}
+{"timestamp":"2026-05-04T09:17:03.352Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df242-ae19-7071-9262-d3adbdc1481d","turn_id":"019df241-821f-7d21-837d-11ed972a8467"}
+{"timestamp":"2026-05-04T09:21:39.168Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df242-ae19-7071-9262-d3adbdc1481d","turn_id":"019df242-15c7-7732-aa6e-f24d589991a2"}
+{"timestamp":"2026-05-04T09:31:44.334Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df251-1966-7c41-b196-be6d5549c5d4","turn_id":"019df241-6dbc-7af1-9a64-4f83a31855f6"}
+{"timestamp":"2026-05-04T09:33:24.785Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df251-1966-7c41-b196-be6d5549c5d4","turn_id":"019df255-9b4c-7bc0-9ac1-71cbf7c39fdc"}
+{"timestamp":"2026-05-04T09:34:24.164Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df251-1966-7c41-b196-be6d5549c5d4","turn_id":"019df256-1093-7e82-901b-48a7442cbefe"}
+{"timestamp":"2026-05-04T09:34:40.644Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df251-1966-7c41-b196-be6d5549c5d4","turn_id":"019df256-c967-73d0-9134-cf90e4e239e2"}
+{"timestamp":"2026-05-04T09:43:57.499Z","level":"debug","type":"visual_verdict_parse_no_match","session_id":"019df251-1966-7c41-b196-be6d5549c5d4","turn_id":"019df258-ab8f-73c2-a410-774101556329"}

@@ -1,0 +1,10 @@
+@use 'sass:map';
+
+$rw-radius: (
+  'panel': 8px,
+  'control': 8px
+);
+
+@function rw-radius($name) {
+  @return map.get($rw-radius, $name);
+}

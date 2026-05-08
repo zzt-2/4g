@@ -1,0 +1,9 @@
+@use 'sass:map';
+
+$rw-breakpoint: (
+  'page-compact': 720px
+);
+
+@function rw-breakpoint($name) {
+  @return map.get($rw-breakpoint, $name);
+}

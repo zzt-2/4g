@@ -1,0 +1,19 @@
+{
+  "extends": "./.quasar/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "strict": true,
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@": ["./src"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "src-electron/**/*.ts",
+    "test/**/*.ts",
+    "*.config.ts"
+  ]
+}

@@ -1,0 +1,24 @@
+@use 'sass:map';
+
+$rw-palette: (
+  'white': #ffffff,
+  'blue-50': #e8f1ff,
+  'blue-600': #1f6feb,
+  'blue-700': #1557b0,
+  'teal-700': #0f766e,
+  'green-600': #16a34a,
+  'yellow-500': #f59e0b,
+  'red-600': #dc2626,
+  'slate-50': #f8fafc,
+  'slate-100': #f3f6fa,
+  'slate-200': #e5e7eb,
+  'slate-500': #64748b,
+  'gray-500': #6b7280,
+  'gray-600': #4b5563,
+  'gray-800': #1f2937,
+  'gray-900': #111827
+);
+
+@function rw-palette($name) {
+  @return map.get($rw-palette, $name);
+}

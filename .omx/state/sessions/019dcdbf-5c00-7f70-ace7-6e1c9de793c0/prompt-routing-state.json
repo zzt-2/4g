@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "last_triage": {
+    "lane": "LIGHT",
+    "destination": "executor",
+    "reason": "anchored_edit",
+    "prompt_signature": "sha256:ef8598fd7ed92e5255be5cb1118625ae95d5ba95ad8f7863703a510d8be28bab",
+    "turn_id": "019dcdbf-5c6c-7512-92df-4eb13d8de511",
+    "created_at": "2026-04-27T07:02:45.384Z"
+  },
+  "suppress_followup": true
+}

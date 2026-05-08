@@ -1,0 +1,27 @@
+@use 'sass:map';
+@use './palette';
+
+$rw-semantic-colors: (
+  'brand-primary': palette.rw-palette('blue-600'),
+  'brand-secondary': palette.rw-palette('gray-800'),
+  'brand-accent': palette.rw-palette('teal-700'),
+  'surface-app': palette.rw-palette('slate-100'),
+  'surface-header': palette.rw-palette('slate-50'),
+  'surface-base': palette.rw-palette('white'),
+  'surface-selected': palette.rw-palette('blue-50'),
+  'text-primary': palette.rw-palette('gray-900'),
+  'text-default': palette.rw-palette('gray-800'),
+  'text-secondary': palette.rw-palette('gray-600'),
+  'text-muted': palette.rw-palette('slate-500'),
+  'text-subtle': palette.rw-palette('gray-500'),
+  'action-primary': palette.rw-palette('blue-700'),
+  'border-subtle': palette.rw-palette('slate-200'),
+  'status-success': palette.rw-palette('green-600'),
+  'status-warning': palette.rw-palette('yellow-500'),
+  'status-danger': palette.rw-palette('red-600'),
+  'status-info': palette.rw-palette('blue-600')
+);
+
+@function rw-color($name) {
+  @return map.get($rw-semantic-colors, $name);
+}

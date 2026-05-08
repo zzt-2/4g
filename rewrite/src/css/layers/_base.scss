@@ -1,0 +1,13 @@
+html,
+body,
+#q-app {
+  min-height: 100%;
+}
+
+body {
+  background: var(--rw-color-surface-app);
+  color: var(--rw-color-text-default);
+  font-family: var(--rw-font-family-base);
+  margin: var(--rw-space-0);
+  text-rendering: optimizeLegibility;
+}

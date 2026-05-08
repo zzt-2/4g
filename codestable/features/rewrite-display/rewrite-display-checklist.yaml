@@ -1,0 +1,189 @@
+version: 1
+feature: rewrite-display
+status: draft
+date: "2026-05-04"
+purpose: "后续 cs-feat-impl 的入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-system-architecture.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/architecture/rewrite-thin-ui-runtime-wiring.md"
+  - "codestable/architecture/rewrite-ui-style-baseline.md"
+  - "codestable/quality/rewrite-validation-fixture-oracle-baseline.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+  - "rewrite/src/features/settings"
+  - "rewrite/src/features/connection"
+  - "codestable/features/rewrite-receive/rewrite-receive-design.md"
+  - "codestable/features/rewrite-status/rewrite-status-design.md"
+  - "codestable/features/rewrite-display/rewrite-display-design.md"
+
+boundary_guards:
+  - "只设计 display，不实现业务代码或 UI 页面。"
+  - "display 是正式 rewrite target feature，目标落点为 rewrite/src/features/display。"
+  - "display owns 展示偏好语义、展示配置校验/规范化、表格/图表/星座图 projection、实时/历史 UI-safe snapshot 和展示刷新策略。"
+  - "display 不拥有 receive parse truth、connection transport truth、status health summary、settings persisted truth、storage/history persistence truth、task lifecycle、result/report/northbound 语义。"
+  - "settings 只能提供用户配置事实，不解释展示运行语义。"
+  - "receive/connection/storage/status 提供事实或事件，display 不 import internal state。"
+  - "UI snapshot 与 feature state 分离，不把 runtime/page snapshot 当全局 store。"
+  - "不冻结 API schema、chart API、刷新间隔、队列参数、字段 payload、错误码或存储格式。"
+  - "不读取或修改自动生成前端 types。"
+
+items:
+  - id: DISP-DESIGN-001
+    title: "实现前确认 display 正式 feature 边界"
+    status: pending
+    scope: "architecture placement"
+    acceptance:
+      - "目标落点固定为 rewrite/src/features/display。"
+      - "实现说明列出 display owner / not owner。"
+      - "不得把 display 直接塞入 status、settings、receive 或 widgets 造成 owner 混乱。"
+      - "如需要调整正式落点，必须先更新 target structure、feature boundaries 和本 checklist。"
+    validation:
+      - "manual checklist"
+      - "static scan"
+
+  - id: DISP-IMPL-001
+    title: "建立 display core 纯 TypeScript 规则"
+    status: pending
+    scope: "rewrite/src/features/display/core"
+    acceptance:
+      - "core 只接收显式 preference snapshot 和 source material。"
+      - "core 覆盖 preference normalization、source reference validation、table row projection、chart series projection、scatter source projection 和 display buffer delta。"
+      - "core 不依赖 Vue、Pinia、Electron、platform、Node、receive/settings/storage/connection/status internal state 或全局 store。"
+      - "core 不解析 receive bytes、不定义 connection status、不解释 status health、不读写文件。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+
+  - id: DISP-IMPL-002
+    title: "建立 display service/state/selector"
+    status: pending
+    scope: "rewrite/src/features/display/services state selectors"
+    acceptance:
+      - "service 负责 load/update/reset preference、consume source material、update display read model、clear transient buffer。"
+      - "state 分离 preference snapshot、source material projection、display read model、transient live buffers 和 UI-independent selectors。"
+      - "selector 返回 cloned/readonly table/chart/scatter/history projection。"
+      - "不暴露 mutable buffers、raw chart instance、source feature internals 或 platform object。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+
+  - id: DISP-IMPL-003
+    title: "收口 settings -> display 偏好边界"
+    status: pending
+    scope: "settings display preference input"
+    acceptance:
+      - "settings 只提供 persisted user preference fact 或 defaults。"
+      - "display 拥有 table/chart/scatter/history preference semantics、validation 和 normalized snapshot。"
+      - "display 不 import settings internal state、normalize helper、adapter 或 service implementation。"
+      - "当前 settings 未实现 display preference fields 时必须登记 deferred，不假定已完成。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "manual checklist"
+
+  - id: DISP-IMPL-004
+    title: "收口 receive/frame -> display source 边界"
+    status: pending
+    scope: "receive/frame public material"
+    acceptance:
+      - "display 只消费 receive public read model、field value material、stats material 或 runtime-routed source material。"
+      - "display 可读取 frame public reference/options metadata for labels and source binding。"
+      - "display 不 import receive/frame internal state，不写 frame definition 或 receive stats。"
+      - "receive 未实现 public API 前，display 实现只能使用 fake/source fixture 或 deferred。"
+    validation:
+      - "fixture test"
+      - "static scan"
+      - "runtime validation"
+
+  - id: DISP-IMPL-005
+    title: "收口 storage/history -> display 边界"
+    status: pending
+    scope: "storage/history public material"
+    acceptance:
+      - "display 只消费 storage/history public read model 或 material snapshot。"
+      - "display 不直接读写文件、不定义 CSV/history schema、不声明 package data path 完成。"
+      - "clear display buffer 不删除 persisted history，除非显式调用 storage public command。"
+      - "history query payload、文件格式和路径策略不在 display 冻结。"
+    validation:
+      - "fixture test"
+      - "manual checklist"
+      - "package validation"
+
+  - id: DISP-IMPL-006
+    title: "收口 connection/status context 边界"
+    status: pending
+    scope: "connection/status display material"
+    acceptance:
+      - "display 可读取 connection/status public summary 作为 disabled/empty/error context。"
+      - "display 不管理 connection lifecycle，不把 target 当 business device。"
+      - "display 不计算 status health truth，不修改 status read model。"
+      - "真实连接或状态链路完成声明必须等待对应 owner 的 runtime/hardware/customer evidence。"
+    validation:
+      - "fixture test"
+      - "static scan"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: DISP-IMPL-007
+    title: "登记 runtime 装配和高频刷新策略"
+    status: pending
+    scope: "rewrite/src/runtime and display high-frequency path"
+    acceptance:
+      - "runtime 只负责装配 display service/source material、路由跨 feature 操作和 cleanup。"
+      - "实现说明列出 receive material 到 display snapshot 的 batch/throttle/coalescing/overflow/defer 策略或明确 deferred。"
+      - "UI 不订阅 raw byte stream，不逐包累计图表。"
+      - "未完成 runtime evidence 前，不声明 high-frequency display steady-state accepted。"
+    validation:
+      - "fixture test"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: DISP-TEST-001
+    title: "沉淀 display fixtures 和 oracle"
+    status: pending
+    scope: "rewrite/src/features/display/fixtures and tests"
+    acceptance:
+      - "fixture 覆盖 table1/table2 displayMode、selectedGroupId、selectedItems、Y-axis config。"
+      - "fixture 覆盖 chart-performance-config、historyAnalysis_chartSettings、scatter I/Q source config。"
+      - "fixture 覆盖 missing/stale source references、no data、invalid config 和 unsupported mode fallback。"
+      - "fixture 覆盖 fake receive/storage material 到 table/chart/scatter/history projection。"
+      - "legacy samples 只作为 oracle/material，不作为新 schema。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "oracle comparison"
+
+  - id: DISP-UI-001
+    title: "保留 display 用户可见入口"
+    status: pending
+    scope: "pages/widgets/display components"
+    acceptance:
+      - "Receive display 区域或等价入口仍可达。"
+      - "双表 table/chart/special 模式、图表设置、星座图设置、空状态、无数据、错误提示可见。"
+      - "历史分析入口可见时间范围、数据选择、多图配置和图表展示。"
+      - "recording controls 可见，但 recording persistence truth 由 storage/runtime/package 证明。"
+      - "不在本项实现或审查颜色/样式 token。"
+    validation:
+      - "manual checklist"
+
+  - id: DISP-VERIFY-001
+    title: "完成实现验证和完成声明"
+    status: pending
+    scope: "implementation verification"
+    acceptance:
+      - "实现阶段运行 pnpm -C rewrite build 和 pnpm -C rewrite lint，除纯文档轮外。"
+      - "执行静态 scan，确认 display/pages/widgets/runtime 未 import 其他 feature internal state。"
+      - "不得用 static/Vitest/fixture 声明 hardware、package、northbound、report 或 customer closure 完成。"
+      - "实现摘要必须列 Changed files、Verify evidence、Open issues。"
+    validation:
+      - "static scan"
+      - "Vitest unit"
+      - "fixture test"
+      - "manual checklist"

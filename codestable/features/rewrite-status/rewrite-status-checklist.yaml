@@ -1,0 +1,173 @@
+version: 1
+feature: rewrite-status
+status: draft
+date: "2026-05-04"
+purpose: "后续 cs-feat-impl 的入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-system-architecture.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/architecture/rewrite-thin-ui-runtime-wiring.md"
+  - "codestable/architecture/rewrite-ui-style-baseline.md"
+  - "codestable/quality/rewrite-validation-fixture-oracle-baseline.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+  - "rewrite/src/features/settings"
+  - "rewrite/src/features/connection"
+  - "codestable/features/rewrite-receive/rewrite-receive-design.md"
+
+boundary_guards:
+  - "只设计 status，不实现业务代码或 UI 页面。"
+  - "status owns 状态指示、健康状态、状态视图、内部状态摘要和 UI-facing read model。"
+  - "status 不拥有 settings 配置事实、connection transport truth、receive/send 原始事实、task 主状态、SCOE 领域状态、result truth、report generation 或 northbound external projection。"
+  - "settings 只能提供用户配置事实，不解释运行状态。"
+  - "connection/receive 提供事实或事件，status 不 import internal state。"
+  - "UI snapshot 与 feature state 分离，不把 runtime/page snapshot 当全局 store。"
+  - "不冻结 API schema、事件 payload、状态枚举、颜色 token 或 northbound/customer 语义。"
+  - "不读取或修改自动生成前端 types。"
+
+items:
+  - id: STAT-DESIGN-001
+    title: "实现前重新确认 split decision"
+    status: pending
+    scope: "status/display boundary"
+    acceptance:
+      - "实现说明确认 status 与 display 分离。"
+      - "status 只负责状态摘要、健康视图和 indicator read model。"
+      - "display/chart/table 偏好和 UI projection 不进入 status。"
+      - "如需要合并或改变 owner，先回到 design 更新。"
+    validation:
+      - "manual checklist"
+      - "static scan"
+
+  - id: STAT-IMPL-001
+    title: "建立 status core 纯 TypeScript 规则"
+    status: pending
+    scope: "rewrite/src/features/status/core"
+    acceptance:
+      - "core 只接收显式 input material 和 indicator config snapshot。"
+      - "core 覆盖 indicator rule evaluation、health summary derivation 和 unknown/deferred source safe fallback。"
+      - "core 不依赖 Vue、Pinia、Electron、platform、Node、其他 feature internal state 或全局 store。"
+      - "core 不解释 connection lifecycle truth、receive parse truth、task lifecycle、SCOE completion、result/report/northbound 语义。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+
+  - id: STAT-IMPL-002
+    title: "建立 status service/state/selector"
+    status: pending
+    scope: "rewrite/src/features/status/services state selectors"
+    acceptance:
+      - "service 负责接收 input material、调用 core、写 status read model、reset/recompute/clear。"
+      - "state 只保存 status read model、indicator snapshot、health summary 和 last change/error summary。"
+      - "selector 返回 cloned/readonly UI-safe snapshot。"
+      - "不暴露 mutable store、Vue ref、raw event、platform object 或其他 feature internal state。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+
+  - id: STAT-IMPL-003
+    title: "收口 settings -> status 配置边界"
+    status: pending
+    scope: "settings indicator config input"
+    acceptance:
+      - "settings 只提供 persisted indicator preference snapshot 或 defaults。"
+      - "status 拥有 indicator config 语义校验、active/current read model 和刷新节奏。"
+      - "status 不 import settings internal state、normalize helper、adapter 或 service implementation。"
+      - "当前 settings 未实现完整 indicator config 时必须登记 deferred，不假定已完成。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "manual checklist"
+
+  - id: STAT-IMPL-004
+    title: "收口 connection -> status 输入边界"
+    status: pending
+    scope: "connection public selectors/events"
+    acceptance:
+      - "status 只读取 connection public snapshot、summary、event material 或 runtime-routed material。"
+      - "status 不 import connection internal state、adapter、service implementation 或 platform handle。"
+      - "transport target 不等同 northbound deviceId。"
+      - "真实串口/TCP/UDP 状态完成声明必须等待 runtime/hardware evidence。"
+    validation:
+      - "fixture test"
+      - "static scan"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: STAT-IMPL-005
+    title: "收口 receive/send/task/SCOE/result 输入边界"
+    status: pending
+    scope: "cross-feature status material"
+    acceptance:
+      - "receive 只提供 field value、parse/unmatched/error、receive stats material。"
+      - "send/task/SCOE/result 只提供各自 public projection material。"
+      - "status 不推进任务、不解释 SCOE completion、不定义 result truth。"
+      - "未设计或未实现的 source 必须标记 unknown/deferred，不用 mock truth 声明完成。"
+    validation:
+      - "fixture test"
+      - "runtime validation"
+      - "hardware validation"
+      - "customer validation"
+
+  - id: STAT-IMPL-006
+    title: "登记 runtime 装配和 UI snapshot 边界"
+    status: pending
+    scope: "rewrite/src/runtime pages widgets"
+    acceptance:
+      - "runtime 只负责收集只读材料、路由事件、组合 page view model 和节流刷新。"
+      - "runtime 不保存 feature business truth。"
+      - "pages/widgets 只消费 status selector、runtime page API 或 props。"
+      - "UI snapshot 只保存过滤、展开、loading、selected item 和提示状态，不反向写 status truth。"
+    validation:
+      - "manual checklist"
+      - "static scan"
+      - "runtime validation"
+
+  - id: STAT-TEST-001
+    title: "沉淀 status fixtures 和 oracle"
+    status: pending
+    scope: "rewrite/src/features/status/fixtures and tests"
+    acceptance:
+      - "fixture 覆盖 connection lifecycle/error/counter material 到 health summary。"
+      - "fixture 覆盖 receive field value/range/unmatched/error material 到 indicator projection。"
+      - "fixture 覆盖 indicator config disabled/empty/invalid/missing fields。"
+      - "fixture 覆盖 multi-source unknown/deferred fallback。"
+      - "legacy samples 只作为 oracle/material，不作为新 schema。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "oracle comparison"
+
+  - id: STAT-UI-001
+    title: "保留 status 用户可见入口"
+    status: pending
+    scope: "pages/widgets/status components"
+    acceptance:
+      - "HeaderBar 或等价 status widget 仍可显示状态指示。"
+      - "状态启用/禁用、空配置、无数据、异常状态和数据变化可见。"
+      - "connection 页面可见连接状态不丢失，但 truth 仍来自 connection。"
+      - "SCOE 状态若进入 summary，必须标注来自 SCOE projection。"
+      - "不在本项实现或审查颜色/样式 token。"
+    validation:
+      - "manual checklist"
+
+  - id: STAT-VERIFY-001
+    title: "完成实现验证和完成声明"
+    status: pending
+    scope: "implementation verification"
+    acceptance:
+      - "实现阶段运行 pnpm -C rewrite build 和 pnpm -C rewrite lint，除纯文档轮外。"
+      - "执行静态 scan，确认 status/pages/widgets/runtime 未 import 其他 feature internal state。"
+      - "不得用 static/Vitest/fixture 声明 hardware、package、northbound 或 customer closure 完成。"
+      - "实现摘要必须列 Changed files、Verify evidence、Open issues。"
+    validation:
+      - "static scan"
+      - "Vitest unit"
+      - "fixture test"
+      - "manual checklist"

@@ -1,0 +1,315 @@
+# Rewrite SCOE Feature Checklist
+# Generated: 2026-05-06
+# Direct contract: rewrite-scoe-design.md
+
+meta:
+  feature: rewrite-scoe
+  design_doc: rewrite-scoe-design.md
+  status: draft
+  validation_posture: "fixture-first; hardware validation required for real SCOE device"
+
+sections:
+  - title: Core types and domain logic
+    items:
+      - id: SCOE-CORE-001
+        description: "Define ScoeCommand type (code/label/function/params/frameInstances/completionCondition/ackFrameConfig/errorPolicyOverride)"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-002
+        description: "Define ScoeCompletionCondition type and translation to WaitCondition"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-003
+        description: "Define ScoeAckFrameConfig type and translation to send-step"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-004
+        description: "Define ScoeGlobalConfig and ScoeSatelliteConfig types"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-005
+        description: "Define ScoeDomainState type (commandSuccessCount/ErrorCount/lastCommandCode/lastErrorReason/loadedSatelliteId/receiveCommandSuccess)"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-006
+        description: "Implement SCOE protocol parsing from raw bytes (frame header/checksum/trailer to command code + params)"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-007
+        description: "Implement command parsing - instruction code lookup and param extraction"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-008
+        description: "Define ExternalCommandAdapter interface in shared/ (translateToTaskDefinition / onExecutionEvent / getAdapterId) and optional ExternalResponseTranslator interface"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-009
+        description: "Define ScoeCommandTrigger type (rawBytes + sourceId) as adapter input from connection transport event"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CORE-010
+        description: "Implement ScoeCommandTranslation - full translateToTaskDefinition logic (protocol parse + 3 steps + errorPolicy)"
+        validation: vitest-unit, fixture-test
+        status: pending
+
+      - id: SCOE-CORE-011
+        description: "Implement ScoeCommandAdapter as ExternalCommandAdapter (no translateResponse, no ExternalResponseTranslator)"
+        validation: vitest-unit, fixture-test
+        status: pending
+
+      - id: SCOE-CORE-012
+        description: "Verify features/scoe/core has zero Vue/Pinia/Electron/platform/Node dependency"
+        validation: static-scan
+        status: pending
+
+  - title: Domain state and lifecycle event handling
+    items:
+      - id: SCOE-STATE-001
+        description: "Implement ScoeDomainState update from task lifecycle events (task-completed, task-failed, step-failed) via TaskInstanceCompletion"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-STATE-002
+        description: "Implement SCOE status loop timer using shared TimerRegistry (1s interval, reads receive/connection public selectors, updates ScoeDomainState)"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-STATE-003
+        description: "SCOE state/selectors do not expose mutable references or internal service instances"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-STATE-004
+        description: "SCOE state does not import task/send/receive/frame/connection internal state"
+        validation: static-scan
+        status: pending
+
+  - title: Service layer
+    items:
+      - id: SCOE-SVC-001
+        description: "Implement SCOE service - receives ScoeCommandTrigger from runtime, calls core translation, calls task public service"
+        validation: vitest-unit, fake-adapter-test
+        status: pending
+
+      - id: SCOE-SVC-002
+        description: "SCOE service subscribes to task lifecycle events for domain state updates"
+        validation: vitest-unit, fake-adapter-test
+        status: pending
+
+      - id: SCOE-SVC-003
+        description: "SCOE service manages status loop timer lifecycle via TimerRegistry (start on init, clear on destroy)"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-SVC-004
+        description: "SCOE service receives dependencies via explicit injection (task service, frame reader, connection reader)"
+        validation: vitest-unit, static-scan
+        status: pending
+
+  - title: Cross-feature interaction contracts
+    items:
+      - id: SCOE-CONTRACT-001
+        description: "SCOE to task: translateToTaskDefinition produces valid TaskDefinition with triggerSource=scoe-command, 3 steps, and errorPolicy from command.errorPolicyOverride"
+        validation: vitest-unit, fixture-test
+        status: pending
+
+      - id: SCOE-CONTRACT-002
+        description: "SCOE from task: onExecutionEvent correctly updates ScoeDomainState from TaskLifecycleEvent and TaskInstanceCompletion"
+        validation: vitest-unit
+        status: pending
+
+      - id: SCOE-CONTRACT-003
+        description: "SCOE does not directly call send service (all sends via task send-step)"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-CONTRACT-004
+        description: "SCOE does not subscribe to receive event source for completion conditions (task wait-condition-step handles)"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-CONTRACT-005
+        description: "SCOE does not import task/send/receive/frame/connection internal state"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-CONTRACT-006
+        description: "SCOE reads frame public selector only for command frame and ack frame references"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-CONTRACT-007
+        description: "SCOE reads connection public selector only for SCOE target availability"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-CONTRACT-008
+        description: "SCOE does not manage connection transport lifecycle (no create/destroy calls)"
+        validation: static-scan
+        status: pending
+
+      - id: SCOE-CONTRACT-009
+        description: "SCOE inbound bypasses receive: raw bytes from connection transport event via runtime routing, SCOE does own protocol parsing"
+        validation: static-scan
+        status: pending
+
+  - title: Boundary exception registration
+    items:
+      - id: SCOE-BOUNDARY-001
+        description: "SCOE fixed TCP server source registered as boundary exception in runtime"
+        validation: manual-checklist
+        status: pending
+
+      - id: SCOE-BOUNDARY-002
+        description: "SCOE fixed UDP target registered as boundary exception in runtime"
+        validation: manual-checklist
+        status: pending
+
+      - id: SCOE-BOUNDARY-003
+        description: "No SCOE hardcoded source/target in generic receive/send chains"
+        validation: static-scan
+        status: pending
+
+  - title: Fixtures and oracle
+    items:
+      - id: SCOE-FIXTURE-001
+        description: "Create ScoeCommand fixtures (multiple commands with different code/function/params/errorPolicyOverride)"
+        validation: fixture-test
+        status: pending
+
+      - id: SCOE-FIXTURE-002
+        description: "Create ScoeCompletionCondition fixtures (various frameId/fieldId/operator/threshold combinations)"
+        validation: fixture-test
+        status: pending
+
+      - id: SCOE-FIXTURE-003
+        description: "Create ScoeAckFrameConfig fixtures"
+        validation: fixture-test
+        status: pending
+
+      - id: SCOE-FIXTURE-004
+        description: "Create protocol parsing fixtures (raw bytes with various frame header/checksum/trailer patterns)"
+        validation: fixture-test
+        status: pending
+
+      - id: SCOE-FIXTURE-005
+        description: "Create command translation end-to-end fixtures (raw bytes to TaskDefinition to domain state update)"
+        validation: fixture-test
+        status: pending
+
+      - id: SCOE-FIXTURE-006
+        description: "Create lifecycle event fixtures (task-completed/task-failed/step-failed via TaskInstanceCompletion to ScoeDomainState)"
+        validation: fixture-test
+        status: pending
+
+      - id: SCOE-FIXTURE-007
+        description: "Create legacy oracle from old scoeReceiveCommands.json and scoeSendInstances.json"
+        validation: oracle-comparison
+        status: pending
+
+  - title: Fake adapter
+    items:
+      - id: SCOE-FAKE-001
+        description: "Create fake task service for SCOE tests (accepts TaskDefinition, returns preset lifecycle events and TaskInstanceCompletion)"
+        validation: fake-adapter-test
+        status: pending
+
+      - id: SCOE-FAKE-002
+        description: "Create fake transport event provider (simulates connection transport event, constructs ScoeCommandTrigger with rawBytes)"
+        validation: fake-adapter-test
+        status: pending
+
+      - id: SCOE-FAKE-003
+        description: "Verify SCOE adapter behavior with various fake task service responses and fake transport event sequences"
+        validation: fake-adapter-test
+        status: pending
+
+  - title: Manual validation
+    items:
+      - id: SCOE-MANUAL-001
+        description: "SCOE page entry reachable"
+        validation: manual-checklist
+        status: pending
+
+      - id: SCOE-MANUAL-002
+        description: "SCOE status panel shows commandSuccessCount/ErrorCount/lastCommandCode"
+        validation: manual-checklist
+        status: pending
+
+      - id: SCOE-MANUAL-003
+        description: "SCOE test tool panel usable"
+        validation: manual-checklist
+        status: pending
+
+      - id: SCOE-MANUAL-004
+        description: "SCOE command list and config editing usable"
+        validation: manual-checklist
+        status: pending
+
+      - id: SCOE-MANUAL-005
+        description: "SCOE TCP connection status visible (via connection public state)"
+        validation: manual-checklist
+        status: pending
+
+  - title: Runtime and hardware validation
+    items:
+      - id: SCOE-RUNTIME-001
+        description: "SCOE service assembly and cleanup"
+        validation: runtime-validation
+        status: pending
+
+      - id: SCOE-RUNTIME-002
+        description: "Runtime correctly routes connection transport events to SCOE adapter (sourceId matching, ScoeCommandTrigger construction)"
+        validation: runtime-validation
+        status: pending
+
+      - id: SCOE-RUNTIME-003
+        description: "Real SCOE device connection, instruction code routing and execution"
+        validation: hardware-validation
+        status: pending
+
+      - id: SCOE-RUNTIME-004
+        description: "Completion condition matching with real receive events"
+        validation: hardware-validation
+        status: pending
+
+      - id: SCOE-RUNTIME-005
+        description: "Status loop behavior in real environment"
+        validation: runtime-validation
+        status: pending
+
+      - id: SCOE-RUNTIME-006
+        description: "Real SCOE TCP server receiving instruction bytes"
+        validation: hardware-validation
+        status: pending
+
+      - id: SCOE-RUNTIME-007
+        description: "Real SCOE UDP sending command frames and ack frames"
+        validation: hardware-validation
+        status: pending
+
+  - title: Northbound pattern reuse
+    items:
+      - id: SCOE-NB-001
+        description: "ExternalCommandAdapter interface in shared/ is generic enough for northbound to implement"
+        validation: vitest-unit, review
+        status: pending
+
+      - id: SCOE-NB-002
+        description: "ExternalResponseTranslator optional interface supports northbound output translation without forcing SCOE empty impl"
+        validation: vitest-unit, review
+        status: pending
+
+      - id: SCOE-NB-003
+        description: "Document northbound adapter reuse recommendations (design doc section 7)"
+        validation: review
+        status: pending

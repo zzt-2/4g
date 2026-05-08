@@ -1,0 +1,248 @@
+version: 1
+feature: rewrite-storage-local-baseline
+status: draft
+date: "2026-04-30"
+purpose: "后续 cs-feat-impl 的入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/compound/2026-04-28-rewrite-scope-default-preserve.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-system-architecture.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/architecture/rewrite-shared-tooling-audit-plan.md"
+  - "codestable/architecture/rewrite-pre-design-gate-and-sequencing.md"
+  - "codestable/architecture/rewrite-platform-app-shell-file-dialog.md"
+  - "codestable/architecture/rewrite-platform-api-surface-reduction.md"
+  - "codestable/architecture/rewrite-shared-tooling-app-shell-ownership.md"
+  - "codestable/features/rewrite-frame/rewrite-frame-design.md"
+  - "codestable/features/rewrite-frame/rewrite-frame-checklist.yaml"
+  - "codestable/features/rewrite-settings/rewrite-settings-design.md"
+  - "codestable/features/rewrite-settings/rewrite-settings-checklist.yaml"
+  - "codestable/quality/rewrite-validation-fixture-oracle-baseline.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+
+boundary_guards:
+  - "只实现本地持久化、legacy JSON migration material、history/local records、CSV/local export 的 storage-local-baseline。"
+  - "不设计高速存储最终模型；只登记 local boundary、runtime exception 和 deferred 项。"
+  - "不设计 report delivery、northbound file delivery、TestReport、HTTP/FTP 或客户闭环。"
+  - "不把 history、CSV、local export 等同 report 或 northbound delivery。"
+  - "不定义最终 file/path/dialog platform API schema。"
+  - "renderer 不直接访问 Node、Electron、fs、path、ipcRenderer 或旧 window.electron。"
+  - "不把旧 DATA_PATH_MAP、dataStorageApi、historyDataApi 当成新核心模型。"
+  - "新代码只落在 rewrite/src/features/storage-local-baseline 及必要的目标架构边界；旧 src/public/src-electron 只作为 evidence、fixture 或 oracle 输入。"
+
+items:
+  - id: STO-IMPL-001
+    title: "实现前重新确认 storage owner / not owner"
+    status: pending
+    scope: "storage design guard"
+    acceptance:
+      - "实现说明列出 storage owner 和 not owner。"
+      - "实现范围不包含 report delivery、northbound delivery、TestReport、HTTP/FTP 或 customer closure。"
+      - "实现范围不包含 receive/send/task/SCOE/result/report/northbound 内部语义。"
+    validation:
+      - manual
+
+  - id: STO-IMPL-002
+    title: "建立 storage core 纯 TypeScript 规则"
+    status: pending
+    scope: "rewrite/src/features/storage-local-baseline/core"
+    acceptance:
+      - "core 只接收显式输入，不依赖 Vue、Pinia、Electron、platform、Node 或全局 store。"
+      - "core 覆盖 local record lifecycle、hour bucket、CSV local export、cleanup cutoff、legacy material classification。"
+      - "core 不冻结本 checklist 外的字段 schema 或最终 platform API schema。"
+    validation:
+      - fixture
+      - vitest
+
+  - id: STO-IMPL-003
+    title: "建立 storage service 用例层"
+    status: pending
+    scope: "rewrite/src/features/storage-local-baseline/services"
+    acceptance:
+      - "service 负责 load/save/append/history query/export CSV/import material/cleanup/flush/shutdown。"
+      - "service 协调 core、state 和 adapter，不直接访问 Node、Electron、fs、path、ipcRenderer 或旧 window.electron。"
+      - "service 不定义 receive result、task result、report object 或 northbound delivery 语义。"
+    validation:
+      - fixture
+      - vitest
+      - fake adapter test
+
+  - id: STO-IMPL-004
+    title: "建立 storage state 和只读 selector"
+    status: pending
+    scope: "rewrite/src/features/storage-local-baseline/state"
+    acceptance:
+      - "state 只维护 storage 本地持久化状态、history read model、storage stats、CSV export 状态和 UI-independent selector。"
+      - "state 不保存 receive/send/task/SCOE/result/report/northbound truth。"
+      - "外部消费者只能读取只读 projection，不能获得可变 internal state 或 adapter。"
+    validation:
+      - fixture
+      - vitest
+
+  - id: STO-IMPL-005
+    title: "建立 platform file/path/dialog adapter 边界"
+    status: pending
+    scope: "rewrite/src/features/storage-local-baseline/adapters"
+    acceptance:
+      - "adapter 使用目标架构允许的 platform/app shell capability 或 fake adapter。"
+      - "adapter 不定义最终 preload/main/renderer API schema。"
+      - "adapter 不暴露任意路径读写、动态 data type CRUD 或旧 Electron API 形态。"
+      - "packaged data path、权限和长期写入登记为 runtime/package validation。"
+      - "文件/目录对话框的真实实现形态仍 deferred；storage 只先验证 adapter 技术结果和本地语义响应。"
+    validation:
+      - fixture
+      - vitest
+      - fake adapter test
+      - manual
+      - runtime
+      - package validation
+
+  - id: STO-IMPL-006
+    title: "沉淀 legacy JSON migration material fixtures"
+    status: pending
+    scope: "rewrite/src/features/storage-local-baseline/fixtures/legacy/templates"
+    acceptance:
+      - "从允许范围内的 public/data/templates 样本摘取 legacy material。"
+      - "fixtures 只作为 oracle/migration input，不作为新核心模型或长期 schema。"
+      - "frame/settings/SCOE 等源 feature 的数据语义不由 storage 重新定义。"
+      - "legacy material 分类输出必须登记为 oracle comparison 输入。"
+    validation:
+      - fixture
+      - vitest
+      - oracle comparison
+
+  - id: STO-IMPL-007
+    title: "实现 history/local record 边界"
+    status: pending
+    scope: "history/local record service"
+    acceptance:
+      - "preserve 按小时发现、加载、追加和合并本地 history material 的可观测行为。"
+      - "receive 只通过显式 local record material 交给 storage，不直接写 storage internals。"
+      - "storage 只记录本地写入事实和 material，不定义 receive/result truth。"
+      - "history hour merge 的 legacy/golden 输出必须登记为 oracle comparison 输入。"
+    validation:
+      - fixture
+      - vitest
+      - oracle comparison
+      - runtime
+
+  - id: STO-IMPL-008
+    title: "实现 CSV/local export 边界"
+    status: pending
+    scope: "CSV local export"
+    acceptance:
+      - "preserve 时间范围、选中项、表头、时间戳、预设路径/保存对话框的可见 local export 行为。"
+      - "CSV/local export 只作为本地文件输出和 report material 候选，不等同 TestReport 或 northbound delivery。"
+      - "dateFormat 等旧实现未闭合选项标记为 deferred 或 candidate drop，不能伪装为已完成行为。"
+      - "CSV 表头、顺序、时间戳和空数据行为必须登记为 oracle comparison 输入。"
+    validation:
+      - fixture
+      - vitest
+      - oracle comparison
+      - manual
+      - runtime
+
+  - id: STO-IMPL-009
+    title: "明确 frame/settings/receive consumer integration"
+    status: pending
+    scope: "cross-feature public API boundary"
+    acceptance:
+      - "frame 通过 storage adapter 或 app shell 完成本地导入导出和 legacy material 读取；frame JSON 语义仍归 frame。"
+      - "settings owns config facts，storage 只消费设置快照。"
+      - "receive owns parse facts，storage 只接收显式 local record material。"
+      - "不为 report/northbound 直接建立长期合同。"
+      - "root public API 以 rewrite/src/features/storage-local-baseline/index.ts 为准；service/reader、adapter port 类型、只读/材料类型和必要纯函数 helper 可公开。"
+      - "公开 core helper 只作为 deterministic pure utility，不是 mutable state、platform API、path helper、adapter 实例或跨 feature 写入口。"
+      - "state container、fake adapter、clone/normalize/merge/createIssue/legacy classify 等内部 helper 不经 root index 暴露；独立 selector 只有出现真实消费者时再升级为 public API。"
+    validation:
+      - manual
+      - fixture
+
+  - id: STO-IMPL-010
+    title: "登记 runtime 装配、flush、shutdown 和 cleanup"
+    status: pending
+    scope: "rewrite/src/runtime and app lifecycle"
+    acceptance:
+      - "runtime 只负责启动加载顺序、flush 触发、shutdown 释放、cleanup 调用和边界例外登记。"
+      - "runtime 不拥有 storage schema、history/CSV 语义、report 语义或 northbound error/delivery 语义。"
+      - "flush/shutdown 失败有可见错误和可测试 fake adapter 行为。"
+      - "package validation 未完成前，runtime 只能登记 packaged data path blocker，不能声明 packaged persistence accepted。"
+    validation:
+      - fixture
+      - fake adapter test
+      - manual
+      - runtime
+
+  - id: STO-IMPL-011
+    title: "登记 packaged data path blocker"
+    status: pending
+    scope: "platform/path runtime validation"
+    acceptance:
+      - "旧 public/resources public path 只作为风险 evidence，不作为新长期写入路径。"
+      - "实现说明列出打包态 data path、权限、长期写入、备份和清理的 runtime/package validation 项。"
+      - "未完成打包态验证前，不声明 packaged persistence accepted。"
+    validation:
+      - manual
+      - runtime
+      - package validation
+
+  - id: STO-DEFER-001
+    title: "高速存储最终模型 deferred"
+    status: pending
+    scope: "high-speed storage boundary"
+    acceptance:
+      - "只登记旧高速存储页面、规则、stats、reset 和 network short-circuit evidence。"
+      - "不实现最终 high-speed model、吞吐策略、short-circuit 口径或硬件闭环。"
+      - "后续触达时必须按 runtime boundary exception template 登记。"
+    validation:
+      - manual
+      - runtime
+      - hardware
+
+  - id: STO-DEFER-002
+    title: "report/northbound delivery not owner"
+    status: pending
+    scope: "report/northbound guard"
+    acceptance:
+      - "storage 可提供 local material，但不定义 report object、TestReport schema、HTTP/FTP 交付或 customer confirmation。"
+      - "history/CSV/local export 不得被实现说明称为 northbound file delivery closure。"
+      - "future report/northbound 只能通过各自 feature design 声明读取和交付边界。"
+    validation:
+      - manual
+      - customer
+
+  - id: STO-TEST-001
+    title: "完成 storage fixture 和 Vitest 覆盖"
+    status: pending
+    scope: "storage tests and fixtures"
+    acceptance:
+      - "fixture 覆盖 legacy templates、history hour files、CSV expected outputs、path error cases、cleanup cases。"
+      - "Vitest 覆盖 core/service/adapter/selector 的纯 TypeScript 行为。"
+      - "oracle comparison 覆盖 history hour merge、CSV expected outputs 和 legacy material classification。"
+      - "fake adapter test 覆盖取消、权限错误、路径不可写、目录不存在、损坏文件和写入失败。"
+      - "页面交互、真实文件对话框、打包态路径、高速存储和客户交付不由 Vitest 宣称完成。"
+    validation:
+      - fixture
+      - vitest
+      - oracle comparison
+      - fake adapter test
+      - manual
+
+  - id: STO-VERIFY-001
+    title: "实现阶段完成验证和未验证项声明"
+    status: pending
+    scope: "implementation verification"
+    acceptance:
+      - "实现阶段按项目要求运行 pnpm build 和 pnpm lint，除非当轮明确为纯文档。"
+      - "实现说明列出自动 fixture、manual checklist、runtime/package/hardware/customer 未验证项。"
+      - "不得用静态测试声明 hardware、packaged app、HTTP/FTP、SCOE、northbound 或 customer closure 完成。"
+      - "实现摘要必须按 validation baseline 说明 oracle comparison、fake adapter test 和 package validation 覆盖或未覆盖项。"
+    validation:
+      - fixture
+      - vitest
+      - manual

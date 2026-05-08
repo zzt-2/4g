@@ -1,0 +1,12 @@
+{
+  "active": true,
+  "mode": "ralplan",
+  "current_phase": "planning",
+  "started_at": "2026-04-23T03:20:35.910Z",
+  "updated_at": "2026-04-23T03:20:35.910Z",
+  "session_id": "019db856-1d3c-7fa1-b5cb-39ad4dbea669",
+  "thread_id": "019db81b-3831-7cb0-900e-ecda787f194a",
+  "turn_id": "019db829-834b-78c3-9fee-04914b2201c9",
+  "iteration": 2,
+  "last_turn_at": "2026-04-23T03:33:56.245Z"
+}

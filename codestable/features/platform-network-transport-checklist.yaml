@@ -1,0 +1,156 @@
+# Platform Network Transport — Implementation Checklist
+
+# Feature: platform-network-transport
+# Design: codestable/features/platform-network-transport-design.md
+# Status: pending
+
+items:
+  # --- Layer 1: Shared Types ---
+  - id: T1
+    title: "SerialConnectConfig 新增 kind discriminant"
+    file: "rewrite/src/shared/platform-bridge.ts"
+    detail: "SerialConnectConfig 加 readonly kind: 'serial'"
+    status: done
+
+  - id: T2
+    title: "新增 TCP/UDP config 类型"
+    file: "rewrite/src/shared/platform-bridge.ts"
+    detail: "TcpClientConnectConfig, TcpServerConnectConfig, UdpConnectConfig, TransportConnectConfig union"
+    status: done
+
+  - id: T3
+    title: "TransportBridge 接口：connectSerial → connect"
+    file: "rewrite/src/shared/platform-bridge.ts"
+    detail: "移除 connectSerial，新增 connect(config: TransportConnectConfig)"
+    status: done
+
+  - id: T4
+    title: "platform/index.ts re-export 新类型"
+    file: "rewrite/src/platform/index.ts"
+    detail: "re-export TransportConnectConfig, TcpClientConnectConfig, TcpServerConnectConfig, UdpConnectConfig"
+    status: done
+
+  # --- Layer 2: Main Process ---
+  - id: M1
+    title: "新建 network-handlers.ts 骨架"
+    file: "rewrite/src-electron/main/network-handlers.ts"
+    detail: "连接类型定义、batch 基础设施、emitToRenderer、IPC channel 常量"
+    status: done
+
+  - id: M2
+    title: "TCP Client handler"
+    file: "rewrite/src-electron/main/network-handlers.ts"
+    detail: "connect (net.Socket + setNoDelay + timeout), data → batch, close, error, disconnect"
+    status: done
+
+  - id: M3
+    title: "TCP Server handler"
+    file: "rewrite/src-electron/main/network-handlers.ts"
+    detail: "listen (net.Server), accept client, clientId 生成, client batch/disconnect, disconnect listener 关闭全部 client"
+    status: done
+
+  - id: M4
+    title: "UDP handler"
+    file: "rewrite/src-electron/main/network-handlers.ts"
+    detail: "bind (dgram.Socket), message → batch, write → send to remote, close"
+    status: done
+
+  - id: M5
+    title: "统一 IPC 注册 + cleanup 导出"
+    file: "rewrite/src-electron/main/network-handlers.ts"
+    detail: "registerNetworkHandlers(mainWindow), cleanupNetworkHandlers(), handleNetworkConnect 按 kind 分发"
+    status: done
+
+  - id: M6
+    title: "main/index.ts 注册 network handlers"
+    file: "rewrite/src-electron/main/index.ts"
+    detail: "import registerNetworkHandlers/cleanupNetworkHandlers, 调用注册和清理"
+    status: done
+
+  # --- Layer 3: Preload ---
+  - id: P1
+    title: "preload 新增 IPC channel 常量 + connectionType map"
+    file: "rewrite/src-electron/preload/index.ts"
+    detail: "IPC_NETWORK_CONNECT/DISCONNECT/WRITE/CLEANUP, connectionTypes Map"
+    status: done
+
+  - id: P2
+    title: "preload connect() 统一路由"
+    file: "rewrite/src-electron/preload/index.ts"
+    detail: "按 config.kind 分发到 serial 或 network IPC channel"
+    status: done
+
+  - id: P3
+    title: "preload disconnect/write/cleanup 路由"
+    file: "rewrite/src-electron/preload/index.ts"
+    detail: "按 connectionType map 分发 disconnect 和 write; cleanup 并行调用两个 IPC"
+    status: done
+
+  - id: P4
+    title: "preload 事件监听器：TCP Server client 跟踪"
+    file: "rewrite/src-electron/preload/index.ts"
+    detail: "connected 事件中 role=tcp-server-client 时记录 connectionType; disconnected 时清理"
+    status: done
+
+  # --- Layer 4: Facade ---
+  - id: F1
+    title: "TransportFacade: connectSerial → connect"
+    file: "rewrite/src/platform/transport.ts"
+    detail: "接口和 createTransportFacade 实现同步更新"
+    status: done
+
+  # --- Layer 5: Adapter Migration ---
+  - id: A1
+    title: "RealSerialAdapter: connect 迁移"
+    file: "rewrite/src/features/connection/adapters/real-serial-adapter.ts"
+    detail: "transport.connectSerial → transport.connect({ kind: 'serial', ... })"
+    status: done
+
+  - id: A2
+    title: "RealSerialAdapter: mapBridgeEvent cast 修复"
+    file: "rewrite/src/features/connection/adapters/real-serial-adapter.ts"
+    detail: "event.target.kind as 'serial' → as TransportKind; event.target.role as 'serial-port' → as TransportTargetRole"
+    status: done
+
+  # --- Completeness ---
+  - id: C1
+    title: "RewritePlatformCapability 评估"
+    file: "rewrite/src/shared/platform-bridge.ts"
+    detail: "确认 'transport' 已覆盖网络传输，不需要新增 capability 值。如需新增则补充。"
+    status: done
+
+  # --- Verification ---
+  - id: V1
+    title: "TypeScript 编译通过"
+    detail: "pnpm -C rewrite build 通过"
+    status: done
+
+  - id: V2
+    title: "Lint 通过"
+    detail: "pnpm -C rewrite lint 通过（唯一剩余 error 是预存的 feature-wiring.spec.ts:175）"
+    status: done
+
+  - id: V3
+    title: "现有测试通过"
+    detail: "534 passed / 2 failed（均为预存：connection public API 泄露 + task condition any/null）"
+    status: done
+
+  - id: V4
+    title: "TCP Client 手动验证"
+    detail: "连接外部 TCP Server，收发数据，断开"
+    status: pending
+
+  - id: V5
+    title: "TCP Server 手动验证"
+    detail: "监听端口，accept 客户端，收发数据"
+    status: pending
+
+  - id: V6
+    title: "UDP 手动验证"
+    detail: "绑定端口，收发数据"
+    status: pending
+
+  - id: V7
+    title: "串口回归验证"
+    detail: "确认串口功能不受影响"
+    status: pending

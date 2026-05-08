@@ -1,0 +1,11 @@
+@use 'sass:map';
+
+$rw-z-index: (
+  'app-header': 1000,
+  'drawer': 999,
+  'sticky-action': 10
+);
+
+@function rw-z($name) {
+  @return map.get($rw-z-index, $name);
+}

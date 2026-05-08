@@ -1,0 +1,392 @@
+---
+feature: rewrite-task
+doc_type: feature-checklist
+status: draft
+date: 2026-05-06
+design: codestable/features/rewrite-task/rewrite-task-design.md
+
+steps:
+  - id: t1-task-core-types
+    title: "Define task core types in core/"
+    description: |
+      Create pure TypeScript type definitions in features/task/core/:
+      - TaskStepKind (send / wait-condition / delay)
+      - TaskStepDefinition (polymorphic: sendConfig / waitConfig / delayConfig based on kind)
+      - WaitCondition (frameId + fieldId + operator + threshold + sourceId)
+      - TaskSchedulingMode (timed / trigger / sequence)
+      - TaskTriggerSource (user-ui / timer / receive-trigger / scoe-command / northbound-command)
+      - TaskDefinition (steps: TaskStepDefinition[], triggerSource on definition not instance)
+      - TaskLifecycleStatus
+      - TaskInstanceState (no triggerSource, derived from definitionRef)
+      - TaskStepResult (polymorphic per step kind: send-result / wait-condition-result / delay-result)
+      - TaskProgress, TaskExecutionSummary
+      - TaskErrorPolicy, TaskErrorAction
+      Must not depend on Vue, Pinia, Electron, platform, Node, send/receive/frame/connection store.
+    exit_signal: "All types exported from core/; no Vue/Pinia/Electron/platform/Node import; pnpm -C rewrite test passes"
+    validation:
+      - static-scan
+      - vitest-unit
+
+  - id: t2-lifecycle-state-machine
+    title: "Implement task lifecycle state machine in core/"
+    description: |
+      Implement pure TypeScript lifecycle transition logic:
+      - created -> running (start)
+      - running -> paused (pause)
+      - paused -> running (resume)
+      - running -> stopped (stop)
+      - running -> completed (all steps done)
+      - running -> failed (fatal error per policy)
+      - paused -> stopped (stop while paused)
+      - Illegal transitions rejected
+      Stop results in 'stopped', NOT 'completed'.
+    exit_signal: "Lifecycle tests pass for all valid/invalid transitions; stop always results in 'stopped' not 'completed'"
+    validation:
+      - vitest-unit
+
+  - id: t3-wait-condition-matching
+    title: "Implement WaitCondition matching in core/"
+    description: |
+      Implement pure TypeScript condition matching (shared by wait-condition-step and trigger mode):
+      - Single frame + field condition matching
+      - Operators: eq, neq, gt, lt, gte, lte, change, any
+      - Cooldown enforcement (trigger mode)
+      - Max trigger count enforcement (trigger mode)
+      - Indexed by frameId for O(1) lookup performance
+      Accept WaitCondition + receive event snapshot, return match/no-match.
+    exit_signal: "Condition matching tests pass for all operators, cooldown, max count, and indexed lookup"
+    validation:
+      - vitest-unit
+      - fixture-test
+
+  - id: t4-progress-calculation
+    title: "Implement task progress calculation in core/"
+    description: |
+      Implement pure TypeScript progress calculation:
+      - Track steps completed/failed/skipped (not cases)
+      - Track iterations completed/total (timed mode; null if infinite)
+      - Track current step index
+      - Calculate elapsed time
+      - Derive estimated remaining when possible
+      - stepResults bounded to maxStepResultHistory iterations
+    exit_signal: "Progress calculation tests pass for all scheduling modes and polymorphic step types"
+    validation:
+      - vitest-unit
+
+  - id: t5-error-policy-engine
+    title: "Implement error policy engine in core/"
+    description: |
+      Implement pure TypeScript error policy decision (applies to all step types):
+      - retry: track retry count, respect retryCount limit and retryDelay
+      - skip-step: mark current step as skipped, advance
+      - stop: set lifecycle to stopped
+      - pause: set lifecycle to paused
+      - onTimeout (wait-condition-step local): continue/skip/fail determines step result first
+      - If onTimeout=fail, then errorPolicy determines task-level behavior
+      Accept step result + current error state + TaskErrorPolicy, return action to take.
+    exit_signal: "Error policy tests pass for all policy kinds, retry exhaustion, and onTimeout interaction"
+    validation:
+      - vitest-unit
+
+  - id: t6-polymorphic-step-execution
+    title: "Implement polymorphic step execution dispatch in core/"
+    description: |
+      Implement pure TypeScript step execution dispatch:
+      - send-step: build SendRequest, call send service, record TaskStepResult
+      - wait-condition-step: register condition in frameId index, wait for match or timeout,
+        auto-unsubscribe on match/timeout, apply onTimeout then errorPolicy
+      - delay-step: await duration, record result
+      - Steps execute sequentially; next step only starts after previous completes or is skipped
+    exit_signal: "Step dispatch tests pass for all three kinds; subscription lifecycle verified; sequential execution verified"
+    validation:
+      - vitest-unit
+
+  - id: t7-task-service
+    title: "Implement task service"
+    description: |
+      Create features/task/services/ with task service:
+      - createTask(definition) -> TaskInstanceState
+      - startTask(instanceId) -> starts scheduling loop
+      - pauseTask(instanceId) -> pauses loop, removes all active conditions, preserves subscription handle
+      - resumeTask(instanceId) -> resumes from paused point, rebuilds condition registrations
+      - stopTask(instanceId) -> stops with 'stopped' status, removes all conditions, cancels subscription
+      - removeTask(instanceId) -> removes from active list
+      Scheduling loop dispatches to polymorphic executeSteps per iteration.
+      Shared receive event subscription, indexed by frameId for condition matching.
+      Dependencies injected via constructor/factory: SendService, FrameAssetReader, ReceiveEventSource.
+    exit_signal: "Service tests pass using fake send service, fake receive events, fake frame provider; full lifecycle covered"
+    validation:
+      - vitest-unit
+      - fake-adapter-test
+
+  - id: t8-timed-scheduling
+    title: "Implement timed scheduling loop"
+    description: |
+      Implement timed scheduling within task service:
+      - Execute steps at fixed interval for each iteration
+      - Support finite (maxCount) and infinite iterations
+      - Pause/resume preserves progress and restarts timer
+      - Stop terminates timer immediately
+      - Completed when all iterations done (not on stop)
+      - stepResults bounded to maxStepResultHistory iterations
+    exit_signal: "Timed task tests pass with fake timer: finite count completion, infinite until stop, pause/resume, result history bounding"
+    validation:
+      - vitest-unit
+      - fixture-test
+
+  - id: t9-trigger-scheduling
+    title: "Implement trigger scheduling loop"
+    description: |
+      Implement trigger scheduling within task service:
+      - Subscribe to receive trigger events via shared subscription
+      - Match against triggerCondition (WaitCondition)
+      - Execute steps on match after cooldown check
+      - Respect maxTriggerCount
+      - Unsubscribe on stop/complete
+      - Step sequence failures inside executeSteps do not reset trigger cooldown or maxTriggerCount
+    exit_signal: "Trigger task tests pass with fake events: match triggers, cooldown, max count, step failure isolation"
+    validation:
+      - vitest-unit
+      - fake-adapter-test
+
+  - id: t10-sequence-scheduling
+    title: "Implement sequence scheduling (single execution)"
+    description: |
+      Implement sequence scheduling within task service:
+      - Execute steps in order once, no loop
+      - Supports all step types: send-step, wait-condition-step, delay-step
+      - Pause/resume preserves current step index
+      - Completed when all steps done
+    exit_signal: "Sequence task tests pass: ordered execution, delay steps, wait-condition steps, pause/resume mid-sequence"
+    validation:
+      - vitest-unit
+      - fixture-test
+
+  - id: t11-scheduling-step-combination-validation
+    title: "Validate schedulingMode + step type combinations"
+    description: |
+      Implement validation for schedulingMode and step type combinations:
+      - timed + wait-condition: produce warning (each iteration may block on timeout)
+      - All other combinations: valid without warning
+      - Validation runs at TaskDefinition creation time
+    exit_signal: "Validation tests pass: timed+wait-condition produces warning, other combos pass"
+    validation:
+      - vitest-unit
+
+  - id: t12-task-state-and-selectors
+    title: "Implement task state and selectors"
+    description: |
+      Create features/task/state/ and features/task/selectors/:
+      - Task instances (active and recent history)
+      - Task progress per instance (with bounded stepResults)
+      - Task statistics read model
+      - Selectors: selectTaskInstances, selectTaskInstance, selectTaskProgress,
+        selectTaskHistory, selectTaskStatistics, selectTaskSnapshot
+      State must not store send/receive/frame/connection/SCOE internal state.
+      Selectors must return immutable snapshots only.
+    exit_signal: "State and selector tests pass; snapshot immutability verified; no cross-feature state"
+    validation:
+      - vitest-unit
+
+  - id: t13-task-public-api
+    title: "Assemble task public API at feature root index.ts"
+    description: |
+      Export from features/task/index.ts:
+      - Core types (TaskDefinition, TaskStepDefinition, TaskStepKind, WaitCondition, TaskTriggerSource,
+        TaskLifecycleStatus, TaskProgress, TaskStepResult, TaskExecutionSummary, etc.)
+      - Task service factory and interface
+      - Selectors
+      Must not export mutable state, internal service instances, fake adapter defaults, or internal state creators.
+    exit_signal: "Boundary rg check passes; no internal state/mutable export; consumers can import from index.ts"
+    validation:
+      - static-scan
+
+  - id: t14-fixtures-and-oracle
+    title: "Create task fixtures and legacy oracle"
+    description: |
+      Create in features/task/fixtures/:
+      - task-definitions/: preset TaskDefinition fixtures (timed/trigger/sequence with polymorphic steps)
+      - wait-conditions/: WaitCondition fixtures + expected match/no-match pairs
+      - lifecycle-cases/: lifecycle transition sequences
+      - legacy-oracle/: old taskConfigUtils output as golden comparison
+      - scoe-mode/: TaskDefinition with steps=[send-step, wait-condition-step, send-step] (SCOE pattern)
+    exit_signal: "Fixture files created; lifecycle and condition cases cover all modes; SCOE mode fixture exists; legacy oracle loadable"
+    validation:
+      - fixture-test
+      - oracle-comparison
+
+  - id: t15-fake-adapters
+    title: "Create fake send service and fake receive event source"
+    description: |
+      Create test adapters:
+      - FakeSendService: accepts SendRequest, returns preset SendResult, records all calls
+      - FakeReceiveEventSource: emits preset receive events, supports WaitCondition testing,
+        supports delayed events for timeout scenarios, emits events matching specific frameIds
+      No real platform/Electron/send/receive dependency.
+    exit_signal: "Fake adapters usable in service tests; no real platform/Electron dependency; timeout simulation works"
+    validation:
+      - vitest-unit
+      - fake-adapter-test
+
+  - id: t16-integration-with-send-receive-frame
+    title: "Verify task integration with send, receive and frame public APIs"
+    description: |
+      Integration verification:
+      - task consumes send service correctly
+      - task consumes receive event source correctly
+      - task consumes frame public selectors correctly
+      - No import of send/receive/frame internal subpaths
+      - No circular dependency
+    exit_signal: "Integration test passes with real public APIs (or their accepted interfaces)"
+    validation:
+      - vitest-unit
+      - static-scan
+
+checks:
+  - id: c1-no-vue-pinia-electron-in-core
+    title: "core/ has no Vue/Pinia/Electron/platform/Node dependency"
+    validation:
+      - static-scan
+    severity: critical
+
+  - id: c2-no-cross-feature-internal-import
+    title: "task does not import send/receive/frame/connection/SCOE/status/result/report/northbound internal subpaths"
+    validation:
+      - static-scan
+    severity: critical
+
+  - id: c3-stop-not-completed
+    title: "Task stop always results in lifecycle 'stopped', never 'completed'"
+    validation:
+      - vitest-unit
+      - code-review
+    severity: critical
+
+  - id: c4-no-scoe-hardcode
+    title: "task does not hardcode SCOE target, SCOE completion, or northbound semantics"
+    validation:
+      - static-scan
+    severity: critical
+
+  - id: c5-stats-not-in-frame
+    title: "task progress/statistics do not write back to frame definition or field definition"
+    validation:
+      - static-scan
+      - vitest-unit
+    severity: high
+
+  - id: c6-public-api-no-mutable
+    title: "feature root index.ts does not export mutable state, internal instances, or fake defaults"
+    validation:
+      - static-scan
+    severity: high
+
+  - id: c7-task-does-not-know-send-internals
+    title: "task/service does not reference send internal types, send state, or send adapter"
+    validation:
+      - static-scan
+    severity: high
+
+  - id: c8-no-direct-receive-state-write
+    title: "task does not write receive state or directly start receive observation"
+    validation:
+      - static-scan
+      - code-review
+    severity: high
+
+  - id: c9-lifecycle-coverage
+    title: "All lifecycle transitions tested: created->running, running->paused, paused->running, running->stopped, running->completed, running->failed, paused->stopped"
+    validation:
+      - vitest-unit
+    severity: high
+
+  - id: c10-scheduling-mode-coverage
+    title: "All scheduling modes tested: timed, trigger, sequence with polymorphic step types and failure paths"
+    validation:
+      - vitest-unit
+      - fixture-test
+    severity: high
+
+  - id: c11-error-policy-coverage
+    title: "All error policies tested: retry (with count limit), skip-step, stop, pause; onTimeout interaction for wait-condition-step"
+    validation:
+      - vitest-unit
+    severity: medium
+
+  - id: c12-selector-immutability
+    title: "Selectors return immutable snapshots, not mutable references"
+    validation:
+      - vitest-unit
+    severity: medium
+
+  - id: c13-no-page-creates-lifecycle
+    title: "Page components do not directly create task lifecycle or state machine"
+    validation:
+      - static-scan
+    severity: high
+
+  - id: c14-no-timer-in-shared
+    title: "Timer logic stays in task feature, not in shared or platform"
+    validation:
+      - static-scan
+    severity: medium
+
+  - id: c15-wait-condition-subscription-lifecycle
+    title: "wait-condition-step subscriptions are cleaned up on match, timeout, pause, and stop"
+    validation:
+      - vitest-unit
+      - code-review
+    severity: high
+
+  - id: c16-step-result-bounded
+    title: "stepResults history bounded to maxStepResultHistory; oldest iterations dropped when exceeded"
+    validation:
+      - vitest-unit
+    severity: medium
+
+  - id: c17-condition-indexed-lookup
+    title: "Condition matching uses frameId-indexed lookup, not linear scan of all active conditions"
+    validation:
+      - vitest-unit
+      - code-review
+    severity: medium
+
+  - id: c18-trigger-step-failure-isolation
+    title: "Step sequence failures in trigger mode do not reset trigger cooldown or maxTriggerCount"
+    validation:
+      - vitest-unit
+    severity: high
+
+  - id: c19-scoe-mode-fixture
+    title: "SCOE pattern fixture exists: steps=[send-step, wait-condition-step, send-step]"
+    validation:
+      - fixture-test
+    severity: medium
+
+  - id: c20-manual-task-ui
+    title: "Timed/trigger/sequence send dialogs and task list UI reachable and functional"
+    validation:
+      - manual-checklist
+    severity: medium
+    deferred: true
+
+  - id: c21-hardware-timed-send
+    title: "Timed task executes real sends to real target at correct intervals"
+    validation:
+      - hardware-validation
+    severity: high
+    deferred: true
+
+  - id: c22-hardware-trigger-send
+    title: "Trigger task fires on real receive event and sends to real target"
+    validation:
+      - hardware-validation
+    severity: medium
+    deferred: true
+
+  - id: c23-runtime-concurrent-tasks
+    title: "Multiple concurrent tasks execute without interference"
+    validation:
+      - runtime-validation
+    severity: medium
+    deferred: true

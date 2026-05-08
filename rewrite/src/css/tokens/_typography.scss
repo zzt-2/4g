@@ -1,0 +1,51 @@
+@use 'sass:map';
+
+$rw-font-size: (
+  'caption': 12px,
+  'label': 13px,
+  'body': 14px,
+  'title-sm': 16px,
+  'title-lg': 28px,
+  'icon-md': 22px
+);
+
+$rw-line-height: (
+  'caption': 18px,
+  'label': 18px,
+  'body': 20px,
+  'title-sm': 24px,
+  'title-lg': 36px
+);
+
+$rw-font-weight: (
+  'regular': 400,
+  'semibold': 600
+);
+
+$rw-letter-spacing: (
+  'normal': 0
+);
+
+$rw-font-family: (
+  'base': (Roboto, Arial, sans-serif)
+);
+
+@function rw-font-size($name) {
+  @return map.get($rw-font-size, $name);
+}
+
+@function rw-line-height($name) {
+  @return map.get($rw-line-height, $name);
+}
+
+@function rw-font-weight($name) {
+  @return map.get($rw-font-weight, $name);
+}
+
+@function rw-letter-spacing($name) {
+  @return map.get($rw-letter-spacing, $name);
+}
+
+@function rw-font-family($name) {
+  @return map.get($rw-font-family, $name);
+}

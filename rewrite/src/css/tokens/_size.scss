@@ -1,0 +1,14 @@
+@use 'sass:map';
+
+$rw-size: (
+  'app-drawer': 232px,
+  'content-wide': 1120px,
+  'metric-card-min': 116px,
+  'metric-card-track': 180px,
+  'metric-icon': 40px,
+  'visually-hidden': 1px
+);
+
+@function rw-size($name) {
+  @return map.get($rw-size, $name);
+}

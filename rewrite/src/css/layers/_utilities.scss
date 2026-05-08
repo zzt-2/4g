@@ -1,0 +1,9 @@
+.rw-visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: var(--rw-size-visually-hidden);
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: var(--rw-size-visually-hidden);
+}

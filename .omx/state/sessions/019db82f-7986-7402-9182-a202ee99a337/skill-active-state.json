@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "active": true,
+  "skill": "ralplan",
+  "keyword": "consensus plan",
+  "phase": "planning",
+  "activated_at": "2026-04-23T02:33:35.568Z",
+  "updated_at": "2026-04-28T08:12:12.953Z",
+  "source": "keyword-detector",
+  "session_id": "019db82f-7986-7402-9182-a202ee99a337",
+  "turn_id": "019db82f-79a2-7cb0-94f6-6ac52c4ffe9a",
+  "active_skills": [
+    {
+      "skill": "ralplan",
+      "phase": "planning",
+      "active": true,
+      "activated_at": "2026-04-23T02:33:35.568Z",
+      "updated_at": "2026-04-23T02:33:35.568Z",
+      "session_id": "019db82f-7986-7402-9182-a202ee99a337",
+      "turn_id": "019db82f-79a2-7cb0-94f6-6ac52c4ffe9a"
+    }
+  ],
+  "initialized_mode": "ralplan",
+  "initialized_state_path": ".omx/state/sessions/019db82f-7986-7402-9182-a202ee99a337/ralplan-state.json"
+}

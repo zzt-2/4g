@@ -1,0 +1,4 @@
+{"t":0,"agent":"a3bd50a","agent_type":"writer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"af4ed6c","agent_type":"writer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"ada467b","agent_type":"writer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"ada467b","agent_type":"writer","event":"agent_stop","success":true,"duration_ms":-27312}

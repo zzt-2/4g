@@ -1,0 +1,10 @@
+{
+  "session_id": "019df251-1966-7c41-b196-be6d5549c5d4",
+  "native_session_id": "019df251-1966-7c41-b196-be6d5549c5d4",
+  "started_at": "2026-05-04T09:28:17.813Z",
+  "cwd": "/mnt/d/code/frontend/dongfanghong",
+  "pid": 246204,
+  "platform": "linux",
+  "pid_start_ticks": 884967,
+  "pid_cmdline": "/home/zzt/.local/share/pnpm/global/5/.pnpm/@openai+codex@0.125.0-linux-x64/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/codex/codex --no-alt-screen"
+}

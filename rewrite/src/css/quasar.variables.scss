@@ -1,0 +1,10 @@
+@use './tokens' as tokens;
+
+$primary: tokens.rw-color('brand-primary');
+$secondary: tokens.rw-color('brand-secondary');
+$accent: tokens.rw-color('brand-accent');
+$dark: tokens.rw-color('text-primary');
+$positive: tokens.rw-color('status-success');
+$negative: tokens.rw-color('status-danger');
+$info: tokens.rw-color('status-info');
+$warning: tokens.rw-color('status-warning');

@@ -1,0 +1,518 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1778206411986,
+  "projectRoot": "/mnt/d/code/frontend/dongfanghong",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": "^22 || ^20 || ^18",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "vue",
+        "version": "3.4.18",
+        "category": "frontend"
+      }
+    ],
+    "packageManager": "pnpm",
+    "runtime": "Node.js 22||20||18"
+  },
+  "build": {
+    "buildCommand": "pnpm build",
+    "testCommand": "pnpm test",
+    "lintCommand": "pnpm lint",
+    "devCommand": "pnpm dev",
+    "scripts": {
+      "rebuild": "electron-rebuild -f -w serialport",
+      "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{ts,js,cjs,mjs,vue}\"",
+      "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
+      "test": "echo \"No test specified\" && exit 0",
+      "dev": "quasar dev -m electron",
+      "prebuild": "electron-rebuild -f -w serialport",
+      "build": "quasar build -m electron",
+      "build:linux": "quasar build -m electron",
+      "build:linux:appimage": "quasar build -m electron",
+      "build:linux:deb": "quasar build -m electron",
+      "postinstall": "quasar prepare"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": "type-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "public",
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "codestable": {
+      "path": "codestable",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778206411837,
+      "keyFiles": []
+    },
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 0,
+      "lastAccessed": 1778206411854,
+      "keyFiles": []
+    },
+    "easysdd": {
+      "path": "easysdd",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778206411865,
+      "keyFiles": []
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 1,
+      "lastAccessed": 1778206411871,
+      "keyFiles": [
+        "favicon.ico"
+      ]
+    },
+    "refactor": {
+      "path": "refactor",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778206411879,
+      "keyFiles": []
+    },
+    "rewrite": {
+      "path": "rewrite",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1778206411888,
+      "keyFiles": [
+        "eslint.config.js",
+        "index.html",
+        "package.json",
+        "pnpm-lock.yaml",
+        "quasar.config.ts"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1778206411893,
+      "keyFiles": [
+        "App.vue",
+        "env.d.ts"
+      ]
+    },
+    "src-electron": {
+      "path": "src-electron",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1778206411900,
+      "keyFiles": [
+        "WindowState.ts",
+        "electron-env.d.ts"
+      ]
+    },
+    "public/data": {
+      "path": "public/data",
+      "purpose": "Data files",
+      "fileCount": 2,
+      "lastAccessed": 1778206411921,
+      "keyFiles": [
+        "scoeReceiveCommands.json",
+        "scoeSendInstances.json"
+      ]
+    },
+    "refactor/docs": {
+      "path": "refactor/docs",
+      "purpose": "Documentation",
+      "fileCount": 0,
+      "lastAccessed": 1778206411932,
+      "keyFiles": []
+    },
+    "rewrite/dist": {
+      "path": "rewrite/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 0,
+      "lastAccessed": 1778206411940,
+      "keyFiles": []
+    },
+    "rewrite/node_modules": {
+      "path": "rewrite/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 2,
+      "lastAccessed": 1778206411950,
+      "keyFiles": []
+    },
+    "src/api": {
+      "path": "src/api",
+      "purpose": "API routes",
+      "fileCount": 0,
+      "lastAccessed": 1778206411959,
+      "keyFiles": []
+    },
+    "src/assets": {
+      "path": "src/assets",
+      "purpose": "Static assets",
+      "fileCount": 2,
+      "lastAccessed": 1778206411964,
+      "keyFiles": [
+        "README.md",
+        "quasar-logo-vertical.svg"
+      ]
+    },
+    "src/components": {
+      "path": "src/components",
+      "purpose": "UI components",
+      "fileCount": 0,
+      "lastAccessed": 1778206411969,
+      "keyFiles": []
+    },
+    "src/config": {
+      "path": "src/config",
+      "purpose": "Configuration files",
+      "fileCount": 2,
+      "lastAccessed": 1778206411975,
+      "keyFiles": [
+        "configDefaults.ts",
+        "frameDefaults.ts"
+      ]
+    },
+    "src-electron/types": {
+      "path": "src-electron/types",
+      "purpose": "Type definitions",
+      "fileCount": 1,
+      "lastAccessed": 1778206411986,
+      "keyFiles": [
+        "electron-api.d.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "codestable/compound/2026-05-07-runtime-next-phase-global-planning.md",
+      "accessCount": 12,
+      "lastAccessed": 1778232100015,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/compile.ts",
+      "accessCount": 10,
+      "lastAccessed": 1778225364102,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression",
+      "accessCount": 9,
+      "lastAccessed": 1778225354481,
+      "type": "directory"
+    },
+    {
+      "path": "rewrite/src/features/frame/core/types.ts",
+      "accessCount": 7,
+      "lastAccessed": 1778226052785,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/index.ts",
+      "accessCount": 6,
+      "lastAccessed": 1778224284458,
+      "type": "file"
+    },
+    {
+      "path": "codestable/architecture/rewrite-target-structure.md",
+      "accessCount": 6,
+      "lastAccessed": 1778232095696,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/evaluate.ts",
+      "accessCount": 5,
+      "lastAccessed": 1778208802441,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/tokenizer.spec.ts",
+      "accessCount": 4,
+      "lastAccessed": 1778208513453,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/parser.spec.ts",
+      "accessCount": 4,
+      "lastAccessed": 1778208513527,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/types.ts",
+      "accessCount": 4,
+      "lastAccessed": 1778224339043,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/features/frame/index.ts",
+      "accessCount": 4,
+      "lastAccessed": 1778226164478,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/index.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778207751222,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/integration.spec.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778208513486,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/tokenizer.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778208803061,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/parser.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778208803112,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/features/frame/selectors/frame-selectors.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778225329613,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/features/frame/core/validation-expression.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778225341052,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/features/frame/services/frame-asset-service.ts",
+      "accessCount": 3,
+      "lastAccessed": 1778225364044,
+      "type": "file"
+    },
+    {
+      "path": "codestable/features/2026-05-08-expression-engine/expression-engine-design.md",
+      "accessCount": 2,
+      "lastAccessed": 1778208490801,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/functions.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208503236,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/dependency.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208503340,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/compile.spec.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208513504,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/conditional.spec.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208513541,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/performance.spec.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208513578,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/evaluate.spec.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208513593,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/expression/__tests__/group.spec.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778208513630,
+      "type": "file"
+    },
+    {
+      "path": "codestable/features/2026-05-08-expression-engine/expression-engine-checklist.yaml",
+      "accessCount": 2,
+      "lastAccessed": 1778210910522,
+      "type": "file"
+    },
+    {
+      "path": "codestable/features/rewrite-frame/rewrite-frame-checklist.yaml",
+      "accessCount": 2,
+      "lastAccessed": 1778222811951,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 2,
+      "lastAccessed": 1778222826162,
+      "type": "directory"
+    },
+    {
+      "path": "rewrite/src/shared/condition-operators/types.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778222829479,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/condition-operators/compare.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778222829500,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/condition-operators/index.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778222829586,
+      "type": "file"
+    },
+    {
+      "path": "codestable/features/rewrite-frame/rewrite-frame-design.md",
+      "accessCount": 2,
+      "lastAccessed": 1778224259582,
+      "type": "file"
+    },
+    {
+      "path": "src/types/frames/frames.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778224303734,
+      "type": "file"
+    },
+    {
+      "path": "src/types/frames/fields.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778224303841,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/features/frame/core/index.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778225384366,
+      "type": "file"
+    },
+    {
+      "path": "codestable/quality/rewrite-review-checklist.md",
+      "accessCount": 2,
+      "lastAccessed": 1778232095589,
+      "type": "file"
+    },
+    {
+      "path": "codestable/quality/rewrite-quality-rules.md",
+      "accessCount": 2,
+      "lastAccessed": 1778232095640,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/condition-operators/compare.spec.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778206533078,
+      "type": "file"
+    },
+    {
+      "path": "codestable/features/bootstrap/bootstrap-checklist.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1778210910579,
+      "type": "file"
+    },
+    {
+      "path": "codestable/architecture/rewrite-feature-interaction-matrix.md",
+      "accessCount": 1,
+      "lastAccessed": 1778222817267,
+      "type": "file"
+    },
+    {
+      "path": "codestable/architecture/rewrite-feature-boundaries.md",
+      "accessCount": 1,
+      "lastAccessed": 1778222817307,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/shared/condition-operators",
+      "accessCount": 1,
+      "lastAccessed": 1778222817494,
+      "type": "directory"
+    },
+    {
+      "path": "rewrite/src/features/frame",
+      "accessCount": 1,
+      "lastAccessed": 1778222817546,
+      "type": "directory"
+    },
+    {
+      "path": "codestable/compound/2026-05-07-old-system-investigation-scoe-expression-visualization.md",
+      "accessCount": 1,
+      "lastAccessed": 1778222817699,
+      "type": "file"
+    },
+    {
+      "path": "rewrite/src/features/frame/state/frame-state.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778222825328,
+      "type": "file"
+    },
+    {
+      "path": "src/stores/frames/frameTemplateStore.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778222826124,
+      "type": "file"
+    },
+    {
+      "path": "src/types/frames/factories.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778222846465,
+      "type": "file"
+    },
+    {
+      "path": "src/utils/receive/scoeFrame.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778222846529,
+      "type": "file"
+    },
+    {
+      "path": "src/api/common",
+      "accessCount": 1,
+      "lastAccessed": 1778222846580,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

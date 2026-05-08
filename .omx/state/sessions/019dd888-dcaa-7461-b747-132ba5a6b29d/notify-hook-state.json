@@ -1,0 +1,12 @@
+{
+  "recent_turns": {
+    "019dd888-7a0d-7290-91ae-8f94ef8155e1|019dd888-7a2b-77b1-8e02-84e7e32e8bec|agent-turn-complete": 1777454373146,
+    "019dd888-9cc0-7751-87de-5a126fab27be|019dd888-9cdf-7890-99a9-0b832a882039|agent-turn-complete": 1777454387349,
+    "019dd888-b5d2-7253-9871-05b2aa79fc02|019dd888-b5ee-7f51-9216-27dd1944fa54|agent-turn-complete": 1777454397617,
+    "019dd888-dcaa-7461-b747-132ba5a6b29d|019dd888-dcca-7002-a48d-305fddeee6ec|agent-turn-complete": 1777454400939,
+    "019dd887-aecf-7a21-be94-9a79b0cff794|019dd887-c051-7e11-8b4c-e4421fdc63f5|agent-turn-complete": 1777454776187,
+    "019dd833-1ff3-7b33-963b-0741eb0a8f08|019dd890-3430-7291-a43d-dc2c9f1e59f1|agent-turn-complete": 1777454907345,
+    "019dd833-1ff3-7b33-963b-0741eb0a8f08|019dd891-f59c-7db3-b6fe-f59f03ae1383|agent-turn-complete": 1777454962857
+  },
+  "last_event_at": "2026-04-29T09:29:22.862Z"
+}
