@@ -1,0 +1,450 @@
+# 任务域 + 发送 + 指令接入页面 Checklist
+
+## 元数据
+
+- **feature**: rewrite-ui-architecture (pages-task-send-command)
+- **design**: pages-task-send-command-design.md
+- **brainstorm**: pages-task-send-command-brainstorm.md
+- **date**: 2026-05-12
+
+---
+
+## 前置依赖
+
+### Platform file facade
+
+- [ ] platform/files.ts: FileFacade — readTextFile/writeTextFile/showSaveDialog/showOpenDialog (static)
+- [ ] preload: 暴露文件读写 typed API (static)
+- [ ] main: 实现文件读写 + 系统对话框 IPC handler (static)
+- [ ] 所有"持久化走 platform facade"项均依赖此前置 (static)
+
+---
+
+## S1: 帧发送页 (/frames/send)
+
+### 布局与路由
+
+- [ ] /frames/send 路由已存在于 routes.ts (static)
+- [ ] SendPage.vue 三栏布局（240px + flex:1 + 300px） (manual)
+- [ ] 页面内边距使用 spacing token (static lint)
+
+### 左栏帧格式列表
+
+- [ ] QList + 分组标题（收藏/全部） (static)
+- [ ] QInput dense 搜索（实时过滤，无 debounce） (manual)
+- [ ] 数据源 listFrameAssetSummaries(source, { direction: 'send' }) (static)
+- [ ] 单击 → 创建实例 + 选中 + 预览 (manual)
+- [ ] 双击 → 创建实例 + 打开编辑对话框 (manual)
+- [ ] 收藏按钮 toggle isFavorite (manual)
+
+### 中栏帧实例表
+
+- [ ] DataTable Widget + virtual-scroll + selection="single" (static)
+- [ ] 列定义抽到 send/components/instance-columns.ts (static)
+- [ ] 7 列定义完整：#/名称/参数数/发送次数/上次发送/备注/操作 (static)
+- [ ] 宽度策略：序号60px/参数数80px/发送次数80px/上次发送140px/操作120px，名称和备注 auto (static)
+- [ ] 发送次数数字格式化(V1) (manual)
+- [ ] 上次发送时间格式化 YYYY-MM-DD HH:mm:ss(V2) (manual)
+- [ ] 备注长文本截断 + QTooltip(V4) (manual)
+- [ ] 操作列 icon 按钮(编辑/复制/删除) (manual)
+- [ ] 空状态 #no-data "暂无帧实例，从左侧选择帧格式创建" (manual)
+- [ ] :loading="isLoading" (manual)
+- [ ] 上下移动按钮（本期不做拖拽） (manual)
+- [ ] 批量模式 selection="multiple" + 批量删除($q.dialog 确认) (manual)
+
+### 右栏预览 + 发送
+
+- [ ] 实例基本信息（名称/时间/备注） (manual)
+- [ ] 十六进制帧显示（pre code font-mono，字节空格分隔） (static)
+- [ ] 可配置字段表（字段名 | 十六进制值） (manual)
+- [ ] SendTargetSelector + [发送] 按钮 (manual)
+- [ ] 发送按钮 :loading="isSending" :disable="!selectedInstance || !selectedTarget"(F4) (static)
+- [ ] 发送成功 $q.notify('positive')，失败 $q.notify('negative') + buildIssues (manual)
+
+### SendFrameInstance 类型
+
+- [ ] SendFrameInstance 类型定义在 send/composables/send-instance-types.ts (static)
+- [ ] instanceId 用 nanoid 生成 (static)
+- [ ] 不进 core/service 层 (static)
+
+### useSendInstances composable
+
+- [ ] 文件: send/composables/use-send-instances.ts (static)
+- [ ] CRUD: add/remove/update/reorder/duplicate (static)
+- [ ] 选中状态管理 (static)
+- [ ] sendCount/lastSendAt 统计缓存 (static)
+- [ ] 导入导出（JSON 序列化） (static)
+- [ ] 持久化: createJsonPersistence(shared/) + platform facade + shallowRef(data) (static)
+- [ ] 数据用 shallowRef + 整组替换(P2) (static)
+
+### useFramePreview composable
+
+- [ ] 文件: send/composables/use-frame-preview.ts (static)
+- [ ] 调 send feature 公共函数 evaluateFieldPreview(frame, userFieldValues, fieldId)，不直接接触 SendFieldEncodingDef (static)
+- [ ] computed 缓存 + 字段级依赖追踪 (static)
+- [ ] 字段值变化 → 只重算依赖该字段的表达式字段 (static)
+
+### Send Feature re-export
+
+- [ ] send/index.ts re-export buildFrame (static)
+- [ ] send/index.ts re-export resolveFieldValues (static)
+- [ ] send/index.ts re-export evaluateFieldExpressions (static)
+- [ ] send/index.ts re-export frameToBuildInput (static)
+- [ ] send/index.ts re-export applyFactor (static)
+- [ ] send/index.ts re-export applyBuildPostPatch (static)
+- [ ] send/core/frame-resolver.ts 新增 evaluateFieldPreview(frame, userFieldValues, fieldId)，封装 frameToBuildInput → evaluateFieldExpressions 类型转换 (static)
+- [ ] send/index.ts re-export evaluateFieldPreview (static)
+
+### 实例编辑对话框
+
+- [ ] QDialog v-model + @hide 清理(D1) (static)
+- [ ] 宽度 rw-dialog-lg(D2) (static)
+- [ ] 使用 FieldEditWidget 组件 (static)
+- [ ] [取消] [确认] 按钮，确认 :loading="isSaving" :disable="!isValid"(F4) (static)
+
+### 已移除（不在发送页实现）
+
+- 定时/触发/顺序发送对话框 → 任务页
+- 任务监控对话框 → 任务页
+- 拖拽排序 → 上下移动按钮
+- 批量发送 API → Task steps
+
+---
+
+## T1: 任务管理页 (/tasks)
+
+### 布局与路由
+
+- [ ] /tasks 路由注册到 routes.ts (static)
+- [ ] TaskManagePage.vue 主从双栏（flex:1 + 360px 固定宽度） (manual)
+- [ ] 页面内边距使用 spacing token (static lint)
+
+### 任务列表区
+
+- [ ] Tab 切换: 活动任务 | 历史记录 (manual)
+- [ ] keep-alive 包裹 Tab 内容 (static)
+- [ ] DataTable + virtual-scroll (static)
+
+### 活动任务列
+
+- [ ] 列定义抽到 task/components/task-columns.ts (static)
+- [ ] 5 列: 名称(auto)/调度类型(100px QChip)/状态(100px StatusBadge)/进度(120px QLinearProgress)/操作(140px) (static)
+- [ ] 空状态 #no-data "暂无活动任务" (manual)
+- [ ] :loading="isLoading" (manual)
+
+### 历史记录列
+
+- [ ] 列定义抽到 task/components/history-columns.ts (static)
+- [ ] 6 列: 名称(auto)/调度类型(100px QChip)/结果(80px StatusBadge)/耗时(100px 格式化)/完成时间(140px 格式化)/操作(120px) (static)
+- [ ] 耗时格式化(V2) (manual)
+- [ ] 完成时间格式化 YYYY-MM-DD HH:mm:ss(V2) (manual)
+- [ ] 空状态 #no-data "暂无历史记录" (manual)
+
+### 历史记录数据流
+
+- [ ] task feature 新增 selectActiveInstances selector（只返回 created/running/paused） (static)
+- [ ] task feature 扩展 selectTaskHistory：返回 history + 仍在 instances 中的终止态实例 (static)
+- [ ] useTaskList active mode 调 selectActiveInstances，history mode 调TaskHistory (static)
+- [ ] UI composable 不做 lifecycle 过滤，直接消费 selector (static)
+- [ ] 活动 Tab 终止态任务显示 [移至历史] 按钮 → removeTask (manual)
+
+### 筛选与工具栏
+
+- [ ] 状态筛选 QChip 组: 全部/待启动/运行中/已暂停/已完成/失败 (manual)
+- [ ] TableToolbar 搜索 + 筛选 (manual)
+- [ ] useTaskList composable 内部按 mode('active'|'history') 切换 selector (static)
+
+### 任务摘要（右侧面板，定义态）
+
+- [ ] 任务名称 + 调度类型摘要 + 步骤数量 (manual)
+- [ ] 可变参数摘要（有/无） (manual)
+- [ ] [编辑] 按钮 → 打开任务编辑器对话框(rw-dialog-xl) (manual)
+- [ ] [启动] 按钮 :loading="isStarting" :disable="lifecycle !== 'created'"(F4) (static)
+
+### 任务编辑器对话框
+
+- [ ] QDialog v-model + @hide 清理(D1) (static)
+- [ ] 宽度 rw-dialog-xl(D2) (static)
+
+### 编辑器表单校验
+
+- [ ] 任务名称 QInput :rules="[val => !!val || '请输入任务名称']"(F1/F2) (static)
+- [ ] 调度类型 QSelect (static)
+- [ ] timer 间隔 QInput type=number :rules="[val => val > 0 || '间隔必须大于0']" (static)
+- [ ] timer 次数 QInput type=number :rules 非无限时必填 (static)
+- [ ] event 条件: 至少一条 ConditionTerm 校验 (manual)
+
+### 步骤编辑器
+
+- [ ] 步骤列表 + [添加步骤] 下拉(send/wait-condition/delay) (manual)
+- [ ] 每步 QExpansionItem 展开/折叠 + 类型图标 + 摘要 + 删除 (manual)
+- [ ] SendStep: FrameSelector(required) + SendTargetSelector(required) + FieldEditWidget + 发送后延时 + repeat 可选 (manual)
+- [ ] WaitConditionStep: 条件列表(至少一条) + 超时 :rules + 超时策略 QSelect (manual)
+- [ ] DelayStep: 持续时间 QInput type=number :rules="[val => val > 0 || '请输入延时时间']" (static)
+- [ ] 字段数 > 20 时 FieldEditWidget 拆子组件(F3) (static)
+- [ ] "复制上一步" 按钮（SendStep fieldValues copy-on-create） (manual)
+
+### 高级配置
+
+- [ ] QExpansionItem 折叠面板 (manual)
+- [ ] 可变参数 FieldVariation 编辑器（字段选择 + 值列表） (manual)
+- [ ] 停止条件: maxIterations / maxDurationMs / exitCondition (manual)
+- [ ] 错误策略: onFailure QSelect / retryCount / retryDelayMs (manual)
+
+### 编辑器操作按钮
+
+- [ ] [取消] [保存] [保存并启动] (manual)
+- [ ] [保存] :loading="isSaving" :disable="!isValid"(F4) (static)
+- [ ] [保存并启动] :loading="isSaving"(F4) (static)
+- [ ] 保存前 validateTaskDefinition 校验 (manual)
+
+### 执行监控（右侧面板，运行态）
+
+- [ ] 使用 TaskExecutionDetail 基础组件 (static)
+- [ ] StatusBadge 颜色映射(C2): created→grey, running→positive, paused→warning, completed→positive, failed→negative (static)
+- [ ] QLinearProgress + 步骤进度文字 (manual)
+- [ ] elapsedMs 格式化(V2) (manual)
+- [ ] 步骤状态列表: 每步 StatusBadge + 结果摘要 (manual)
+- [ ] 暂停/恢复/停止 操作按钮 (manual)
+- [ ] 停止需 $q.dialog() 确认 (manual)
+- [ ] waiting-trigger/waiting-schedule 从 schedule.kind + lifecycle 推导 (static)
+- [ ] 不改 core 层 TaskProgress/TaskLifecycleStatus (static)
+
+### 任务导入导出
+
+- [ ] 导出: serializeTaskDefinition → JSON → platform facade 写文件 (manual)
+- [ ] 导入: 读取 → deserializeTaskDefinition → 校验 → 创建 (manual)
+
+### Task Feature 代码变更
+
+- [ ] task/core/validation.ts: validateTaskDefinition (static)
+- [ ] task/core/builders.ts: createSendStep/createDelayStep/createWaitConditionStep/cloneStepDefinition/createTaskDefinition (static)
+- [ ] task/core/serialization.ts: serializeTaskDefinition/deserializeTaskDefinition (static)
+- [ ] task/services/task-service.ts: retryTask(sourceInstanceId: string): Promise<TaskInstanceState> (static)
+- [ ] task/services/task-service.ts: stopAll(): Promise<void> (static)
+- [ ] task/selectors/task-selectors.ts: 新增 selectActiveInstances（只返回 created/running/paused） (static)
+- [ ] task/selectors/task-selectors.ts: 扩展 selectTaskHistory（返回 history + 仍在 instances 中的终止态实例） (static)
+
+### useTaskList composable（活动+历史合并）
+
+- [ ] 文件: task/composables/use-task-list.ts (static)
+- [ ] mode: 'active' | 'history' 切换 (static)
+- [ ] active: selectTaskInstances 过滤非终止 lifecycle (static)
+- [ ] history: selectTaskHistory 返回终止 lifecycle 实例 (static)
+- [ ] 筛选/搜索 (static)
+
+### useTaskEditor composable
+
+- [ ] 文件: task/composables/use-task-editor.ts (static)
+- [ ] 表单状态 + 步骤 CRUD + 调度配置 (static)
+- [ ] 校验: validateTaskDefinition (static)
+- [ ] 保存 → taskService.createTask / 启动 → taskService.startTask (static)
+
+### useTaskMonitor composable
+
+- [ ] 文件: task/composables/use-task-monitor.ts (static)
+- [ ] 轮询进度（rAF + cadence 1000ms） (static)
+- [ ] 状态映射逻辑 (static)
+- [ ] 操作: pauseTask/resumeTask/stopTask/retryTask (static)
+
+---
+
+## CI1: 指令接入页 (/command-ingress)
+
+### 布局与路由
+
+- [ ] /command-ingress 路由已存在于 routes.ts (static)
+- [ ] CommandIngressPage.vue 3 Tab + 固定标题栏 (manual)
+- [ ] keep-alive 包裹 3 个 Tab 内容 (static)
+- [ ] 页面标题栏: [连接/断开] :loading / [加载/卸载] / [保存配置] :loading="isSaving"(F4) (manual)
+
+### Tab 1: SCOE 运行与测试
+
+- [ ] 统计面板 grid 5列×2行 (static)
+- [ ] 累计秒/卫星秒/接收总数(color="positive"(C2))/成功总数(color="positive")/出错数(color="negative") (manual)
+- [ ] 最后功能码/错误原因(class="text-secondary"(C3))/已加载卫星/健康状态(StatusBadge)/链路自检(StatusBadge) (manual)
+- [ ] 数据源: selectCommandIngressSnapshot / selectScoeStatistics / selectScoeRuntimeStatus (static)
+- [ ] 刷新: rAF + cadence 1000ms (static)
+
+### 命令执行日志
+
+- [ ] 列定义抽到 command-ingress/components/command-log-columns.ts (static)
+- [ ] 4 列: 时间(140px 格式化)/功能码(80px hex)/结果(80px StatusBadge)/耗时(80px ms) (static)
+- [ ] 空状态 #no-data "暂无命令记录" (manual)
+- [ ] :loading="isLoading" (manual)
+- [ ] shallowRef + 整组追加(P2) (static)
+
+### 测试工具
+
+- [ ] 接收区: 工具栏(高亮/开始/停止/清空) + HEX 记录列表(virtual-scroll) (manual)
+- [ ] HEX 记录列: 时间(100px)/HEX数据(auto, font-mono+高亮)/校验标记(60px icon) (static)
+- [ ] 接收区空状态 "暂无接收数据" (manual)
+- [ ] 发送区: QInput type=textarea + [发送] 按钮 :loading :disable="!hexInput.trim()"(F4) (static)
+- [ ] 高亮配置 QDialog v-model(D1)，宽度 rw-dialog-md(D2) (static)
+- [ ] 高亮规则: 起始位置/长度/标签/颜色(QSelect: info/warning/negative/positive)(C1) (manual)
+- [ ] 高亮对话框 [取消] [保存] :loading(F4) (static)
+
+### Tab 2: SCOE 配置
+
+- [ ] 左右分栏: 280px 卫星列表 + flex:1 编辑区 (manual)
+
+### 卫星列表
+
+- [ ] 列定义抽到 command-ingress/components/satellite-columns.ts (static)
+- [ ] 3 列: 卫星ID(auto)/命令数(80px)/操作(100px icon) (static)
+- [ ] 空状态 #no-data "暂无卫星配置" (manual)
+- [ ] :loading="isLoading" (manual)
+- [ ] TableToolbar 搜索 (manual)
+- [ ] [添加] + [导入] + [导出] 按钮 (manual)
+
+### 编辑区
+
+- [ ] 全局配置 QExpansionItem 折叠面板 (manual)
+- [ ] SCOE标识 QInput :rules required(F1) (static)
+- [ ] TCP配置: IP QInput + 端口 QInput type=number + 自动连接 QToggle (manual)
+- [ ] UDP配置: IP + 端口 (manual)
+- [ ] 偏移配置 6项 grid-cols-3, QInput type=number (manual)
+- [ ] 成功帧选择 FrameSelector (manual)
+- [ ] 卫星基本信息 4 字段 QInput :rules required(F1) (static)
+- [ ] 命令配置 QExpansionItem 展开/折叠列表 (manual)
+- [ ] 展开时: 功能码/校验和/参数/帧映射/完成条件/超时 (manual)
+- [ ] [保存] 按钮 :loading="isSaving"(F4) (static)
+
+### useScoeConfig composable
+
+- [ ] 文件: command-ingress/composables/use-scoe-config.ts (static)
+- [ ] 内部管理 satelliteConfigs + selectedConfigId（**不在 CommandIngressState**） (static)
+- [ ] CRUD: add/remove/update/duplicate (static)
+- [ ] 导入导出 (static)
+- [ ] 持久化: createJsonPersistence(shared/) + platform facade + shallowRef (static)
+
+### Tab 3: 中心对接
+
+- [ ] 连接状态指示: HTTPS/心跳/设备 各用 StatusBadge(C2) (static)
+- [ ] 内部 Tab: 任务列表 | 设备列表（预留） (manual)
+- [ ] 设备列表 Tab 预留，空状态 "功能开发中" (manual)
+
+### 甲方任务列表
+
+- [ ] 列定义抽到 command-ingress/components/docking-task-columns.ts (static)
+- [ ] 5 列: 任务ID(auto)/用例数(80px)/状态(100px StatusBadge)/下发时间(140px 格式化)/操作(100px) (static)
+- [ ] 空状态 #no-data "暂无下发任务" (manual)
+- [ ] :loading="isLoading" (manual)
+
+### 对接配置对话框
+
+- [ ] QDialog v-model(D1)，宽度 rw-dialog-md(D2) (static)
+- [ ] HTTPS地址/端口/设备标识/心跳间隔/认证信息 QInput (manual)
+- [ ] 所有字段 :rules required(F1/F2) (static)
+- [ ] [取消] [保存] :loading(F4) (static)
+- [ ] 字段映射留扩展点（甲方 schema 未确认） (static)
+
+### 任务上报对话框
+
+- [ ] QDialog v-model(D1)，宽度 rw-dialog-lg(D2) (static)
+- [ ] TaskDefinition 多选列表 QTable selection="multiple" (manual)
+- [ ] [取消] [上报] :loading="isReporting" :disable="!selectedTasks.length"(F4) (static)
+
+### 任务详情对话框
+
+- [ ] QDialog v-model(D1)，宽度 rw-dialog-lg(D2) (static)
+- [ ] 复用 TaskExecutionDetail + #extension slot（甲方上报状态） (static)
+
+### Command-ingress Feature 代码变更
+
+- [ ] command-ingress/services/config-validator.ts (static)
+- [ ] command-ingress/services/data-recorder.ts (static)
+- [ ] command-ingress/utils/highlight-calculator.ts (static)
+- [ ] command-ingress/core/state.ts: **不新增** satelliteConfigs/selectedConfigId（归 useScoeConfig composable） (static)
+- [ ] command-ingress/services/command-ingress-service.ts: 新增 loadSatellite/unloadSatellite/onReceiveData/sendTestData (static)
+
+---
+
+## 共享基础设施
+
+### JSON 持久化（shared/ 纯 TS）
+
+- [ ] 文件: shared/persistence/json-persistence.ts (static)
+- [ ] createJsonPersistence 纯 TS 工厂函数（零 Vue 依赖） (static)
+- [ ] 接收 readFile/writeFile 回调，不直接调 platform (static)
+- [ ] 各 feature composable 各自封装 Vue 响应式(shallowRef + load + save) (static)
+- [ ] useJsonPersistence 不作为 Vue composable 放在 shared/(shared 零 Vue 依赖) (static)
+
+### TaskExecutionDetail 基础组件
+
+- [ ] 文件: widgets/TaskExecutionDetail.vue (static)
+- [ ] Props: instance + progress（不膨胀） (static)
+- [ ] 展示: StatusBadge(C2) + QLinearProgress + 步骤状态列表 + elapsedMs 格式化(V2) (manual)
+- [ ] Slot #actions: 操作按钮由消费方传入 (static)
+- [ ] Slot #extension: 甲方扩展区域（上报状态等） (static)
+- [ ] 任务页复用（无 extension） (manual)
+- [ ] 中心对接 Tab 复用（+ 甲方 extension） (manual)
+
+### FieldEditWidget 字段编辑组件
+
+- [ ] 文件: widgets/FieldEditWidget.vue (static)
+- [ ] Props: fields + values + direction (static)
+- [ ] Events: update:values (static)
+- [ ] 字段分组渲染：可调 color="info"(C1) / 计算参数 color="warning" / 不可配置 color="grey" (static)
+- [ ] 表达式字段实时联动（evaluateFieldExpressions 字段粒度） (manual)
+- [ ] 发送页实例编辑复用 (manual)
+- [ ] 任务页 SendStep 字段编辑复用 (manual)
+
+---
+
+## 路由变更
+
+- [ ] routes.ts 新增 /tasks → TaskManagePage.vue (static)
+
+---
+
+## 前端规范合规
+
+### Quasar 组件(Q1-Q5)
+
+- [ ] 无第三方 UI 库引入 (static)
+- [ ] 颜色用 Quasar brand prop 或 semantic token(C1) (static lint)
+- [ ] 表单用 QForm + Quasar 组件(F1) (static)
+- [ ] 校验错误走 :error + :error-message(F2) (static)
+- [ ] 确认和反馈走 $q.dialog()/$q.notify()(Q4) (static)
+- [ ] 删除操作必须 $q.dialog() 二次确认(Q5) (static)
+
+### 表格(T1-T5)
+
+- [ ] 所有 DataTable 列定义抽到对应 columns.ts(T2) (static)
+- [ ] 每个表格显式 #no-data 空状态(T4) (manual)
+- [ ] 每个表格显式 :loading(T4) (manual)
+- [ ] 行选中用 QTable selection(T5) (static)
+
+### 表单(F1-F4)
+
+- [ ] 所有必填字段 QInput :rules(F1) (static)
+- [ ] 校验错误走 :error + :error-message(F2) (static)
+- [ ] 所有提交/保存/发送按钮 :loading/:disable(F4) (static)
+
+### 弹窗(D1-D2)
+
+- [ ] 所有 QDialog v-model 双向绑定(D1) (static)
+- [ ] 所有 QDialog @hide 清理(D1) (static)
+- [ ] 所有弹窗宽度用 rw-dialog-* 语义 class(D2) (static)
+
+### 颜色(C1-C3)
+
+- [ ] 状态色使用 Quasar brand: positive/warning/negative/grey/info(C2) (static)
+- [ ] 文字分级: text-primary/text-default/text-secondary/text-muted(C3) (static)
+- [ ] 无硬编码 hex/rgb/hsl(C1) (static lint)
+
+### 性能(P1-P8)
+
+- [ ] 大数组 shallowRef + 整组替换(P2) (static)
+- [ ] 无 deep watch 大对象(P3) (static)
+- [ ] v-for 使用稳定唯一 key(P6) (static lint)
+- [ ] 模板中禁止内联 .filter()/.map()/.reduce()(P8) (static lint)
+
+---
+
+## 验证方式说明
+
+- **static**: 代码静态分析可验证
+- **static lint**: pnpm -C rewrite lint 可验证
+- **manual**: 手工操作验证

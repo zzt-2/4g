@@ -8,11 +8,7 @@ import {
   type ConnectionOperationOutcome,
 } from '../services';
 import { createConnectionState } from '../state';
-import {
-  selectConnectionSummaries,
-  selectTransportTargets,
-  type ConnectionSummary,
-} from '../selectors';
+import type { ConnectionSummary } from '../core';
 import type {
   ConnectionStateSnapshot,
   TransportConfig,
@@ -115,7 +111,7 @@ describe('connection state and service pilot', () => {
     const adapter = createFakeConnectionTransportAdapter({ now: createTestClock() });
     const service = createConnectionService({ adapter, now: createTestClock() });
 
-    const outcome = await service.connect(invalidTransportConfigSample);
+    const outcome = await service.connect(invalidTransportConfigSample as unknown as TransportConfig);
 
     expect(outcome.ok).toBe(false);
     expect(outcome.validation.valid).toBe(false);
@@ -176,14 +172,13 @@ describe('connection state and service pilot', () => {
       code: 'connection.adapter.open-failed',
       path: 'adapter',
     });
-    expect(outcome.events.map((event) => event.kind)).toEqual(['error']);
-    expect(service.getConnectionFact(serialTransportConfigFixture.id)).toMatchObject({
-      lifecycle: 'error',
-      lastError: {
-        kind: 'open-failed',
-        message: 'Open failed without adapter event.',
-      },
+    expect(outcome.events).toEqual([]);
+    expect(outcome.error).toMatchObject({
+      kind: 'open-failed',
+      message: 'Open failed without adapter event.',
     });
+    // Atomized connect: no state written on adapter failure
+    expect(service.getConnectionFact(serialTransportConfigFixture.id)).toBeUndefined();
   });
 
   it('returns copied snapshots from state and reader boundaries', async () => {
@@ -233,24 +228,19 @@ describe('connection state and service pilot', () => {
 describe('connection selector and public api pilot', () => {
   it('returns selector projections that cannot mutate backing state', async () => {
     const { service } = await createConnectedService();
-    const snapshot = service.getSnapshot();
-    const summaries = selectConnectionSummaries(snapshot);
-    const targets = selectTransportTargets(snapshot, { availableOnly: true });
+    const summaries = service.listConnectionSummaries();
+    const targets = service.listTransportTargets({ availableOnly: true });
 
     (summaries[0] as ConnectionSummary as MutableSummaryForTest).label = 'mutated summary';
     (targets[0] as TransportTargetSnapshot as MutableTargetForTest).label = 'mutated target';
 
-    expect(selectConnectionSummaries(service.getSnapshot())[0]?.label).toBe('Main serial');
-    expect(selectTransportTargets(service.getSnapshot(), { availableOnly: true })[0]?.label).toBe(
-      'Main serial',
-    );
+    expect(service.listConnectionSummaries()[0]?.label).toBe('Main serial');
+    expect(service.listTransportTargets({ availableOnly: true })[0]?.label).toBe('Main serial');
   });
 
-  it('keeps root public api free of internal mutable state and fake adapter factories', () => {
+  it('keeps root public api free of internal mutable state', () => {
     expect(connectionPublicApi).toHaveProperty('createConnectionReader');
     expect(connectionPublicApi).toHaveProperty('createConnectionService');
-    expect(connectionPublicApi).toHaveProperty('selectTransportTargets');
     expect(connectionPublicApi).not.toHaveProperty('createConnectionState');
-    expect(connectionPublicApi).not.toHaveProperty('createFakeConnectionTransportAdapter');
   });
 });

@@ -5,7 +5,6 @@ import {
   checksumSum8,
   checksumXor8,
   checksumCrc16Modbus,
-  validateSendRequest,
 } from '../core';
 import {
   minimalFieldDefs,
@@ -17,9 +16,6 @@ import {
   asciiFieldDefs,
   asciiFieldValues,
   checksumTestBytes,
-  missingFrameIdRequest,
-  missingTargetIdRequest,
-  validSendRequest,
 } from '../fixtures/send-fixtures';
 
 describe('send core: encoding', () => {
@@ -223,33 +219,5 @@ describe('send core: checksum', () => {
 
   it('sum8 wraps at 256', () => {
     expect(checksumSum8([0xff, 0x02])).toBe(0x01);
-  });
-});
-
-describe('send core: validation', () => {
-  it('passes valid request', () => {
-    const issues = validateSendRequest(validSendRequest);
-    expect(issues).toHaveLength(0);
-  });
-
-  it('reports missing frameId', () => {
-    const issues = validateSendRequest(missingFrameIdRequest);
-    expect(issues.some((i) => i.code === 'send.request.missingFrameId')).toBe(true);
-  });
-
-  it('reports missing targetId', () => {
-    const issues = validateSendRequest(missingTargetIdRequest);
-    expect(issues.some((i) => i.code === 'send.request.missingTargetId')).toBe(true);
-  });
-
-  it('reports missing context source', () => {
-    const issues = validateSendRequest({
-      frameId: 'f1',
-      fieldValues: {},
-      targetId: 't1',
-      options: {},
-      context: { source: undefined as unknown as 'user' },
-    });
-    expect(issues.some((i) => i.code === 'send.request.missingSource')).toBe(true);
   });
 });

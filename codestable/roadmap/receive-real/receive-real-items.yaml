@@ -1,0 +1,14 @@
+roadmap: receive-real
+created: 2026-05-08
+
+items:
+  - slug: receive-real-pipeline
+    description: 完整接收管线——表达式引擎集成（预编译+运行时求值+依赖排序）、参数当前值 read model、routingTick 扇出接线（display/storage/task/unmatched）、预算截断背压基础
+    depends_on: []
+    status: done
+    feature: null
+    minimal_loop: true
+    notes: |
+      全部阶段已完成：表达式集成 ✅ read model ✅ 扇出接线 ✅ 背压截断 ✅。
+      globalParams 收集推迟（依赖 settings feature，processor.ts 硬编码空 map）。
+      验收报告：codestable/roadmap/receive-real/receive-real-pipeline-acceptance.md

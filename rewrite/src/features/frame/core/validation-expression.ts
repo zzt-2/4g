@@ -7,6 +7,7 @@ import {
   type ValidationIssue,
   type ValidationResult,
 } from './types';
+import { createIssue, hasText, isOneOf, toResult } from './validation-utils';
 
 const EXPRESSION_KEYWORDS = new Set([
   'true',
@@ -41,30 +42,6 @@ const DANGEROUS_EXPRESSION_PATTERNS: readonly RegExp[] = [
   /\bimport\s+/,
   /\bexport\s+/,
 ];
-
-function createIssue(
-  code: string,
-  path: string,
-  message: string,
-  severity: ValidationIssue['severity'] = 'error',
-): ValidationIssue {
-  return { severity, code, path, message };
-}
-
-function toResult(issues: ValidationIssue[]): ValidationResult {
-  return {
-    valid: issues.every((issue) => issue.severity !== 'error'),
-    issues,
-  };
-}
-
-function isOneOf<T extends readonly string[]>(value: string, options: T): value is T[number] {
-  return (options as readonly string[]).includes(value);
-}
-
-function hasText(value: string | undefined): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
-}
 
 function validateExpressionSyntax(value: string, path: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];

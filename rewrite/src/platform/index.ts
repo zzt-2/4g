@@ -3,10 +3,13 @@ import {
   type RewritePlatformBridge,
   type RewritePlatformBridgeInfo,
   type TransportBridge,
+  type FileBridge,
 } from '@/shared/platform-bridge';
 import { createTransportFacade, type TransportFacade } from './transport';
+import { createFileFacade, type FileFacade } from './files';
 
 export type { TransportFacade } from './transport';
+export type { FileFacade, FileBridge } from './files';
 export type {
   SerialPortCandidate,
   TransportBridgeEvent,
@@ -18,6 +21,9 @@ export type {
   TcpClientConnectConfig,
   TcpServerConnectConfig,
   UdpConnectConfig,
+  SaveDialogOptions,
+  OpenDialogOptions,
+  FileDialogFilter,
 } from '@/shared/platform-bridge';
 
 declare global {
@@ -49,4 +55,18 @@ export function getTransportFacade(): TransportFacade | null {
 
 export function resetTransportFacade(): void {
   cachedTransportFacade = null;
+}
+
+let cachedFileFacade: FileFacade | null = null;
+
+export function getFileFacade(): FileFacade | null {
+  if (cachedFileFacade) return cachedFileFacade;
+  const bridge = getBridge();
+  if (!bridge?.file) return null;
+  cachedFileFacade = createFileFacade(bridge.file as FileBridge);
+  return cachedFileFacade;
+}
+
+export function resetFileFacade(): void {
+  cachedFileFacade = null;
 }

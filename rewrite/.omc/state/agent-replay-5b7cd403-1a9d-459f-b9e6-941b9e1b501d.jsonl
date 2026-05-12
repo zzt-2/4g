@@ -1,0 +1,4 @@
+{"t":0,"agent":"ab94f83","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"abb1ebe","agent_type":"code-reviewer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"abb1ebe","agent_type":"code-reviewer","event":"agent_stop","success":true,"duration_ms":219620}
+{"t":0,"agent":"a3217bb","agent_type":"unknown","event":"agent_stop","success":true}

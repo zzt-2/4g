@@ -14,7 +14,7 @@ describe('bootstrap end-to-end integration', () => {
 
     // Connect
     const connectResult = await runtime.features.connectionService.connect({
-      kind: 'serial',
+      kind: 'serial' as const,
       id: 'serial-1',
       portPath: '/dev/ttyUSB0',
       baudRate: 115200,

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { createSendService, createSendReader } from '../services';
 import type { SendResult } from '../core';
 import { createSendState } from '../state';
-import { selectSendResults, selectSendSnapshot, selectSendStatistics, selectSendStatus } from '../selectors';
 import {
   createFakeFrameProvider,
   createFakeConnectionWriter,
@@ -256,8 +255,8 @@ describe('send state', () => {
   });
 });
 
-describe('send selectors', () => {
-  it('selectSendStatistics returns cloned stats', () => {
+describe('send reader immutability', () => {
+  it('reader getStatistics returns cloned stats', () => {
     const state = createSendState();
     state.addResult({
       kind: 'sent',
@@ -268,14 +267,15 @@ describe('send selectors', () => {
       buildIssues: [],
     });
 
-    const stats = selectSendStatistics(state.getSnapshot());
+    const reader = createSendReader(() => state.getSnapshot());
+    const stats = reader.getStatistics();
     expect(stats.totalSent).toBe(1);
     // Mutating returned stats should not affect state
     (stats as { totalSent: number }).totalSent = 999;
     expect(state.getSnapshot().statistics.totalSent).toBe(1);
   });
 
-  it('selectSendResults returns cloned results', () => {
+  it('reader listResults returns cloned results', () => {
     const state = createSendState();
     state.addResult({
       kind: 'sent',
@@ -286,24 +286,27 @@ describe('send selectors', () => {
       buildIssues: [],
     });
 
-    const results = selectSendResults(state.getSnapshot());
+    const reader = createSendReader(() => state.getSnapshot());
+    const results = reader.listResults();
     expect(results).toHaveLength(1);
     expect(results[0]!.kind).toBe('sent');
   });
 
-  it('selectSendSnapshot returns full snapshot', () => {
+  it('reader getSnapshot returns full snapshot', () => {
     const state = createSendState();
-    const snapshot = selectSendSnapshot(state.getSnapshot());
+    const reader = createSendReader(() => state.getSnapshot());
+    const snapshot = reader.getSnapshot();
     expect(snapshot.status).toBe('idle');
     expect(snapshot.statistics.totalRequests).toBe(0);
     expect(snapshot.recentResults).toHaveLength(0);
   });
 
-  it('selectSendStatus returns current status', () => {
+  it('reader getStatus returns current status', () => {
     const state = createSendState();
-    expect(selectSendStatus(state.getSnapshot())).toBe('idle');
+    const reader = createSendReader(() => state.getSnapshot());
+    expect(reader.getStatus()).toBe('idle');
     state.setStatus('sending');
-    expect(selectSendStatus(state.getSnapshot())).toBe('sending');
+    expect(reader.getStatus()).toBe('sending');
   });
 });
 

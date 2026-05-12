@@ -1,6 +1,6 @@
 export const REWRITE_PLATFORM_BRIDGE_KEY = 'dongfanghongRewritePlatform';
 
-export type RewritePlatformCapability = 'transport';
+export type RewritePlatformCapability = 'transport' | 'file';
 
 export interface RewritePlatformBridgeInfo {
   readonly name: 'dongfanghong-rewrite-platform';
@@ -101,16 +101,44 @@ export interface TransportBridge {
   onEvent(callback: (event: TransportBridgeEvent) => void): () => void;
 }
 
+// --- File bridge types ---
+
+export interface SaveDialogOptions {
+  readonly title?: string;
+  readonly defaultPath?: string;
+  readonly filters?: readonly FileDialogFilter[];
+}
+
+export interface OpenDialogOptions {
+  readonly title?: string;
+  readonly defaultPath?: string;
+  readonly filters?: readonly FileDialogFilter[];
+  readonly multiple?: boolean;
+}
+
+export interface FileDialogFilter {
+  readonly name: string;
+  readonly extensions: readonly string[];
+}
+
+export interface FileBridge {
+  readTextFile(path: string): Promise<string>;
+  writeTextFile(path: string, content: string): Promise<void>;
+  showSaveDialog(opts: SaveDialogOptions): Promise<string | null>;
+  showOpenDialog(opts: OpenDialogOptions): Promise<string | null>;
+}
+
 // --- Bridge root ---
 
 export interface RewritePlatformBridge {
   getBridgeInfo(): RewritePlatformBridgeInfo;
   readonly transport: TransportBridge;
+  readonly file: FileBridge;
 }
 
 export function createRewriteBridgeInfo(
   version = '0.0.0',
-  capabilities: readonly RewritePlatformCapability[] = ['transport'],
+  capabilities: readonly RewritePlatformCapability[] = ['transport', 'file'],
 ): RewritePlatformBridgeInfo {
   return {
     name: 'dongfanghong-rewrite-platform',

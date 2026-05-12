@@ -15,6 +15,7 @@ export type {
   SendError,
   SendFieldEncodingDef,
   SendFieldValue,
+  SendFrameInstance,
   SendOptions,
   SendRequest,
   SendRequestRef,
@@ -25,6 +26,15 @@ export type {
   SendStateSnapshot,
   SendStatisticsSnapshot,
   SendStatsDelta,
+} from './core';
+
+// Core pure functions
+export {
+  buildFrame,
+  resolveFieldValues,
+  applyFactor,
+  frameToBuildInput,
+  evaluateFieldPreview,
 } from './core';
 
 // Services
@@ -38,11 +48,3 @@ export type {
   SendTransportWriter,
   SendTransportWriteOutcome,
 } from './adapters';
-
-// Selectors
-export {
-  selectSendResults,
-  selectSendSnapshot,
-  selectSendStatistics,
-  selectSendStatus,
-} from './selectors';

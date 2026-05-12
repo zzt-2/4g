@@ -2,11 +2,11 @@ import type {
   TaskInstanceState,
   TaskProgress,
 } from '../core';
-import { calculateProgress, cloneInstanceState } from '../core';
+import { calculateProgress } from '../core';
 import type { TaskStateSnapshot, TaskStatisticsSnapshot } from '../state';
 
 export function selectTaskInstances(snapshot: TaskStateSnapshot): TaskInstanceState[] {
-  return snapshot.instances.map(cloneInstanceState);
+  return [...snapshot.instances];
 }
 
 export function selectTaskInstance(
@@ -14,7 +14,7 @@ export function selectTaskInstance(
   instanceId: string,
 ): TaskInstanceState | undefined {
   const instance = snapshot.instances.find((i) => i.instanceId === instanceId);
-  return instance ? cloneInstanceState(instance) : undefined;
+  return instance ? { ...instance } : undefined;
 }
 
 export function selectTaskProgress(
@@ -26,11 +26,17 @@ export function selectTaskProgress(
 }
 
 export function selectTaskHistory(snapshot: TaskStateSnapshot): TaskInstanceState[] {
-  return snapshot.history.map(cloneInstanceState);
+  return [...snapshot.history];
 }
 
 export function selectTaskStatistics(snapshot: TaskStateSnapshot): TaskStatisticsSnapshot {
   return { ...snapshot.statistics };
+}
+
+export function selectActiveInstances(snapshot: TaskStateSnapshot): TaskInstanceState[] {
+  return snapshot.instances.filter(
+    (i) => i.lifecycle === 'created' || i.lifecycle === 'running' || i.lifecycle === 'paused',
+  );
 }
 
 export interface TaskUiSnapshot {
@@ -41,8 +47,8 @@ export interface TaskUiSnapshot {
 
 export function selectTaskSnapshot(snapshot: TaskStateSnapshot): TaskUiSnapshot {
   return {
-    instances: snapshot.instances.map(cloneInstanceState),
-    history: snapshot.history.map(cloneInstanceState),
+    instances: [...snapshot.instances],
+    history: [...snapshot.history],
     statistics: { ...snapshot.statistics },
   };
 }

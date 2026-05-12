@@ -47,6 +47,8 @@ export interface FrameAssetService extends FrameAssetReader {
   replaceFrames(frames: readonly FrameAsset[], selectedFrameId?: string): FrameAssetOperationResult;
   loadLegacyFrameConfig(value: unknown, selectedFrameId?: string): FrameLegacyLoadResult;
   selectFrame(frameId: string | undefined): FrameAssetOperationResult;
+  upsertFrame(frame: FrameAsset): FrameAssetOperationResult;
+  removeFrame(frameId: string): FrameAssetOperationResult;
 }
 
 function hasError(issues: readonly ValidationIssue[]): boolean {
@@ -185,6 +187,31 @@ export function createFrameAssetService(
         ok: true,
         validation: validResult(),
         snapshot: state.selectFrame(frameId),
+      };
+    },
+
+    upsertFrame(frame) {
+      const validation = validateFrameAssetCollection([frame]);
+      if (!validation.valid) {
+        return {
+          ok: false,
+          validation,
+          snapshot: state.getSnapshot(),
+        };
+      }
+
+      return {
+        ok: true,
+        validation,
+        snapshot: state.upsertFrame(frame),
+      };
+    },
+
+    removeFrame(frameId) {
+      return {
+        ok: true,
+        validation: validResult(),
+        snapshot: state.removeFrame(frameId),
       };
     },
   };

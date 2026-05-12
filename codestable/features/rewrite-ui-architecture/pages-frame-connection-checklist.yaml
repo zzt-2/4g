@@ -1,0 +1,324 @@
+# 帧域 + 连接页面 Checklist
+
+## 元数据
+
+- **feature**: rewrite-ui-architecture (pages-frame-connection)
+- **design**: pages-frame-connection-design.md
+- **brainstorm**: pages-frame-connection-brainstorm.md
+- **date**: 2026-05-12
+
+---
+
+## P1: 帧定义列表 (/frames)
+
+### 布局与路由
+
+- [ ] /frames 路由注册到 routes.ts (static)
+- [ ] FrameListPage.vue 使用主从双栏布局（flex:1 + 320px 固定宽度） (manual)
+- [ ] 页面内边距使用 spacing token (static lint)
+
+### DataTable Widget
+
+- [ ] DataTable 组件存在 (widgets/DataTable.vue) (static)
+- [ ] virtual-scroll 开启 + item-size=40 (static)
+- [ ] row-key='id' 使用稳定唯一标识符 (static)
+- [ ] selection='single' 行选中 (static)
+- [ ] #no-data slot 空状态处理 (manual)
+- [ ] :loading prop loading 处理 (manual)
+
+### columns.ts
+
+- [ ] 列定义抽到 features/frame/components/columns.ts (static)
+- [ ] 8 列定义完整（#/帧ID/名称/方向/字段数/类型/收藏/操作） (static)
+- [ ] 方向列用 QChip 渲染（非 StatusBadge） (static)
+- [ ] 空值显示 '--' (manual)
+
+### TableToolbar Widget
+
+- [ ] TableToolbar 组件存在 (widgets/TableToolbar.vue) (static)
+- [ ] 搜索框实时过滤（无 debounce） (manual)
+- [ ] 方向筛选下拉 (manual)
+- [ ] 仅收藏 toggle (manual)
+- [ ] 操作按钮：新建/导入/导出 (manual)
+
+### 单行操作
+
+- [ ] 收藏切换 → replaceFrames (manual)
+- [ ] 编辑 → router.push('/frames/editor/:frameId') (manual)
+- [ ] 复制 → cloneFrameAsset + replaceFrames (manual)
+- [ ] 删除 → $q.dialog() 确认 + replaceFrames (manual)
+
+### 批量操作
+
+- [ ] 新建帧 → 跳转 /frames/editor (manual)
+- [ ] 导入 → ImportFrameDialog (manual)
+- [ ] 导出 → serializeFrames + platform facade 写文件 (manual)
+
+### 导入对话框
+
+- [ ] ImportFrameDialog.vue 存在 (static)
+- [ ] QDialog v-model + @hide 清理 (static)
+- [ ] QFile accept=".json" (static)
+- [ ] deserializeFrames → 预览帧数 + issues (manual)
+- [ ] issues 按 error/warning 分组，error 禁用导入按钮 (manual)
+- [ ] 只有"替换全部"模式（无追加） (static)
+
+### 详情面板
+
+- [ ] FrameDetailPanel.vue 存在 (static)
+- [ ] 未选中 → 空状态提示 (manual)
+- [ ] 选中 → 元数据 + 字段预览（前 5 条） (manual)
+- [ ] [编辑帧] 按钮 → router.push (manual)
+
+### 数据流
+
+- [ ] listFrameAssetSummaries(source, query) 正确调用 (static)
+- [ ] shallowRef + 整组替换 (static)
+- [ ] query computed 从 searchQuery/directionFilter/favoriteOnly 组合 (static)
+
+---
+
+## P2: 帧定义编辑 (/frames/editor/:frameId?)
+
+### 布局与路由
+
+- [ ] /frames/editor/:frameId? 路由注册 (static)
+- [ ] FrameEditorPage.vue 单栏居中 max-width 1120px (manual)
+- [ ] sticky bar: [返回] 标题 [取消] [保存] (manual)
+
+### 基本信息
+
+- [ ] FrameBasicInfoForm.vue 存在 (static)
+- [ ] 帧名称 QInput :rules 必填 (static)
+- [ ] 帧ID QInput :rules 必填 (static)
+- [ ] 帧方向 QSelect (static)
+- [ ] 帧类型 QInput（可选） (static)
+- [ ] 协议 QInput（可选） (static)
+- [ ] 描述 QInput type=textarea autogrow (static)
+
+### 帧识别规则
+
+- [ ] FrameIdentifierRulesEditor.vue 存在 (static)
+- [ ] 仅 direction='receive' 时渲染 (static)
+- [ ] 支持添加/删除规则 (manual)
+- [ ] 每条规则：起始字节/结束字节/操作符/值/逻辑运算符 (manual)
+- [ ] 最后一条规则隐藏逻辑运算符 (manual)
+
+### 字段列表
+
+- [ ] FrameFieldList.vue 存在 (static)
+- [ ] 展示：字段名 / 类型简写+位宽 / 校验和标记 (manual)
+- [ ] 统计：字段总数 + 总位数(字节数) (manual)
+- [ ] 拖拽排序（或 MVP 先用上移/下移） (manual)
+- [ ] 添加字段按钮 (manual)
+- [ ] 复制字段 → cloneFrameAsset (manual)
+- [ ] 删除字段 (manual)
+- [ ] 点击行 → 打开编辑对话框 (manual)
+
+### 字段编辑对话框
+
+- [ ] FrameFieldEditorDialog.vue 存在 (static)
+- [ ] QDialog v-if（非 v-show） (static)
+- [ ] 左右分栏：55% 基本信息 + 45% 配置 (manual)
+- [ ] 基本信息字段完整（名称/类型/长度/倍率/输入类型/默认值/参与类型/端序/ASCII/可配置/描述） (static)
+- [ ] 校验和配置折叠面板 (manual)
+- [ ] inputType='expression' → FrameFieldExpressionConfig (manual)
+- [ ] inputType='select'|'radio' → FrameFieldOptionConfig (manual)
+- [ ] @hide 清理工作副本 (manual)
+
+### 表达式配置
+
+- [ ] FrameFieldExpressionConfig.vue 存在 (static)
+- [ ] 变量映射行列表：标识符 + 数据源类型 + 来源选择 (manual)
+- [ ] frame_field 级联：selectFrameReferenceOptions → selectFieldReferenceOptions (manual)
+- [ ] 条件表达式行列表：条件 + 表达式 (manual)
+- [ ] 校验反馈：validateExpressionDefinition → issues 展示 (manual)
+
+### 选项配置
+
+- [ ] FrameFieldOptionConfig.vue 存在 (static)
+- [ ] 选项列表：值 + 标签 + 默认勾选 + 删除 (manual)
+- [ ] radio 互斥默认选项 (manual)
+- [ ] 至少 2 个选项校验 (manual)
+
+### 校验与保存
+
+- [ ] 页面保存: validateFrameAsset → issues 展示在页面顶部 (manual)
+- [ ] 字段保存: validateFrameField → issues 展示在对话框底部 (manual)
+- [ ] 保存按钮 :loading/:disable 防重复 (static)
+- [ ] 脏检测: JSON.stringify 快照比较 (static)
+- [ ] 离开提示: onBeforeRouteLeave + $q.dialog() (manual)
+- [ ] 保存流程: validate → replaceFrames → router.push('/frames') (manual)
+
+### 新建 vs 编辑
+
+- [ ] 无 frameId → 空帧模板，标题"创建帧配置" (manual)
+- [ ] 有 frameId → getFrameAsset + cloneFrameAsset，标题"编辑帧配置" (manual)
+
+### 帧编辑不建项（显式声明）
+
+- 不建 SCOE帧复选框（SCOE 不再独立模块，帧定义全局唯一）
+- 不建 FrameOptionsDefinition 编辑 UI（autoChecksum/bigEndian/includeLengthField — 旧系统也无此 UI）
+- 不建字段结构预览网格（FrameFieldPreview — 旧系统有但使用率低，DataTable 已展示类型+长度）
+- 拖拽排序引入 vuedraggable 作为 Q1 规则例外（单一能力工具，与 grid-layout-plus 同类）
+
+---
+
+## P3: 连接管理 (/connection)
+
+### 布局与路由
+
+- [ ] /connection 路由注册 (static)
+- [ ] ConnectionPage.vue 单栏居中 max-width 1120px（无右侧面板） (manual)
+
+### 连接列表
+
+- [ ] 分两区：串口连接 + 网络连接，各有 section header (manual)
+- [ ] ConnectionCard.vue 存在 (static)
+- [ ] 每行：StatusBadge + 名称 + 路由信息 + 自动连接Toggle + [连接/断开] + [删除✕] (manual)
+- [ ] 空状态提示（串口区/网络区分别处理） (manual)
+
+### 状态展示
+
+- [ ] StatusBadge.vue 存在 (widgets/StatusBadge.vue) (static)
+- [ ] lifecycle → color 映射完整（6 种状态） (static)
+- [ ] connecting/disconnecting 脉冲动画 (manual)
+
+### 新建连接对话框
+
+- [ ] NewConnectionDialog.vue 存在 (static)
+- [ ] 步骤 1：2x2 QCard 类型选择 (manual)
+- [ ] 步骤 2：统一表单 + v-if 按 kind 切换字段 (static)
+- [ ] 所有类型表单包含 autoConnect QToggle (manual)
+- [ ] 串口：QSelect(端口+刷新按钮) + QSelect(波特率) (manual)
+- [ ] 串口枚举：discoverResources() → 刷新按钮 loading (manual)
+- [ ] TCP Client：host + port (manual)
+- [ ] TCP Server：host(默认 0.0.0.0) + port (manual)
+- [ ] UDP：localHost + localPort + remoteHost? + remotePort? (manual)
+- [ ] 确认 → connect(config) (manual)
+
+### 操作反馈
+
+- [ ] 连接/断开：按钮 :loading + $q.notify() (manual)
+- [ ] 删除配置：$q.dialog() 确认 (manual)
+- [ ] 连接失败：$q.notify('negative') (manual)
+- [ ] 错误状态：lifecycle='error' 时 StatusBadge negative + lastError 展示 (manual)
+- [ ] operatingIds 防重复操作 (static)
+
+### 已移除（用户确认不需要）
+
+- 不建右侧详情面板 / 控制台
+- 不展示 RX/TX 收发字节数
+- 不展示重连状态
+- 不做 UDP 多远程主机
+- 不做 WebSocket 连接类型
+- 不建串口测试工具 tab（SerialTestTools，用户确认没用过）
+- 不建网络测试工具（NetworkTestTools，旧系统已注释掉）
+- Phase 1 不建连接编辑功能（service 无 updateConfig）
+- 不建串口高级选项（dataBits/stopBits/parity/flowControl — 新类型层约束，默认 8N1）
+- 不建 FrameOptionsDefinition 编辑 UI（autoChecksum/bigEndian/includeLengthField — 旧系统也无此 UI）
+
+### 前置类型变更
+
+- [ ] BaseTransportConfig 新增 `autoConnect?: boolean` 字段 (static)
+
+### Phase 1 限制（待 Phase 2 实现）
+
+- 连接配置仅内存态，不跨重启持久化
+- autoConnect 仅在本次会话生效，重启后丢失
+- 连接配置不可编辑，只能新建+删除
+- Phase 2 需实现：配置持久化（通过 settings 或独立存储）+ autoConnect 跨重启 + 连接编辑
+
+---
+
+## 跨页面一致性
+
+- [ ] 删除确认统一用 $q.dialog() (static)
+- [ ] 操作反馈统一用 $q.notify() (static)
+- [ ] 帧列表右侧详情面板宽度 320px (static)
+- [ ] 页面级编辑统一 sticky bar [取消][保存] + dirty tracking (static)
+- [ ] 对话框级编辑统一 QDialog 底部 [取消][确认] (static)
+- [ ] 空状态和 loading 所有列表/表格显式处理 (manual)
+- [ ] v-for 使用稳定唯一 key (static lint)
+- [ ] 无硬编码颜色值 (static lint)
+
+---
+
+## 前置条件：Service 层变更（S1-S4）
+
+### S1: Frame Service 单帧操作
+
+- [ ] FrameAssetService 接口新增 upsertFrame(frame: FrameAsset): FrameAssetOperationResult (static)
+- [ ] FrameAssetService 接口新增 removeFrame(frameId: string): FrameAssetOperationResult (static)
+- [ ] 内部委托 FrameStateContainer.upsertFrame / removeFrame（state 层已有）(static)
+- [ ] upsertFrame 和 removeFrame 的单测通过 (static)
+- [ ] UI 单帧操作（收藏/复制/删除）调 upsertFrame/removeFrame，不做读-改-写 (static lint)
+
+### S2: Connection Service 类型修正
+
+- [ ] connect 签名改为 connect(config: TransportConfig)，不使用 unknown (static)
+
+### S3: Connection Service 原子化 connect
+
+- [ ] connect 内部先 adapter.connect()，成功后才 upsertConfig + applyEvent (static)
+- [ ] connect 失败不写入任何 state (static)
+- [ ] connect 失败不产生幽灵连接卡片 (manual)
+
+### S4: Connection Reader 暴露 discoverResources
+
+- [ ] ConnectionReader 接口新增 discoverResources() (static)
+- [ ] 内部委托 serial adapter，无 adapter 时返回空数组 (static)
+- [ ] UI 只调 service.discoverResources()，不引用 adapter (static lint)
+
+---
+
+## 实施约束（C1-C4）
+
+### C1: Composable 抽取
+
+- [ ] useFrameList composable 存在，封装 query + shallowRef + watch + refreshList (static)
+- [ ] useFrameEditor composable 存在，封装 workingFrame + dirty + save + route guard (static)
+- [ ] useFieldEditor composable 存在，封装 fieldEditorOpen + editingIndex + CRUD (static)
+- [ ] useAsyncOperation composable 存在于 shared/composables/，封装 operatingIds + execute + notify (static)
+- [ ] 页面组件 <script setup> ≤ 30 行（编排 + 渲染）(static)
+
+### C2: 组件结构
+
+- [ ] FrameEditorPage provide frameId + allFields context (static)
+- [ ] FrameFieldExpressionConfig inject 消费 context，不通过 prop 接收 frameId/allFields (static)
+- [ ] autoConnect QToggle 在 v-if 块外，不随连接类型重复 (static)
+- [ ] FrameFieldEditorDialog 维护 fieldDirty，关闭/切换时有确认提示 (manual)
+- [ ] onBeforeRouteLeave 检查 isDirty || fieldEditorDirty (manual)
+
+### C3: 生命周期管理
+
+- [ ] ConnectionPage 用独立 setInterval 轮询连接状态，不用 startTickDriver (static)
+- [ ] onMounted 启动 interval，onBeforeUnmount 清除 (static)
+- [ ] 连接卡片 operating 后所有按钮禁用，操作完成后恢复 (manual)
+- [ ] async 操作使用 disposed flag，onUnmounted 设 true，回调中检查 (static)
+
+### C4: 错误处理边界
+
+- [ ] discoverResources 失败：串口下拉空 + 红色提示 + 刷新按钮可用 (manual)
+- [ ] 串口枚举空列表：提示"未检测到串口设备" + 刷新按钮可用 (manual)
+- [ ] QSelect serial 配置 use-input 允许手动输入自定义端口路径 (static)
+- [ ] upsertFrame/removeFrame 失败：notify 错误 + refreshList 恢复 UI (manual)
+- [ ] 空帧列表时导出按钮禁用或提示 (manual)
+
+---
+
+## 前端规范合规
+
+- [ ] 无第三方 UI 库引入（vuedraggable 除外 — 单一能力拖拽排序工具，与 grid-layout-plus 同类 Q1 例外）(static)
+- [ ] 颜色用 Quasar brand prop 或 semantic token (static lint)
+- [ ] 表单用 QForm + Quasar 组件 (static)
+- [ ] 校验错误走 :error + :error-message (static)
+- [ ] QDialog 使用 v-model 双向绑定 (static)
+- [ ] 大数组 shallowRef + 整组替换 (static)
+- [ ] 无 deep watch 大对象 (static)
+
+## 验证方式说明
+
+- **static**: 代码静态分析可验证
+- **static lint**: pnpm -C rewrite lint 可验证
+- **manual**: 手工操作验证

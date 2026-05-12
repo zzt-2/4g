@@ -142,3 +142,17 @@ export interface SendStateSnapshot {
 }
 
 export type ReadonlySendStateSnapshot = ReadonlyDeep<SendStateSnapshot>;
+
+// --- SendFrameInstance (readiness) ---
+
+export interface SendFrameInstance {
+  readonly instanceId: string;
+  readonly frameId: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly userFieldValues: Record<string, SendFieldValue>;
+  readonly sendCount: number;
+  readonly lastSendAt?: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}

@@ -4,10 +4,16 @@ import type {
   TaskInstanceState,
   TaskStepResult,
 } from '../core';
-import { cloneInstanceState, cloneStepResult, isStepResultFailed } from '../core';
+import { isStepResultFailed } from '../core';
 
 const MAX_HISTORY = 50;
 const DEFAULT_MAX_STEP_RESULT_ITERATIONS = 100;
+
+// --- Helpers ---
+
+function deepClone<T>(value: T): T {
+  return structuredClone(value);
+}
 
 // --- Statistics ---
 
@@ -48,8 +54,6 @@ export interface TaskStateContainer {
   resetStats(): TaskStateSnapshot;
 }
 
-// --- Helpers ---
-
 function emptyStatistics(): TaskStatisticsSnapshot {
   return {
     totalCreated: 0,
@@ -74,16 +78,16 @@ export function createTaskState(
 
   if (initialValue?.snapshot) {
     for (const inst of initialValue.snapshot.instances) {
-      instances.set(inst.instanceId, cloneInstanceState(inst));
+      instances.set(inst.instanceId, deepClone(inst));
     }
-    history = initialValue.snapshot.history.map(cloneInstanceState);
+    history = initialValue.snapshot.history.map(deepClone);
     statistics = { ...initialValue.snapshot.statistics };
   }
 
   function getSnapshot(): TaskStateSnapshot {
     return {
-      instances: [...instances.values()].map(cloneInstanceState),
-      history: history.map(cloneInstanceState),
+      instances: [...instances.values()].map(deepClone),
+      history: history.map(deepClone),
       statistics: { ...statistics },
     };
   }
@@ -102,7 +106,7 @@ export function createTaskState(
       };
       instances.set(instanceId, instance);
       statistics = { ...statistics, totalCreated: statistics.totalCreated + 1 };
-      return cloneInstanceState(instance);
+      return deepClone(instance);
     },
 
     updateInstance(instanceId, updates) {
@@ -124,21 +128,21 @@ export function createTaskState(
         statistics = { ...statistics, totalFailed: statistics.totalFailed + 1 };
       }
 
-      return cloneInstanceState(updated);
+      return deepClone(updated);
     },
 
     removeInstance(instanceId) {
       const existing = instances.get(instanceId);
       if (!existing) return undefined;
       instances.delete(instanceId);
-      return cloneInstanceState(existing);
+      return deepClone(existing);
     },
 
     addStepResult(instanceId, result) {
       const existing = instances.get(instanceId);
       if (!existing) return undefined;
 
-      const newResults = [...existing.stepResults, cloneStepResult(result)];
+      const newResults = [...existing.stepResults, deepClone(result)];
       const maxIter = Math.max(existing.currentIteration, result.iteration);
       const minIteration = Math.max(0, maxIter - DEFAULT_MAX_STEP_RESULT_ITERATIONS + 1);
       const boundedResults = newResults.filter((r) => r.iteration >= minIteration);
@@ -161,20 +165,20 @@ export function createTaskState(
         totalStepsSkipped: statistics.totalStepsSkipped + (isSkipped ? 1 : 0),
       };
 
-      return cloneInstanceState(updated);
+      return deepClone(updated);
     },
 
     getInstance(instanceId) {
       const existing = instances.get(instanceId);
-      return existing ? cloneInstanceState(existing) : undefined;
+      return existing ? deepClone(existing) : undefined;
     },
 
     moveToHistory(instanceId) {
       const existing = instances.get(instanceId);
       if (!existing) return undefined;
       instances.delete(instanceId);
-      history = [...history, cloneInstanceState(existing)].slice(-MAX_HISTORY);
-      return cloneInstanceState(existing);
+      history = [...history, deepClone(existing)].slice(-MAX_HISTORY);
+      return deepClone(existing);
     },
 
     resetStats() {

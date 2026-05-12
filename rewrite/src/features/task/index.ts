@@ -38,6 +38,22 @@ export type {
   ConditionMatchInput,
 } from './core';
 
+// Core validation & builders
+export { validateTaskDefinition } from './core';
+export type { TaskValidationIssue } from './core';
+export {
+  createSendStep,
+  createDelayStep,
+  createWaitConditionStep,
+  createTaskDefinition,
+  cloneStepDefinition,
+} from './core';
+export {
+  serializeTaskDefinition,
+  deserializeTaskDefinition,
+} from './core';
+export type { SerializedTaskDefinition } from './core';
+
 // Services
 export { createTaskService } from './services';
 export type { TaskService, TaskReader, CreateTaskServiceOptions } from './services';
@@ -56,5 +72,6 @@ export {
   selectTaskHistory,
   selectTaskStatistics,
   selectTaskSnapshot,
+  selectActiveInstances,
 } from './selectors';
 export type { TaskUiSnapshot } from './selectors';

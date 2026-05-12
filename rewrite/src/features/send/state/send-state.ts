@@ -1,15 +1,15 @@
-import {
-  cloneSendResult,
-  cloneSendStateSnapshot,
-  type ReadonlySendStateSnapshot,
-  type SendResult,
-  type SendServiceStatus,
-  type SendStateSnapshot,
-  type SendStatisticsSnapshot,
-  type SendStatsDelta,
+import type {
+  ReadonlySendStateSnapshot,
+  SendResult,
+  SendServiceStatus,
+  SendStateSnapshot,
+  SendStatisticsSnapshot,
+  SendStatsDelta,
 } from '../core';
 
 const MAX_RECENT_RESULTS = 100;
+
+function deepClone<T>(value: T): T { return structuredClone(value); }
 
 function emptyStatistics(): SendStatisticsSnapshot {
   return {
@@ -74,21 +74,21 @@ export function createSendState(
   initialValue: { readonly snapshot?: ReadonlySendStateSnapshot } = {},
 ): SendStateContainer {
   let snapshot = initialValue.snapshot
-    ? cloneSendStateSnapshot(initialValue.snapshot)
+    ? deepClone(initialValue.snapshot)
     : emptySnapshot();
 
   return {
     getSnapshot() {
-      return cloneSendStateSnapshot(snapshot);
+      return deepClone(snapshot);
     },
 
     setStatus(status) {
-      snapshot = { ...cloneSendStateSnapshot(snapshot), status };
-      return cloneSendStateSnapshot(snapshot);
+      snapshot = { ...deepClone(snapshot), status };
+      return deepClone(snapshot);
     },
 
     addResult(result) {
-      const cloned = cloneSendStateSnapshot(snapshot);
+      const cloned = deepClone(snapshot);
       const delta: SendStatsDelta = {
         frameId: result.requestRef.frameId,
         targetId: result.requestRef.targetId,
@@ -96,7 +96,7 @@ export function createSendState(
         bytesSent: result.bytesSent,
         timestamp: result.timestamp,
       };
-      const recentResults = [...cloned.recentResults, cloneSendResult(result)].slice(-MAX_RECENT_RESULTS);
+      const recentResults = [...cloned.recentResults, result].slice(-MAX_RECENT_RESULTS);
       snapshot = {
         ...cloned,
         statistics: applyStatsDelta(cloned.statistics, delta),
@@ -104,17 +104,17 @@ export function createSendState(
         status: result.kind === 'sent' ? 'idle' : 'error',
         ...(result.error ? { lastError: result.error } : {}),
       };
-      return cloneSendStateSnapshot(snapshot);
+      return deepClone(snapshot);
     },
 
     resetStats() {
-      snapshot = { ...cloneSendStateSnapshot(snapshot), statistics: emptyStatistics() };
-      return cloneSendStateSnapshot(snapshot);
+      snapshot = { ...deepClone(snapshot), statistics: emptyStatistics() };
+      return deepClone(snapshot);
     },
 
     resetSnapshot(next = emptySnapshot()) {
-      snapshot = cloneSendStateSnapshot(next);
-      return cloneSendStateSnapshot(snapshot);
+      snapshot = deepClone(next);
+      return deepClone(snapshot);
     },
   };
 }

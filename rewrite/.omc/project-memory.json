@@ -1,0 +1,210 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1778466969047,
+  "projectRoot": "/mnt/d/code/frontend/dongfanghong/rewrite",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=22 <23",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "vue",
+        "version": "3.5.22",
+        "category": "frontend"
+      },
+      {
+        "name": "vitest",
+        "version": "3.2.4",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "pnpm",
+    "runtime": "Node.js 2223"
+  },
+  "build": {
+    "buildCommand": "pnpm build",
+    "testCommand": "pnpm test",
+    "lintCommand": "pnpm lint",
+    "devCommand": "pnpm dev",
+    "scripts": {
+      "dev": "quasar dev -m electron",
+      "build": "quasar build -m electron",
+      "build:linux": "quasar build -m electron",
+      "lint": "eslint -c ./eslint.config.js \"./src/**/*.{ts,vue}\" \"./src-electron/**/*.ts\" \"./test/**/*.ts\" \"./*.config.{ts,js}\"",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "postinstall": "quasar prepare"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": "*.spec.ts",
+    "fileOrganization": "feature-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts",
+      "src",
+      "test"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 0,
+      "lastAccessed": 1778466969030,
+      "keyFiles": []
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 2,
+      "lastAccessed": 1778466969033,
+      "keyFiles": [
+        "migrate-scoe-config.ts",
+        "verify-serialport.mjs"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1778466969036,
+      "keyFiles": [
+        "App.vue"
+      ]
+    },
+    "src-electron": {
+      "path": "src-electron",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778466969038,
+      "keyFiles": []
+    },
+    "test": {
+      "path": "test",
+      "purpose": "Test files",
+      "fileCount": 1,
+      "lastAccessed": 1778466969040,
+      "keyFiles": [
+        "smoke.spec.ts"
+      ]
+    },
+    "src/app": {
+      "path": "src/app",
+      "purpose": "Application code",
+      "fileCount": 3,
+      "lastAccessed": 1778466969044,
+      "keyFiles": [
+        "AppShell.vue",
+        "rewriteRuntime.ts",
+        "useRewritePlatform.ts"
+      ]
+    },
+    "src/pages": {
+      "path": "src/pages",
+      "purpose": "Page components",
+      "fileCount": 1,
+      "lastAccessed": 1778466969046,
+      "keyFiles": [
+        "HomePage.vue"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/features/task/__tests__/task-service-state-selector.spec.ts",
+      "accessCount": 7,
+      "lastAccessed": 1778468268629,
+      "type": "file"
+    },
+    {
+      "path": "src/features/task/services/task-service.ts",
+      "accessCount": 5,
+      "lastAccessed": 1778467691582,
+      "type": "file"
+    },
+    {
+      "path": "src/features/display",
+      "accessCount": 3,
+      "lastAccessed": 1778516773218,
+      "type": "directory"
+    },
+    {
+      "path": "src/features/display/core/types.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778516839395,
+      "type": "file"
+    },
+    {
+      "path": "src/features/display/core/projection.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778516839584,
+      "type": "file"
+    },
+    {
+      "path": "src/features/display/core/clone.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778516796775,
+      "type": "file"
+    },
+    {
+      "path": "src/features/display/selectors/display-selectors.ts",
+      "accessCount": 2,
+      "lastAccessed": 1778516796951,
+      "type": "file"
+    },
+    {
+      "path": "src/features/task/services/task-error-policy.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778467464458,
+      "type": "file"
+    },
+    {
+      "path": "src/features/task/services/task-iteration-loops.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778467464509,
+      "type": "file"
+    },
+    {
+      "path": "src/features/result/__tests__/judge.spec.ts",
+      "accessCount": 1,
+      "lastAccessed": 1778516734488,
+      "type": "file"
+    },
+    {
+      "path": "src/features/display/__tests__",
+      "accessCount": 1,
+      "lastAccessed": 1778516802727,
+      "type": "directory"
+    },
+    {
+      "path": "src/features/display/fixtures",
+      "accessCount": 1,
+      "lastAccessed": 1778516802785,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

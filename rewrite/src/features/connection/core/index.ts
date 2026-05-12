@@ -13,6 +13,8 @@ export type {
   ConnectionLifecycleStatus,
   ConnectionRuntimeFact,
   ConnectionStateSnapshot,
+  ConnectionSummary,
+  ConnectionTargetQuery,
   ConnectionValidationIssue,
   ConnectionValidationOutcome,
   NormalizedTransportEventInput,

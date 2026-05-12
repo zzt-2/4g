@@ -13,43 +13,12 @@ import type {
   TransportTargetSnapshot,
 } from './types';
 
+function deepClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
 export function cloneTransportConfig(config: ReadonlyTransportConfig): TransportConfig {
-  switch (config.kind) {
-    case 'serial':
-      return {
-        id: config.id,
-        kind: config.kind,
-        ...(config.label ? { label: config.label } : {}),
-        portPath: config.portPath,
-        baudRate: config.baudRate,
-      };
-    case 'tcp-client':
-      return {
-        id: config.id,
-        kind: config.kind,
-        ...(config.label ? { label: config.label } : {}),
-        host: config.host,
-        port: config.port,
-      };
-    case 'tcp-server':
-      return {
-        id: config.id,
-        kind: config.kind,
-        ...(config.label ? { label: config.label } : {}),
-        host: config.host,
-        port: config.port,
-      };
-    case 'udp':
-      return {
-        id: config.id,
-        kind: config.kind,
-        ...(config.label ? { label: config.label } : {}),
-        localHost: config.localHost,
-        localPort: config.localPort,
-        ...(config.remoteHost ? { remoteHost: config.remoteHost } : {}),
-        ...(config.remotePort !== undefined ? { remotePort: config.remotePort } : {}),
-      };
-  }
+  return deepClone(config);
 }
 
 export function cloneTransportConfigs(
@@ -61,62 +30,35 @@ export function cloneTransportConfigs(
 export function cloneConnectionCounters(
   counters: Readonly<ConnectionCounterSnapshot>,
 ): ConnectionCounterSnapshot {
-  return { ...counters };
+  return deepClone(counters);
 }
 
 export function cloneTransportTarget(
   target: ReadonlyTransportTargetSnapshot,
 ): TransportTargetSnapshot {
-  return { ...target };
+  return deepClone(target);
 }
 
-export function cloneTransportError(error: Readonly<TransportErrorSnapshot>): TransportErrorSnapshot {
-  return {
-    kind: error.kind,
-    message: error.message,
-    occurredAt: error.occurredAt,
-    ...(error.connectionId ? { connectionId: error.connectionId } : {}),
-    ...(error.recoverable !== undefined ? { recoverable: error.recoverable } : {}),
-  };
+export function cloneTransportError(
+  error: Readonly<TransportErrorSnapshot>,
+): TransportErrorSnapshot {
+  return deepClone(error);
 }
 
 export function cloneTransportEvent(
   event: ReadonlyTransportEventSnapshot,
 ): TransportEventSnapshot {
-  return {
-    id: event.id,
-    kind: event.kind,
-    connectionId: event.connectionId,
-    occurredAt: event.occurredAt,
-    ...(event.target ? { target: cloneTransportTarget(event.target) } : {}),
-    ...(event.byteLength !== undefined ? { byteLength: event.byteLength } : {}),
-    ...(event.error ? { error: cloneTransportError(event.error) } : {}),
-  };
+  return deepClone(event);
 }
 
 export function cloneConnectionRuntimeFact(
   fact: ReadonlyConnectionRuntimeFact,
 ): ConnectionRuntimeFact {
-  return {
-    connectionId: fact.connectionId,
-    kind: fact.kind,
-    lifecycle: fact.lifecycle,
-    config: cloneTransportConfig(fact.config),
-    target: cloneTransportTarget(fact.target),
-    counters: cloneConnectionCounters(fact.counters),
-    ...(fact.lastActivityAt ? { lastActivityAt: fact.lastActivityAt } : {}),
-    ...(fact.lastError ? { lastError: cloneTransportError(fact.lastError) } : {}),
-  };
+  return deepClone(fact);
 }
 
 export function cloneConnectionStateSnapshot(
   snapshot: ReadonlyConnectionStateSnapshot,
 ): ConnectionStateSnapshot {
-  return {
-    schemaVersion: snapshot.schemaVersion,
-    configs: cloneTransportConfigs(snapshot.configs),
-    runtimeFacts: snapshot.runtimeFacts.map(cloneConnectionRuntimeFact),
-    events: snapshot.events.map(cloneTransportEvent),
-    ...(snapshot.lastError ? { lastError: cloneTransportError(snapshot.lastError) } : {}),
-  };
+  return deepClone(snapshot);
 }

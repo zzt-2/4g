@@ -35,6 +35,8 @@ export interface TaskService extends TaskReader {
   resumeTask(instanceId: string): void;
   stopTask(instanceId: string): void;
   removeTask(instanceId: string): void;
+  retryTask(sourceInstanceId: string): TaskInstanceState | undefined;
+  stopAll(): void;
   onSettled(instanceId: string): Promise<void>;
 }
 
@@ -230,6 +232,30 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
 
       lifecycle.abortInstance(instanceId);
       state.removeInstance(instanceId);
+    },
+
+    retryTask(sourceInstanceId) {
+      const source = state.getInstance(sourceInstanceId);
+      if (!source || !isTerminal(source.lifecycle)) return undefined;
+
+      const newInstanceId = `task-inst-${nextInstanceId++}`;
+      const newInstance = state.createInstance(newInstanceId, source.definitionRef);
+      lifecycle.updateLifecycle(newInstanceId, 'start');
+      const signal = lifecycle.createAbortSignal(newInstanceId);
+      runExecutionLoop(newInstanceId, signal);
+      return state.getInstance(newInstanceId);
+    },
+
+    stopAll() {
+      const snapshot = state.getSnapshot();
+      for (const inst of snapshot.instances) {
+        if (inst.lifecycle === 'running' || inst.lifecycle === 'paused') {
+          lifecycle.updateLifecycle(inst.instanceId, 'stop');
+          conditionRegistry.clear();
+          lifecycle.abortInstance(inst.instanceId);
+          lifecycle.resolveSettle(inst.instanceId);
+        }
+      }
     },
 
     async onSettled(instanceId) {

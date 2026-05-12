@@ -1,11 +1,18 @@
 import { defaultNow } from '@/shared';
 import {
+  cloneConnectionRuntimeFact,
+  cloneConnectionStateSnapshot,
+  cloneTransportConfig,
+  cloneTransportError,
+  cloneTransportEvent,
+  cloneTransportTarget,
   createConnectionIssue,
   createConnectionValidationOutcome,
-  cloneTransportEvent,
   normalizeTransportConfig,
   type ConnectionRuntimeFact,
   type ConnectionStateSnapshot,
+  type ConnectionSummary,
+  type ConnectionTargetQuery,
   type ConnectionValidationOutcome,
   type NormalizedTransportEventInput,
   type ReadonlyConnectionStateSnapshot,
@@ -18,22 +25,18 @@ import type {
   ConnectionAdapterCommandOutcome,
   ConnectionAdapterErrorInput,
   ConnectionAdapterEvent,
+  ConnectionResourceCandidate,
   ConnectionTransportAdapter,
   TransportWriteRequest,
 } from '../adapters';
 import { createConnectionState, type ConnectionStateContainer } from '../state/connection-state';
-import {
-  selectConnectionFact,
-  selectConnectionFacts,
-  selectConnectionSnapshot,
-  selectConnectionSummaries,
-  selectLastTransportError,
-  selectTransportConfigs,
-  selectTransportEvents,
-  selectTransportTargets,
-  type ConnectionSummary,
-  type ConnectionTargetQuery,
-} from '../selectors';
+
+export interface ReconnectStatus {
+  readonly connectionId: string;
+  readonly phase: 'idle' | 'scheduled' | 'connecting' | 'aborting';
+  readonly attempt: number;
+  readonly nextAttemptAt?: string;
+}
 
 export interface ConnectionReader {
   getSnapshot(): ConnectionStateSnapshot;
@@ -44,6 +47,7 @@ export interface ConnectionReader {
   listTransportTargets(query?: ConnectionTargetQuery): TransportTargetSnapshot[];
   getLastTransportError(): TransportErrorSnapshot | undefined;
   listTransportEvents(): TransportEventSnapshot[];
+  getReconnectStatus(connectionId: string): ReconnectStatus | undefined;
 }
 
 export interface ConnectionOperationOutcome {
@@ -55,11 +59,12 @@ export interface ConnectionOperationOutcome {
 }
 
 export interface ConnectionService extends ConnectionReader {
-  connect(config: unknown): Promise<ConnectionOperationOutcome>;
+  connect(config: TransportConfig): Promise<ConnectionOperationOutcome>;
   disconnect(connectionId: string): Promise<ConnectionOperationOutcome>;
   write(request: TransportWriteRequest): Promise<ConnectionOperationOutcome>;
   drainAdapterEvents(): Promise<ConnectionOperationOutcome>;
   cleanup(): Promise<ConnectionOperationOutcome>;
+  discoverResources(): Promise<readonly ConnectionResourceCandidate[]>;
 }
 
 export interface CreateConnectionServiceOptions {
@@ -68,6 +73,36 @@ export interface CreateConnectionServiceOptions {
   readonly now?: () => string;
 }
 
+// --- Inline selector helpers (replaces deleted selectors/) ---
+
+function matchesTarget(
+  target: TransportTargetSnapshot,
+  query: ConnectionTargetQuery | undefined,
+): boolean {
+  if (query?.kind && target.kind !== query.kind) {
+    return false;
+  }
+
+  return query?.availableOnly ? target.available : true;
+}
+
+function toSummary(fact: ConnectionRuntimeFact): ConnectionSummary {
+  return {
+    connectionId: fact.connectionId,
+    kind: fact.kind,
+    lifecycle: fact.lifecycle,
+    label: fact.target.label,
+    routeLabel: fact.target.routeLabel,
+    available: fact.target.available,
+    rxBytes: fact.counters.rxBytes,
+    txBytes: fact.counters.txBytes,
+    errorCount: fact.counters.errorCount,
+    ...(fact.lastActivityAt ? { lastActivityAt: fact.lastActivityAt } : {}),
+    ...(fact.lastError ? { lastError: cloneTransportError(fact.lastError) } : {}),
+  };
+}
+
+// --- Private helpers ---
 
 function validValidation(): ConnectionValidationOutcome {
   return createConnectionValidationOutcome([]);
@@ -148,40 +183,53 @@ function collectEventsAfter(
   return snapshot.events.slice(beforeLength).map(cloneTransportEvent);
 }
 
+// --- Public factories ---
+
 export function createConnectionReader(
   snapshotProvider: () => ReadonlyConnectionStateSnapshot,
 ): ConnectionReader {
   return {
     getSnapshot() {
-      return selectConnectionSnapshot(snapshotProvider());
+      return cloneConnectionStateSnapshot(snapshotProvider());
     },
 
     listTransportConfigs() {
-      return selectTransportConfigs(snapshotProvider());
+      return snapshotProvider().configs.map(cloneTransportConfig);
     },
 
     listConnectionFacts() {
-      return selectConnectionFacts(snapshotProvider());
+      return snapshotProvider().runtimeFacts.map(cloneConnectionRuntimeFact);
     },
 
     getConnectionFact(connectionId) {
-      return selectConnectionFact(snapshotProvider(), connectionId);
+      const fact = snapshotProvider().runtimeFacts.find(
+        (item) => item.connectionId === connectionId,
+      );
+      return fact ? cloneConnectionRuntimeFact(fact) : undefined;
     },
 
     listConnectionSummaries() {
-      return selectConnectionSummaries(snapshotProvider());
+      return snapshotProvider().runtimeFacts.map(toSummary);
     },
 
     listTransportTargets(query) {
-      return selectTransportTargets(snapshotProvider(), query);
+      return snapshotProvider().runtimeFacts
+        .map((fact) => fact.target)
+        .filter((target) => matchesTarget(target, query))
+        .map(cloneTransportTarget);
     },
 
     getLastTransportError() {
-      return selectLastTransportError(snapshotProvider());
+      const snapshot = snapshotProvider();
+      return snapshot.lastError ? cloneTransportError(snapshot.lastError) : undefined;
     },
 
     listTransportEvents() {
-      return selectTransportEvents(snapshotProvider());
+      return snapshotProvider().events.map(cloneTransportEvent);
+    },
+
+    getReconnectStatus() {
+      return undefined;
     },
   };
 }
@@ -289,14 +337,16 @@ export function createConnectionService(
       applyEvents(events);
       const snapshot = state.getSnapshot();
 
+      const lastError = snapshot.lastError
+        ? cloneTransportError(snapshot.lastError)
+        : undefined;
+
       return {
         ok: true,
         validation: validValidation(),
         snapshot,
         events: collectEventsAfter(beforeLength, snapshot),
-        ...(selectLastTransportError(snapshot)
-          ? { error: selectLastTransportError(snapshot) }
-          : {}),
+        ...(lastError ? { error: lastError } : {}),
       };
     },
 
@@ -311,6 +361,13 @@ export function createConnectionService(
 
       const command = await options.adapter.cleanup();
       return applyAdapterOutcome('cleanup', command);
+    },
+
+    async discoverResources() {
+      if (options.adapter.discoverResources) {
+        return options.adapter.discoverResources();
+      }
+      return [];
     },
   };
 }

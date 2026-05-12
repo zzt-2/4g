@@ -1,0 +1,197 @@
+---
+doc_type: feature-checklist
+feature: rewrite-send
+design: send-real-design.md
+date: 2026-05-08
+status: active
+---
+
+steps:
+  - id: s0
+    title: "微重构：提取 core/frame-resolver.ts"
+    description: |
+      将 send-service.ts 中的 frameToBuildInput() 提取到新文件 core/frame-resolver.ts。
+      只搬不改行为，确保现有测试全绿。
+      为后续新增 resolveFieldValues/evaluateFieldExpressions/applyFactor 腾出空间。
+    status: done
+    exit_signal: "pnpm -C rewrite test -- features/send 全绿"
+
+  - id: s1
+    title: "扩展 core types"
+    description: |
+      - SendFieldEncodingDef 新增：factor, defaultValue, configurable, expressionConfig, validOption
+      - SendRequest 拆分：fieldValues → userFieldValues + variables
+      - 新增 SendVariableProvider adapter port（adapters/ports.ts）
+      - 新增 FrameOptionsDefinition 消费：autoChecksum, includeLengthField, lengthFieldId
+    status: done
+    exit_signal: "TypeScript 编译通过"
+
+  - id: s2
+    title: "新增 core 纯函数：resolveFieldValues + evaluateFieldExpressions + applyFactor"
+    description: |
+      core/frame-resolver.ts 中新增：
+      - resolveFieldValues(fields, userFieldValues, variableProvider, variables?): 按优先级解析每个字段值
+        configurable 字段才接受用户输入，非 configurable 静默跳过用户值
+      - evaluateFieldExpressions(fields, variables): 逐字段表达式求值
+        使用 compileConditional + evaluateConditional（非 compileGroup）
+        多分支条件表达式在运行时按变量值匹配正确分支
+        求值失败的字段 zero fill + 记录 error
+      - applyFactor(fields, fieldValues): 对非 bytes 类型且 factor !== 1 的字段做 value / factor
+      纯函数，零 store 依赖。
+    status: done
+    exit_signal: "vitest 全绿，覆盖 SC2-SC8、SC14"
+
+  - id: s3
+    title: "扩展 checksum + 新增 post-build patch"
+    description: |
+      - 新增 checksumCrc32() 纯函数
+      - 扩展 calculateChecksum() 支持 range 参数 { startIdx, endIdx }
+      - 新增 applyBuildPostPatch(buffer, fields, frameOptions): 统一 post-build 缓冲区修改
+        checksum 回填：找 isChecksum 字段，按 validOption 范围 + checksumMethod 计算，回填
+        checksum 值超出字段字节宽度时返回 build-error
+        length 回填：通过 frame.options.lengthFieldId 找字段，写入 buffer 总长度
+        lengthFieldId 缺失时跳过 + warning（前置：frame-real 补 lengthFieldId）
+    status: done
+    exit_signal: "vitest 全绿，覆盖 SC9/SC10/SC15-SC17"
+
+  - id: s4
+    title: "重写 frameToBuildInput + 重排 service pipeline 9步"
+    description: |
+      - 重写 frameToBuildInput(): 消费 frame-real 全部字段
+      - SendRequest 迁移：fieldValues → userFieldValues，options 移除
+        userFieldValues 类型保持 SendFieldValue (string|number|boolean)
+      - 重排 pipeline 为 9 步：
+        validate → resolve frame(direction check) → resolveFieldValues → applyFactor → buildFrame
+        → applyBuildPostPatch → resolveTarget → transport write → emitResult
+      - 新增 variableProvider 到 createSendService options
+    status: done
+    exit_signal: "vitest 全绿，集成测试通过，覆盖 SC1/SC11-SC13"
+
+  - id: s5
+    title: "更新 fixtures + fake adapters"
+    description: |
+      - 新增 FakeVariableProvider
+      - 更新 send-fixtures.ts：覆盖表达式字段、factor 字段、checksum 字段、length 字段、条件分支
+    status: done
+    exit_signal: "fixtures 加载无报错，fake adapter 可用"
+
+  - id: s6
+    title: "端到端集成测试"
+    description: |
+      用 fake adapter 跑完整 9 步 pipeline：
+      - 全用户输入发送
+      - 表达式条件分支发送
+      - checksum + length 回填发送
+      - 错误路径（direction 错误、target 不可用、transport 失败）
+    status: done
+    exit_signal: "全部集成测试通过"
+
+  - id: s7
+    title: "不可变约束静态扫描"
+    description: |
+      grep 确认：
+      - core/ 下无 vue/pinia/electron import
+      - 无跨 feature 内部 import
+      - 无 SCOE 硬编码
+      - selector 返回值深拷贝
+      - stats 不写回 frame 定义
+      - transport 操作全通过 adapter port
+    status: done
+    exit_signal: "grep 扫描全部通过"
+
+checks:
+  - id: c1
+    severity: critical
+    title: "core 无 Vue/Pinia/Electron 依赖"
+    check: "grep -r 'from .vue\\|from .pinia\\|from .electron' rewrite/src/features/send/core/ 无匹配"
+    status: passed
+
+  - id: c2
+    severity: critical
+    title: "无跨 feature 内部 import"
+    check: "send 不 import frame/connection/receive/task 的 internal 模块"
+    status: passed
+
+  - id: c3
+    severity: critical
+    title: "无 SCOE 硬编码"
+    check: "grep -ri 'scoe' rewrite/src/features/send/core/ + services/ 无匹配"
+    status: passed
+
+  - id: c4
+    severity: high
+    title: "统计不写回 frame 定义"
+    check: "update stats 只写 send 自己的 state，不触碰 frame asset"
+    status: passed
+
+  - id: c5
+    severity: high
+    title: "public API 无 mutable 暴露"
+    check: "selector 返回值经深拷贝，service 不暴露内部 state 引用"
+    status: passed
+
+  - id: c6
+    severity: high
+    title: "SendResult 非 task result"
+    check: "SendResult 不包含 task/case/report 语义字段"
+    status: passed
+
+  - id: c7
+    severity: high
+    title: "core 无 task 引用"
+    check: "grep -r 'task' rewrite/src/features/send/core/ 无匹配"
+    status: passed
+
+  - id: c8
+    severity: high
+    title: "selector 不可变"
+    check: "所有 selector 返回值使用 cloneSendStatistics/cloneSendResult/structuredClone"
+    status: passed
+
+  - id: c9
+    severity: medium
+    title: "encoding 覆盖所有 dataType"
+    check: "uint8/16/32/64, int8/16/32/64, float, double, bytes, ASCII 全部有测试"
+    status: passed
+
+  - id: c10
+    severity: medium
+    title: "checksum 覆盖 4 种算法"
+    check: "sum8, xor8, crc16-modbus, crc32 全部有测试"
+    status: passed
+
+  - id: c11
+    severity: medium
+    title: "fake adapter 无真实 platform 调用"
+    check: "FakeVariableProvider/FakeConnectionWriter/FakeFrameSnapshotProvider 不 import platform"
+    status: passed
+
+  - id: c12
+    severity: medium
+    title: "build + lint 通过"
+    check: "pnpm -C rewrite build && pnpm -C rewrite lint 通过"
+    status: passed
+
+  - id: c13
+    severity: medium
+    title: "表达式求值失败不阻断其他字段"
+    check: "部分表达式失败时，其他字段正常求值，失败字段 zero fill + error 记录"
+    status: passed
+
+  - id: c14
+    severity: medium
+    title: "factor=1 时无精度损失"
+    check: "factor=1 时 value / 1 === value，无浮点精度问题"
+    status: passed
+
+  - id: c15
+    severity: low
+    title: "manual 页面可达"
+    check: "发送页面展示帧选择、字段输入、目标选择和发送按钮（manual checklist）"
+    status: pending
+
+  - id: c16
+    severity: low
+    title: "hardware 发送验证"
+    check: "真实串口/TCP 发送成功（deferred: 等 connection-complete + hardware）"
+    status: pending

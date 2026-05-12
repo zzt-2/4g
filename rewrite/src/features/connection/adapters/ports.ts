@@ -58,6 +58,7 @@ export interface ConnectionTransportAdapter {
   write(request: TransportWriteRequest): Promise<ConnectionAdapterCommandOutcome>;
   cleanup(): Promise<ConnectionAdapterCommandOutcome>;
   drainEvents(): Promise<readonly ConnectionAdapterEvent[]>;
+  discoverResources?(): Promise<readonly ConnectionResourceCandidate[]>;
 }
 
 export interface ConnectionResourceCandidate {

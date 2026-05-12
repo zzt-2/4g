@@ -39,9 +39,14 @@ export type {
 export { canTransition, transition, isTerminal } from './lifecycle';
 export { evaluateCondition } from './condition-matcher';
 export { calculateProgress, isStepResultFailed } from './progress';
+export { validateTaskDefinition } from './task-validation';
+export type { TaskValidationIssue } from './task-validation';
 export {
-  cloneStepResult,
-  cloneInstanceState,
-  cloneProgress,
-  cloneExecutionSummary,
-} from './clone';
+  createSendStep,
+  createDelayStep,
+  createWaitConditionStep,
+  createTaskDefinition,
+  cloneStepDefinition,
+} from './task-builders';
+export { serializeTaskDefinition, deserializeTaskDefinition } from './task-serialization';
+export type { SerializedTaskDefinition } from './task-serialization';

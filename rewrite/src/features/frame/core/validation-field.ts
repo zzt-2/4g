@@ -8,6 +8,7 @@ import {
   type ValidationResult,
 } from './types';
 import { validateExpressionDefinition } from './validation-expression';
+import { createIssue, hasText, isOneOf, toResult } from './validation-utils';
 
 const FIXED_DATA_TYPE_LENGTHS: Partial<Record<FrameDataType, number>> = {
   uint8: 1,
@@ -21,30 +22,6 @@ const FIXED_DATA_TYPE_LENGTHS: Partial<Record<FrameDataType, number>> = {
   float: 4,
   double: 8,
 };
-
-function createIssue(
-  code: string,
-  path: string,
-  message: string,
-  severity: ValidationIssue['severity'] = 'error',
-): ValidationIssue {
-  return { severity, code, path, message };
-}
-
-function toResult(issues: ValidationIssue[]): ValidationResult {
-  return {
-    valid: issues.every((issue) => issue.severity !== 'error'),
-    issues,
-  };
-}
-
-function isOneOf<T extends readonly string[]>(value: string, options: T): value is T[number] {
-  return (options as readonly string[]).includes(value);
-}
-
-function hasText(value: string | undefined): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
-}
 
 export function validateFrameField(
   field: FrameFieldDefinition,

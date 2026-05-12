@@ -1,0 +1,4 @@
+{"t":0,"agent":"a82d42f","agent_type":"code-reviewer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a82d42f","agent_type":"code-reviewer","event":"agent_stop","success":true,"duration_ms":245888}
+{"t":0,"agent":"a77cc4b","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"cs-feat-accept"}

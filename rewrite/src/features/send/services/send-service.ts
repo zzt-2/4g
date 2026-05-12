@@ -1,8 +1,5 @@
 import { defaultNow } from '@/shared';
-import {
-  buildFrame,
-  validateSendRequest,
-} from '../core';
+import { buildFrame } from '../core';
 import type {
   ReadonlySendStateSnapshot,
   SendBuildIssue,
@@ -25,12 +22,6 @@ import type {
   SendTransportWriter,
 } from '../adapters';
 import { createSendState, type SendStateContainer } from '../state/send-state';
-import {
-  selectSendResults,
-  selectSendSnapshot,
-  selectSendStatistics,
-  selectSendStatus,
-} from '../selectors';
 
 export interface SendReader {
   getSnapshot(): SendStateSnapshot;
@@ -53,6 +44,19 @@ export interface CreateSendServiceOptions {
   readonly now?: () => string;
 }
 
+function validateSendRequest(request: SendRequest): SendBuildIssue[] {
+  const issues: SendBuildIssue[] = [];
+  if (!request.frameId) {
+    issues.push({ severity: 'error', code: 'send.request.missingFrameId', message: 'frameId is required.' });
+  }
+  if (!request.targetId) {
+    issues.push({ severity: 'error', code: 'send.request.missingTargetId', message: 'targetId is required.' });
+  }
+  if (!request.context?.source) {
+    issues.push({ severity: 'error', code: 'send.request.missingSource', message: 'context.source is required.' });
+  }
+  return issues;
+}
 
 function toRequestRef(request: SendRequest): SendRequestRef {
   return {
@@ -109,16 +113,16 @@ export function createSendReader(
 ): SendReader {
   return {
     getSnapshot() {
-      return selectSendSnapshot(snapshotProvider());
+      return structuredClone(snapshotProvider());
     },
     getStatistics() {
-      return selectSendStatistics(snapshotProvider());
+      return structuredClone(snapshotProvider().statistics);
     },
     listResults() {
-      return selectSendResults(snapshotProvider());
+      return structuredClone(snapshotProvider().recentResults);
     },
     getStatus() {
-      return selectSendStatus(snapshotProvider());
+      return snapshotProvider().status;
     },
   };
 }

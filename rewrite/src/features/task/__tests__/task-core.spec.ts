@@ -4,14 +4,9 @@ import {
   transition,
   isTerminal,
   evaluateCondition,
-
   calculateProgress,
-  cloneInstanceState,
-  cloneStepResult,
-  cloneProgress,
-  cloneExecutionSummary,
 } from '../core';
-import type { TaskLifecycleStatus, TaskProgress, TaskExecutionSummary, TaskStepResult } from '../core';
+import type { TaskLifecycleStatus, TaskStepResult } from '../core';
 import {
   waitConditions,
   matchInputs,
@@ -454,59 +449,6 @@ describe('Progress', () => {
       const instance = makeInstance({ definitionRef: triggerTaskDef() });
       expect(calculateProgress(instance).iterationsTotal).toBeNull();
     });
-  });
-});
-
-// ============================================================
-// Clone
-// ============================================================
-
-describe('Clone', () => {
-  it('clones instance state without sharing references', () => {
-    const original = makeInstance({
-      lifecycle: 'running',
-      startedAt: '2026-05-06T12:00:00.000Z',
-      currentIteration: 0,
-      stepResults: [makeSendStepResult({ stepIndex: 0, iteration: 0 })],
-    });
-    const cloned = cloneInstanceState(original);
-    expect(cloned).toEqual(original);
-    expect(cloned.stepResults).not.toBe(original.stepResults);
-    expect(cloned.stepResults[0]).not.toBe(original.stepResults[0]);
-  });
-
-  it('clones step result', () => {
-    const original = makeSendStepResult({ stepIndex: 0, iteration: 0 });
-    const cloned = cloneStepResult(original);
-    expect(cloned).toEqual(original);
-    expect(cloned).not.toBe(original);
-  });
-
-  it('clones progress', () => {
-    const original: TaskProgress = {
-      stepsTotal: 2,
-      stepsCompleted: 1,
-      stepsFailed: 0,
-      stepsSkipped: 0,
-      iterationsCompleted: 0,
-      iterationsTotal: 5,
-      elapsedMs: 1000,
-    };
-    const cloned = cloneProgress(original);
-    expect(cloned).toEqual(original);
-  });
-
-  it('clones execution summary', () => {
-    const original: TaskExecutionSummary = {
-      kind: 'completed',
-      summary: { stepsTotal: 2, stepsSucceeded: 2, stepsFailed: 0, stepsSkipped: 0 },
-      durationMs: 5000,
-      startedAt: '2026-05-06T12:00:00.000Z',
-      finishedAt: '2026-05-06T12:00:05.000Z',
-    };
-    const cloned = cloneExecutionSummary(original);
-    expect(cloned).toEqual(original);
-    expect(cloned.summary).not.toBe(original.summary);
   });
 });
 

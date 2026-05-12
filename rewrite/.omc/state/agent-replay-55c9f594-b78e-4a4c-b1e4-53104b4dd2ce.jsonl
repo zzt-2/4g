@@ -1,0 +1,4 @@
+{"t":0,"agent":"abff234","agent_type":"code-reviewer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a333021","agent_type":"critic","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a333021","agent_type":"critic","event":"agent_stop","success":true,"duration_ms":88401}
+{"t":0,"agent":"abff234","agent_type":"code-reviewer","event":"agent_stop","success":true,"duration_ms":153499}

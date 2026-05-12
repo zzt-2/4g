@@ -4,4 +4,5 @@ export type {
   ConnectionReader,
   ConnectionService,
   CreateConnectionServiceOptions,
+  ReconnectStatus,
 } from './connection-service';

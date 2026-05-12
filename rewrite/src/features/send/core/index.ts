@@ -16,6 +16,7 @@ export type {
   SendError,
   SendFieldEncodingDef,
   SendFieldValue,
+  SendFrameInstance,
   SendOptions,
   SendRequest,
   SendRequestRef,
@@ -27,13 +28,6 @@ export type {
   SendStatisticsSnapshot,
   SendStatsDelta,
 } from './types';
-export {
-  cloneSendBuildIssue,
-  cloneSendError,
-  cloneSendResult,
-  cloneSendStateSnapshot,
-  cloneSendStatistics,
-} from './clone';
 export { buildFrame } from './encode';
 export {
   calculateChecksum,
@@ -41,4 +35,9 @@ export {
   checksumSum8,
   checksumXor8,
 } from './checksum';
-export { validateSendRequest } from './validation';
+export {
+  frameToBuildInput,
+  resolveFieldValues,
+  applyFactor,
+  evaluateFieldPreview,
+} from './frame-resolver';

@@ -55,6 +55,7 @@ export interface BaseTransportConfig {
   readonly id: string;
   readonly kind: TransportKind;
   readonly label?: string;
+  readonly autoConnect?: boolean;
 }
 
 export interface SerialTransportConfig extends BaseTransportConfig {
@@ -187,4 +188,23 @@ export type ReadonlyTransportConfig = ReadonlyDeep<TransportConfig>;
 export type ReadonlyConnectionStateSnapshot = ReadonlyDeep<ConnectionStateSnapshot>;
 export type ReadonlyConnectionRuntimeFact = ReadonlyDeep<ConnectionRuntimeFact>;
 export type ReadonlyTransportEventSnapshot = ReadonlyDeep<TransportEventSnapshot>;
+export interface ConnectionTargetQuery {
+  readonly kind?: TransportKind;
+  readonly availableOnly?: boolean;
+}
+
+export interface ConnectionSummary {
+  readonly connectionId: string;
+  readonly kind: TransportKind;
+  readonly lifecycle: ConnectionRuntimeFact['lifecycle'];
+  readonly label: string;
+  readonly routeLabel: string;
+  readonly available: boolean;
+  readonly rxBytes: number;
+  readonly txBytes: number;
+  readonly errorCount: number;
+  readonly lastActivityAt?: string;
+  readonly lastError?: TransportErrorSnapshot;
+}
+
 export type ReadonlyTransportTargetSnapshot = ReadonlyDeep<TransportTargetSnapshot>;

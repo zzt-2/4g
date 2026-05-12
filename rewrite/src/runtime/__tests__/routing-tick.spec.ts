@@ -172,12 +172,14 @@ function stubFeatures(
       listTransportTargets: () => [],
       getLastTransportError: () => undefined,
       listTransportEvents: () => [],
+      getReconnectStatus: () => undefined,
       connect: async () => okDrainOutcome(),
       disconnect: async () => okDrainOutcome(),
       write: async () => okDrainOutcome(),
       drainAdapterEvents:
         overrides.drainAdapterEvents ?? (async () => okDrainOutcome()),
       cleanup: async () => okDrainOutcome(),
+      discoverResources: async () => [],
     } as ConnectionService,
     receiveService: {
       getSnapshot: () => emptyReceiveSnapshot,

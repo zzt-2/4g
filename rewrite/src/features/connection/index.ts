@@ -4,6 +4,8 @@ export type {
   ConnectionLifecycleStatus,
   ConnectionRuntimeFact,
   ConnectionStateSnapshot,
+  ConnectionSummary,
+  ConnectionTargetQuery,
   ConnectionValidationIssue,
   ConnectionValidationOutcome,
   SerialTransportConfig,
@@ -19,31 +21,21 @@ export type {
   TransportTargetSnapshot,
   UdpTransportConfig,
 } from './core';
-export {
-  selectConnectionFact,
-  selectConnectionFacts,
-  selectConnectionSnapshot,
-  selectConnectionSummaries,
-  selectLastTransportError,
-  selectTransportConfigs,
-  selectTransportEvents,
-  selectTransportTargets,
-} from './selectors';
-export type { ConnectionSummary, ConnectionTargetQuery } from './selectors';
 export { createConnectionReader, createConnectionService } from './services';
 export type {
   ConnectionOperationOutcome,
   ConnectionReader,
   ConnectionService,
   CreateConnectionServiceOptions,
+  ReconnectStatus,
 } from './services';
 
 // Adapter ports
-export type { ConnectionTransportAdapter } from './adapters';
+export type { ConnectionResourceCandidate, ConnectionTransportAdapter } from './adapters';
 export { createRealSerialAdapter } from './adapters';
 export type { CreateRealSerialAdapterOptions, RealSerialAdapter } from './adapters';
 
-// Test utilities
+// Test utilities (used by runtime integration tests)
 export { createFakeConnectionTransportAdapter } from './adapters/test-exports';
 export type {
   CreateFakeConnectionTransportAdapterOptions,

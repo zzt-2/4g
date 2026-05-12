@@ -7,6 +7,9 @@ import {
   type TransportCommandResult,
   type SerialPortCandidate,
   type TransportConnectConfig,
+  type FileBridge,
+  type SaveDialogOptions,
+  type OpenDialogOptions,
 } from '../../src/shared/platform-bridge';
 
 const IPC_ENUMERATE = 'transport:enumerate-serial-ports';
@@ -20,6 +23,11 @@ const IPC_NETWORK_CONNECT = 'transport:network-connect';
 const IPC_NETWORK_DISCONNECT = 'transport:network-disconnect';
 const IPC_NETWORK_WRITE = 'transport:network-write';
 const IPC_NETWORK_CLEANUP = 'transport:network-cleanup';
+
+const IPC_READ_TEXT_FILE = 'file:read-text';
+const IPC_WRITE_TEXT_FILE = 'file:write-text';
+const IPC_SHOW_SAVE_DIALOG = 'file:show-save-dialog';
+const IPC_SHOW_OPEN_DIALOG = 'file:show-open-dialog';
 
 const eventBuffer: TransportBridgeEvent[] = [];
 const eventCallbacks: ((event: TransportBridgeEvent) => void)[] = [];
@@ -102,9 +110,25 @@ const transportBridge: TransportBridge = {
   },
 };
 
+const fileBridge: FileBridge = {
+  async readTextFile(filePath: string): Promise<string> {
+    return ipcRenderer.invoke(IPC_READ_TEXT_FILE, filePath);
+  },
+  async writeTextFile(filePath: string, content: string): Promise<void> {
+    return ipcRenderer.invoke(IPC_WRITE_TEXT_FILE, filePath, content);
+  },
+  async showSaveDialog(opts: SaveDialogOptions): Promise<string | null> {
+    return ipcRenderer.invoke(IPC_SHOW_SAVE_DIALOG, opts);
+  },
+  async showOpenDialog(opts: OpenDialogOptions): Promise<string | null> {
+    return ipcRenderer.invoke(IPC_SHOW_OPEN_DIALOG, opts);
+  },
+};
+
 const rewriteBridge = Object.freeze({
   getBridgeInfo: () => createRewriteBridgeInfo('0.0.0'),
   transport: transportBridge,
+  file: fileBridge,
 });
 
 contextBridge.exposeInMainWorld(REWRITE_PLATFORM_BRIDGE_KEY, rewriteBridge);
