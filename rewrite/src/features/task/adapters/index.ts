@@ -1,1 +1,1 @@
-export type { SendServiceProvider, ReceiveEventSource, FrameReader } from './ports';
+export type { SendServiceProvider, ReceiveEventSource, TimerService } from './ports';

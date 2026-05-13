@@ -3,6 +3,7 @@ import type { TaskDefinition, TaskStepResult } from '../core';
 import type { SendServiceProvider } from '../adapters';
 import type { TaskStateContainer } from '../state/task-state';
 import type { ConditionRegistry } from './condition-registry';
+import { resolveFieldValues } from './task-iteration-loops';
 
 // --- Standalone helpers ---
 
@@ -18,12 +19,17 @@ export function buildSendRequest(
   stepConfig: TaskDefinition['steps'][number] & { kind: 'send' },
   definition: TaskDefinition,
   stepIndex: number,
+  iteration: number,
 ): SendRequest {
   return {
-    frameId: stepConfig.sendConfig.frameId,
-    fieldValues: stepConfig.sendConfig.fieldValues,
-    targetId: stepConfig.sendConfig.targetId ?? definition.targetId ?? '',
-    options: stepConfig.sendConfig.options ?? {},
+    frameId: stepConfig.config.frameId,
+    targetId: stepConfig.config.targetId,
+    userFieldValues: resolveFieldValues(
+      stepConfig.config.userFieldValues,
+      definition.fieldVariations,
+      iteration,
+    ),
+    variables: stepConfig.config.variables,
     context: { source: 'task', taskId: definition.id, stepIndex },
   };
 }
@@ -34,6 +40,7 @@ export interface StepExecutorContext {
   state: TaskStateContainer;
   sendService: SendServiceProvider;
   conditionRegistry: ConditionRegistry;
+  fieldValueProvider?: () => Readonly<Record<string, number | string | null>>;
   now: () => string;
 }
 
@@ -45,7 +52,7 @@ export function createStepExecutors(ctx: StepExecutorContext) {
     stepIndex: number,
     definition: TaskDefinition,
   ): Promise<TaskStepResult> {
-    const request = buildSendRequest(step, definition, stepIndex);
+    const request = buildSendRequest(step, definition, stepIndex, iteration);
     const sendResult = await ctx.sendService.execute(request);
     return { kind: 'send', stepIndex, iteration, sendResult };
   }
@@ -57,49 +64,52 @@ export function createStepExecutors(ctx: StepExecutorContext) {
     stepIndex: number,
     signal: Promise<void>,
   ): Promise<{ result: TaskStepResult; interrupted: boolean }> {
-    const { condition, timeoutMs } = step.waitConfig;
+    const { conditions, timeoutMs, onTimeout: _onTimeout } = step.config;
+    void _onTimeout;
 
     return new Promise((resolve) => {
       let settled = false;
 
-      const entry = ctx.conditionRegistry.register(condition, (value) => {
+      const group = ctx.conditionRegistry.registerGroup(conditions, () => {
         if (settled) return;
         settled = true;
-        ctx.conditionRegistry.unregister(entry);
+        ctx.conditionRegistry.unregisterGroup(group);
+        if (timer !== undefined) clearTimeout(timer);
         resolve({
           result: {
             kind: 'wait-condition',
             stepIndex,
             iteration,
             matched: true,
-            matchedValue: value,
             timedOut: false,
           },
           interrupted: false,
         });
       });
 
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        ctx.conditionRegistry.unregister(entry);
-        resolve({
-          result: {
-            kind: 'wait-condition',
-            stepIndex,
-            iteration,
-            matched: false,
-            timedOut: true,
-          },
-          interrupted: false,
-        });
-      }, timeoutMs);
+      const timer = timeoutMs !== undefined
+        ? setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            ctx.conditionRegistry.unregisterGroup(group);
+            resolve({
+              result: {
+                kind: 'wait-condition',
+                stepIndex,
+                iteration,
+                matched: false,
+                timedOut: true,
+              },
+              interrupted: false,
+            });
+          }, timeoutMs)
+        : undefined;
 
       signal.then(() => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
-        ctx.conditionRegistry.unregister(entry);
+        ctx.conditionRegistry.unregisterGroup(group);
+        if (timer !== undefined) clearTimeout(timer);
         resolve({
           result: {
             kind: 'wait-condition',

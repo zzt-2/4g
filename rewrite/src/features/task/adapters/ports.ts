@@ -1,5 +1,4 @@
 import type { SendRequest, SendResult } from '@/features/send';
-import type { ReadonlyFrameAsset } from '@/features/frame';
 import type { ConditionMatchInput } from '../core';
 
 export interface SendServiceProvider {
@@ -10,6 +9,10 @@ export interface ReceiveEventSource {
   subscribe(handler: (input: ConditionMatchInput) => void): () => void;
 }
 
-export interface FrameReader {
-  getFrameAsset(id: string): ReadonlyFrameAsset | undefined;
+export interface TimerService {
+  now(): number;
+  setTimeout(callback: () => void, delayMs: number): number;
+  clearTimeout(id: number): void;
+  setInterval(callback: () => void, intervalMs: number): number;
+  clearInterval(id: number): void;
 }

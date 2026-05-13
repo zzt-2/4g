@@ -2,27 +2,24 @@
 export {
   TASK_STEP_KINDS,
   COMPARISON_OPERATORS,
-  TASK_TRIGGER_SOURCES,
-  TASK_SCHEDULING_MODES,
   TASK_ERROR_ACTIONS,
   TASK_LIFECYCLE_STATUSES,
 } from './core';
 export type {
   TaskStepKind,
   ComparisonOperator,
-  WaitCondition,
+  ConditionTerm,
+  ScheduleDriver,
+  FieldVariation,
+  StepRepeat,
   SendStepConfig,
-  WaitConditionStepConfig,
+  WaitConditionConfig,
   DelayStepConfig,
-  SendStepDefinition,
-  WaitConditionStepDefinition,
-  DelayStepDefinition,
   TaskStepDefinition,
-  TaskTriggerSource,
-  TaskSchedulingMode,
   TaskErrorAction,
   TaskErrorPolicy,
   TaskStopCondition,
+  ResolvedStopCondition,
   TaskDefinition,
   TaskLifecycleStatus,
   LifecycleAction,
@@ -37,6 +34,7 @@ export type {
   TaskExecutionSummary,
   ConditionMatchInput,
 } from './core';
+export { resolveStopCondition } from './core';
 
 // Core validation & builders
 export { validateTaskDefinition } from './core';
@@ -59,7 +57,7 @@ export { createTaskService } from './services';
 export type { TaskService, TaskReader, CreateTaskServiceOptions } from './services';
 
 // Adapter ports
-export type { ReceiveEventSource, SendServiceProvider } from './adapters';
+export type { ReceiveEventSource, SendServiceProvider, TimerService } from './adapters';
 
 // State types (read-only surface)
 export type { TaskStatisticsSnapshot, TaskStateSnapshot } from './state';

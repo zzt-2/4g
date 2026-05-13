@@ -49,7 +49,7 @@ async function settle(service: TaskService, instanceId: string, timeoutMs = 2000
 describe('TaskService - timed scheduling', () => {
   it('executes N iterations then completes', async () => {
     const maxCount = 3;
-    const def: TaskDefinition = { ...timedTaskDef(), stopCondition: { maxIterations: maxCount }, intervalMs: 10 };
+    const def: TaskDefinition = { ...timedTaskDef(), stopCondition: { maxIterations: maxCount }, schedule: { kind: 'timer', intervalMs: 10 } };
     const results = Array.from({ length: maxCount * def.steps.length }, () => makeSentResult());
     const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
 
@@ -63,7 +63,7 @@ describe('TaskService - timed scheduling', () => {
 
   it('tracks iterations in step results', async () => {
     const maxCount = 2;
-    const def: TaskDefinition = { ...timedTaskDef(), stopCondition: { maxIterations: maxCount }, intervalMs: 10 };
+    const def: TaskDefinition = { ...timedTaskDef(), stopCondition: { maxIterations: maxCount }, schedule: { kind: 'timer', intervalMs: 10 } };
     const results = Array.from({ length: maxCount * def.steps.length }, () => makeSentResult());
     const { service, instance } = createTestSetup({ definition: def, sendResults: results });
 
@@ -95,9 +95,10 @@ describe('TaskService - trigger scheduling', () => {
     await new Promise((r) => setTimeout(r, 10));
 
     // Emit matching event
+    const cond = (def.schedule as { kind: 'event'; conditions: readonly { frameId: string; fieldId: string; threshold: number | string }[] }).conditions[0]!;
     fakeReceive.emit({
-      frameId: def.triggerCondition!.frameId,
-      fieldValues: { [def.triggerCondition!.fieldId]: def.triggerCondition!.threshold as number | string },
+      frameId: cond.frameId,
+      fieldValues: { [cond.fieldId]: cond.threshold as number | string },
     });
 
     await settle(service, instance.instanceId, 500);
@@ -108,7 +109,11 @@ describe('TaskService - trigger scheduling', () => {
 
   it('respects maxTriggerCount', async () => {
     const maxTriggerCount = 2;
-    const def: TaskDefinition = { ...triggerTaskDef(), stopCondition: { maxIterations: maxTriggerCount }, cooldownMs: 0 };
+    const def: TaskDefinition = {
+      ...triggerTaskDef(),
+      stopCondition: { maxIterations: maxTriggerCount },
+      schedule: { kind: 'event', conditions: [{ frameId: 'frame-1', fieldId: 'field-1', operator: 'eq', threshold: 100 }], cooldownMs: 0 },
+    };
     const results = Array.from({ length: maxTriggerCount + 2 }, () => makeSentResult());
     const { service, fakeReceive, fakeSend, instance } = createTestSetup({
       definition: def,
@@ -118,10 +123,11 @@ describe('TaskService - trigger scheduling', () => {
     service.startTask(instance.instanceId);
     await new Promise((r) => setTimeout(r, 10));
 
+    const cond = { frameId: 'frame-1', fieldId: 'field-1', operator: 'eq' as const, threshold: 100 };
     for (let i = 0; i < maxTriggerCount + 2; i++) {
       fakeReceive.emit({
-        frameId: def.triggerCondition!.frameId,
-        fieldValues: { [def.triggerCondition!.fieldId]: def.triggerCondition!.threshold as number | string },
+        frameId: cond.frameId,
+        fieldValues: { [cond.fieldId]: cond.threshold as number | string },
       });
       await new Promise((r) => setTimeout(r, 20));
     }
@@ -160,7 +166,7 @@ describe('TaskService - trigger scheduling', () => {
     const def: TaskDefinition = {
       ...triggerTaskDef(),
       stopCondition: { maxIterations: maxTriggerCount },
-      cooldownMs: 0,
+      schedule: { kind: 'event', conditions: [{ frameId: 'frame-1', fieldId: 'field-1', operator: 'eq', threshold: 100 }], cooldownMs: 0 },
       errorPolicy: { onFailure: 'skip-step' },
     };
     // First call fails, rest succeed
@@ -173,10 +179,11 @@ describe('TaskService - trigger scheduling', () => {
     service.startTask(instance.instanceId);
     await new Promise((r) => setTimeout(r, 10));
 
+    const cond = { frameId: 'frame-1', fieldId: 'field-1', operator: 'eq' as const, threshold: 100 };
     for (let i = 0; i < maxTriggerCount; i++) {
       fakeReceive.emit({
-        frameId: def.triggerCondition!.frameId,
-        fieldValues: { [def.triggerCondition!.fieldId]: def.triggerCondition!.threshold as number | string },
+        frameId: cond.frameId,
+        fieldValues: { [cond.fieldId]: cond.threshold as number | string },
       });
       await new Promise((r) => setTimeout(r, 30));
     }
@@ -217,12 +224,12 @@ describe('TaskService - sequence scheduling', () => {
 
     const final = service.getInstance(instance.instanceId);
     // Steps: send(0), delay(1), send(2)
-    expect(final!.stepResults[0].stepIndex).toBe(0);
-    expect(final!.stepResults[0].kind).toBe('send');
-    expect(final!.stepResults[1].stepIndex).toBe(1);
-    expect(final!.stepResults[1].kind).toBe('delay');
-    expect(final!.stepResults[2].stepIndex).toBe(2);
-    expect(final!.stepResults[2].kind).toBe('send');
+    expect(final!.stepResults[0]!.stepIndex).toBe(0);
+    expect(final!.stepResults[0]!.kind).toBe('send');
+    expect(final!.stepResults[1]!.stepIndex).toBe(1);
+    expect(final!.stepResults[1]!.kind).toBe('delay');
+    expect(final!.stepResults[2]!.stepIndex).toBe(2);
+    expect(final!.stepResults[2]!.kind).toBe('send');
   });
 });
 
@@ -231,7 +238,7 @@ describe('TaskService - sequence scheduling', () => {
 // ========================================================================
 
 describe('TaskService - SCOE pattern', () => {
-  it('send → wait-condition → send → completed', async () => {
+  it('send -> wait-condition -> send -> completed', async () => {
     const def = scoeModeTaskDef();
     const results = [makeSentResult(), makeSentResult()]; // 2 send steps
     const { service, fakeReceive, fakeSend, instance } = createTestSetup({
@@ -240,7 +247,7 @@ describe('TaskService - SCOE pattern', () => {
     });
 
     service.startTask(instance.instanceId);
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 50));
 
     // First send step should have executed
     expect(fakeSend.calls.length).toBe(1);
@@ -248,9 +255,10 @@ describe('TaskService - SCOE pattern', () => {
     // Emit matching condition for wait-condition-step
     const waitStep = def.steps[1];
     if (waitStep.kind === 'wait-condition') {
+      const cond = waitStep.config.conditions[0]!;
       fakeReceive.emit({
-        frameId: waitStep.waitConfig.condition.frameId,
-        fieldValues: { [waitStep.waitConfig.condition.fieldId]: waitStep.waitConfig.condition.threshold as number | string },
+        frameId: cond.frameId,
+        fieldValues: { [cond.fieldId]: cond.threshold as number | string },
       });
     }
 
@@ -276,12 +284,12 @@ describe('TaskService - wait-condition timeout', () => {
     const def: TaskDefinition = {
       ...scoeModeTaskDef(),
       steps: [
-        { id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } },
+        { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } },
         {
           id: 's2', kind: 'wait-condition',
-          waitConfig: { condition: { frameId: 'f1', fieldId: 'f1', operator: 'eq', threshold: 99 }, timeoutMs: 50, onTimeout: 'continue' },
+          config: { conditions: [{ frameId: 'f1', fieldId: 'f1', operator: 'eq', threshold: 99 }], timeoutMs: 50, onTimeout: 'continue' },
         },
-        { id: 's3', kind: 'send', sendConfig: { frameId: 'f2', fieldValues: { f: 2 } } },
+        { id: 's3', kind: 'send', config: { frameId: 'f2', targetId: 'target-1', userFieldValues: { f: 2 } } },
       ],
     };
     const results = [makeSentResult(), makeSentResult()];
@@ -308,7 +316,7 @@ describe('TaskService - wait-condition timeout', () => {
       steps: [
         {
           id: 's1', kind: 'wait-condition',
-          waitConfig: { condition: { frameId: 'f1', fieldId: 'f1', operator: 'eq', threshold: 99 }, timeoutMs: 50, onTimeout: 'fail' },
+          config: { conditions: [{ frameId: 'f1', fieldId: 'f1', operator: 'eq', threshold: 99 }], timeoutMs: 50, onTimeout: 'fail' },
         },
       ],
     };
@@ -325,12 +333,12 @@ describe('TaskService - wait-condition timeout', () => {
     const def: TaskDefinition = {
       ...scoeModeTaskDef(),
       steps: [
-        { id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } },
+        { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } },
         {
           id: 's2', kind: 'wait-condition',
-          waitConfig: { condition: { frameId: 'f1', fieldId: 'f1', operator: 'eq', threshold: 99 }, timeoutMs: 50, onTimeout: 'skip' },
+          config: { conditions: [{ frameId: 'f1', fieldId: 'f1', operator: 'eq', threshold: 99 }], timeoutMs: 50, onTimeout: 'skip' },
         },
-        { id: 's3', kind: 'send', sendConfig: { frameId: 'f2', fieldValues: { f: 2 } } },
+        { id: 's3', kind: 'send', config: { frameId: 'f2', targetId: 'target-1', userFieldValues: { f: 2 } } },
       ],
     };
     const results = [makeSentResult(), makeSentResult()];
@@ -353,7 +361,7 @@ describe('TaskService - wait-condition timeout', () => {
 
 describe('TaskService - error policies', () => {
   it('stop policy stops task on send failure', async () => {
-    const def: TaskDefinition = { ...timedTaskDef(), errorPolicy: errorPolicies.stopOnFailure(), stopCondition: { maxIterations: 5 }, intervalMs: 10 };
+    const def: TaskDefinition = { ...timedTaskDef(), errorPolicy: errorPolicies.stopOnFailure(), stopCondition: { maxIterations: 5 }, schedule: { kind: 'timer', intervalMs: 10 } };
     const { service, instance } = createTestSetup({ definition: def, sendResults: [makeErrorResult()] });
 
     service.startTask(instance.instanceId);
@@ -365,7 +373,13 @@ describe('TaskService - error policies', () => {
 
   it('skip-step policy continues to next step', async () => {
     const def: TaskDefinition = {
-      ...sequenceTaskDef(),
+      id: 'skip-step-test',
+      name: 'Skip Step Test',
+      schedule: { kind: 'immediate' },
+      steps: [
+        { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: {} } },
+        { id: 's2', kind: 'send', config: { frameId: 'f2', targetId: 'target-1', userFieldValues: {} } },
+      ],
       errorPolicy: errorPolicies.skipStep(),
     };
     // First send fails, second succeeds
@@ -387,7 +401,7 @@ describe('TaskService - error policies', () => {
       ...timedTaskDef(),
       errorPolicy: errorPolicies.pauseOnFailure(),
       stopCondition: { maxIterations: 5 },
-      intervalMs: 10,
+      schedule: { kind: 'timer', intervalMs: 10 },
     };
     const { service, instance } = createTestSetup({ definition: def, sendResults: [makeErrorResult()] });
 
@@ -402,9 +416,8 @@ describe('TaskService - error policies', () => {
     const def: TaskDefinition = {
       id: 'retry-exhaust',
       name: 'Retry Exhaust',
-      schedulingMode: 'sequence',
-      triggerSource: 'user-ui',
-      steps: [{ id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } }],
+      schedule: { kind: 'immediate' },
+      steps: [{ id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } }],
       errorPolicy: errorPolicies.retryTwice(),
     };
     const results = Array.from({ length: 10 }, () => makeErrorResult());
@@ -423,11 +436,10 @@ describe('TaskService - error policies', () => {
     const def: TaskDefinition = {
       id: 'retry-succeed',
       name: 'Retry Succeed',
-      schedulingMode: 'sequence',
-      triggerSource: 'user-ui',
+      schedule: { kind: 'immediate' },
       steps: [
-        { id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } },
-        { id: 's2', kind: 'send', sendConfig: { frameId: 'f2', fieldValues: { f: 2 } } },
+        { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } },
+        { id: 's2', kind: 'send', config: { frameId: 'f2', targetId: 'target-1', userFieldValues: { f: 2 } } },
       ],
       errorPolicy: { onFailure: 'retry', retryCount: 2, retryDelayMs: 10 },
     };
@@ -453,12 +465,11 @@ describe('TaskService - pause/resume', () => {
     const def: TaskDefinition = {
       id: 'pause-test',
       name: 'Pause Test',
-      schedulingMode: 'sequence',
-      triggerSource: 'user-ui',
+      schedule: { kind: 'immediate' },
       steps: [
-        { id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } },
-        { id: 's2', kind: 'delay', delayConfig: { durationMs: 500 } },
-        { id: 's3', kind: 'send', sendConfig: { frameId: 'f2', fieldValues: { f: 2 } } },
+        { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } },
+        { id: 's2', kind: 'delay', config: { durationMs: 100 } },
+        { id: 's3', kind: 'send', config: { frameId: 'f2', targetId: 'target-1', userFieldValues: { f: 2 } } },
       ],
       errorPolicy: { onFailure: 'stop' },
     };
@@ -492,17 +503,16 @@ describe('TaskService - pause/resume', () => {
   });
 
   it('resume continues execution from paused point', async () => {
-    // Sequence: send(1) → delay(500ms) → send(2)
+    // Sequence: send(1) -> delay(100ms) -> send(2)
     // Plan: start, let first send complete, pause during delay, then resume
     const def: TaskDefinition = {
       id: 'pause-resume-test',
       name: 'Pause Resume Test',
-      schedulingMode: 'sequence',
-      triggerSource: 'user-ui',
+      schedule: { kind: 'immediate' },
       steps: [
-        { id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } },
-        { id: 's2', kind: 'delay', delayConfig: { durationMs: 500 } },
-        { id: 's3', kind: 'send', sendConfig: { frameId: 'f2', fieldValues: { f: 2 } } },
+        { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } },
+        { id: 's2', kind: 'delay', config: { durationMs: 100 } },
+        { id: 's3', kind: 'send', config: { frameId: 'f2', targetId: 'target-1', userFieldValues: { f: 2 } } },
       ],
       errorPolicy: { onFailure: 'stop' },
     };
@@ -511,7 +521,7 @@ describe('TaskService - pause/resume', () => {
 
     service.startTask(instance.instanceId);
     // Wait for first send step to complete (delay step hasn't finished yet)
-    await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, 20));
 
     const midExec = service.getInstance(instance.instanceId);
     // Pause during the delay step
@@ -524,7 +534,7 @@ describe('TaskService - pause/resume', () => {
     // Should have 1 step result (first send completed)
     expect(paused!.stepResults.length).toBeGreaterThanOrEqual(1);
 
-    // Now resume — small delay ensures the old execution loop has fully settled
+    // Now resume -- small delay ensures the old execution loop has fully settled
     await new Promise((r) => setTimeout(r, 50));
     service.resumeTask(instance.instanceId);
     await settle(service, instance.instanceId, 1500);
@@ -544,7 +554,7 @@ describe('TaskService - pause/resume', () => {
 
 describe('TaskService - stop', () => {
   it('stop results in lifecycle=stopped (not completed)', async () => {
-    const def: TaskDefinition = { ...timedTaskDef(), intervalMs: 100, stopCondition: { maxIterations: 100 } };
+    const def: TaskDefinition = { ...timedTaskDef(), schedule: { kind: 'timer', intervalMs: 100 }, stopCondition: { maxIterations: 100 } };
     const results = Array.from({ length: 200 }, () => makeSentResult());
     const { service, instance } = createTestSetup({ definition: def, sendResults: results });
 
@@ -740,7 +750,7 @@ describe('TaskService - state and selector integration', () => {
   });
 
   it('getStatistics tracks task lifecycle', async () => {
-    const def: TaskDefinition = { ...sequenceTaskDef(), steps: [{ id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } }] };
+    const def: TaskDefinition = { ...sequenceTaskDef(), steps: [{ id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } }] };
     const { service, instance } = createTestSetup({ definition: def, sendResults: [makeSentResult()] });
 
     expect(service.getStatistics().totalCreated).toBe(1);
@@ -754,7 +764,7 @@ describe('TaskService - state and selector integration', () => {
   });
 
   it('getProgress returns progress snapshot', async () => {
-    const def: TaskDefinition = { ...sequenceTaskDef(), steps: [{ id: 's1', kind: 'send', sendConfig: { frameId: 'f1', fieldValues: { f: 1 } } }] };
+    const def: TaskDefinition = { ...sequenceTaskDef(), steps: [{ id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 'target-1', userFieldValues: { f: 1 } } }] };
     const { service, instance } = createTestSetup({ definition: def, sendResults: [makeSentResult()] });
 
     service.startTask(instance.instanceId);

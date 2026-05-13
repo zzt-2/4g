@@ -1,22 +1,5 @@
-import type { WaitCondition, ConditionTerm, ConditionMatchInput } from './types';
+import type { ConditionTerm } from './types';
 import { compareValues } from '@/shared/condition-operators';
-
-export function evaluateCondition(
-  condition: WaitCondition,
-  input: ConditionMatchInput,
-): boolean {
-  if (input.frameId !== condition.frameId) {
-    return false;
-  }
-  if (condition.sourceId !== undefined) {
-    if (input.sourceId === undefined || condition.sourceId !== input.sourceId) {
-      return false;
-    }
-  }
-  const value = input.fieldValues[condition.fieldId];
-  if (value === undefined) return false;
-  return compareValues(value, condition.threshold, condition.operator);
-}
 
 export function evaluateSingleCondition(
   condition: ConditionTerm,
@@ -41,8 +24,10 @@ export function evaluateConditionGroup(
 
     if (logicOp === 'or') {
       result = result || matches;
+      if (result) break; // OR short-circuit
     } else {
       result = result && matches;
+      if (!result) break; // AND short-circuit
     }
   }
   return result;

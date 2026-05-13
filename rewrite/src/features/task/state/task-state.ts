@@ -45,7 +45,7 @@ export interface TaskStateContainer {
   createInstance(instanceId: string, definition: TaskDefinition): TaskInstanceState;
   updateInstance(
     instanceId: string,
-    updates: Partial<Omit<TaskInstanceState, 'instanceId' | 'definitionRef'>>,
+    updates: Partial<Omit<TaskInstanceState, 'instanceId'>>,
   ): TaskInstanceState | undefined;
   removeInstance(instanceId: string): TaskInstanceState | undefined;
   addStepResult(instanceId: string, result: TaskStepResult): TaskInstanceState | undefined;
@@ -116,7 +116,6 @@ export function createTaskState(
         ...existing,
         ...updates,
         instanceId: existing.instanceId,
-        definitionRef: existing.definitionRef,
       };
       instances.set(instanceId, updated);
 

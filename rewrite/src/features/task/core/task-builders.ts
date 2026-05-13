@@ -1,53 +1,49 @@
 import type {
-  SendStepDefinition,
   SendStepConfig,
-  WaitConditionStepDefinition,
-  WaitConditionStepConfig,
-  DelayStepDefinition,
+  WaitConditionConfig,
   TaskStepDefinition,
   TaskDefinition,
-  TaskSchedulingMode,
-  TaskTriggerSource,
+  ScheduleDriver,
   TaskErrorPolicy,
   TaskStopCondition,
-  WaitCondition,
+  FieldVariation,
 } from './types';
 
 let nextStepId = 1;
 
 export function createSendStep(
-  sendConfig: SendStepConfig,
+  config: SendStepConfig,
   options?: { readonly id?: string; readonly name?: string },
-): SendStepDefinition {
+): TaskStepDefinition {
   return {
     id: options?.id ?? `step-${nextStepId++}`,
     name: options?.name,
     kind: 'send',
-    sendConfig,
+    config,
   };
 }
 
 export function createDelayStep(
   durationMs: number,
   options?: { readonly id?: string; readonly name?: string },
-): DelayStepDefinition {
+): TaskStepDefinition {
   return {
     id: options?.id ?? `step-${nextStepId++}`,
     name: options?.name,
     kind: 'delay',
-    delayConfig: { durationMs },
+    config: { durationMs },
   };
 }
 
 export function createWaitConditionStep(
-  waitConfig: WaitConditionStepConfig,
+  config: WaitConditionConfig,
   options?: { readonly id?: string; readonly name?: string },
-): WaitConditionStepDefinition {
+): TaskStepDefinition {
   return {
     id: options?.id ?? `step-${nextStepId++}`,
     name: options?.name,
     kind: 'wait-condition',
-    waitConfig,
+    config,
   };
 }
 
@@ -55,16 +51,11 @@ export function createTaskDefinition(
   options: {
     readonly id: string;
     readonly name: string;
-    readonly schedulingMode: TaskSchedulingMode;
-    readonly triggerSource: TaskTriggerSource;
+    readonly schedule: ScheduleDriver;
     readonly steps: readonly TaskStepDefinition[];
     readonly errorPolicy: TaskErrorPolicy;
-    readonly targetId?: string;
     readonly stopCondition?: TaskStopCondition;
-    readonly intervalMs?: number;
-    readonly delayBeforeStartMs?: number;
-    readonly triggerCondition?: WaitCondition;
-    readonly cooldownMs?: number;
+    readonly fieldVariations?: readonly FieldVariation[];
   },
 ): TaskDefinition {
   return options as TaskDefinition;

@@ -1,5 +1,6 @@
 import type { SendResult } from '@/features/send';
 import type { ReadonlyDeep } from '@/shared/types/readonly-deep';
+import type { VariableMap } from '@/shared/expression/types';
 
 // --- Step kinds ---
 
@@ -21,28 +22,53 @@ export const COMPARISON_OPERATORS = [
 ] as const;
 export type ComparisonOperator = (typeof COMPARISON_OPERATORS)[number];
 
-// --- WaitCondition ---
+// --- ConditionTerm (replaces WaitCondition, adds logicOperator) ---
 
-export interface WaitCondition {
+export interface ConditionTerm {
   readonly frameId: string;
   readonly fieldId: string;
   readonly operator: ComparisonOperator;
-  readonly threshold: number | string;
+  readonly threshold: string | number;
   readonly sourceId?: string;
+  readonly logicOperator?: 'and' | 'or'; // default 'and'; first term's logicOperator is ignored
+}
+
+// --- ScheduleDriver (replaces TaskSchedulingMode + flat scheduling fields) ---
+
+export type ScheduleDriver =
+  | { readonly kind: 'immediate' }
+  | { readonly kind: 'timer'; readonly intervalMs: number }
+  | { readonly kind: 'event'; readonly conditions: readonly ConditionTerm[]; readonly cooldownMs?: number };
+
+// --- FieldVariation ---
+
+export interface FieldVariation {
+  readonly fieldId: string;
+  readonly values: readonly (string | number)[];
+}
+
+// --- StepRepeat ---
+
+export interface StepRepeat {
+  readonly intervalMs: number;
+  readonly until?: readonly ConditionTerm[];
+  readonly maxCount?: number;
 }
 
 // --- Step definitions ---
 
 export interface SendStepConfig {
   readonly frameId: string;
-  readonly fieldValues: Readonly<Record<string, string | number | boolean>>;
-  readonly targetId?: string;
-  readonly options?: { readonly checksumKind?: string; readonly autoChecksum?: boolean };
+  readonly targetId: string; // required (was optional + fallback to definition.targetId)
+  readonly userFieldValues?: Readonly<Record<string, string | number | boolean>>;
+  readonly variables?: VariableMap;
+  readonly intervalAfterMs?: number;
+  readonly repeat?: StepRepeat;
 }
 
-export interface WaitConditionStepConfig {
-  readonly condition: WaitCondition;
-  readonly timeoutMs: number;
+export interface WaitConditionConfig {
+  readonly conditions: readonly ConditionTerm[]; // single condition -> condition array
+  readonly timeoutMs?: number; // optional (undefined = wait indefinitely until signal interrupt)
   readonly onTimeout: 'continue' | 'skip' | 'fail';
 }
 
@@ -50,45 +76,12 @@ export interface DelayStepConfig {
   readonly durationMs: number;
 }
 
-export interface SendStepDefinition {
-  readonly id: string;
-  readonly name?: string;
-  readonly kind: 'send';
-  readonly sendConfig: SendStepConfig;
-}
-
-export interface WaitConditionStepDefinition {
-  readonly id: string;
-  readonly name?: string;
-  readonly kind: 'wait-condition';
-  readonly waitConfig: WaitConditionStepConfig;
-}
-
-export interface DelayStepDefinition {
-  readonly id: string;
-  readonly name?: string;
-  readonly kind: 'delay';
-  readonly delayConfig: DelayStepConfig;
-}
+// --- Unified TaskStepDefinition (config field name unified) ---
 
 export type TaskStepDefinition =
-  | SendStepDefinition
-  | WaitConditionStepDefinition
-  | DelayStepDefinition;
-
-// --- Trigger / Scheduling ---
-
-export const TASK_TRIGGER_SOURCES = [
-  'user-ui',
-  'timer',
-  'receive-trigger',
-  'scoe-command',
-  'northbound-command',
-] as const;
-export type TaskTriggerSource = (typeof TASK_TRIGGER_SOURCES)[number];
-
-export const TASK_SCHEDULING_MODES = ['timed', 'trigger', 'sequence'] as const;
-export type TaskSchedulingMode = (typeof TASK_SCHEDULING_MODES)[number];
+  | { readonly kind: 'send'; readonly id: string; readonly name?: string; readonly config: SendStepConfig }
+  | { readonly kind: 'wait-condition'; readonly id: string; readonly name?: string; readonly config: WaitConditionConfig }
+  | { readonly kind: 'delay'; readonly id: string; readonly name?: string; readonly config: DelayStepConfig };
 
 // --- Error policy ---
 
@@ -106,23 +99,19 @@ export interface TaskErrorPolicy {
 export interface TaskStopCondition {
   readonly maxDurationMs?: number;
   readonly maxIterations?: number;
+  readonly exitCondition?: readonly ConditionTerm[]; // new: early exit when condition met
 }
 
-// --- TaskDefinition ---
+// --- TaskDefinition (restructured) ---
 
 export interface TaskDefinition {
   readonly id: string;
   readonly name: string;
-  readonly schedulingMode: TaskSchedulingMode;
-  readonly triggerSource: TaskTriggerSource;
   readonly steps: readonly TaskStepDefinition[];
-  readonly targetId?: string;
-  readonly errorPolicy: TaskErrorPolicy;
+  readonly schedule: ScheduleDriver; // replaces schedulingMode + flat scheduling fields
   readonly stopCondition?: TaskStopCondition;
-  readonly intervalMs?: number;
-  readonly delayBeforeStartMs?: number;
-  readonly triggerCondition?: WaitCondition;
-  readonly cooldownMs?: number;
+  readonly fieldVariations?: readonly FieldVariation[];
+  readonly errorPolicy: TaskErrorPolicy;
 }
 
 // --- Lifecycle ---
@@ -217,12 +206,6 @@ export interface TaskExecutionSummary {
   readonly finishedAt: string;
 }
 
-// --- Condition term (extends WaitCondition with logic operator) ---
-
-export interface ConditionTerm extends WaitCondition {
-  readonly logicOperator?: 'and' | 'or';
-}
-
 // --- Condition match input ---
 // Decoupled from receive internals. Service layer maps from receive public API outputs.
 
@@ -230,4 +213,20 @@ export interface ConditionMatchInput {
   readonly frameId: string;
   readonly fieldValues: Readonly<Record<string, number | string | null>>;
   readonly sourceId?: string;
+}
+
+// --- ResolvedStopCondition & resolveStopCondition ---
+
+export type ResolvedStopCondition = TaskStopCondition;
+
+export function resolveStopCondition(def: TaskDefinition): ResolvedStopCondition {
+  if (def.fieldVariations && def.fieldVariations.length > 0) {
+    const maxLen = Math.max(...def.fieldVariations.map(v => v.values.length));
+    return { ...def.stopCondition, maxIterations: maxLen };
+  }
+  // Immediate schedule defaults to 1 iteration
+  if (def.schedule.kind === 'immediate' && !def.stopCondition?.maxIterations) {
+    return { ...def.stopCondition, maxIterations: 1 };
+  }
+  return def.stopCondition ?? {};
 }

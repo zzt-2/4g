@@ -34,15 +34,18 @@ export interface TaskService extends TaskReader {
   pauseTask(instanceId: string): void;
   resumeTask(instanceId: string): void;
   stopTask(instanceId: string): void;
+  stopAll(): number;
   removeTask(instanceId: string): void;
   retryTask(sourceInstanceId: string): TaskInstanceState | undefined;
-  stopAll(): void;
+  updateTask(instanceId: string, definition: TaskDefinition): TaskInstanceState | undefined;
   onSettled(instanceId: string): Promise<void>;
 }
 
 export interface CreateTaskServiceOptions {
   readonly sendService: SendServiceProvider;
   readonly receiveEventSource: ReceiveEventSource;
+  readonly timerService?: unknown; // placeholder for future TimerService injection
+  readonly fieldValueProvider?: () => Readonly<Record<string, number | string | null>>;
   readonly state?: TaskStateContainer;
   readonly now?: () => string;
 }
@@ -56,6 +59,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
   const receiveSource = options.receiveEventSource;
   const state = options.state ?? createTaskState();
   const now = options.now ?? (() => new Date().toISOString());
+  const fieldValueProvider = options.fieldValueProvider;
 
   // Execution control
   const abortResolvers = new Map<string, () => void>();
@@ -79,6 +83,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
     state,
     sendService,
     conditionRegistry,
+    fieldValueProvider,
     now,
   });
 
@@ -96,6 +101,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
     updateLifecycle: lifecycle.updateLifecycle,
     stepExecutors,
     errorPolicy,
+    fieldValueProvider,
     now,
   });
 
@@ -132,17 +138,9 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
 
     try {
       ensureSubscription();
-      switch (inst.definitionRef.schedulingMode) {
-        case 'timed':
-          await loops.runTimedLoop(instanceId, inst.definitionRef, signal);
-          break;
-        case 'trigger':
-          await loops.runTriggerLoop(instanceId, inst.definitionRef, signal);
-          break;
-        case 'sequence':
-          await loops.runSequenceLoop(instanceId, inst.definitionRef, signal);
-          break;
-      }
+
+      // Use the unified runTask via the loops context
+      await loops.runTimedLoop(instanceId, inst.definitionRef, signal);
 
       const current = state.getInstance(instanceId);
       if (current && current.lifecycle === 'running') {
@@ -225,6 +223,21 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       lifecycle.resolveSettle(instanceId);
     },
 
+    stopAll(): number {
+      const snapshot = state.getSnapshot();
+      let stoppedCount = 0;
+      for (const inst of snapshot.instances) {
+        if (inst.lifecycle === 'running' || inst.lifecycle === 'paused') {
+          lifecycle.updateLifecycle(inst.instanceId, 'stop');
+          conditionRegistry.clear();
+          lifecycle.abortInstance(inst.instanceId);
+          lifecycle.resolveSettle(inst.instanceId);
+          stoppedCount++;
+        }
+      }
+      return stoppedCount;
+    },
+
     removeTask(instanceId) {
       const inst = state.getInstance(instanceId);
       if (!inst) return;
@@ -239,23 +252,17 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       if (!source || !isTerminal(source.lifecycle)) return undefined;
 
       const newInstanceId = `task-inst-${nextInstanceId++}`;
-      const newInstance = state.createInstance(newInstanceId, source.definitionRef);
+      state.createInstance(newInstanceId, source.definitionRef);
       lifecycle.updateLifecycle(newInstanceId, 'start');
       const signal = lifecycle.createAbortSignal(newInstanceId);
       runExecutionLoop(newInstanceId, signal);
       return state.getInstance(newInstanceId);
     },
 
-    stopAll() {
-      const snapshot = state.getSnapshot();
-      for (const inst of snapshot.instances) {
-        if (inst.lifecycle === 'running' || inst.lifecycle === 'paused') {
-          lifecycle.updateLifecycle(inst.instanceId, 'stop');
-          conditionRegistry.clear();
-          lifecycle.abortInstance(inst.instanceId);
-          lifecycle.resolveSettle(inst.instanceId);
-        }
-      }
+    updateTask(instanceId, definition) {
+      const inst = state.getInstance(instanceId);
+      if (!inst || inst.lifecycle !== 'created') return undefined;
+      return state.updateInstance(instanceId, { definitionRef: definition });
     },
 
     async onSettled(instanceId) {

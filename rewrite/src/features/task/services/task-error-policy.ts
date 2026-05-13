@@ -70,7 +70,7 @@ export function createErrorPolicyHandler(ctx: ErrorPolicyContext) {
               break;
             }
             case 'delay': {
-              const d = await ctx.stepExecutors.executeDelayStep(iteration, stepIndex, step.delayConfig.durationMs, signal);
+              const d = await ctx.stepExecutors.executeDelayStep(iteration, stepIndex, step.config.durationMs, signal);
               if (d.interrupted) return null;
               retryResult = d.result;
               break;

@@ -1,7 +1,7 @@
 import type {
   TaskDefinition,
   TaskStepDefinition,
-  WaitCondition,
+  ConditionTerm,
   TaskErrorPolicy,
   ConditionMatchInput,
   TaskInstanceState,
@@ -14,27 +14,27 @@ function sendStep(overrides: { id: string; frameId?: string; targetId?: string }
   return {
     id: overrides.id,
     kind: 'send',
-    sendConfig: {
+    config: {
       frameId: overrides.frameId ?? 'frame-1',
-      fieldValues: { field1: 100 },
-      ...(overrides.targetId ? { targetId: overrides.targetId } : {}),
+      targetId: overrides.targetId ?? 'target-1',
+      userFieldValues: { field1: 100 },
     },
   };
 }
 
-function waitConditionStep(id: string, condition: WaitCondition, timeoutMs = 5000): TaskStepDefinition {
+function waitConditionStep(id: string, conditions: readonly ConditionTerm[], timeoutMs = 50): TaskStepDefinition {
   return {
     id,
     kind: 'wait-condition',
-    waitConfig: { condition, timeoutMs, onTimeout: 'fail' },
+    config: { conditions, timeoutMs, onTimeout: 'fail' },
   };
 }
 
-function delayStep(id: string, durationMs = 1000): TaskStepDefinition {
+function delayStep(id: string, durationMs = 10): TaskStepDefinition {
   return {
     id,
     kind: 'delay',
-    delayConfig: { durationMs },
+    config: { durationMs },
   };
 }
 
@@ -42,71 +42,71 @@ function defaultErrorPolicy(): TaskErrorPolicy {
   return { onFailure: 'stop' };
 }
 
-// --- WaitCondition fixtures ---
+// --- ConditionTerm fixtures ---
 
 export const waitConditions = {
-  eqNumeric: (): WaitCondition => ({
+  eqNumeric: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'eq',
     threshold: 100,
   }),
-  eqString: (): WaitCondition => ({
+  eqString: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'eq',
     threshold: 'OK',
   }),
-  neq: (): WaitCondition => ({
+  neq: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'neq',
     threshold: 50,
   }),
-  gt: (): WaitCondition => ({
+  gt: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'gt',
     threshold: 50,
   }),
-  lt: (): WaitCondition => ({
+  lt: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'lt',
     threshold: 50,
   }),
-  gte: (): WaitCondition => ({
+  gte: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'gte',
     threshold: 100,
   }),
-  lte: (): WaitCondition => ({
+  lte: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'lte',
     threshold: 100,
   }),
-  change: (): WaitCondition => ({
+  change: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'change',
     threshold: 0,
   }),
-  any: (): WaitCondition => ({
+  any: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'any',
     threshold: 0,
   }),
-  withSourceFilter: (): WaitCondition => ({
+  withSourceFilter: (): ConditionTerm => ({
     frameId: 'frame-1',
     fieldId: 'field-1',
     operator: 'eq',
     threshold: 100,
     sourceId: 'source-A',
   }),
-  differentFrame: (): WaitCondition => ({
+  differentFrame: (): ConditionTerm => ({
     frameId: 'frame-2',
     fieldId: 'field-2',
     operator: 'eq',
@@ -119,58 +119,52 @@ export const waitConditions = {
 export const timedTaskDef = (): TaskDefinition => ({
   id: 'timed-task-1',
   name: 'Timed Send Task',
-  schedulingMode: 'timed',
-  triggerSource: 'user-ui',
+  schedule: { kind: 'timer', intervalMs: 10 },
   steps: [
     sendStep({ id: 'step-1', frameId: 'frame-1' }),
     sendStep({ id: 'step-2', frameId: 'frame-2' }),
   ],
-  targetId: 'target-1',
   errorPolicy: defaultErrorPolicy(),
-  intervalMs: 1000,
   stopCondition: { maxIterations: 5 },
 });
 
 export const triggerTaskDef = (): TaskDefinition => ({
   id: 'trigger-task-1',
   name: 'Trigger Send Task',
-  schedulingMode: 'trigger',
-  triggerSource: 'receive-trigger',
+  schedule: {
+    kind: 'event',
+    conditions: [waitConditions.eqNumeric()],
+    cooldownMs: 10,
+  },
   steps: [sendStep({ id: 'step-1', frameId: 'frame-1' })],
-  targetId: 'target-1',
   errorPolicy: defaultErrorPolicy(),
-  triggerCondition: waitConditions.eqNumeric(),
-  cooldownMs: 500,
   stopCondition: { maxIterations: 10 },
 });
 
 export const sequenceTaskDef = (): TaskDefinition => ({
   id: 'sequence-task-1',
   name: 'Sequence Send Task',
-  schedulingMode: 'sequence',
-  triggerSource: 'user-ui',
+  schedule: { kind: 'immediate' },
   steps: [
     sendStep({ id: 'step-1', frameId: 'frame-1' }),
-    delayStep('step-2', 500),
+    delayStep('step-2', 10),
     sendStep({ id: 'step-3', frameId: 'frame-2' }),
   ],
-  targetId: 'target-1',
   errorPolicy: defaultErrorPolicy(),
 });
 
 export const scoeModeTaskDef = (): TaskDefinition => ({
   id: 'scoe-task-1',
   name: 'SCOE Command Execution',
-  schedulingMode: 'sequence',
-  triggerSource: 'scoe-command',
+  schedule: { kind: 'immediate' },
   steps: [
     sendStep({ id: 'send-cmd', frameId: 'scoe-cmd-frame' }),
-    waitConditionStep('wait-completion', {
+    waitConditionStep('wait-completion', [{
       frameId: 'scoe-response-frame',
       fieldId: 'status-field',
       operator: 'eq',
       threshold: 1,
-    }, 10000),
+    }], 50),
     sendStep({ id: 'send-ack', frameId: 'scoe-ack-frame' }),
   ],
   errorPolicy: { onFailure: 'stop' },
@@ -180,7 +174,7 @@ export const scoeModeTaskDef = (): TaskDefinition => ({
 
 export const errorPolicies = {
   stopOnFailure: (): TaskErrorPolicy => ({ onFailure: 'stop' }),
-  retryTwice: (): TaskErrorPolicy => ({ onFailure: 'retry', retryCount: 2, retryDelayMs: 100 }),
+  retryTwice: (): TaskErrorPolicy => ({ onFailure: 'retry', retryCount: 2, retryDelayMs: 10 }),
   skipStep: (): TaskErrorPolicy => ({ onFailure: 'skip-step' }),
   pauseOnFailure: (): TaskErrorPolicy => ({ onFailure: 'pause' }),
 };

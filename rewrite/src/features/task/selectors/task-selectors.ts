@@ -17,7 +17,7 @@ export function selectTaskInstance(
   instanceId: string,
 ): ReadonlyTaskInstanceState | undefined {
   const instance = snapshot.instances.find((i) => i.instanceId === instanceId);
-  return instance ? { ...instance } as ReadonlyTaskInstanceState : undefined;
+  return instance ? structuredClone(instance) as ReadonlyTaskInstanceState : undefined;
 }
 
 export function selectTaskProgress(

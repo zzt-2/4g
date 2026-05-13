@@ -3,13 +3,13 @@ import {
   canTransition,
   transition,
   isTerminal,
-  evaluateCondition,
   calculateProgress,
+  evaluateConditionGroup,
+  evaluateSingleCondition,
+  resolveStopCondition,
 } from '../core';
-import type { TaskLifecycleStatus, TaskStepResult } from '../core';
+import type { TaskLifecycleStatus, TaskStepResult, ConditionTerm, TaskDefinition } from '../core';
 import {
-  waitConditions,
-  matchInputs,
   timedTaskDef,
   triggerTaskDef,
   sequenceTaskDef,
@@ -148,139 +148,165 @@ describe('Task lifecycle', () => {
 });
 
 // ============================================================
-// ConditionMatcher
+// evaluateConditionGroup / evaluateSingleCondition
 // ============================================================
 
-describe('ConditionMatcher', () => {
-  describe('eq operator', () => {
-    it('matches equal numeric value', () => {
-      expect(evaluateCondition(waitConditions.eqNumeric(), matchInputs.matchingNumeric())).toBe(true);
+describe('evaluateConditionGroup / evaluateSingleCondition', () => {
+  const cond = (overrides: Partial<ConditionTerm> = {}): ConditionTerm => ({
+    frameId: 'frame-1',
+    fieldId: 'field-1',
+    operator: 'eq',
+    threshold: 100,
+    ...overrides,
+  });
+
+  describe('evaluateSingleCondition', () => {
+    it('returns true when value matches threshold with eq', () => {
+      expect(evaluateSingleCondition(cond(), { 'field-1': 100 })).toBe(true);
     });
 
-    it('does not match different numeric value', () => {
-      expect(evaluateCondition(waitConditions.eqNumeric(), matchInputs.nonMatchingNumeric())).toBe(false);
+    it('returns false when value does not match', () => {
+      expect(evaluateSingleCondition(cond(), { 'field-1': 50 })).toBe(false);
     });
 
-    it('matches equal string value', () => {
-      expect(evaluateCondition(waitConditions.eqString(), matchInputs.matchingString())).toBe(true);
+    it('returns false when field is null', () => {
+      expect(evaluateSingleCondition(cond(), { 'field-1': null })).toBe(false);
     });
 
-    it('does not match null value', () => {
-      expect(evaluateCondition(waitConditions.eqNumeric(), matchInputs.nullValue())).toBe(false);
+    it('returns false when field is missing', () => {
+      expect(evaluateSingleCondition(cond(), {})).toBe(false);
+    });
+
+    it('supports gt operator', () => {
+      expect(evaluateSingleCondition(cond({ operator: 'gt' }), { 'field-1': 101 })).toBe(true);
+      expect(evaluateSingleCondition(cond({ operator: 'gt' }), { 'field-1': 99 })).toBe(false);
+    });
+
+    it('supports string comparison', () => {
+      expect(evaluateSingleCondition(cond({ threshold: 'OK' }), { 'field-1': 'OK' })).toBe(true);
+      expect(evaluateSingleCondition(cond({ threshold: 'OK' }), { 'field-1': 'FAIL' })).toBe(false);
     });
   });
 
-  describe('neq operator', () => {
-    it('matches different value', () => {
-      expect(evaluateCondition(waitConditions.neq(), matchInputs.matchingNumeric())).toBe(true);
+  describe('evaluateConditionGroup', () => {
+    it('returns true for empty conditions', () => {
+      expect(evaluateConditionGroup([], {})).toBe(true);
     });
 
-    it('does not match equal value', () => {
-      expect(evaluateCondition(waitConditions.neq(), matchInputs.nonMatchingNumeric())).toBe(false);
-    });
-  });
-
-  describe('gt operator', () => {
-    it('matches when value > threshold', () => {
-      expect(evaluateCondition(waitConditions.gt(), matchInputs.matchingNumeric())).toBe(true);
+    it('returns result of single condition', () => {
+      expect(evaluateConditionGroup([cond()], { 'field-1': 100 })).toBe(true);
+      expect(evaluateConditionGroup([cond()], { 'field-1': 50 })).toBe(false);
     });
 
-    it('does not match when value <= threshold', () => {
-      expect(evaluateCondition(waitConditions.gt(), matchInputs.nonMatchingNumeric())).toBe(false);
-    });
-  });
-
-  describe('lt operator', () => {
-    it('matches when value < threshold', () => {
-      const input = { frameId: 'frame-1', fieldValues: { 'field-1': 25 } };
-      expect(evaluateCondition(waitConditions.lt(), input)).toBe(true);
-    });
-
-    it('does not match when value == threshold', () => {
-      expect(evaluateCondition(waitConditions.lt(), matchInputs.nonMatchingNumeric())).toBe(false);
+    it('AND: all must match (default logicOperator)', () => {
+      const conditions = [
+        cond({ fieldId: 'a', threshold: 1 }),
+        cond({ fieldId: 'b', threshold: 2 }),
+      ];
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 2 })).toBe(true);
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 0 })).toBe(false);
+      expect(evaluateConditionGroup(conditions, { a: 0, b: 2 })).toBe(false);
     });
 
-    it('does not match when value > threshold', () => {
-      expect(evaluateCondition(waitConditions.lt(), matchInputs.matchingNumeric())).toBe(false);
-    });
-  });
-
-  describe('gte operator', () => {
-    it('matches when value == threshold', () => {
-      expect(evaluateCondition(waitConditions.gte(), matchInputs.matchingNumeric())).toBe(true);
-    });
-
-    it('matches when value > threshold', () => {
-      const cond = waitConditions.gte();
-      const input = { frameId: 'frame-1', fieldValues: { 'field-1': 200 } };
-      expect(evaluateCondition(cond, input)).toBe(true);
+    it('AND: short-circuits on first false', () => {
+      const conditions = [
+        cond({ fieldId: 'a', threshold: 1 }),
+        cond({ fieldId: 'b', threshold: 2 }),
+        cond({ fieldId: 'c', threshold: 3 }),
+      ];
+      expect(evaluateConditionGroup(conditions, { a: 0, b: 2, c: 3 })).toBe(false);
     });
 
-    it('does not match when value < threshold', () => {
-      expect(evaluateCondition(waitConditions.gte(), matchInputs.nonMatchingNumeric())).toBe(false);
-    });
-  });
-
-  describe('lte operator', () => {
-    it('matches when value == threshold', () => {
-      expect(evaluateCondition(waitConditions.lte(), matchInputs.matchingNumeric())).toBe(true);
-    });
-
-    it('matches when value < threshold', () => {
-      expect(evaluateCondition(waitConditions.lte(), matchInputs.nonMatchingNumeric())).toBe(true);
+    it('OR: any match is enough', () => {
+      const conditions = [
+        cond({ fieldId: 'a', threshold: 1 }),
+        cond({ fieldId: 'b', threshold: 2, logicOperator: 'or' }),
+      ];
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 0 })).toBe(true);
+      expect(evaluateConditionGroup(conditions, { a: 0, b: 2 })).toBe(true);
+      expect(evaluateConditionGroup(conditions, { a: 0, b: 0 })).toBe(false);
     });
 
-    it('does not match when value > threshold', () => {
-      const cond = waitConditions.lte();
-      const input = { frameId: 'frame-1', fieldValues: { 'field-1': 200 } };
-      expect(evaluateCondition(cond, input)).toBe(false);
-    });
-  });
-
-  describe('change operator', () => {
-    it('matches non-null value', () => {
-      expect(evaluateCondition(waitConditions.change(), matchInputs.matchingNumeric())).toBe(true);
+    it('OR: short-circuits on true', () => {
+      const conditions = [
+        cond({ fieldId: 'a', threshold: 1 }),
+        cond({ fieldId: 'b', threshold: 2, logicOperator: 'or' }),
+        cond({ fieldId: 'c', threshold: 3, logicOperator: 'or' }),
+      ];
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 0, c: 0 })).toBe(true);
+      expect(evaluateConditionGroup(conditions, { a: 0, b: 2, c: 0 })).toBe(true);
     });
 
-    it('does not match null value', () => {
-      expect(evaluateCondition(waitConditions.change(), matchInputs.nullValue())).toBe(false);
+    it('mixed AND/OR', () => {
+      const conditions = [
+        cond({ fieldId: 'a', threshold: 1 }),
+        cond({ fieldId: 'b', threshold: 2 }),
+        cond({ fieldId: 'c', threshold: 3, logicOperator: 'or' }),
+      ];
+      // a=1, b=2 → true AND true = true; OR c=0 → true OR false = true
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 2, c: 0 })).toBe(true);
+      // a=1, b=0 → true AND false = false; AND short-circuits, never reaches OR
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 0, c: 3 })).toBe(false);
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 0, c: 0 })).toBe(false);
+    });
+
+    it('ignores logicOperator on first condition', () => {
+      const conditions = [
+        cond({ fieldId: 'a', threshold: 1, logicOperator: 'or' }),
+        cond({ fieldId: 'b', threshold: 2 }),
+      ];
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 2 })).toBe(true);
+      expect(evaluateConditionGroup(conditions, { a: 1, b: 0 })).toBe(false);
     });
   });
+});
 
-  describe('any operator', () => {
-    it('matches any non-null value', () => {
-      expect(evaluateCondition(waitConditions.any(), matchInputs.matchingNumeric())).toBe(true);
-    });
+// ============================================================
+// resolveStopCondition
+// ============================================================
 
-    it('does not match null value', () => {
-      expect(evaluateCondition(waitConditions.any(), matchInputs.nullValue())).toBe(false);
-    });
+describe('resolveStopCondition', () => {
+  it('returns { maxIterations: 1 } for immediate schedule without stopCondition', () => {
+    const def: TaskDefinition = {
+      id: 'test',
+      name: 'test',
+      schedule: { kind: 'immediate' },
+      steps: [{ id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 't1' } }],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    expect(resolveStopCondition(def)).toEqual({ maxIterations: 1 });
   });
 
-  describe('frameId / fieldId filtering', () => {
-    it('does not match when frameId differs', () => {
-      expect(evaluateCondition(waitConditions.eqNumeric(), matchInputs.differentFrame())).toBe(false);
-    });
+  it('returns stopCondition as-is when no fieldVariations', () => {
+    const def = timedTaskDef();
+    const result = resolveStopCondition(def);
+    expect(result.maxIterations).toBe(5);
   });
 
-  describe('sourceId filtering', () => {
-    it('matches when sourceId matches', () => {
-      expect(evaluateCondition(waitConditions.withSourceFilter(), matchInputs.withSourceA())).toBe(true);
-    });
-
-    it('does not match when sourceId differs', () => {
-      expect(evaluateCondition(waitConditions.withSourceFilter(), matchInputs.withSourceB())).toBe(false);
-    });
-
-    it('matches when condition has no sourceId filter', () => {
-      expect(evaluateCondition(waitConditions.eqNumeric(), matchInputs.withSourceA())).toBe(true);
-    });
-
-    it('matches when input has no sourceId and condition has no sourceId', () => {
-      expect(evaluateCondition(waitConditions.eqNumeric(), matchInputs.matchingNumeric())).toBe(true);
-    });
+  it('derives maxIterations from fieldVariations when present', () => {
+    const def: TaskDefinition = {
+      ...sequenceTaskDef(),
+      fieldVariations: [
+        { fieldId: 'v1', values: [1, 2, 3] },
+        { fieldId: 'v2', values: [10, 20] },
+      ],
+    };
+    const result = resolveStopCondition(def);
+    expect(result.maxIterations).toBe(3);
   });
 
+  it('merges fieldVariations-derived maxIterations with existing stopCondition', () => {
+    const def: TaskDefinition = {
+      ...sequenceTaskDef(),
+      stopCondition: { maxDurationMs: 60000 },
+      fieldVariations: [
+        { fieldId: 'v1', values: [1, 2, 3, 4] },
+      ],
+    };
+    const result = resolveStopCondition(def);
+    expect(result.maxIterations).toBe(4);
+    expect(result.maxDurationMs).toBe(60000);
+  });
 });
 
 // ============================================================
@@ -348,7 +374,7 @@ describe('Progress', () => {
       const failedResult = makeSendStepResult({
         stepIndex: 1,
         iteration: 0,
-        sendResult: { ...makeSendResult(), kind: 'transport-error' },
+        sendResult: { ...makeSendResult(), kind: 'transport-error' } as TaskStepResult['sendResult'] & { kind: 'transport-error' },
       });
       const instance = makeInstance({
         lifecycle: 'stopped',
@@ -367,13 +393,13 @@ describe('Progress', () => {
     });
 
     it('counts skipped step', () => {
-      const skippedResult: TaskStepResult = {
-        kind: 'send',
+      const skippedResult = {
+        kind: 'send' as const,
         stepIndex: 1,
         iteration: 0,
         sendResult: makeSendResult(),
-        appliedPolicy: 'skip-step',
-      };
+        appliedPolicy: 'skip-step' as const,
+      } satisfies TaskStepResult;
       const instance = makeInstance({
         lifecycle: 'completed',
         startedAt: '2026-05-06T12:00:00.000Z',
@@ -395,7 +421,7 @@ describe('Progress', () => {
         startedAt: '2026-05-06T12:00:00.000Z',
         currentIteration: 0,
         stepResults: [
-          makeWaitStepResult({ stepIndex: 0, iteration: 0, matched: false, timedOut: true }),
+          makeWaitStepResult({ stepIndex: 0, iteration: 0, matched: false as const, timedOut: true as const }),
         ],
       });
       const progress = calculateProgress(instance);
@@ -434,19 +460,27 @@ describe('Progress', () => {
     });
   });
 
-  describe('iterationsTotal by scheduling mode', () => {
-    it('returns maxCount for timed mode', () => {
+  describe('iterationsTotal by schedule kind', () => {
+    it('returns maxCount for timer schedule with stopCondition', () => {
       const instance = makeInstance({ definitionRef: timedTaskDef() });
       expect(calculateProgress(instance).iterationsTotal).toBe(5);
     });
 
-    it('returns 1 for sequence mode', () => {
+    it('returns 1 for immediate schedule', () => {
       const instance = makeInstance({ definitionRef: sequenceTaskDef() });
       expect(calculateProgress(instance).iterationsTotal).toBe(1);
     });
 
-    it('returns null for trigger mode', () => {
+    it('returns maxIterations for event schedule with maxIterations', () => {
       const instance = makeInstance({ definitionRef: triggerTaskDef() });
+      expect(calculateProgress(instance).iterationsTotal).toBe(10);
+    });
+
+    it('returns null for event schedule without maxIterations', () => {
+      const def = triggerTaskDef();
+      const { stopCondition, ...withoutStop } = def;
+      void stopCondition;
+      const instance = makeInstance({ definitionRef: withoutStop });
       expect(calculateProgress(instance).iterationsTotal).toBeNull();
     });
   });
@@ -459,33 +493,33 @@ describe('Progress', () => {
 describe('Fixtures', () => {
   it('timedTaskDef has correct structure', () => {
     const def = timedTaskDef();
-    expect(def.schedulingMode).toBe('timed');
+    expect(def.schedule.kind).toBe('timer');
     expect(def.steps).toHaveLength(2);
-    expect(def.intervalMs).toBe(1000);
+    expect((def.schedule as { intervalMs: number }).intervalMs).toBe(10);
     expect(def.stopCondition?.maxIterations).toBe(5);
   });
 
   it('triggerTaskDef has correct structure', () => {
     const def = triggerTaskDef();
-    expect(def.schedulingMode).toBe('trigger');
-    expect(def.triggerCondition).toBeDefined();
-    expect(def.cooldownMs).toBe(500);
+    expect(def.schedule.kind).toBe('event');
+    const sched = def.schedule as { kind: 'event'; conditions: readonly unknown[]; cooldownMs: number };
+    expect(sched.conditions.length).toBeGreaterThan(0);
+    expect(sched.cooldownMs).toBe(10);
   });
 
   it('sequenceTaskDef has correct structure', () => {
     const def = sequenceTaskDef();
-    expect(def.schedulingMode).toBe('sequence');
+    expect(def.schedule.kind).toBe('immediate');
     expect(def.steps).toHaveLength(3);
-    expect(def.steps[1].kind).toBe('delay');
+    expect(def.steps[1]!.kind).toBe('delay');
   });
 
   it('scoeModeTaskDef has send-wait-send pattern', () => {
     const def = scoeModeTaskDef();
-    expect(def.triggerSource).toBe('scoe-command');
     expect(def.steps).toHaveLength(3);
-    expect(def.steps[0].kind).toBe('send');
-    expect(def.steps[1].kind).toBe('wait-condition');
-    expect(def.steps[2].kind).toBe('send');
+    expect(def.steps[0]!.kind).toBe('send');
+    expect(def.steps[1]!.kind).toBe('wait-condition');
+    expect(def.steps[2]!.kind).toBe('send');
   });
 
   it('errorPolicies cover all action types', () => {

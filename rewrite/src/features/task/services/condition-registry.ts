@@ -1,14 +1,10 @@
-import type { WaitCondition, ConditionTerm, ConditionMatchInput } from '../core';
-import { evaluateCondition, evaluateConditionGroup } from '../core';
+import type { ConditionTerm, ConditionMatchInput } from '../core';
+import { evaluateConditionGroup } from '../core';
 
 interface RegistryGroup {
+  readonly id: string;
   readonly conditions: readonly ConditionTerm[];
-  readonly callback: (value?: number | string) => void;
-  readonly singleMode?: boolean; // legacy register() mode
-}
-
-export interface ConditionEntry {
-  readonly _group: RegistryGroup;
+  readonly onSatisfied: () => void;
 }
 
 export interface ConditionGroup {
@@ -18,25 +14,11 @@ export interface ConditionGroup {
 export class ConditionRegistry {
   private groups: RegistryGroup[] = [];
   private frameIndex = new Map<string, Set<number>>();
+  private nextGroupId = 1;
 
-  register(condition: WaitCondition, onMatch: (value: number | string) => void): ConditionEntry {
-    const term: ConditionTerm = { ...condition };
-    const group: RegistryGroup = { conditions: [term], callback: onMatch, singleMode: true };
-    const idx = this.groups.length;
-    this.groups.push(group);
-    this.indexGroup(idx, group);
-    return { _group: group };
-  }
-
-  unregister(entry: ConditionEntry): void {
-    const idx = this.groups.indexOf(entry._group);
-    if (idx === -1) return;
-    this.groups.splice(idx, 1);
-    this.rebuildIndex();
-  }
-
-  registerGroup(conditions: readonly ConditionTerm[], callback: () => void): ConditionGroup {
-    const group: RegistryGroup = { conditions, callback: () => callback() };
+  registerGroup(conditions: readonly ConditionTerm[], onSatisfied: () => void): ConditionGroup {
+    const id = `cg-${this.nextGroupId++}`;
+    const group: RegistryGroup = { id, conditions, onSatisfied };
     const idx = this.groups.length;
     this.groups.push(group);
     this.indexGroup(idx, group);
@@ -58,27 +40,16 @@ export class ConditionRegistry {
       const group = this.groups[idx];
       if (!group) continue;
 
-      // Check sourceId filter
-      const hasSourceFilter = group.conditions.some((c) => c.sourceId !== undefined);
-      if (hasSourceFilter && input.sourceId !== undefined) {
-        const anyMatch = group.conditions.some(
+      // sourceId filter
+      if (input.sourceId !== undefined) {
+        const hasSourceMatch = group.conditions.some(
           (c) => c.sourceId === undefined || c.sourceId === input.sourceId,
         );
-        if (!anyMatch) continue;
+        if (!hasSourceMatch) continue;
       }
 
-      if (group.singleMode) {
-        const cond = group.conditions[0]!;
-        if (evaluateCondition(cond, input)) {
-          const value = input.fieldValues[cond.fieldId];
-          if (value != null) {
-            group.callback(value);
-          }
-        }
-      } else {
-        if (evaluateConditionGroup(group.conditions, { ...input.fieldValues })) {
-          group.callback();
-        }
+      if (evaluateConditionGroup(group.conditions, { ...input.fieldValues })) {
+        group.onSatisfied();
       }
     }
   }

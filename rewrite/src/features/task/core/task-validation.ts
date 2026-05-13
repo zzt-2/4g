@@ -1,4 +1,4 @@
-import type { TaskDefinition, SendStepConfig, WaitConditionStepConfig, TaskStopCondition } from './types';
+import type { TaskDefinition, SendStepConfig, WaitConditionConfig, TaskStopCondition } from './types';
 
 export interface TaskValidationIssue {
   readonly severity: 'error' | 'warning';
@@ -35,13 +35,13 @@ export function validateTaskDefinition(def: TaskDefinition): TaskValidationIssue
 
     switch (step.kind) {
       case 'send':
-        issues.push(...validateSendStepConfig(step.id, step.sendConfig));
+        issues.push(...validateSendStepConfig(step.id, step.config));
         break;
       case 'wait-condition':
-        issues.push(...validateWaitConditionStepConfig(step.id, step.waitConfig));
+        issues.push(...validateWaitConditionConfig(step.id, step.config));
         break;
       case 'delay':
-        if (!step.delayConfig.durationMs || step.delayConfig.durationMs <= 0) {
+        if (!step.config.durationMs || step.config.durationMs <= 0) {
           issues.push({ severity: 'error', code: 'task.step.invalidDelay', message: `Delay step "${step.id}" must have durationMs > 0.`, stepId: step.id });
         }
         break;
@@ -60,13 +60,16 @@ function validateSendStepConfig(stepId: string, config: SendStepConfig): TaskVal
   if (!config.frameId) {
     issues.push({ severity: 'error', code: 'task.step.send.missingFrameId', message: `Send step "${stepId}" must have a frameId.`, stepId });
   }
+  if (!config.targetId) {
+    issues.push({ severity: 'error', code: 'task.step.send.missingTargetId', message: `Send step "${stepId}" must have a targetId.`, stepId });
+  }
   return issues;
 }
 
-function validateWaitConditionStepConfig(stepId: string, config: WaitConditionStepConfig): TaskValidationIssue[] {
+function validateWaitConditionConfig(stepId: string, config: WaitConditionConfig): TaskValidationIssue[] {
   const issues: TaskValidationIssue[] = [];
-  if (!config.condition) {
-    issues.push({ severity: 'error', code: 'task.step.wait.emptyConditions', message: `Wait-condition step "${stepId}" must have a condition.`, stepId });
+  if (!config.conditions || config.conditions.length === 0) {
+    issues.push({ severity: 'error', code: 'task.step.wait.emptyConditions', message: `Wait-condition step "${stepId}" must have at least one condition.`, stepId });
   }
   if (config.timeoutMs !== undefined && config.timeoutMs <= 0) {
     issues.push({ severity: 'warning', code: 'task.step.wait.invalidTimeout', message: `Wait-condition step "${stepId}" has timeoutMs <= 0.`, stepId });

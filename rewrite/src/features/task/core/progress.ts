@@ -1,4 +1,5 @@
 import type { TaskInstanceState, TaskProgress, TaskStepResult } from './types';
+import { resolveStopCondition } from './types';
 
 export function calculateProgress(instance: TaskInstanceState): TaskProgress {
   const stepsPerIteration = instance.definitionRef.steps.length;
@@ -64,11 +65,13 @@ function countCompletedIterations(instance: TaskInstanceState, stepsPerIteration
 }
 
 function resolveIterationsTotal(instance: TaskInstanceState): number | null {
-  const { schedulingMode, stopCondition } = instance.definitionRef;
-  if (schedulingMode === 'timed') {
-    return stopCondition?.maxIterations ?? null;
+  const resolved = resolveStopCondition(instance.definitionRef);
+  const { schedule } = instance.definitionRef;
+
+  if (resolved.maxIterations !== undefined) {
+    return resolved.maxIterations;
   }
-  if (schedulingMode === 'sequence') {
+  if (schedule.kind === 'immediate') {
     return 1;
   }
   return null;
@@ -88,7 +91,7 @@ function estimateRemainingMs(
   iterationsTotal: number | null,
   elapsedMs: number,
 ): number | null {
-  if (instance.definitionRef.schedulingMode !== 'timed' || iterationsTotal === null) {
+  if (instance.definitionRef.schedule.kind !== 'timer' || iterationsTotal === null) {
     return null;
   }
   if (iterationsCompleted <= 0 || iterationsTotal <= iterationsCompleted) {

@@ -1,27 +1,24 @@
 export {
   TASK_STEP_KINDS,
   COMPARISON_OPERATORS,
-  TASK_TRIGGER_SOURCES,
-  TASK_SCHEDULING_MODES,
   TASK_ERROR_ACTIONS,
   TASK_LIFECYCLE_STATUSES,
 } from './types';
 export type {
   TaskStepKind,
   ComparisonOperator,
-  WaitCondition,
+  ConditionTerm,
+  ScheduleDriver,
+  FieldVariation,
+  StepRepeat,
   SendStepConfig,
-  WaitConditionStepConfig,
+  WaitConditionConfig,
   DelayStepConfig,
-  SendStepDefinition,
-  WaitConditionStepDefinition,
-  DelayStepDefinition,
   TaskStepDefinition,
-  TaskTriggerSource,
-  TaskSchedulingMode,
   TaskErrorAction,
   TaskErrorPolicy,
   TaskStopCondition,
+  ResolvedStopCondition,
   TaskDefinition,
   TaskLifecycleStatus,
   LifecycleAction,
@@ -35,10 +32,10 @@ export type {
   TaskProgress,
   TaskExecutionSummary,
   ConditionMatchInput,
-  ConditionTerm,
 } from './types';
+export { resolveStopCondition } from './types';
 export { canTransition, transition, isTerminal } from './lifecycle';
-export { evaluateCondition, evaluateSingleCondition, evaluateConditionGroup } from './condition-matcher';
+export { evaluateSingleCondition, evaluateConditionGroup } from './condition-matcher';
 export { calculateProgress, isStepResultFailed } from './progress';
 export { validateTaskDefinition } from './task-validation';
 export type { TaskValidationIssue } from './task-validation';
