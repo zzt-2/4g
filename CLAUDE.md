@@ -61,6 +61,13 @@
 - `codestable/quality/rewrite-quality-rules.md`
 - `codestable/quality/rewrite-review-checklist.md`
 
+涉及任何 UI 页面、组件、样式的讨论、设计或实现时，**必须**在动手前完整阅读以下两份规范，不允许跳过、略读或凭记忆：
+
+- `codestable/quality/rewrite-frontend-conventions.md`（前端 UI 规范 — Quasar 组件、表格、表单、弹窗、布局、颜色、数据展示、性能）
+- `codestable/quality/rewrite-frontend-checklist.md`（前端自检 checklist — 逐条勾选）
+
+违反该规范的代码不得合入。设计文档产出后必须附规范合规检查结果。
+
 涉及 northbound / 甲方协同 / result / report / file delivery 时，额外读取：
 
 - `codestable/compound/2026-04-28-northbound-overlap-and-gap-map.md`
@@ -161,11 +168,11 @@ rewrite/src/
 - Vitest 是 core/service/adapter/selector 默认单测栈；页面交互先走 manual checklist。
 - Electron runtime、打包态 package、真实串口/TCP/UDP/SCOE 硬件和 customer validation 不由 Vitest 代替。
 - 默认保持显式 import；如后续引入 auto-import，只允许 Vue、Vue Router、Pinia 等基础框架 API，禁止自动导入 feature service、platform facade、runtime、store、feature public API、adapter 或带业务 owner 的 helper。
-- rewrite UI 样式以 Quasar + `rewrite/src/css` SCSS token 为主系统；颜色、背景、状态色、边框、阴影、间距、圆角、z-index 和字体层级必须先归口到 token，业务组件、页面、widget、UnoCSS class 和 inline style 不得硬编码这些视觉 token。
-- Quasar 官方组件 prop 和 helper class 可作为 Quasar token scale 使用，例如 `color="primary"`、`q-pa-*`、`row/col`、`text-h*`、`shadow-*`；app-specific surface、selected、device/status 等视觉语义仍必须写语义 class 并消费 token。
-- UnoCSS 只允许承担结构性布局 utility 和 token-backed shortcut，不作为业务样式主系统；组件 class 按 app/page/widget/feature ownership 使用语义化命名，跨页面通用 visual utility 只能进入 token-backed `.rw-*` 基线类。
-- `rewrite/src/css/tokens/*` 是 primitive 视觉值的唯一落点；新增颜色、间距、尺寸、字体层级、边框、圆角、阴影或 z-index 时，必须先扩展 token，再通过 `--rw-*`、Quasar brand/helper 或语义 class 消费。`app/pages/widgets/features/*/components`、`uno.config.ts` 和 inline style 不得新增裸 hex/rgb/hsl/px/rem/em 视觉值。
-- 涉及 rewrite UI 样式实现或审查时，完成前必须静态扫描 app/pages/widgets/feature components/UnoCSS 配置中的硬编码视觉值和 Uno 视觉 utility；样式入口、Quasar config、token 或 UnoCSS config 变更后至少运行 `pnpm -C rewrite lint`，触达构建入口时运行 `pnpm -C rewrite build`。
+- rewrite UI 样式职责划分：UnoCSS 负责所有结构性布局（间距、flex、grid、display、position、sizing），SCSS/CSS 只负责复杂的、需要复用的组件级样式（动画、伪元素、复杂选择器、语义 class）。
+- UnoCSS theme 中的 spacing scale 映射到与 `--rw-space-*` 相同的设计值，确保 `gap-3` 和 `var(--rw-space-3)` 视觉一致；spacing token 值在 `uno.config.ts` theme 中维护，不再要求组件 `<style>` 中用 `var(--rw-space-*)` 做间距。
+- 颜色、背景、状态色、边框、阴影、圆角、z-index 和字体层级仍归口到 `rewrite/src/css/tokens/*`；这些视觉值通过 `--rw-*`、Quasar brand/helper 或语义 class 消费，不得硬编码裸 hex/rgb/hsl/px/rem/em 值。
+- Quasar 官方组件 prop 和 helper class 可正常使用（`color="primary"`、`text-h*`、`shadow-*`）；app-specific surface、selected、device/status 等视觉语义仍必须写语义 class 并消费 token。
+- 涉及 rewrite UI 样式实现或审查时，完成前必须静态扫描 app/pages/widgets/feature components/UnoCSS 配置中的硬编码视觉值；样式入口、Quasar config、token 或 UnoCSS config 变更后至少运行 `pnpm -C rewrite lint`，触达构建入口时运行 `pnpm -C rewrite build`。
 
 ## CodeStable 推进规则
 
@@ -211,6 +218,55 @@ Lane C 不使用旧 slice 体系。全局拆解、依赖和状态只放在：
 - `blocked`
 
 `pass-with-known-gaps` 只用于语义已锁定但 runtime/hardware/customer 环境证据尚未完成的情况。缺少用户决策、甲方口径、关键 baseline、直接合同、northbound 语义或阻断性 schema/枚举时，结论必须是 `blocked`。
+
+### 过度设计审查
+
+审查不仅是查错，还要评估设计的**位置和形状**是否在整条链路中合身。逐项检查：
+
+- **上游消费方式**：该模块消费了什么，从 shared 拿还是从 feature public API 拿，粒度是否刚好。
+- **下游需求匹配**：哪些模块会消费该模块，它们真正需要什么粒度的 API，当前暴露的 surface 是多了还是少了，边界画在这下游用起来会不会别扭。
+- **驱动需求真实性**：设计回应的是具体需求，还是"可能的需求"或"别人的需求"。
+- **链路位置优化**：有些逻辑放在这里也行、放在 shared 也行、放在消费方也行——当前位置是否最合适。有没有本该在 shared 的东西写进了 feature，或本该归消费方管理的逻辑被该模块代劳。
+- **跨模块一致性**：同类问题的解法在不同模块间是否一致。如果 send 这么做、receive 那么做，shared 层是否缺了统一能力。
+
+核心判断：**这个设计在整条链路里，形状对不对、位置对不对、和上下游的接口合不合身。**
+
+### 代码精简审查
+
+过度设计审查关注设计层面的形状和位置；代码精简审查关注实现层面每一行是否在增值。实施完成前或大规模重构后，应逐 feature 检查：
+
+- **层间增值**：每个文件/函数是否存在理由明确。如果删掉它、把逻辑搬到调用方或被调用方，代码会更短还是更长。更短 → 可能是不必要的分层。
+- **死 surface**：public API（index.ts export）中是否有其他文件实际 import 的。导出了但无人消费的函数/类型/常量应删除或降为内部。
+- **传递函数**：函数体只有 `return otherFunc(...)` 的透传函数，是否在增值。如果只是换了个名字，调用方可以直接用底层函数。
+- **重复模式**：同一模式在 2+ feature 中独立实现（如 clone、selector 投影、CRUD 样板），是否该提取到 shared。
+- **过度抽象**：interface/factory/strategy 只有一个实现时，抽象是否有回报。如果只有一个 concrete 实现，直接用具体类型或函数。
+
+核心判断：**这一层/这个函数/这个 export 挣到了它的位置吗？**
+
+### Service Readiness Audit（UI 页面设计前置）
+
+Feature 通过验收 ≠ UI-ready。Feature 的 public API 是给其他 feature 消费的（runtime 装配、bridge 调用），UI 页面的消费模式不同（CRUD 表单、dirty tracking、字段级校验、可编辑副本）。
+
+设计 UI 页面前，必须对页面上每个用户操作做 service readiness 审计：
+
+1. 对应的 service method 是否存在
+2. method 签名的输入输出是否和 UI 表单/展示对齐
+3. 操作是否有副作用需要 UI 管理（如 connect 不是原子的、save 需要先 validate）
+4. selector 返回的类型是否包含 UI 展示需要的全部字段
+5. 是否需要 read-for-edit（从只读 selector 拿到可编辑副本的路径）
+
+审计产出：service gap 清单（"UI 需要但 service 不提供"的操作），作为 design 的前置条件列入 checklist，不在实施时才打补丁。Service readiness 审计发现需要改动时，合并同一 feature 的其他待改项（简化、重构、类型对齐）一起执行，不拆多轮。
+
+### Brainstorm 规则
+
+- brainstorm 完成后必须暂停，等用户审阅确认后再进入 design 阶段；不在同一轮内自动推进到 design
+- brainstorm 阶段**一定要检查**：
+  - 每个"应该可以"的假设 → 找新系统代码证据
+  - 入站/出站数据流 → 实际 API 签名和调用链
+  - 状态依赖和前置条件 → 哪些操作有门控
+  - 生命周期边界 → 创建、运行、完成、失败、断开
+  - 跨 feature 交互 → 真正的 API，不是想象中的 API
+  - 跨 feature 标识对齐 → 当前 feature 的标识模型是否与上游（数据来源）和下游（消费方）对齐；同一概念是否在不同 feature 中有不同名称；是否存在不必要的映射转换层（如本该 pass-through 但做了字段重命名）
 
 ## shared/ 提取规则
 

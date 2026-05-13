@@ -23,3 +23,7 @@ export interface SendTransportWriter {
 export interface SendResultEmitter {
   emit(result: SendResult): void;
 }
+
+export interface SendVariableProvider {
+  getVariables(): Map<string, number | string | boolean>;
+}

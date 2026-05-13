@@ -190,39 +190,32 @@ export const errorPolicies = {
 export const matchInputs = {
   matchingNumeric: (): ConditionMatchInput => ({
     frameId: 'frame-1',
-    fieldId: 'field-1',
-    value: 100,
+    fieldValues: { 'field-1': 100 },
   }),
   matchingString: (): ConditionMatchInput => ({
     frameId: 'frame-1',
-    fieldId: 'field-1',
-    value: 'OK',
+    fieldValues: { 'field-1': 'OK' },
   }),
   nonMatchingNumeric: (): ConditionMatchInput => ({
     frameId: 'frame-1',
-    fieldId: 'field-1',
-    value: 50,
+    fieldValues: { 'field-1': 50 },
   }),
   nullValue: (): ConditionMatchInput => ({
     frameId: 'frame-1',
-    fieldId: 'field-1',
-    value: null,
+    fieldValues: { 'field-1': null },
   }),
   differentFrame: (): ConditionMatchInput => ({
     frameId: 'frame-2',
-    fieldId: 'field-2',
-    value: 100,
+    fieldValues: { 'field-2': 100 },
   }),
   withSourceA: (): ConditionMatchInput => ({
     frameId: 'frame-1',
-    fieldId: 'field-1',
-    value: 100,
+    fieldValues: { 'field-1': 100 },
     sourceId: 'source-A',
   }),
   withSourceB: (): ConditionMatchInput => ({
     frameId: 'frame-1',
-    fieldId: 'field-1',
-    value: 100,
+    fieldValues: { 'field-1': 100 },
     sourceId: 'source-B',
   }),
 };

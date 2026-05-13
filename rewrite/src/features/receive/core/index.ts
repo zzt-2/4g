@@ -25,6 +25,10 @@ export type {
   ReceiveStateSnapshot,
   ReceiveStatsDelta,
   ReceiveUiSnapshot,
+  ExpressionCompileCache,
+  ExpressionEvalInput,
+  FrameExpressionCompileResult,
+  FrameExpressionCompiled,
 } from './types';
 export {
   bytesToReadableHex,
@@ -43,3 +47,7 @@ export {
 export {
   parseReceiveFrameFields,
 } from './field-parser';
+export {
+  compileFrameExpressions,
+  evaluateFrameExpressions,
+} from './expression-pass';

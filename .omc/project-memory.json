@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1778206411986,
+  "lastScanned": 1778634834351,
   "projectRoot": "/mnt/d/code/frontend/dongfanghong",
   "techStack": {
     "languages": [
@@ -63,7 +63,10 @@
       "public",
       "src"
     ],
-    "gitBranches": null
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
   },
   "customNotes": [],
   "directoryMap": {
@@ -71,28 +74,28 @@
       "path": "codestable",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1778206411837,
+      "lastAccessed": 1778634834310,
       "keyFiles": []
     },
     "dist": {
       "path": "dist",
       "purpose": "Distribution/build output",
       "fileCount": 0,
-      "lastAccessed": 1778206411854,
+      "lastAccessed": 1778634834315,
       "keyFiles": []
     },
     "easysdd": {
       "path": "easysdd",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1778206411865,
+      "lastAccessed": 1778634834318,
       "keyFiles": []
     },
     "public": {
       "path": "public",
       "purpose": "Public files",
       "fileCount": 1,
-      "lastAccessed": 1778206411871,
+      "lastAccessed": 1778634834322,
       "keyFiles": [
         "favicon.ico"
       ]
@@ -101,14 +104,14 @@
       "path": "refactor",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1778206411879,
+      "lastAccessed": 1778634834324,
       "keyFiles": []
     },
     "rewrite": {
       "path": "rewrite",
       "purpose": null,
-      "fileCount": 11,
-      "lastAccessed": 1778206411888,
+      "fileCount": 9,
+      "lastAccessed": 1778634834327,
       "keyFiles": [
         "eslint.config.js",
         "index.html",
@@ -121,7 +124,7 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 2,
-      "lastAccessed": 1778206411893,
+      "lastAccessed": 1778634834329,
       "keyFiles": [
         "App.vue",
         "env.d.ts"
@@ -131,7 +134,7 @@
       "path": "src-electron",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1778206411900,
+      "lastAccessed": 1778634834331,
       "keyFiles": [
         "WindowState.ts",
         "electron-env.d.ts"
@@ -141,7 +144,7 @@
       "path": "public/data",
       "purpose": "Data files",
       "fileCount": 2,
-      "lastAccessed": 1778206411921,
+      "lastAccessed": 1778634834336,
       "keyFiles": [
         "scoeReceiveCommands.json",
         "scoeSendInstances.json"
@@ -150,36 +153,38 @@
     "refactor/docs": {
       "path": "refactor/docs",
       "purpose": "Documentation",
-      "fileCount": 0,
-      "lastAccessed": 1778206411932,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1778634834338,
+      "keyFiles": [
+        "后续需要功能文档.md"
+      ]
     },
     "rewrite/dist": {
       "path": "rewrite/dist",
       "purpose": "Distribution/build output",
       "fileCount": 0,
-      "lastAccessed": 1778206411940,
+      "lastAccessed": 1778634834340,
       "keyFiles": []
     },
     "rewrite/node_modules": {
       "path": "rewrite/node_modules",
       "purpose": "Dependencies",
       "fileCount": 2,
-      "lastAccessed": 1778206411950,
+      "lastAccessed": 1778634834342,
       "keyFiles": []
     },
     "src/api": {
       "path": "src/api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1778206411959,
+      "lastAccessed": 1778634834345,
       "keyFiles": []
     },
     "src/assets": {
       "path": "src/assets",
       "purpose": "Static assets",
       "fileCount": 2,
-      "lastAccessed": 1778206411964,
+      "lastAccessed": 1778634834346,
       "keyFiles": [
         "README.md",
         "quasar-logo-vertical.svg"
@@ -189,14 +194,14 @@
       "path": "src/components",
       "purpose": "UI components",
       "fileCount": 0,
-      "lastAccessed": 1778206411969,
+      "lastAccessed": 1778634834348,
       "keyFiles": []
     },
     "src/config": {
       "path": "src/config",
       "purpose": "Configuration files",
       "fileCount": 2,
-      "lastAccessed": 1778206411975,
+      "lastAccessed": 1778634834349,
       "keyFiles": [
         "configDefaults.ts",
         "frameDefaults.ts"
@@ -206,7 +211,7 @@
       "path": "src-electron/types",
       "purpose": "Type definitions",
       "fileCount": 1,
-      "lastAccessed": 1778206411986,
+      "lastAccessed": 1778634834351,
       "keyFiles": [
         "electron-api.d.ts"
       ]
@@ -215,8 +220,8 @@
   "hotPaths": [
     {
       "path": "codestable/compound/2026-05-07-runtime-next-phase-global-planning.md",
-      "accessCount": 12,
-      "lastAccessed": 1778232100015,
+      "accessCount": 20,
+      "lastAccessed": 1778634345694,
       "type": "file"
     },
     {

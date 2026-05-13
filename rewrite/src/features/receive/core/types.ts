@@ -1,4 +1,5 @@
 import type {
+  ExpressionVariableDefinition,
   FrameAsset,
   FrameDataType,
   ReadonlyFrameAsset,
@@ -7,6 +8,10 @@ import type {
   TransportErrorKind,
   TransportKind,
 } from '@/features/connection';
+import type {
+  CompiledConditional,
+  VariableValue,
+} from '@/shared/expression';
 
 export const RECEIVE_SCHEMA_VERSION = 1 as const;
 
@@ -92,6 +97,8 @@ export interface ReceiveParsedFieldValue {
   readonly value: ReceiveParsedFieldPrimitive;
   readonly displayValue: string;
   readonly label?: string;
+  readonly expressionApplied?: boolean;
+  readonly expressionError?: string;
 }
 
 export interface ReceiveFrameStatisticsSnapshot {
@@ -209,9 +216,32 @@ export interface ReceiveProcessInput {
   readonly batch: ReceiveInputBatch;
   readonly reference: ReceiveFrameReferenceSnapshot;
   readonly processedAt: string;
+  readonly expressionCache?: ExpressionCompileCache;
 }
 
 export interface ReceiveFrameParseInput {
   readonly frame: FrameAsset;
   readonly bytes: readonly number[];
+}
+
+export interface FrameExpressionCompiled {
+  readonly fields: ReadonlyMap<string, CompiledConditional>;
+  readonly variables: ReadonlyMap<string, readonly ExpressionVariableDefinition[]>;
+  readonly evalOrder: readonly string[];
+}
+
+export interface FrameExpressionCompileResult {
+  readonly success: boolean;
+  readonly compiled?: FrameExpressionCompiled;
+  readonly error?: string;
+}
+
+export type ExpressionCompileCache = ReadonlyMap<string, FrameExpressionCompileResult>;
+
+export interface ExpressionEvalInput {
+  readonly compiled: FrameExpressionCompiled;
+  readonly frameId: string;
+  readonly currentFrameRawValues: ReadonlyMap<string, VariableValue>;
+  readonly readModel: ReadonlyMap<string, ReadonlyMap<string, VariableValue>>;
+  readonly globalParams: ReadonlyMap<string, VariableValue>;
 }

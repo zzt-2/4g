@@ -133,7 +133,7 @@ interface SendFrameInstance {
 | 列 | 字段 | 宽度 | 渲染 |
 |----|------|------|------|
 | 名称 | name | auto | 文本 |
-| 调度类型 | scheduleKind | fixed 100px | QChip(immediate/timer/event) |
+| 调度类型 | schedulingMode | fixed 100px | QChip(timed/trigger/sequence) |
 | 状态 | status | fixed 100px | StatusBadge |
 | 进度 | progress | fixed 120px | QLinearProgress + 百分比 |
 | 操作 | — | fixed 140px | icon 按钮(暂停/恢复/停止) |
@@ -143,7 +143,7 @@ interface SendFrameInstance {
 | 列 | 字段 | 宽度 | 渲染 |
 |----|------|------|------|
 | 名称 | name | auto | 文本 |
-| 调度类型 | scheduleKind | fixed 100px | QChip |
+| 调度类型 | schedulingMode | fixed 100px | QChip |
 | 结果 | result | fixed 80px | StatusBadge(positive 已完成/negative 失败) |
 | 耗时 | elapsedMs | fixed 100px | 时间格式化(V2) |
 | 完成时间 | completedAt | fixed 140px | 时间格式化(V2) |
@@ -167,7 +167,7 @@ interface SendFrameInstance {
 - QDialog v-model + @hide 清理(D1)
 - 宽度: `rw-dialog-xl`(D2)
 - 基本信息: 任务名称(QInput `:rules="[val => !!val || '请输入任务名称']"`(F1/F2)) + 调度类型(QSelect)
-- 调度配置: 按 schedule.kind 动态渲染
+- 调度配置: 按 schedulingMode 动态渲染
   - timer: 间隔(QInput type=number `:rules="[val => val > 0 || '间隔必须大于0']"`) + 次数(QInput `:rules` 非无限时必填) + 无限循环(QToggle)
   - event: 条件编辑器（ConditionTerm 列表 + 添加按钮，至少一条校验）
 - 步骤编辑器: 步骤列表 + [添加步骤] 下拉(send/wait-condition/delay)
@@ -177,9 +177,11 @@ interface SendFrameInstance {
   - DelayStep: 持续时间(QInput type=number `:rules="[val => val > 0 || '请输入延时时间']"`)
   - 字段数 > 20 时 SendStep 的 FieldEditWidget 必须拆子组件(F3)
 - 高级配置（QExpansionItem 折叠）:
-  - 可变参数: FieldVariation 编辑器（字段选择 + 值列表）
-  - 停止条件: maxIterations / maxDurationMs / exitCondition
+  - 停止条件: maxIterations / maxDurationMs
   - 错误策略: onFailure(QSelect) / retryCount / retryDelayMs
+  - ~~可变参数: FieldVariation 编辑器（字段选择 + 值列表）~~ → Phase 2（task-real 类型重组后启用）
+  - ~~exitCondition~~ → Phase 2（task-real 类型重组后启用）
+  - ~~step repeat 配置~~ → Phase 2（task-real 类型重组后启用）
 - 操作: [取消] [保存] [保存并启动]
   - [保存] `:loading="isSaving" :disable="!isValid"`(F4)
   - [保存并启动] `:loading="isSaving"`
@@ -200,26 +202,47 @@ interface SendFrameInstance {
 |---------------------|---------|----------------------|
 | created | 待启动 | grey |
 | running | 运行中 | positive |
-| running + schedule.event | 等待触发 | positive (副标签) |
-| running + schedule.timer | 等待调度 | positive (副标签) |
+| running + schedulingMode=trigger | 等待触发 | positive (副标签) |
+| running + schedulingMode=timed | 等待调度 | positive (副标签) |
 | paused | 已暂停 | warning |
 | completed | 已完成 | positive |
 | failed | 失败 | negative |
 
-waiting-trigger/waiting-schedule 由 UI 层从 `instance.definitionRef.schedule.kind` + lifecycle 推导，不改 core。
+waiting-trigger/waiting-schedule 由 UI 层从 `instance.definitionRef.schedulingMode` + lifecycle 推导，不改 core。
 
 **D-T8 SendStep 字段值**: 方案 A（copy-on-create）。每步独立持有 fieldValues，不引用发送页实例。提供"复制上一步"按钮降低重复配置成本。
 
 **D-T9 导入导出**: serializeTaskDefinition → JSON 文件写入(platform facade)；读取 → deserializeTaskDefinition → 校验 → 创建。
 
-**D-T10 TaskService 新增方法签名**:
+**D-T10 TaskService 方法签名**:
 
 ```typescript
-// 基于已有实例的定义创建新实例，立即启动
-retryTask(sourceInstanceId: string): Promise<TaskInstanceState>
-// 停止所有运行中/已暂停的任务（不删除，保留在历史）
-stopAll(): Promise<void>
+// 已实现
+createTask(definition: TaskDefinition): TaskInstanceState
+startTask(instanceId: string): void
+pauseTask(instanceId: string): void
+resumeTask(instanceId: string): void
+stopTask(instanceId: string): void
+removeTask(instanceId: string): void
+retryTask(sourceInstanceId: string): TaskInstanceState | undefined
+stopAll(): void
+getProgress(instanceId: string): TaskProgress | undefined
+getInstance(instanceId: string): TaskInstanceState | undefined
+// 已实现（工具函数）
+validateTaskDefinition(def: TaskDefinition): TaskValidationIssue[]
+serializeTaskDefinition(def: TaskDefinition): string
+deserializeTaskDefinition(json: string): TaskDefinition
 ```
+
+**D-T11 Service Readiness Gaps**（UI 实施前需补齐）:
+
+| Gap | 影响 | 修复方式 |
+|-----|------|---------|
+| 无 `updateTask` 方法 | 编辑任务无法保存 | 新增 `updateTask(instanceId, definition)`：仅 `created` 态可改定义 |
+| 历史记录缺 `elapsedMs` / `completedAt` | D-T3 历史列无法渲染 | selector 层从 `startedAt`/`stoppedAt`/`completedAt`/`failedAt` 派生 |
+| `stopAll()` 无返回值 | UI 无法显示停止了多少 | 改为返回 `stoppedCount: number` |
+
+D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`running/paused` 态 → 禁用编辑。
 
 ---
 
@@ -573,6 +596,53 @@ D6 路由表新增:
 - 不建 config-storage-service（composable 直接调 platform facade）
 - 不建 TaskExecutor 抽象类（handler map 函数签名够了）
 - 不建独立的发送页预览 API（re-export buildFrame 纯函数）
-- 不建 cron 时间触发（ScheduleDriver 只有 immediate/timer/event）
+- 不建 cron 时间触发（TaskSchedulingMode 只有 timed/trigger/sequence）
+
+---
+
+## 任务域 Service Readiness Audit
+
+**日期**: 2026-05-13
+**结论**: 基础生命周期和查询 API 就绪，3 个 gap 需在 UI 实施前补齐
+
+### 就绪项（直接可用）
+
+| 操作 | 方法 | 状态 |
+|------|------|------|
+| 创建任务 | `createTask(def)` → instance | OK |
+| 启动 | `startTask(id)` 门控 `created` | OK |
+| 暂停 | `pauseTask(id)` 门控 `running` | OK |
+| 恢复 | `resumeTask(id)` 门控 `paused` | OK |
+| 停止 | `stopTask(id)` 门控 `running\|paused` | OK |
+| 移除 | `removeTask(id)` 门控 terminal | OK |
+| 重试 | `retryTask(id)` → 新 instance + 自动启动 | OK |
+| 停止全部 | `stopAll()` 遍历 active | OK（无返回值） |
+| 活动列表 | `selectActiveInstances` 返回非终止态 | OK |
+| 进度查询 | `getProgress(id)` | OK |
+| 校验 | `validateTaskDefinition` | OK |
+| 序列化 | `serialize`/`deserialize` | OK |
+
+### Gap 清单
+
+| # | Gap | 影响 | 修复 | 文件 |
+|---|-----|------|------|------|
+| G1 | 无 `updateTask` | 编辑保存无法实现 | 新增方法，仅 `created` 态允许修改 definitionRef | task-service.ts, task-state.ts |
+| G2 | 历史记录缺耗时/完成时间字段 | D-T3 历史列无法渲染 | selector 从 `startedAt`/`completedAt`/`stoppedAt`/`failedAt` 派生 elapsedMs + result | task-selectors.ts |
+| G3 | `stopAll()` 无返回值 | UI 无法反馈停止数量 | 返回 `number` | task-service.ts |
+
+### Phase 2 功能（task-real 类型重组后）
+
+以下功能在 D-T5 设计中已预留入口但标注 Phase 2，UI 初始版隐藏：
+- FieldVariation 编辑器（`task-real-brainstorm.md` 决策 6）
+- exitCondition 停止条件（`task-real-brainstorm.md` 决策 1）
+- step repeat 配置（`task-real-brainstorm.md` 决策 2）
+
+### 代码精简建议（与 G1-G3 合并执行）
+
+| 项目 | 说明 |
+|------|------|
+| 删除 `FrameReader` 接口 | adapters/ports.ts 中无消费方 |
+| 内联 task-lifecycle-manager | 逻辑简单，合并到 task-service 减少间接层 |
+| 删除 core/clone.ts 残留 | 无消费方，已用 structuredClone 替代 |
 - 不建拖拽排序（上下移动按钮）
 - 不在 CommandIngressState 混入配置编辑数据（satelliteConfigs 归 composable）

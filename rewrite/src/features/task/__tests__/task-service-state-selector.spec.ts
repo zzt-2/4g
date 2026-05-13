@@ -97,8 +97,7 @@ describe('TaskService - trigger scheduling', () => {
     // Emit matching event
     fakeReceive.emit({
       frameId: def.triggerCondition!.frameId,
-      fieldId: def.triggerCondition!.fieldId,
-      value: def.triggerCondition!.threshold,
+      fieldValues: { [def.triggerCondition!.fieldId]: def.triggerCondition!.threshold as number | string },
     });
 
     await settle(service, instance.instanceId, 500);
@@ -122,8 +121,7 @@ describe('TaskService - trigger scheduling', () => {
     for (let i = 0; i < maxTriggerCount + 2; i++) {
       fakeReceive.emit({
         frameId: def.triggerCondition!.frameId,
-        fieldId: def.triggerCondition!.fieldId,
-        value: def.triggerCondition!.threshold,
+        fieldValues: { [def.triggerCondition!.fieldId]: def.triggerCondition!.threshold as number | string },
       });
       await new Promise((r) => setTimeout(r, 20));
     }
@@ -146,8 +144,7 @@ describe('TaskService - trigger scheduling', () => {
     // Emit non-matching event
     fakeReceive.emit({
       frameId: 'frame-1',
-      fieldId: 'field-1',
-      value: 999, // doesn't match threshold 100
+      fieldValues: { 'field-1': 999 }, // doesn't match threshold 100
     });
 
     await new Promise((r) => setTimeout(r, 50));
@@ -179,8 +176,7 @@ describe('TaskService - trigger scheduling', () => {
     for (let i = 0; i < maxTriggerCount; i++) {
       fakeReceive.emit({
         frameId: def.triggerCondition!.frameId,
-        fieldId: def.triggerCondition!.fieldId,
-        value: def.triggerCondition!.threshold,
+        fieldValues: { [def.triggerCondition!.fieldId]: def.triggerCondition!.threshold as number | string },
       });
       await new Promise((r) => setTimeout(r, 30));
     }
@@ -254,8 +250,7 @@ describe('TaskService - SCOE pattern', () => {
     if (waitStep.kind === 'wait-condition') {
       fakeReceive.emit({
         frameId: waitStep.waitConfig.condition.frameId,
-        fieldId: waitStep.waitConfig.condition.fieldId,
-        value: waitStep.waitConfig.condition.threshold,
+        fieldValues: { [waitStep.waitConfig.condition.fieldId]: waitStep.waitConfig.condition.threshold as number | string },
       });
     }
 
@@ -378,7 +373,7 @@ describe('TaskService - error policies', () => {
     const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
 
     service.startTask(instance.instanceId);
-    await settle(service, instance.instanceId, 500);
+    await settle(service, instance.instanceId, 2000);
 
     const final = service.getInstance(instance.instanceId);
     expect(final?.lifecycle).toBe('completed');

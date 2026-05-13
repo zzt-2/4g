@@ -269,18 +269,11 @@ describe('routingTick', () => {
 
     expect(result.ok).toBe(true);
     expect(result.eventsRouted).toBe(1);
-    expect(result.matchesEmitted).toBe(2);
+    expect(result.matchesEmitted).toBe(1);
     expect(received).toEqual([
       {
         frameId: 'frame-a',
-        fieldId: 'field-1',
-        value: 42,
-        sourceId: 'conn-1',
-      },
-      {
-        frameId: 'frame-a',
-        fieldId: 'field-2',
-        value: 'hello',
+        fieldValues: { 'field-1': 42, 'field-2': 'hello' },
         sourceId: 'conn-1',
       },
     ]);

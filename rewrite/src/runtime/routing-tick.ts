@@ -36,29 +36,21 @@ export async function routingTick(
   const receiveOutcome =
     await features.receiveService.drainInputSource(source);
 
-  if (!receiveOutcome.ok) {
-    return {
-      ok: false,
-      error: 'Receive processing failed',
-      eventsRouted: dataEvents.length,
-      matchesEmitted: 0,
-    };
-  }
-
   const matchInputs: ConditionMatchInput[] = [];
   for (const outcome of receiveOutcome.outcomes) {
     if (outcome.kind !== 'matched') continue;
     if (!outcome.matchedFrame) continue;
 
+    const sourceId = outcome.input?.source.sourceId;
+    const fieldValues: Record<string, number | string | null> = {};
     for (const field of outcome.fields) {
-      const sourceId = outcome.input?.source.sourceId;
-      matchInputs.push({
-        frameId: outcome.matchedFrame.frameId,
-        fieldId: field.fieldId,
-        value: field.value as number | string | null,
-        ...(sourceId ? { sourceId } : {}),
-      });
+      fieldValues[field.fieldId] = field.value as number | string | null;
     }
+    matchInputs.push({
+      frameId: outcome.matchedFrame.frameId,
+      fieldValues,
+      ...(sourceId ? { sourceId } : {}),
+    });
   }
 
   if (matchInputs.length > 0) {

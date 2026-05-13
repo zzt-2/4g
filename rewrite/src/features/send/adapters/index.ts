@@ -4,4 +4,5 @@ export type {
   SendTargetResolver,
   SendTransportWriteOutcome,
   SendTransportWriter,
+  SendVariableProvider,
 } from './ports';

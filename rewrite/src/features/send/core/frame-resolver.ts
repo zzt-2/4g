@@ -196,3 +196,16 @@ export function evaluateFieldPreview(
   const value = factored.values[field.id] ?? 0;
   return { value, issues: [...result.issues, ...factored.issues] };
 }
+
+export function evaluateFieldPreviewForUI(
+  frame: ReadonlyFrameAsset,
+  fieldId: string,
+  userFieldValues: Readonly<Record<string, SendFieldValue>>,
+  variableProvider: SendVariableProvider,
+  variables?: VariableMap,
+): { value: SendFieldValue; issues: SendBuildIssue[] } {
+  const { fields } = frameToBuildInput(frame);
+  const field = fields.find((f) => f.id === fieldId);
+  if (!field) return { value: 0, issues: [] };
+  return evaluateFieldPreview(field, userFieldValues, variableProvider, variables);
+}

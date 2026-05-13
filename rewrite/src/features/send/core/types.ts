@@ -1,7 +1,7 @@
 export const SEND_SOURCES = ['user', 'task', 'scoe', 'test'] as const;
 export type SendSource = (typeof SEND_SOURCES)[number];
 
-export const CHECKSUM_KINDS = ['none', 'sum8', 'xor8', 'crc16-modbus'] as const;
+export const CHECKSUM_KINDS = ['none', 'sum8', 'xor8', 'crc16', 'crc16-modbus', 'crc32'] as const;
 export type ChecksumKind = (typeof CHECKSUM_KINDS)[number];
 
 export const SEND_RESULT_KINDS = [
@@ -30,9 +30,10 @@ export interface SendContext {
 
 export interface SendRequest {
   readonly frameId: string;
-  readonly fieldValues: Readonly<Record<string, SendFieldValue>>;
+  readonly fieldValues?: Readonly<Record<string, SendFieldValue>>;
+  readonly userFieldValues?: Readonly<Record<string, SendFieldValue>>;
   readonly targetId: string;
-  readonly options: SendOptions;
+  readonly options?: SendOptions;
   readonly context: SendContext;
 }
 
@@ -45,9 +46,29 @@ export interface SendRequestRef {
 export interface SendOptions {
   readonly checksumKind?: ChecksumKind;
   readonly autoChecksum?: boolean;
+  readonly includeLengthField?: boolean;
+  readonly lengthFieldId?: string;
+  readonly bigEndian?: boolean;
 }
 
 // --- Encoding input (service translates frame snapshot to this) ---
+
+export interface FrameChecksumOption {
+  readonly isChecksum: boolean;
+  readonly startFieldIndex: number;
+  readonly endFieldIndex: number;
+  readonly checksumMethod?: string;
+}
+
+export interface ExpressionBranch {
+  readonly condition: string;
+  readonly expression: string;
+}
+
+export interface ExpressionConfig {
+  readonly expressions: readonly ExpressionBranch[];
+  readonly variables: readonly { readonly identifier: string; readonly sourceType: string }[];
+}
 
 export interface SendFieldEncodingDef {
   readonly id: string;
@@ -56,6 +77,11 @@ export interface SendFieldEncodingDef {
   readonly bigEndian: boolean;
   readonly isASCII: boolean;
   readonly offset: number;
+  readonly factor?: number;
+  readonly defaultValue?: string;
+  readonly configurable?: boolean;
+  readonly expressionConfig?: ExpressionConfig;
+  readonly validOption?: FrameChecksumOption;
 }
 
 export interface SendBuildInput {

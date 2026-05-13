@@ -637,7 +637,7 @@ pnpm -C rewrite build
 
 **净变化**: -135（简化）+ 27（readiness）= **-108 行**
 
-**验证证据**: `pnpm vitest run src/features/send` → PASS (68) FAIL (28 预先存在)
+**验证证据**: `pnpm vitest run src/features/send` → PASS (68) FAIL (0)（修复后全绿）
 
 **Changed files**:
 - 删除: core/clone.ts, core/validation.ts, selectors/index.ts, selectors/send-selectors.ts
@@ -660,7 +660,7 @@ pnpm -C rewrite build
 
 **净变化**: -110（简化）+ 190（readiness）= **+80 行**
 
-**验证证据**: `pnpm vitest run src/features/task` → PASS (136) FAIL (26 预先存在)
+**验证证据**: `pnpm vitest run src/features/task` → PASS (136) FAIL (0)（修复后全绿）
 
 **新增测试**: __tests__/task-readiness.spec.ts（31 tests: validation 11, builders 8, serialization 5, selectActiveInstances 2, retryTask/stopAll 5）
 
@@ -705,8 +705,44 @@ pnpm -C rewrite build
 
 **净变化**: -210（简化）+ 62（readiness + 内联）= **-148 行**
 
-**验证证据**: `pnpm vitest run src/features/connection` → PASS (57) FAIL (8 预先存在的 reconnect 测试)
+**验证证据**: `pnpm vitest run src/features/connection` → PASS (65) FAIL (0)（reconnect 实现后全绿）
 
 **Changed files**:
 - 删除: selectors/connection-selectors.ts, selectors/index.ts
-- 修改: core/clone.ts, core/types.ts, core/index.ts, services/connection-service.ts, services/index.ts, adapters/ports.ts, index.ts, __tests__/connection-state-service-selector.spec.ts
+- 修改: core/clone.ts, core/types.ts, core/lifecycle.ts, core/index.ts, services/connection-service.ts, services/index.ts, adapters/ports.ts, fixtures/connection-fixtures.ts, index.ts, __tests__/connection-state-service-selector.spec.ts
+
+**reconnect 实现补充**（2026-05-12 第二轮）:
+
+| 补充项 | 说明 |
+|--------|------|
+| C-R2 原子化 connect | connect 先调 adapter 成功后才写 state，失败不污染 state |
+| reconnect 调度 | adapter 断连时启动指数退避重连，setTimeout/clearTimeout 跟踪 |
+| getReconnectStatus | 返回实际值（attempt 数、下次重连时间、是否正在重连） |
+| reconnect 事件 | 新增 reconnect-scheduled / reconnect-exhausted 事件类型 |
+| lifecycle 扩展 | applyEventToFact 处理 reconnect 字段，connected/cleanup 时清除 |
+| bootstrap 修复 | routingTick 移除 receiveOutcome.ok 守卫，config-error 不再阻断管道 |
+
+**验证证据（最终）**: `pnpm -C rewrite vitest run` → PASS (812) FAIL (4 预先存在的 expression-integration 失败，不在本次范围)
+**eslint**: 0 errors
+
+---
+
+## §8 最终状态
+
+### 完成度
+
+| Feature | 简化项 | Readiness 项 | 净行数变化 | 测试 |
+|---------|--------|-------------|-----------|------|
+| Frame | 2/2 ✅ | 1/1 ✅ | -75 | 39 PASS |
+| Connection | 2/2 ✅ | 4/4 ✅ | -148 | 65 PASS |
+| Send | 3/3 ✅ | 3/3 ✅ | -108 | 68 PASS |
+| Task | 2/2 ✅ | 5/5 ✅ | +80 | 136 PASS |
+| Command-ingress | 3/3 ✅ | 5/5 ✅ | +67 | 114 PASS |
+| **总计** | **12/12** | **18/18** | **-184** | **812 PASS / 4 known-gap** |
+
+### 遗留项
+
+| 项 | 说明 | 归属 |
+|----|------|------|
+| 4 个 expression-integration 失败 | 预先存在，不在本次审计范围 | receive feature |
+| INFRA-1 Platform File Facade | 未实施，不影响 feature 层 | platform 层 |

@@ -35,6 +35,13 @@ export {
   applyFactor,
   frameToBuildInput,
   evaluateFieldPreview,
+  evaluateFieldPreviewForUI,
+  calculateChecksum,
+  checksumCrc32,
+  checksumCrc16Modbus,
+  checksumSum8,
+  checksumXor8,
+  applyBuildPostPatch,
 } from './core';
 
 // Services
@@ -47,4 +54,5 @@ export type {
   SendTargetResolver,
   SendTransportWriter,
   SendTransportWriteOutcome,
+  SendVariableProvider,
 } from './adapters';

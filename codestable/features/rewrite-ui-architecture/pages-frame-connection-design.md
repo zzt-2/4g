@@ -300,7 +300,7 @@ widgets/
 
 #### ConnectionPage.vue
 - 状态: operatingIds(Set<string>)
-- 数据流: setInterval 独立轮询 service.getSnapshot() + selectConnectionSummaries(snapshot)，onMounted 启动 / onBeforeUnmount 清除
+- 数据流: rAF + cadence 独立轮询 service.listConnectionSummaries()（selector 已内联到 service），onMounted 启动 / onBeforeUnmount 清除
 
 #### ConnectionCard.vue
 - Props: `{ summary: ConnectionSummary, operating: boolean }`

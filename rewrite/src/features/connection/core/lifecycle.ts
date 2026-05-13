@@ -123,6 +123,8 @@ export function createTransportEventSnapshot(
     ...(event.byteLength !== undefined ? { byteLength: event.byteLength } : {}),
     ...(event.bytes ? { bytes: event.bytes } : {}),
     ...(error ? { error } : {}),
+    ...(event.reconnectAttempt !== undefined ? { reconnectAttempt: event.reconnectAttempt } : {}),
+    ...(event.reconnectNextAt ? { reconnectNextAt: event.reconnectNextAt } : {}),
   };
 }
 
@@ -159,6 +161,8 @@ function updateCountersForEvent(
       return { ...counters, staleEvents: counters.staleEvents + 1 };
     case 'cleanup':
     case 'disconnect-requested':
+    case 'reconnect-scheduled':
+    case 'reconnect-exhausted':
       return counters;
   }
 }
@@ -184,6 +188,8 @@ function lifecycleForEvent(
     case 'write-requested':
     case 'write-accepted':
     case 'stale-event':
+    case 'reconnect-scheduled':
+    case 'reconnect-exhausted':
       return current.lifecycle;
   }
 }
@@ -201,6 +207,18 @@ function applyEventToFact(
   const target = event.target ?? deriveTransportTarget(fact.config, available);
   const counters = updateCountersForEvent(fact.counters, event);
 
+  const reconnectUpdate =
+    event.kind === 'reconnect-scheduled'
+      ? {
+          reconnectAttempt: event.reconnectAttempt ?? fact.reconnectAttempt,
+          reconnectNextAt: event.reconnectNextAt ?? fact.reconnectNextAt,
+        }
+      : event.kind === 'reconnect-exhausted'
+        ? { reconnectAttempt: undefined, reconnectNextAt: undefined }
+        : event.kind === 'connected' || event.kind === 'disconnected' || event.kind === 'cleanup'
+          ? { reconnectAttempt: undefined, reconnectNextAt: undefined }
+          : {};
+
   return {
     ...fact,
     lifecycle,
@@ -212,6 +230,7 @@ function applyEventToFact(
         ? { lastActivityAt: fact.lastActivityAt }
         : {}),
     ...(event.error ? { lastError: event.error } : fact.lastError ? { lastError: fact.lastError } : {}),
+    ...reconnectUpdate,
   };
 }
 

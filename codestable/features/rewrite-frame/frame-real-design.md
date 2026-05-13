@@ -126,7 +126,7 @@ Frame feature 已有骨架代码（`rewrite/src/features/frame/`）：
 
 **选择器**（`selectors/frame-selectors.ts`）：findFrameAssets, getFrameAsset, listFrameAssetSummaries 等。**存在浅拷贝问题**。
 
-**旧格式迁移**（`core/legacy.ts`, `core/legacy-normalizers.ts`）：基础框架已存在，`LegacyFrameMigrationResult` 类型已定义。
+**旧格式迁移**（`core/legacy-normalizers.ts`）：基础框架已存在，`LegacyFrameMigrationResult` 类型已定义。（注：`core/legacy.ts` 已合并到 `legacy-normalizers.ts`，路径已更新）
 
 #### 变化
 

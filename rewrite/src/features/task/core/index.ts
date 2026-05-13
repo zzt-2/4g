@@ -35,9 +35,10 @@ export type {
   TaskProgress,
   TaskExecutionSummary,
   ConditionMatchInput,
+  ConditionTerm,
 } from './types';
 export { canTransition, transition, isTerminal } from './lifecycle';
-export { evaluateCondition } from './condition-matcher';
+export { evaluateCondition, evaluateSingleCondition, evaluateConditionGroup } from './condition-matcher';
 export { calculateProgress, isStepResultFailed } from './progress';
 export { validateTaskDefinition } from './task-validation';
 export type { TaskValidationIssue } from './task-validation';

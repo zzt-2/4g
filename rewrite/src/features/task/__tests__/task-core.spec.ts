@@ -192,7 +192,7 @@ describe('ConditionMatcher', () => {
 
   describe('lt operator', () => {
     it('matches when value < threshold', () => {
-      const input = { frameId: 'frame-1', fieldId: 'field-1', value: 25 };
+      const input = { frameId: 'frame-1', fieldValues: { 'field-1': 25 } };
       expect(evaluateCondition(waitConditions.lt(), input)).toBe(true);
     });
 
@@ -212,7 +212,7 @@ describe('ConditionMatcher', () => {
 
     it('matches when value > threshold', () => {
       const cond = waitConditions.gte();
-      const input = { frameId: 'frame-1', fieldId: 'field-1', value: 200 };
+      const input = { frameId: 'frame-1', fieldValues: { 'field-1': 200 } };
       expect(evaluateCondition(cond, input)).toBe(true);
     });
 
@@ -232,7 +232,7 @@ describe('ConditionMatcher', () => {
 
     it('does not match when value > threshold', () => {
       const cond = waitConditions.lte();
-      const input = { frameId: 'frame-1', fieldId: 'field-1', value: 200 };
+      const input = { frameId: 'frame-1', fieldValues: { 'field-1': 200 } };
       expect(evaluateCondition(cond, input)).toBe(false);
     });
   });
@@ -252,8 +252,8 @@ describe('ConditionMatcher', () => {
       expect(evaluateCondition(waitConditions.any(), matchInputs.matchingNumeric())).toBe(true);
     });
 
-    it('matches null value', () => {
-      expect(evaluateCondition(waitConditions.any(), matchInputs.nullValue())).toBe(true);
+    it('does not match null value', () => {
+      expect(evaluateCondition(waitConditions.any(), matchInputs.nullValue())).toBe(false);
     });
   });
 

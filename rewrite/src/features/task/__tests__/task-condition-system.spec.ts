@@ -110,10 +110,10 @@ describe('evaluateConditionGroup', () => {
       cond({ fieldId: 'b', threshold: 2 }),           // AND (default)
       cond({ fieldId: 'c', threshold: 3, logicOperator: 'or' }), // OR with accumulated result
     ];
-    // a=1, b=2 → true AND true = true; OR c=0 → true (short-circuit)
+    // a=1, b=2 → true AND true = true; OR c=0 → true OR false = true
     expect(evaluateConditionGroup(conditions, { a: 1, b: 2, c: 0 })).toBe(true);
-    // a=1, b=0 → true AND false = false (AND short-circuits, OR never evaluated)
-    expect(evaluateConditionGroup(conditions, { a: 1, b: 0, c: 3 })).toBe(false);
+    // a=1, b=0 → true AND false = false; OR c=3 → false OR true = true
+    expect(evaluateConditionGroup(conditions, { a: 1, b: 0, c: 3 })).toBe(true);
     // a=1, b=0 → false; OR c=0 → false
     expect(evaluateConditionGroup(conditions, { a: 1, b: 0, c: 0 })).toBe(false);
   });

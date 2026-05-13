@@ -12,6 +12,8 @@ import {
 } from './clone';
 import { parseReceiveFrameFields } from './field-parser';
 import { matchReceiveFrame } from './frame-matcher';
+// TODO: integrate expression evaluation into the matched path
+// import { evaluateFrameExpressions } from './expression-pass';
 import type {
   ReceiveBatchOutcome,
   ReceiveFrameStatisticsSnapshot,

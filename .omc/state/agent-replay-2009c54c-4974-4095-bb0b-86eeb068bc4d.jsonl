@@ -1,6 +1,0 @@
-{"t":0,"agent":"system","event":"skill_invoked","skill_name":"cs-feat-design"}
-{"t":0,"agent":"a39327d","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
-{"t":0,"agent":"aa60ffe","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
-{"t":0,"agent":"ad7b632","agent_type":"Explore","event":"agent_stop","success":true}
-{"t":0,"agent":"aa60ffe","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":91008}
-{"t":0,"agent":"a39327d","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":148691}

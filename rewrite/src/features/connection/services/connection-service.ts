@@ -22,13 +22,13 @@ import {
   type TransportTargetSnapshot,
 } from '../core';
 import type {
-  ConnectionAdapterCommandOutcome,
   ConnectionAdapterErrorInput,
   ConnectionAdapterEvent,
   ConnectionResourceCandidate,
   ConnectionTransportAdapter,
   TransportWriteRequest,
 } from '../adapters';
+import { getReconnectPolicy, nextReconnectDelay, shouldReconnect } from '../core/reconnect';
 import { createConnectionState, type ConnectionStateContainer } from '../state/connection-state';
 
 export interface ReconnectStatus {
@@ -71,6 +71,8 @@ export interface CreateConnectionServiceOptions {
   readonly adapter: ConnectionTransportAdapter;
   readonly state?: ConnectionStateContainer;
   readonly now?: () => string;
+  readonly setTimeout?: (fn: () => void, ms: number) => unknown;
+  readonly clearTimeout?: (id: unknown) => void;
 }
 
 // --- Inline selector helpers (replaces deleted selectors/) ---
@@ -240,6 +242,10 @@ export function createConnectionService(
   const state = options.state ?? createConnectionState();
   const now = options.now ?? defaultNow;
   const reader = createConnectionReader(() => state.getSnapshot());
+  const scheduleTimeout = options.setTimeout ?? setTimeout;
+  const cancelTimeout = options.clearTimeout ?? clearTimeout;
+
+  const reconnectTimers = new Map<string, unknown>();
 
   function applyEvents(events: readonly ConnectionAdapterEvent[]): void {
     for (const event of events) {
@@ -247,40 +253,88 @@ export function createConnectionService(
     }
   }
 
-  function applyAdapterOutcome(
-    connectionId: string,
-    command: ConnectionAdapterCommandOutcome,
-  ): ConnectionOperationOutcome {
-    const beforeLength = state.getSnapshot().events.length;
-
-    applyEvents(command.events ?? []);
-    if (!command.ok && command.events === undefined) {
-      state.applyEvent(toErrorEvent(connectionId, command.error, now()));
+  function cancelReconnectTimer(connectionId: string): void {
+    const timerId = reconnectTimers.get(connectionId);
+    if (timerId !== undefined) {
+      cancelTimeout(timerId);
+      reconnectTimers.delete(connectionId);
     }
+  }
 
-    const snapshot = state.getSnapshot();
-    const events = collectEventsAfter(beforeLength, snapshot);
-    const lastEvent = events[events.length - 1];
-    const error = !command.ok
-      ? adapterErrorToSnapshot(command.error, connectionId, lastEvent?.occurredAt ?? now())
-      : undefined;
+  function cancelAllReconnectTimers(): void {
+    for (const [, timerId] of reconnectTimers) {
+      cancelTimeout(timerId);
+    }
+    reconnectTimers.clear();
+  }
 
-    return {
-      ok: command.ok,
-      validation: command.ok
-        ? validValidation()
-        : createConnectionValidationOutcome([
-            createConnectionIssue(
-              `connection.adapter.${command.error.kind}`,
-              'adapter',
-              command.error.message,
-              'error',
-            ),
-          ]),
-      snapshot,
-      events,
-      ...(error ? { error } : {}),
-    };
+  function scheduleReconnect(connectionId: string, policy: ReturnType<typeof getReconnectPolicy>, attempt: number): void {
+    const delay = nextReconnectDelay(policy, attempt);
+    const nextAt = new Date(Date.now() + delay).toISOString();
+
+    state.applyEvent({
+      kind: 'reconnect-scheduled',
+      connectionId,
+      occurredAt: now(),
+      reconnectAttempt: attempt,
+      reconnectNextAt: nextAt,
+    });
+
+    const timerId = scheduleTimeout(() => {
+      reconnectTimers.delete(connectionId);
+      attemptReconnect(connectionId);
+    }, delay);
+
+    reconnectTimers.set(connectionId, timerId);
+  }
+
+  function handleAdapterDisconnects(events: readonly TransportEventSnapshot[]): void {
+    for (const event of events) {
+      if (event.kind !== 'disconnected') continue;
+
+      const fact = state.getSnapshot().runtimeFacts.find(
+        (f) => f.connectionId === event.connectionId,
+      );
+      if (!fact) continue;
+
+      const policy = getReconnectPolicy(fact.kind);
+      if (!shouldReconnect(policy, 0)) continue;
+
+      scheduleReconnect(event.connectionId, policy, 0);
+    }
+  }
+
+  async function attemptReconnect(connectionId: string): Promise<void> {
+    const fact = state.getSnapshot().runtimeFacts.find(
+      (f) => f.connectionId === connectionId,
+    );
+    if (!fact) return;
+
+    const currentAttempt = fact.reconnectAttempt ?? 0;
+    const config = fact.config;
+    const policy = getReconnectPolicy(config.kind);
+
+    const command = await options.adapter.connect(config);
+
+    if (command.ok) {
+      state.applyEvent({
+        kind: 'connect-requested',
+        connectionId,
+        occurredAt: now(),
+      });
+      applyEvents(command.events);
+    } else {
+      const nextAttempt = currentAttempt + 1;
+      if (shouldReconnect(policy, nextAttempt)) {
+        scheduleReconnect(connectionId, policy, nextAttempt);
+      } else {
+        state.applyEvent({
+          kind: 'reconnect-exhausted',
+          connectionId,
+          occurredAt: now(),
+        });
+      }
+    }
   }
 
   return {
@@ -297,18 +351,49 @@ export function createConnectionService(
         };
       }
 
+      const command = await options.adapter.connect(normalized.config);
+
+      if (!command.ok) {
+        return {
+          ok: false,
+          validation: createConnectionValidationOutcome([
+            createConnectionIssue(
+              `connection.adapter.${command.error.kind}`,
+              'adapter',
+              command.error.message,
+              'error',
+            ),
+          ]),
+          snapshot: state.getSnapshot(),
+          events: [],
+          error: adapterErrorToSnapshot(command.error, normalized.config.id, now()),
+        };
+      }
+
+      const beforeLength = state.getSnapshot().events.length;
+
       state.upsertConfig(normalized.config);
       state.applyEvent({
         kind: 'connect-requested',
         connectionId: normalized.config.id,
         occurredAt: now(),
       });
+      applyEvents(command.events);
 
-      const command = await options.adapter.connect(normalized.config);
-      return applyAdapterOutcome(normalized.config.id, command);
+      const snapshot = state.getSnapshot();
+      const events = collectEventsAfter(beforeLength, snapshot);
+
+      return {
+        ok: true,
+        validation: validValidation(),
+        snapshot,
+        events,
+      };
     },
 
     async disconnect(connectionId) {
+      cancelReconnectTimer(connectionId);
+
       state.applyEvent({
         kind: 'disconnect-requested',
         connectionId,
@@ -316,7 +401,36 @@ export function createConnectionService(
       });
 
       const command = await options.adapter.disconnect(connectionId);
-      return applyAdapterOutcome(connectionId, command);
+
+      const beforeLength = state.getSnapshot().events.length;
+      applyEvents(command.events ?? []);
+      if (!command.ok && command.events === undefined) {
+        state.applyEvent(toErrorEvent(connectionId, command.error, now()));
+      }
+
+      const snapshot = state.getSnapshot();
+      const events = collectEventsAfter(beforeLength, snapshot);
+      const lastEvent = events[events.length - 1];
+      const error = !command.ok
+        ? adapterErrorToSnapshot(command.error, connectionId, lastEvent?.occurredAt ?? now())
+        : undefined;
+
+      return {
+        ok: command.ok,
+        validation: command.ok
+          ? validValidation()
+          : createConnectionValidationOutcome([
+              createConnectionIssue(
+                `connection.adapter.${command.error.kind}`,
+                'adapter',
+                command.error.message,
+                'error',
+              ),
+            ]),
+        snapshot,
+        events,
+        ...(error ? { error } : {}),
+      };
     },
 
     async write(request) {
@@ -328,15 +442,49 @@ export function createConnectionService(
       });
 
       const command = await options.adapter.write(request);
-      return applyAdapterOutcome(request.connectionId, command);
+
+      const beforeLength = state.getSnapshot().events.length;
+      applyEvents(command.events ?? []);
+      if (!command.ok && command.events === undefined) {
+        state.applyEvent(toErrorEvent(request.connectionId, command.error, now()));
+      }
+
+      const snapshot = state.getSnapshot();
+      const events = collectEventsAfter(beforeLength, snapshot);
+      const lastEvent = events[events.length - 1];
+      const error = !command.ok
+        ? adapterErrorToSnapshot(command.error, request.connectionId, lastEvent?.occurredAt ?? now())
+        : undefined;
+
+      return {
+        ok: command.ok,
+        validation: command.ok
+          ? validValidation()
+          : createConnectionValidationOutcome([
+              createConnectionIssue(
+                `connection.adapter.${command.error.kind}`,
+                'adapter',
+                command.error.message,
+                'error',
+              ),
+            ]),
+        snapshot,
+        events,
+        ...(error ? { error } : {}),
+      };
     },
 
     async drainAdapterEvents() {
       const beforeLength = state.getSnapshot().events.length;
-      const events = await options.adapter.drainEvents();
-      applyEvents(events);
-      const snapshot = state.getSnapshot();
+      const adapterEvents = await options.adapter.drainEvents();
+      applyEvents(adapterEvents);
 
+      const afterApply = state.getSnapshot();
+      const drainedEvents = collectEventsAfter(beforeLength, afterApply);
+
+      handleAdapterDisconnects(drainedEvents);
+
+      const snapshot = state.getSnapshot();
       const lastError = snapshot.lastError
         ? cloneTransportError(snapshot.lastError)
         : undefined;
@@ -351,6 +499,8 @@ export function createConnectionService(
     },
 
     async cleanup() {
+      cancelAllReconnectTimers();
+
       for (const fact of state.getSnapshot().runtimeFacts) {
         state.applyEvent({
           kind: 'cleanup',
@@ -360,7 +510,36 @@ export function createConnectionService(
       }
 
       const command = await options.adapter.cleanup();
-      return applyAdapterOutcome('cleanup', command);
+
+      const beforeLength = state.getSnapshot().events.length;
+      applyEvents(command.events ?? []);
+      if (!command.ok && command.events === undefined) {
+        state.applyEvent(toErrorEvent('cleanup', command.error, now()));
+      }
+
+      const snapshot = state.getSnapshot();
+      const events = collectEventsAfter(beforeLength, snapshot);
+      const lastEvent = events[events.length - 1];
+      const error = !command.ok
+        ? adapterErrorToSnapshot(command.error, 'cleanup', lastEvent?.occurredAt ?? now())
+        : undefined;
+
+      return {
+        ok: command.ok,
+        validation: command.ok
+          ? validValidation()
+          : createConnectionValidationOutcome([
+              createConnectionIssue(
+                `connection.adapter.${command.error.kind}`,
+                'adapter',
+                command.error.message,
+                'error',
+              ),
+            ]),
+        snapshot,
+        events,
+        ...(error ? { error } : {}),
+      };
     },
 
     async discoverResources() {
@@ -368,6 +547,22 @@ export function createConnectionService(
         return options.adapter.discoverResources();
       }
       return [];
+    },
+
+    getReconnectStatus(connectionId) {
+      const fact = state.getSnapshot().runtimeFacts.find(
+        (f) => f.connectionId === connectionId,
+      );
+      if (!fact) return undefined;
+
+      if (fact.reconnectAttempt === undefined) return undefined;
+
+      return {
+        connectionId,
+        phase: reconnectTimers.has(connectionId) ? 'scheduled' as const : 'idle' as const,
+        attempt: fact.reconnectAttempt,
+        ...(fact.reconnectNextAt ? { nextAttemptAt: fact.reconnectNextAt } : {}),
+      };
     },
   };
 }

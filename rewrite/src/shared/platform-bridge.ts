@@ -138,7 +138,7 @@ export interface RewritePlatformBridge {
 
 export function createRewriteBridgeInfo(
   version = '0.0.0',
-  capabilities: readonly RewritePlatformCapability[] = ['transport', 'file'],
+  capabilities: readonly RewritePlatformCapability[] = ['transport'],
 ): RewritePlatformBridgeInfo {
   return {
     name: 'dongfanghong-rewrite-platform',

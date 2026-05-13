@@ -1,10 +1,10 @@
 import { defaultNow } from '@/shared';
-import { buildFrame } from '../core';
+import { buildFrame, applyBuildPostPatch } from '../core';
+import { frameToBuildInput, resolveFieldValues, applyFactor } from '../core/frame-resolver';
 import type {
   ReadonlySendStateSnapshot,
   SendBuildIssue,
   SendError,
-  SendFieldEncodingDef,
   SendRequest,
   SendRequestRef,
   SendResult,
@@ -13,13 +13,13 @@ import type {
   SendStateSnapshot,
   SendStatisticsSnapshot,
 } from '../core';
-import type { ReadonlyFrameAsset } from '@/features/frame';
 import type {
   SendFrameReader,
   SendResultEmitter,
   SendTargetResolver,
   SendTransportWriteOutcome,
   SendTransportWriter,
+  SendVariableProvider,
 } from '../adapters';
 import { createSendState, type SendStateContainer } from '../state/send-state';
 
@@ -39,6 +39,7 @@ export interface CreateSendServiceOptions {
   readonly frameReader: SendFrameReader;
   readonly targetResolver: SendTargetResolver;
   readonly transportWriter: SendTransportWriter;
+  readonly variableProvider?: SendVariableProvider;
   readonly resultEmitter?: SendResultEmitter;
   readonly state?: SendStateContainer;
   readonly now?: () => string;
@@ -86,28 +87,6 @@ function makeResult(
   };
 }
 
-function frameToBuildInput(
-  frame: ReadonlyFrameAsset,
-): { fields: SendFieldEncodingDef[]; totalByteLength: number } {
-  const fields: SendFieldEncodingDef[] = [];
-  let offset = 0;
-  const frameEndian = frame.options?.bigEndian ?? false;
-
-  for (const field of frame.fields) {
-    fields.push({
-      id: field.id,
-      dataType: field.dataType,
-      length: field.length,
-      bigEndian: field.bigEndian ?? frameEndian,
-      isASCII: field.isASCII ?? false,
-      offset,
-    });
-    offset += field.length;
-  }
-
-  return { fields, totalByteLength: offset };
-}
-
 export function createSendReader(
   snapshotProvider: () => ReadonlySendStateSnapshot,
 ): SendReader {
@@ -127,10 +106,15 @@ export function createSendReader(
   };
 }
 
+function noOpVariableProvider(): SendVariableProvider {
+  return { getVariables: () => new Map() };
+}
+
 export function createSendService(options: CreateSendServiceOptions): SendService {
   const state = options.state ?? createSendState();
   const now = options.now ?? defaultNow;
   const reader = createSendReader(() => state.getSnapshot());
+  const variableProvider = options.variableProvider ?? noOpVariableProvider();
 
   return {
     ...reader,
@@ -163,29 +147,68 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
         return result;
       }
 
-      // 3. Build frame bytes
-      const { fields, totalByteLength } = frameToBuildInput(frame);
-      const buildOutput = buildFrame({
-        fields,
-        totalByteLength,
-        fieldValues: request.fieldValues,
-      });
-
-      const buildErrors = buildOutput.issues.filter((i) => i.severity === 'error');
-      if (buildErrors.length > 0) {
-        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, buildOutput.issues);
+      // 3. Direction check
+      if (frame.direction === 'receive') {
+        const result = makeResult(
+          'build-error', requestRef, timestamp, 0, 0,
+          { kind: 'wrong-direction', message: `Frame "${request.frameId}" is receive-only.` },
+        );
         state.addResult(result);
         options.resultEmitter?.emit(result);
         return result;
       }
 
-      const bytes = [...buildOutput.bytes];
+      // 4. Convert frame to encoding defs and resolve field values
+      const { fields, totalByteLength } = frameToBuildInput(frame);
+      const userValues = request.userFieldValues ?? request.fieldValues ?? {};
+      const resolved = resolveFieldValues(fields, userValues, variableProvider);
+      const factored = applyFactor(fields, resolved.values);
+      const allIssues = [...resolved.issues, ...factored.issues];
 
-      // 4. Resolve target
+      // 5. Build frame bytes
+      const buildOutput = buildFrame({
+        fields,
+        totalByteLength,
+        fieldValues: factored.values,
+      });
+      allIssues.push(...buildOutput.issues);
+
+      const buildErrors = allIssues.filter((i) => i.severity === 'error');
+      if (buildErrors.length > 0) {
+        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, allIssues);
+        state.addResult(result);
+        options.resultEmitter?.emit(result);
+        return result;
+      }
+
+      let bytes = buildOutput.bytes;
+
+      // 6. Apply post-build patch (checksum, length)
+      const frameOptions = frame.options;
+      const patchOptions = request.options ?? (frameOptions ? {
+        autoChecksum: frameOptions.autoChecksum,
+        bigEndian: frameOptions.bigEndian,
+        includeLengthField: frameOptions.includeLengthField,
+      } : undefined);
+      const patched = applyBuildPostPatch(bytes, fields, patchOptions);
+      allIssues.push(...patched.issues);
+
+      const patchErrors = allIssues.filter((i) => i.severity === 'error');
+      if (patchErrors.length > 0) {
+        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, allIssues);
+        state.addResult(result);
+        options.resultEmitter?.emit(result);
+        return result;
+      }
+
+      bytes = patched.buffer;
+      const bytesArr = [...bytes];
+
+      // 7. Resolve target
       const target = options.targetResolver.resolveTarget(request.targetId);
       if (!target) {
         const result = makeResult(
-          'target-unavailable', requestRef, timestamp, bytes.length, 0,
+          'target-unavailable', requestRef, timestamp, bytesArr.length, 0,
           { kind: 'target-not-found', message: `Target not found: ${request.targetId}` },
         );
         state.addResult(result);
@@ -195,7 +218,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
 
       if (!target.available) {
         const result = makeResult(
-          'target-unavailable', requestRef, timestamp, bytes.length, 0,
+          'target-unavailable', requestRef, timestamp, bytesArr.length, 0,
           { kind: 'target-not-available', message: `Target not available: ${request.targetId}` },
         );
         state.addResult(result);
@@ -203,15 +226,15 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
         return result;
       }
 
-      // 5. Transport write
+      // 8. Transport write
       let writeOutcome: SendTransportWriteOutcome;
       try {
-        writeOutcome = await options.transportWriter.writeBytes(target.connectionId, bytes);
+        writeOutcome = await options.transportWriter.writeBytes(target.connectionId, bytesArr);
       } catch (err) {
         const result = makeResult(
-          'transport-error', requestRef, timestamp, bytes.length, 0,
+          'transport-error', requestRef, timestamp, bytesArr.length, 0,
           { kind: 'write-exception', message: err instanceof Error ? err.message : 'Unknown write error' },
-          buildOutput.issues,
+          allIssues,
         );
         state.addResult(result);
         options.resultEmitter?.emit(result);
@@ -223,25 +246,25 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
           writeOutcome.error?.kind === 'timeout' ? 'timeout' : 'transport-error',
           requestRef,
           timestamp,
-          bytes.length,
+          bytesArr.length,
           writeOutcome.bytesWritten,
           writeOutcome.error,
-          buildOutput.issues,
+          allIssues,
         );
         state.addResult(result);
         options.resultEmitter?.emit(result);
         return result;
       }
 
-      // 6. Success
+      // 9. Success
       const result = makeResult(
         'sent',
         requestRef,
         timestamp,
-        bytes.length,
+        bytesArr.length,
         writeOutcome.bytesWritten,
         undefined,
-        buildOutput.issues,
+        allIssues,
       );
       state.addResult(result);
       options.resultEmitter?.emit(result);

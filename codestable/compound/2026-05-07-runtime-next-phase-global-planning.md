@@ -984,71 +984,70 @@ P0 阻断项（没有跑不起来）：
 
 ### 14.2 cs-feat 全流程（共 9 个）
 
-| # | 名称 | 设计覆盖内容 | brainstorm? | 备注 |
-|---|------|-------------|-------------|------|
-| 1 | bootstrap | runtime 实例化 + platform 检测 + routingTick 定时驱动 + 端到端测试骨架 | 否 | Wave 0，调研已完成见 14.7 |
-| 2 | condition-matching | shared/ 条件匹配纯函数（运算符集 + 匹配逻辑，参考旧 SCOE CompletionCondition） | 否 | Wave 0，调研已完成见 14.7，实际范围比预期小得多 |
-| 3 | expression-engine | shared/ 表达式引擎（Kahn 拓扑排序 + 预编译 + 多数据源变量解析 + 数学函数） | **是** | Wave 0-1，有旧代码参考但纯函数化是全新设计 |
-| 4 | frame-real | 帧定义 JSON schema + 真实 frame reader 实现 + 旧格式迁移脚本 | **是** | Wave 1，全系统基础字典 |
-| 5 | connection-complete | 串口端到端验证 + 断线重连策略 + TCP/UDP adapter 接入 | 否 | Wave 2，依赖 platform-expansion |
-| 6 | send-real | 构帧管线 + 表达式求值集成 + target 解析 + 写入连接 | **是** | Wave 3 |
-| 7 | storage-real | 参数历史持久化 + 查询/导出/清理策略（数据量控制） | **是** | Wave 5 |
-| 8 | result-report | 结果收集归口 + 报告生成 | 否 | Wave 5 |
-| 9 | northbound | HTTPS 推送 + 交付闭环 + 甲方错误语义映射 | **是**（等 schema） | Wave 6 |
+| # | 名称 | 设计覆盖内容 | brainstorm? | 状态 | 备注 |
+|---|------|-------------|-------------|------|------|
+| 1 | bootstrap | runtime 实例化 + platform 检测 + routingTick 定时驱动 + 端到端测试骨架 | 否 | ✅ 完成 80% | Wave 0，缺 AppShell 集成 |
+| 2 | condition-matching | shared/ 条件匹配纯函数 | 否 | ✅ 完成 | Wave 0 |
+| 3 | expression-engine | shared/ 表达式引擎（Kahn 拓扑排序 + 预编译 + 多数据源变量解析 + 数学函数） | **是** | ✅ 完成 | Wave 0-1，全流程完成 |
+| 4 | frame-real | 帧定义 JSON schema + 真实 frame reader + 旧格式迁移 | 否 | ✅ 完成 | Wave 1 |
+| 5 | connection-complete | 串口端到端 + 断线重连 + TCP/UDP adapter | 否 | ✅ 完成 | Wave 2 |
+| 6 | send-real | 构帧管线 + 表达式求值 + target 解析 + 写入连接 | **是** | ✅ 完成 | Wave 3 |
+| 7 | storage-real | 参数历史持久化 + 查询/导出/清理 | **是** | ✅ pass-with-known-gaps | Wave 5，packaged data path blocked |
+| 8 | result-report | 结果收集归口 + 报告生成 | 否 | 🔄 brainstorm 中 | Wave 5 |
+| 9 | northbound | HTTPS 推送 + 交付闭环 | **是**（等 schema） | ⏳ 未开始 | Wave 6 |
 
 **cs-feat 拆分规则**：如果 design 阶段发现内容超出预期（如 checklist 步骤 > 8 或预估行数接近 1000），在 design 里主动拆成两个独立 feature（各自有 slug、design、checklist），串行实现。不需要升级到 roadmap。
 
 ### 14.3 cs-roadmap（共 6 个）
 
-| # | 名称 | 预估子 feature 数 | brainstorm? | 备注 |
-|---|---------|------------------|-------------|------|
-| 10 | platform-expansion | 3（TCP/UDP main+preload+facade、文件系统桥接、facade API 收敛） | **是** | Wave 1，renderer 访问桌面能力的 P0 阻断项 |
-| 11 | receive-real | 3-4（解析管线 + 表达式集成 + 参数扇出分发 + 背压策略） | **是** | Wave 3，最复杂的 feature |
-| 12 | task-real | 3（循环引擎 + 步骤执行/条件集成 + 结果产出） | **是** | Wave 4 |
-| 13 | 指令接入 | 2-3（协议适配器、命令分发路由、执行+回应） | **是** | Wave 4，全新模块 |
-| 14 | visualization | 3（数据管道基础设施 + 表格/折线图 + 星座图独立管道） | **是** | Wave 5 |
-| 15 | ui-pages | 5-8（布局/导航 + 各业务页面 + widget 库） | **是** | Wave 7，依赖所有功能模块 |
+| # | 名称 | 原估子 feature | 实际 | brainstorm? | 状态 | 备注 |
+|---|---------|--------------|------|-------------|------|------|
+| 10 | platform-expansion | 3 | 1（仅 TCP/UDP） | **是** | ✅ 完成 | 降级为 cs-feat，文件/窗口推迟 |
+| 11 | receive-real | 3-4 | 1（receive-real-pipeline） | **是** | ✅ 完成 | 含背压截断+5 桥扇出 |
+| 12 | task-real | 3 | 1（统一执行引擎） | **是** | ✅ 完成 | 降级为 cs-feat |
+| 13 | 指令接入 | 2-3 | 1（SCOE+消费者链） | **是** | ✅ 完成 | 降级为 cs-feat |
+| 14 | visualization | 3 | 1 | **是** | 🔄 设计完成 | 见下方 UI 进度 |
+| 15 | ui-pages | 5-8 | 11 页面 MVP | **是** | 🔄 框架设计中 | 见下方 UI 进度 |
 
 ### 14.4 执行波次与并行策略
 
+> 进度快照：2026-05-13，总进度约 80%
+
 ```
-Wave 0（基础，零依赖）:
-  [1-bootstrap] ‖ [2-condition-matching] ‖ [3-expression-engine brainstorm]
-  bootstrap 和 condition-matching 快速完成；
-  expression-engine brainstorm 同时启动，定方案后进 cs-feat 全流程
+Wave 0（基础，零依赖）— ✅ 基本完成:
+  [1-bootstrap ✅80%] ‖ [2-condition-matching ✅] ‖ [3-expression-engine ✅]
+  bootstrap 缺 AppShell 集成
 
-Wave 1（平台 + 帧，零业务依赖）:
-  [3-expression-engine cs-feat] ‖ [10-platform-expansion roadmap] ‖ [4-frame-real]
-  三条线并行，互不依赖
-  expression-engine 完成后 Wave 3 才能开始
+Wave 1（平台 + 帧，零业务依赖）— ✅ 完成:
+  [3-expression-engine ✅] ‖ [10-platform-network-transport ✅] ‖ [4-frame-real ✅]
 
-Wave 2（连接，依赖 platform）:
-  [5-connection-complete]
-  依赖 platform-expansion 的 TCP/UDP 层完成
+Wave 2（连接，依赖 platform）— ✅ 完成:
+  [5-connection-complete ✅]
+  含 TCP/UDP + 断线重连
 
-Wave 3（收发，依赖 Wave 0-2）:
-  [11-receive-real roadmap] ‖ [6-send-real]
-  都依赖 expression-engine + frame-real + connection-complete
-  可并行，各自内部拆分
+Wave 3（收发，依赖 Wave 0-2）— ✅ 完成:
+  [11-receive-real ✅] ‖ [6-send-real ✅]
+  receive-real 全流程完成，含背压截断 + 5 桥扇出
 
-Wave 4（编排，依赖 Wave 3）:
-  [12-task-real roadmap] → [13-指令接入 roadmap]
-  task-real 依赖 receive + send
-  指令接入依赖 task + connection-network
+Wave 4（编排，依赖 Wave 3）— ✅ 完成:
+  [12-task-real ✅] ‖ [13-command-ingress ✅]
 
-Wave 5（数据层，依赖 Wave 3-4，内部并行）:
-  [7-storage-real] ‖ [14-visualization roadmap] ‖ [8-result-report]
-  storage 依赖 receive
-  visualization 依赖 receive
-  result-report 依赖 task
+Wave 5（数据层，依赖 Wave 3-4）— 🔄 进行中:
+  [7-storage-real ✅] ‖ [14-visualization 🔄设计完成] ‖ [8-result-report 🔄brainstorm]
+  storage pass-with-known-gaps
+  visualization: display UI 设计完成，架构框架完成
+  result-report: brainstorm 进行中
 
-Wave 6（对外，依赖 Wave 5）:
+Wave 5.5（代码质量）— ✅ 完成:
+  [跨 feature 身份审计 ✅] ‖ [代码简化审计+readiness 补丁 ✅]
+  身份链干净，~10% 代码精简
+
+Wave 6（对外，依赖 Wave 5）— ⏳ 未开始:
   [9-northbound]
-  依赖 result-report + platform HTTPS 能力
 
-Wave 7（UI，依赖全部）:
-  [15-ui-pages roadmap]
-  依赖所有功能模块就绪
+Wave 7（UI，依赖全部）— 🔄 框架+页面设计中:
+  [前端规范 ✅] ‖ [UI 架构框架 ✅] ‖ [B1 帧域+连接设计 ✅] ‖ [B2 任务+发送+指令设计 ✅]
+  [B3 数据域+工具设计 ⏳] ‖ [UnoCSS 迁移 ⏳] ‖ [设计-代码对齐验证 🔄]
 ```
 
 ### 14.5 关键路径
@@ -1056,10 +1055,10 @@ Wave 7（UI，依赖全部）:
 最长依赖链（决定整体最短完成时间）：
 
 ```
-expression-engine → frame-real → receive-real → task-real → 指令接入 → result-report → northbound
+expression-engine ✅ → frame-real ✅ → receive-real ✅ → task-real ✅ → command-ingress ✅ → result-report 🔄 → northbound ⏳
 ```
 
-这条链上的任何延误都会推迟后续波次。expression-engine 是全链的起点，必须最早完成。
+关键路径已全部完成至 result-report。当前瓶颈是 **UI 实施**（Wave 7）和 **result-report**（Wave 5）。
 
 ### 14.6 旧代码参考索引
 
@@ -1117,3 +1116,50 @@ Task feature 已在消费它（`evaluateCondition` + `ConditionRegistry`）。
 5. 清理 shared/condition-operators/ 确保只留纯匹配逻辑
 
 结论：实际工作量极小，可能 fastforward 就够。
+
+### 14.8 进度快照（2026-05-13）
+
+**总进度：~80%**
+
+核心功能 feature 15 个中 12 个已完成，剩余 3 个（result-report / northbound / ui-pages）。
+
+#### 已完成
+
+| 类别 | 项 | 关键产出 |
+|------|---|---------|
+| Wave 0-4 功能 | expression-engine / frame-real / connection / receive-real / send-real / task-real / command-ingress | 全部 ✅，803 tests green |
+| Wave 5 数据 | storage-real | ✅ pass-with-known-gaps（packaged data path blocked） |
+| 代码质量 | 跨 feature 身份审计 | ✅ 标识链干净，display/status 统一为 frameId/fieldId |
+| 代码质量 | 代码简化审计 + readiness 补丁 | ✅ ~10% 精简，service gap 补齐（upsertFrame/retryTask 等） |
+| UI 基础 | 前端规范 | ✅ 39 条规则 + 46 项 checklist |
+| UI 基础 | UI 架构框架 | ✅ 导航/布局/widget/页面清单/暗色模式 |
+| UI 设计 | B1 帧域+连接页面设计 | ✅ 3 页面（帧列表/帧编辑/连接管理） |
+| UI 设计 | B2 任务+发送+指令页面设计 | ✅ 4 页面（发送/任务列表/任务编辑/指令接入） |
+| CLAUDE.md 新增规则 | Service Readiness Audit / 代码精简审查 / 前端规范必读 / brainstorm 插入点 / 跨 feature 标识检查 | 5 项自检规则 |
+
+#### 进行中
+
+| 项 | 进度 | 阻塞项 |
+|----|------|--------|
+| B3 数据域+工具页面设计（Dashboard/存储/设置） | brainstorm 待跑 | 无 |
+| 设计-代码对齐验证 | 21 子 agent 审计中 | 无 |
+| result-report | brainstorm 中 | 无 |
+| UnoCSS 间距迁移 | 待跑 | 无 |
+| bootstrap AppShell 集成 | 80%，差 AppShell | 无 |
+
+#### 待启动
+
+| 项 | 依赖 |
+|----|------|
+| B1/B2/B3 页面 UI 实施 | 对齐验证完成 + service gap 修复 |
+| 共享 widget 实现 | UI 架构框架 |
+| northbound | result-report + 甲方 schema |
+| packaged data path | 打包态环境 |
+
+#### 优先级排序
+
+1. **设计-代码对齐验证**（当前轮）— 确保 design 和代码一致
+2. **B3 brainstorm** — 完成最后一个页面设计组
+3. **UnoCSS 迁移** — 小且快，为 UI 实施做准备
+4. **UI 框架搭建**（布局壳 + 导航 + 路由）— 所有页面设计的共享基础
+5. **逐页面 UI 实施** — 按 feature 并行

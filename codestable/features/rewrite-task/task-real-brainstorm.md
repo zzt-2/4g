@@ -1,7 +1,7 @@
 # task-real brainstorm
 
-> 日期：2026-05-09
-> 状态：结论已锁定，ready for cs-feat-design
+> 日期：2026-05-09（初版），2026-05-13（增量更新）
+> 状态：结论已锁定 + 增量 brainstorm 完成
 > Lane：Lane B（单 feature design，不拆 roadmap）
 
 ## 结论
@@ -329,3 +329,179 @@ async function runTask(ctx: TaskContext) {
 ### 待外部确认
 
 - TimerService 在 platform/ 下的具体位置
+
+---
+
+## 增量 brainstorm 2026-05-13
+
+> 触发：设计-代码对齐审计完成，确认 task-real 类型重组未实施但 readiness 已就位，需重新评估与 UI 实施的依赖关系。
+
+### A. 审计确认的事实基线
+
+**代码现状（ground truth）**：
+
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| 类型体系 | 旧 | `TaskSchedulingMode` 三枚举 + `TaskDefinition` 平铺调度字段 |
+| `ConditionTerm` + `logicOperator` | 已实现 | types.ts:222-224，扩展 `WaitCondition` |
+| `ConditionMatchInput.fieldValues` | 已实现 | types.ts:229-233，已是多字段结构 |
+| `evaluateConditionGroup` | 已实现 | condition-matcher.ts:30-49，AND/OR 短路 |
+| `ConditionRegistry.registerGroup` | 已实现 | condition-registry.ts:38-44，条件组 + AND/OR |
+| 三调度循环 | 旧模型 | runTimedLoop / runTriggerLoop / runSequenceLoop 独立实现 |
+| `buildSendRequest` | 未对齐 | 用旧字段名 `fieldValues`/`targetId?`/`options`，与 `SendRequest` 有差异 |
+| Readiness 补丁 | 全部就位 | validation / builders / serialization / retry / stopAll / selectors |
+| 测试 | 70+ 通过 | 旧类型体系上完整 |
+
+**设计文档现状**：
+
+- `task-real-brainstorm.md` / `task-real-design.md`：基于新类型体系（ScheduleDriver / FieldVariation / StepRepeat）
+- `pages-task-send-command-design.md` D-T 系列：**混用新旧术语**——列定义用 `schedulingMode`（旧），高级配置引用 `exitCondition`/`fieldVariations`/`repeat`（新）
+
+### B. 核心问题：task-real 与 UI 的依赖关系
+
+#### B1. 哪些 task-real 变更是 UI 前置阻断项？
+
+**结论：无。UI 页面可以在当前旧类型体系上完整实施。**
+
+逐项分析：
+
+| task-real 变更 | UI 是否依赖 | 理由 |
+|----------------|-------------|------|
+| `ScheduleDriver` 类型 | 否 | UI 用 `schedulingMode: 'timed'\|'trigger'\|'sequence'`，列定义和编辑器都已按此设计 |
+| `TaskDefinition` 重组 | 否 | 当前 `TaskDefinition` 字段（schedulingMode + intervalMs + triggerCondition 等）足够支撑 UI 表单 |
+| `SendStepConfig.userFieldValues` 重命名 | 否 | UI 用 `fieldValues` 即可，send 侧 SendRequest 也仍保留 `fieldValues` 字段 |
+| `TaskStepDefinition.config` 统一字段名 | 否 | UI 按步 kind 分别访问 `sendConfig`/`waitConfig`/`delayConfig`，逻辑等价 |
+| `StepRepeat` 类型 | 否 | D-T5 高级配置中的 repeat 是可选增强，基础版 UI 不含此功能 |
+| `FieldVariation` 类型 | 否 | D-T5 高级配置中的可变参数是可选增强，基础版 UI 不含此功能 |
+| `TaskStopCondition.exitCondition` | 否 | D-T5 高级配置中的条件退出是可选增强，基础版 UI 不含此功能 |
+| `ConditionTerm` / AND/OR | 已实现 | 代码已支持，UI 条件编辑器可直接使用 |
+| `evaluateConditionGroup` | 已实现 | 代码已支持 |
+| `ConditionRegistry.registerGroup` | 已实现 | 代码已支持 |
+| 统一 `runTask` 循环 | 否 | 三循环从外部行为等价，UI 无感知 |
+| `TimerService` | 否 | setTimeout 足够，后续优化项 |
+| `fieldValueProvider` | 否 | exitCondition/repeat.until 需要，两者均属 Phase 2 |
+
+**关键发现**：AND/OR 条件组（审计 B3、B4）已在旧类型体系上完成，不是阻断项。审计 §5 的 5 个 BLOCKER 全部是引擎内部重组，不影响 UI 消费。
+
+#### B2. 哪些可以延后？
+
+**全部可以延后。** 按优先级排序：
+
+| 优先级 | 变更 | 理由 |
+|--------|------|------|
+| P1（建议在 UI Phase 2 前） | `buildSendRequest` 对齐 | 当前映射 `fieldValues` → `SendRequest.fieldValues` 可工作但语义不清，对齐后 `userFieldValues` 更准确 |
+| P2（功能增强时） | `StepRepeat` + `FieldVariation` | 对应 UI 高级配置，按产品节奏排期 |
+| P2（功能增强时） | `TaskStopCondition.exitCondition` | 条件退出是高级能力 |
+| P3（代码质量） | 统一 `runTask` 引擎 | 三循环行为等价但维护成本高，统一后更易扩展 |
+| P3（代码质量） | `ScheduleDriver` 类型重组 | 核心架构改善，但行为不变 |
+| P4（性能） | `TimerService` platform 实现 | setTimeout 够用，Web Worker 精度优化后续做 |
+
+#### B3. 旧类型上 readiness 代码的迁移策略
+
+当 task-real Phase 2 实施时，readiness 代码迁移方式：
+
+| Readiness 组件 | 迁移工作量 | 说明 |
+|----------------|-----------|------|
+| `validateTaskDefinition` | 小 | 字段名更新：`schedulingMode` → `schedule`，新增 `fieldVariations`/`repeat` 校验 |
+| `createSendStep`/`createDelayStep`/`createWaitConditionStep` | 小 | `sendConfig` → `config`，`fieldValues` → `userFieldValues`，`targetId` 改必选 |
+| `serializeTaskDefinition`/`deserializeTaskDefinition` | 中 | 序列化格式需版本化（旧格式兼容读取），新增字段序列化 |
+| `retryTask`/`stopAll` | 无变更 | 不涉及 TaskDefinition 内部字段 |
+| `selectActiveInstances` | 无变更 | 只读 lifecycle 状态 |
+
+**迁移原则**：
+- 不破坏现有序列化格式，新增 `version` 字段或用 feature detection 区分新旧格式
+- 类型变更集中在一个 PR 内完成（26 文件），不拆散
+- 所有 70+ 现有测试必须适配通过后再合并
+
+#### B4. UI 设计术语对齐决策
+
+**结论：改设计文档适配代码，不改代码适配设计文档。**
+
+| 术语 | 设计文档（新） | 代码（旧） | 决策 |
+|------|---------------|-----------|------|
+| 调度类型 | `scheduleKind`（brainstorm）/ `schedulingMode`（design） | `schedulingMode` | **统一为 `schedulingMode`** |
+| 枚举值 | `immediate`/`timer`/`event` | `timed`/`trigger`/`sequence` | **保留旧枚举值**，task-real 实施时统一变更 |
+| 步配置字段 | 统一 `config` | `sendConfig`/`waitConfig`/`delayConfig` | **保留旧命名**，task-real 实施时统一 |
+| 字段值 | `userFieldValues` | `fieldValues` | **保留旧命名**，task-real 实施时统一 |
+| 高级配置 | `fieldVariations`/`exitCondition`/`repeat` | 不存在 | **标记为 Phase 2**，UI 初始版本不含 |
+
+**需更新的设计文档**：
+
+| 文档 | 更新内容 |
+|------|---------|
+| `pages-task-send-command-design.md` D-T5 | 高级配置（fieldVariations / exitCondition / repeat）标注为"Phase 2，初始版本隐藏" |
+| `pages-task-send-command-design.md` D-T7 | `schedulingMode` 列定义不变（已正确），`definitionRef.schedule.kind` 改为 `definitionRef.schedulingMode` |
+| `pages-task-send-command-brainstorm.md` | 注明 brainstorm 中的 ScheduleDriver 等新类型是 Phase 2 目标 |
+
+### C. 与 send / connection / frame 的接口影响
+
+**结论：task-real 不影响外部 feature 公开 API。**
+
+| 接口 | 当前状态 | task-real 影响 |
+|------|---------|---------------|
+| `SendServiceProvider.execute(SendRequest)` | task 构造 SendRequest 并调用 | Phase 2 对齐字段名，SendRequest 自身不变 |
+| `ReceiveEventSource.subscribe(handler)` | task 订阅接收事件 | 不变 |
+| `FrameReader.getFrameAsset(id)` | task 查询帧定义 | 不变 |
+| `ConditionMatchInput` | task 内部类型 | 不变（已是多字段结构） |
+
+### D. 是否需要更新 task-real-design.md？
+
+**结论：task-real-design.md 不需要现在更新。**
+
+理由：
+- design.md 描述的是最终目标架构，方向正确
+- 实施时机是 Phase 2，届时可结合实际经验微调
+- 现在更新属于过早优化，代码状态可能再次变化
+
+需要更新的是 **UI 侧设计文档**（见 B4 表格），确保 UI Phase 1 与当前代码对齐。
+
+### E. 实施节奏建议
+
+```
+Phase 1（当前）
+  └─ UI 实施：基于旧类型体系完成任务管理页（D-T1~D-T10 基础部分）
+  └─ 不含：fieldVariations / exitCondition / step.repeat（UI 隐藏高级配置入口）
+
+Phase 2（UI 稳定后）
+  └─ task-real 引擎重组：ScheduleDriver + 统一 runTask + StopGuard + repeat
+  └─ 类型体系变更：26 文件 PR
+  └─ UI 适配：显示高级配置入口
+  └─ 序列化版本化
+
+Phase 3（性能优化）
+  └─ TimerService platform 实现
+  └─ stepResults 上限策略
+```
+
+### F. 风险评估
+
+| 风险 | 概率 | 影响 | 缓解 |
+|------|------|------|------|
+| Phase 2 类型变更导致 UI 大量返工 | 中 | 高 | UI 使用 composable 层隔离类型细节，变更只改 composable |
+| 旧枚举值（timed/trigger/sequence）序列化到用户文件 | 高 | 中 | 序列化格式预留 version 字段，Phase 2 migration path 已规划 |
+| `buildSendRequest` 未对齐导致运行时错误 | 低 | 高 | SendRequest 当前仍接受 `fieldValues`/`options`，不会报错 |
+| 旧 `targetId?` fallback 导致空 targetId 发送 | 低 | 低 | send-service 校验 `!targetId` 返回 error result，不会静默发送；UI 表单 targetId 必填双保险 |
+
+### G. Service Readiness Audit 结果（2026-05-13）
+
+UI 页面设计前置审计完成。审计结果已写入 `pages-task-send-command-design.md` 末尾。
+
+**关键发现**：
+
+| 类型 | 数量 | 说明 |
+|------|------|------|
+| 直接可用 | 12 项 | create/start/pause/resume/stop/remove/retry/stopAll/selectActiveInstances/getProgress/validate/serialize |
+| 需补齐 gap | 3 项 | updateTask(G1)、历史记录 elapsedMs+completedAt(G2)、stopAll 返回值(G3) |
+| Phase 2 隐藏 | 3 项 | fieldVariations / exitCondition / step.repeat |
+
+G1-G3 和代码精简项（FrameReader 删除、lifecycle-manager 内联、clone.ts 清理）合并一轮执行，不拆多轮。
+
+**过度设计审查结论**：
+
+| 问题 | 判定 |
+|------|------|
+| task-lifecycle-manager 独立文件 | 过度分层，timestamp 逻辑简单，合并到 task-service |
+| task-error-policy 独立文件 | 仅一处调用，可内联到 iteration-loops，但独立文件有助于测试隔离——**保留** |
+| selectors 层整体 | selectTaskProgress 有价值（计算逻辑非平凡），其他 trivial 的随 G2 修复时精简 |
+| FrameReader 接口 | 死 surface，删除 |
+| public API 70+ 导出 | surface 偏大，Phase 2 task-real 时统一收缩 |

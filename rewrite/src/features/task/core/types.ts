@@ -217,12 +217,17 @@ export interface TaskExecutionSummary {
   readonly finishedAt: string;
 }
 
+// --- Condition term (extends WaitCondition with logic operator) ---
+
+export interface ConditionTerm extends WaitCondition {
+  readonly logicOperator?: 'and' | 'or';
+}
+
 // --- Condition match input ---
 // Decoupled from receive internals. Service layer maps from receive public API outputs.
 
 export interface ConditionMatchInput {
   readonly frameId: string;
-  readonly fieldId: string;
-  readonly value: number | string | null;
+  readonly fieldValues: Readonly<Record<string, number | string | null>>;
   readonly sourceId?: string;
 }

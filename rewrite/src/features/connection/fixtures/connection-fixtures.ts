@@ -65,6 +65,12 @@ export const fakeWriteFailureFixture: ConnectionAdapterErrorInput = {
   recoverable: true,
 };
 
+export const fakeConnectFailedErrorFixture: ConnectionAdapterErrorInput = {
+  kind: 'connect-failed',
+  message: 'Connect attempt failed.',
+  recoverable: true,
+};
+
 export const fakeAdapterEventFixtures: readonly ConnectionAdapterEvent[] = [
   {
     kind: 'data',

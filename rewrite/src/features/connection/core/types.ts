@@ -25,6 +25,8 @@ export const TRANSPORT_EVENT_KINDS = [
   'write-failed',
   'error',
   'stale-event',
+  'reconnect-scheduled',
+  'reconnect-exhausted',
 ] as const;
 export type TransportEventKind = (typeof TRANSPORT_EVENT_KINDS)[number];
 
@@ -130,6 +132,8 @@ export interface TransportEventSnapshot {
   readonly byteLength?: number;
   readonly bytes?: readonly number[];
   readonly error?: TransportErrorSnapshot;
+  readonly reconnectAttempt?: number;
+  readonly reconnectNextAt?: string;
 }
 
 export interface ConnectionRuntimeFact {
@@ -141,6 +145,8 @@ export interface ConnectionRuntimeFact {
   readonly counters: ConnectionCounterSnapshot;
   readonly lastActivityAt?: string;
   readonly lastError?: TransportErrorSnapshot;
+  readonly reconnectAttempt?: number;
+  readonly reconnectNextAt?: string;
 }
 
 export interface ConnectionStateSnapshot {
@@ -180,6 +186,8 @@ export interface NormalizedTransportEventInput {
     readonly occurredAt?: string;
     readonly connectionId?: string;
   };
+  readonly reconnectAttempt?: number;
+  readonly reconnectNextAt?: string;
 }
 
 export type { ReadonlyDeep } from '@/shared/types/readonly-deep';

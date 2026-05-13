@@ -177,7 +177,6 @@ describe('connection state and service pilot', () => {
       kind: 'open-failed',
       message: 'Open failed without adapter event.',
     });
-    // Atomized connect: no state written on adapter failure
     expect(service.getConnectionFact(serialTransportConfigFixture.id)).toBeUndefined();
   });
 

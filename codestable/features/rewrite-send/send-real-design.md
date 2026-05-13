@@ -15,7 +15,7 @@ supersedes: rewrite-send-design.md (2026-05-06 初始骨架设计)
 
 Brainstorm 详情见 `send-real-brainstorm.md`。本设计只写结论和变化，不重复分析过程。
 
-**旧设计 open questions 闭环**：旧 design（`rewrite-send-design.md`）§5.2 "expression runtime role in send" 已由本设计 D4 解决（send 内部执行 compileGroup + evaluateGroup）；§5.3 "checksum 策略列表" 已由本设计 step 6 + crc32 补充解决。
+**旧设计 open questions 闭环**：旧 design（`rewrite-send-design.md`）§5.2 "expression runtime role in send" 已由本设计 D4 解决（send 内部执行 compileConditional + evaluateConditional）；§5.3 "checksum 策略列表" 已由本设计 step 6 + crc32 补充解决。
 
 ## 0. 术语
 
@@ -96,7 +96,7 @@ send-real 补齐构帧管线从"骨架"到"可完整构帧发送"的全部能力
 | `factor` | `number?` | 逆换算 `value / factor`，非 bytes 类型才应用 |
 | `expressionConfig` | `ExpressionDefinition?` | 表达式驱动字段值 |
 | `defaultValue` | `string?` | 用户未填值时的 fallback |
-| `configurable` | `boolean` | 检查用户值合法性 |
+| `configurable` | `boolean?` | 检查用户值合法性（可选，默认 false） |
 | `inputType` | `FrameInputType` | 输入类型（input/select/radio/expression） |
 | `validOption` | `FrameChecksumDefinition?` | checksum 范围（startFieldIndex/endFieldIndex + checksumMethod） |
 
@@ -130,7 +130,7 @@ interface SendFieldEncodingDef {
   // 新增
   factor: number;                    // 默认 1
   defaultValue?: string;
-  configurable: boolean;
+  configurable?: boolean;              // 可选，默认 false
   expressionConfig?: ExpressionDefinition;
   validOption?: { isChecksum: boolean; startFieldIndex: number; endFieldIndex: number; checksumMethod?: ChecksumMethod };
 }
@@ -382,7 +382,7 @@ build buffer 之后的统一缓冲区修改步骤。Checksum 和 length 都是"b
 | `ReadonlyFrameAsset` + `FrameFieldDefinition` | frame | 消费帧定义和字段配置 |
 | `SendTargetResolver.resolveTarget()` | connection adapter | targetId → TransportTargetSnapshot |
 | `SendTransportWriter.writeBytes()` | connection adapter | 写入字节到 transport |
-| `compileGroup + evaluateGroup` | shared/expression | 表达式批量编译和求值 |
+| `compileConditional + evaluateConditional` | shared/expression | 表达式条件编译和求值 |
 
 ### 4.3 消费 send 的下游接口（无变化）
 
