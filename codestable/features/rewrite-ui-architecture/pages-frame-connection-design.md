@@ -484,7 +484,7 @@ export function useAsyncOperation() {
 ### C3: 生命周期管理
 
 **连接页 UI 刷新**:
-- `ConnectionPage.vue` 使用独立的 `setInterval` + `service.getSnapshot()` + `selectConnectionSummaries()` 轮询连接状态
+- `ConnectionPage.vue` 使用独立的 `setInterval`（间隔 ≥1s，满足前端规范 P5 合规要求）+ `service.listConnectionSummaries()` 轮询连接状态
 - `onMounted` 启动 interval，`onBeforeUnmount` 清除
 - 不使用 `runtime.startTickDriver()`（tick driver 是全局数据路由引擎，不属于单页面）
 

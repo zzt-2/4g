@@ -7,7 +7,7 @@
 - **边界护栏**: CLAUDE.md, rewrite-target-structure.md, command-ingress-brainstorm.md, pages-frame-connection-brainstorm.md, 2026-05-07-runtime-next-phase-global-planning.md
 - **日期**: 2026-05-12
 - **brainstorm**: pages-task-send-command-brainstorm.md
-- **状态**: REVISE v2（修正前端规范合规 + 架构问题）
+- **状态**: REVISE v3（设计-代码对齐审计修正 + Service Readiness Audit）
 
 ---
 
@@ -78,6 +78,8 @@ interface SendFrameInstance {
 不进 core/service 层——帧实例是页面级 UI 状态，不是全局领域状态。
 
 **D-S6 单帧发送**: 选中实例 + 选择目标 → `sendService.execute({ frameId, targetId, userFieldValues, context: { source: 'user' } })`。成功 $q.notify('positive')，失败 $q.notify('negative') + buildIssues。
+
+**C9 说明**: `SendRequest.variables` 字段在实际代码中不存在。外部变量通过 service 创建时注入的 `variableProvider` 获取，`resolveFieldValues` 内部合并 provider 变量和调用方传入的 variables 参数。UI 发送时不需传递 variables——service 内部自动从 variableProvider 获取。
 
 **D-S7 实例编辑对话框**:
 - QDialog v-model + @hide 清理(D1)
@@ -279,7 +281,8 @@ D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`
 上部统计面板 — grid 5列×2行:
 - 累计秒 / 卫星运行秒 / 指令接收总数(color="positive"(C2)) / 成功总数(color="positive") / 出错数(color="negative")
 - 最后功能码 / 错误原因(class="text-secondary"(C3)) / 已加载卫星ID / 健康状态(StatusBadge) / 链路自检(StatusBadge)
-- 数据源: selectCommandIngressSnapshot / selectScoeStatistics / selectScoeRuntimeStatus
+- 空值显示 "—"(V3)，数字零正常显示
+- 数据源: service.getScoeStatistics() / service.getScoeRuntimeStatus()（CI-S1: selector 已迁移为 service Reader 方法）
 - 刷新: rAF + cadence 1000ms
 
 下部左右分栏:
@@ -297,12 +300,14 @@ D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`
   - loading: `:loading="isLoading"`
 
 - 右侧(固定 320px): 测试工具
-  - 接收区: 工具栏(高亮/开始/停止/清空) + HEX 记录列表(virtual-scroll)
-    - 列: 时间(fixed 100px) / HEX数据(auto, font-mono + 高亮) / 校验标记(fixed 60px, icon)
+  - 接收区: 工具栏(高亮/开始/停止/清空（$q.dialog() 确认）(Q5)) + HEX 记录列表(virtual-scroll)(T1)
+    - 列: 时间(fixed 100px) / HEX数据(auto, font-mono + 高亮，长文本截断+QTooltip)(V4) / 校验标记(fixed 60px, icon)
     - 空状态: "暂无接收数据"
+    - HEX 列表渲染使用 v-memo 按 record.id 优化(P7)
   - 发送区: HEX 输入框(QInput type=textarea) + [发送] 按钮 `:loading="isSending" :disable="!hexInput.trim()"`(F4) + 发送记录
   - 高亮配置: QDialog v-model(D1)，宽度 `rw-dialog-md`(D2)
     - 规则列表：起始位置(QInput) / 长度(QInput) / 标签(QInput) / 颜色(QSelect: info/warning/negative/positive)
+    - 规则删除需 $q.dialog() 确认(Q5)
     - [取消] [保存] 按钮，保存 `:loading`
   - composable: useTestTool（DataRecorder 服务 + calculateHighlights 纯函数）
 
@@ -316,10 +321,11 @@ D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`
   |----|------|------|------|
   | 卫星ID | satelliteId | auto | 文本 |
   | 命令数 | commandCount | fixed 80px | 数字 |
-  | 操作 | — | fixed 100px | icon 按钮(复制/删除) |
+  | 操作 | — | fixed 100px | icon 按钮(复制/删除，删除需 $q.dialog() 确认)(Q5) |
 
   - 空状态: `#no-data` → "暂无卫星配置"
   - loading: `:loading="isLoading"`
+  - 选中: selection="single"，点击行选中卫星 → 右栏编辑区展示(T5)
   - [添加] + [导入] + [导出] 按钮
   - 数据源: useScoeConfig composable 内部管理 satelliteConfigs（**不放 CommandIngressState**）
 - 右侧(flex:1): 选中卫星的编辑区
@@ -327,7 +333,7 @@ D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`
     - SCOE标识(QInput `:rules` required) / TCP配置(IP QInput + 端口 QInput type=number + 自动连接 QToggle) / UDP配置(IP + 端口) / 偏移配置(6项 grid-cols-3, QInput type=number) / 成功帧选择(FrameSelector)
   - 卫星基本信息: messageIdentifier / sourceIdentifier / destinationIdentifier / modelId（均 QInput `:rules` required）
   - 命令配置列表: QExpansionItem 展开/折叠
-    - 折叠: 标题 + 功能码 + 操作(编辑/删除)
+    - 折叠: 标题 + 功能码 + 操作(编辑/删除，删除需 $q.dialog() 确认)(Q5)
     - 展开: 功能码 / 校验和配置(列表) / 参数配置(列表) / 帧映射配置(列表) / 完成条件(列表) / 超时
     - 不使用大弹窗
   - [保存] 按钮 `:loading="isSaving"`(F4)
@@ -374,6 +380,29 @@ D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`
 **甲方主流程**: 上报任务 → 接收任务 → 执行 → 用例结果上报 → JSON 报告交付
 
 **D-CI5 已移除**: WebSocket 连接类型、运行时配置热更新、命令配置大弹窗（改为展开折叠）。
+
+### 设计-代码对齐修正（审计 2026-05-13）
+
+**SIGNATURE_CHANGED 同步**（9 处，均有意变更）:
+
+| # | 变更 | 设计同步 |
+|---|------|---------|
+| 1 | 5 个 selector 删除，迁移为 service Reader 方法 | D-CI2 数据源已更新为 `service.getScoeStatistics()` / `service.getScoeRuntimeStatus()` |
+| 2 | `ScoeProtocolAdapterOptions` 新增可选 `onCommand` 回调 | 内部实现细节，不影响 UI 设计 |
+| 3 | `ScoeCommandFunction` 用 const array 替代 enum | UI 不直接消费枚举，不影响设计 |
+| 4 | task-builder 减少未使用参数 | 内部实现优化，不影响设计 |
+| 5 | service 接口比设计更丰富（dispose、tracking、getLoadedSatelliteId、isScoeFramesLoaded） | 正向扩展，不阻断 UI 实施 |
+
+**前端规范合规修正**（1 必修 + 5 轻微）:
+
+| 编号 | 违规 | 修正位置 | 修正方式 |
+|------|------|---------|---------|
+| Q5 | 删除二次确认缺失 | D-CI2 测试工具清空/高亮规则删除、D-CI3 卫星删除/命令删除 | 各处已标注 `(Q5)` + `$q.dialog() 确认` |
+| T1 | virtual-scroll 防御 | D-CI2 HEX 记录列表 | 已标注 `(T1)`，实施时加 `:virtual-scroll-threshold` 防御 |
+| T5 | 行选中机制 | D-CI3 卫星列表 | 已补充 `selection="single"` 标注 `(T5)` |
+| V3 | 空值约定 | D-CI2 统计面板 | 已标注，空字符串/未加载显示 "—" |
+| V4 | 长文本截断 | D-CI2 HEX 数据列、D-CI3 命令标签 | 已标注 `(V4)` + QTooltip |
+| P7 | v-memo | D-CI2 HEX 记录列表 | 已标注 `(P7)`，实施时按 record.id memo |
 
 ---
 
@@ -466,7 +495,9 @@ Events:
 - 计算参数: `color="warning"` 标识，表达式字段
 - 不可配置: `color="grey"` 文字，只读展示
 
-表达式实时联动: 字段值变化 → `evaluateFieldPreview` 重算依赖字段 → emit 更新后的 values。`evaluateFieldPreview` 是 send feature 面向 UI 的公共函数，内部封装 FrameFieldDefinition → frameToBuildInput → SendFieldEncodingDef → evaluateFieldExpressions 的转换链路。UI composable 只传 frame + fieldId + userFieldValues，不接触 send 内部编码类型。按字段粒度调用，不全量 resolveFieldValues。computed 缓存 + 字段级依赖追踪。
+表达式实时联动: 字段值变化 → `evaluateFieldPreviewForUI(frame, fieldId, userFieldValues, variableProvider, variables?)` 重算依赖字段 → emit 更新后的 values。这是 send feature 面向 UI 的公共函数，内部封装 frameToBuildInput → 查找字段 → evaluateFieldPreview 的转换链路。UI composable 只传 frame + fieldId + userFieldValues + variableProvider，不接触 send 内部编码类型。按字段粒度调用，不全量 resolveFieldValues。computed 缓存 + 字段级依赖追踪。
+
+**variableProvider 获取**：send service 创建时注入 variableProvider（`CreateSendServiceOptions.variableProvider`），但 `SendReader` 接口不暴露它。UI composable 需要 runtime 提供独立的 variableProvider 实例（或 noop provider 用于纯本地预览场景）。详见发送页 Service Readiness Audit GS2。
 
 消费方:
 - 发送页实例编辑对话框
@@ -487,7 +518,7 @@ brainstorm 提出 11 个 composable，审视后合并为 10 个:
 |------|---------|------|
 | useTaskList + useTaskHistory | → useTaskList（mode: 'active' \| 'history'） | 直接消费 selectActiveInstances / selectTaskHistory 两个 selector，不做 UI 层过滤 |
 | useSendInstances | 保留 | 独立的帧实例 CRUD + 持久化 |
-| useFramePreview | 保留 | 预览计算逻辑独立，依赖 evaluateFieldExpressions |
+| useFramePreview | 保留 | 预览计算逻辑独立，依赖 evaluateFieldPreviewForUI |
 | useTaskEditor | 保留 | 编辑表单状态复杂，职责独立 |
 | useTaskMonitor | 保留 | 运行态轮询 + 状态映射，与编辑器互斥 |
 | useScoeConfig | 保留 | 配置 CRUD + satelliteConfigs 管理 + 持久化 |
@@ -534,7 +565,7 @@ D6 路由表新增:
 | 变更 | 文件 |
 |------|------|
 | re-export buildFrame/resolveFieldValues/evaluateFieldExpressions/frameToBuildInput/applyFactor/applyBuildPostPatch | send/index.ts |
-| 新增 evaluateFieldPreview(frame, userFieldValues, fieldId) — 封装类型转换，面向 UI 预览 | send/core/frame-resolver.ts + re-export from send/index.ts |
+| 已实现 evaluateFieldPreviewForUI(frame, fieldId, userFieldValues, variableProvider, variables?) — UI 面向字段预览 | send/core/frame-resolver.ts + re-export from send/index.ts |
 | 新建 SendFrameInstance 类型 | send/composables/send-instance-types.ts |
 | 新建 useSendInstances composable | send/composables/use-send-instances.ts |
 | 新建 useFramePreview composable | send/composables/use-frame-preview.ts |
@@ -646,3 +677,146 @@ D6 路由表新增:
 | 删除 core/clone.ts 残留 | 无消费方，已用 structuredClone 替代 |
 - 不建拖拽排序（上下移动按钮）
 - 不在 CommandIngressState 混入配置编辑数据（satelliteConfigs 归 composable）
+
+---
+
+## 指令接入页 Service Readiness Audit
+
+**日期**: 2026-05-13
+**基线**: `rewrite/src/features/command-ingress/` 当前代码 + D-CI1~D-CI4 设计条目
+**结论**: 核心运行时 API 就绪，4 个 gap 需在 UI 实施前补齐，甲方 Tab 全部 stub
+
+### 就绪项（直接可用）
+
+| 操作 | 方法/类型 | 状态 |
+|------|---------|------|
+| 加载卫星 | `service.loadSatellite(id)` → `CommandResult` | OK |
+| 卸载卫星 | `service.unloadSatellite()` → `CommandResult` | OK |
+| 读统计快照 | `service.getScoeStatistics()` → `ScoeStatisticsSnapshot`（6 字段全覆盖） | OK |
+| 读运行时状态 | `service.getScoeRuntimeStatus()` → `ScoeRuntimeStatus`（6 字段全覆盖） | OK |
+| 读已加载卫星 ID | `service.getLoadedSatelliteId()` → `string` | OK |
+| 读加载状态 | `service.isScoeFramesLoaded()` → `boolean` | OK |
+| 校验全局配置 | `validateGlobalConfig(config)` → `ValidationResult` | OK |
+| 校验卫星配置 | `validateSatelliteConfig(config)` → `ValidationResult` | OK |
+| 校验命令配置 | `validateCommandConfig(config)` → `ValidationResult` | OK |
+| 数据录制 | `createDataRecorder()` → `DataRecorder`（record/getRecords/clear） | OK |
+| 高亮计算 | `calculateHighlights(data, rules)` → `Highlight[]` | OK |
+| 协议适配 | `service.adapter` → `ProtocolAdapter`（consume 分流） | OK |
+| 销毁 | `service.dispose()`（停计时器+停追踪任务） | OK |
+| 配置类型 | `ScoeGlobalConfig` / `SatelliteConfig` / `ScoeCommandConfig` 完整类型 | OK |
+
+### Gap 清单
+
+| # | Gap | 影响 | 修复 | 文件 |
+|---|-----|------|------|------|
+| CI-G1 | 无命令执行日志记录 | D-CI2 命令执行日志 DataTable 无法渲染 | 新增 `CommandLogEntry` 类型和 `CommandLogRecorder` 服务，在 onCommand 回调中追加执行记录（timestamp/code/result/duration）；service 暴露 `getCommandLog(): readonly CommandLogEntry[]` | command-ingress/services/command-log-recorder.ts, command-ingress-service.ts |
+| CI-G2 | 测试工具无法获取原始接收数据 | D-CI2 测试工具接收区无数据源 | 方案 A: service 暴露 `testDataRecorder: DataRecorder`，adapter.consume 时同步记录 consumed events 的 raw bytes；方案 B: composable 层直接从 connection service 获取 event 数据。推荐方案 A（数据流已在 service 内部，避免 composable 重复订阅） | command-ingress-service.ts, scoe-protocol-adapter.ts |
+| CI-G3 | 无 sendTestData 方法 | D-CI2 测试工具发送区无法发送 HEX 数据 | 新增 `service.sendTestData(hex: string, targetId: string): Promise<void>`，内部 hex→bytes→connection.write()；或由 useTestTool composable 直接调 connection service（如果 connection 暴露 write 公共 API） | command-ingress-service.ts |
+| CI-G4 | HighlightRule 使用 function matcher，不可序列化 | D-CI2 高亮配置对话框无法构造/持久化 HighlightRule | 新增数据驱动的 `HighlightRuleConfig { offset, length, pattern, severity }` 类型，`calculateHighlights` 改为接受 config 数组 + raw bytes | core/highlight.ts, core/types.ts |
+
+### 甲方 Tab（D-CI4）— 全部 stub
+
+brainstorm 决策 9 明确甲方 HTTPS 接口先做 stub。以下操作均无 service 支持，UI 实施时显示占位：
+
+| 操作 | 状态 | 说明 |
+|------|------|------|
+| 连接状态指示 | STUB | 甲方 HTTPS 连接管理未实现 |
+| 对接配置保存 | STUB | 甲方配置 schema 未确认 |
+| 任务上报 | STUB | 甲方任务上报协议未确认 |
+| 已下发任务列表 | STUB | 甲方任务接收未实现 |
+| 任务详情 | STUB | 需先实现任务接收 |
+| 设备列表 | STUB | 预留空 Tab |
+
+D-CI4 UI 实施建议: 先渲染静态布局 + StatusBadge(unknown) + 空列表 + "功能开发中"提示，所有按钮 disable。schema 确认后再实现交互。
+
+### 副作用与 UI 状态管理
+
+| 操作 | 副作用 | UI 需管理 |
+|------|--------|----------|
+| loadSatellite | 修改 loadedSatelliteId/scoeFramesLoaded，激活两阶段状态机 | 按钮状态：加载/卸载互斥，依赖 getLoadedSatelliteId() |
+| unloadSatellite | 重置全部运行时统计 | 确认对话框（$q.dialog），卸载后统计面板清零 |
+| 命令执行 | 更新统计计数、lastCommandCode | 统计面板 rAF 刷新 1000ms |
+| 测试工具发送 | 无 command-ingress 副作用，走 connection.write | loading 状态 |
+| 配置保存 | 无 service 副作用，composable 层持久化 | isSaving loading 状态 |
+
+### read-for-edit 分析
+
+| 数据 | 读取方式 | 是否需要 read-for-edit |
+|------|---------|---------------------|
+| 统计/运行时状态 | `service.getScoeStatistics()` / `getScoeRuntimeStatus()` 返回只读快照 | 否，只读展示 |
+| 卫星配置列表 | useScoeConfig composable 内部管理 | 是，编辑时从 composable 取 editable copy |
+| 全局配置 | service 构造时传入，composable 管理 | 是，编辑时从 composable 取 editable copy |
+| 命令配置 | 嵌套在 SatelliteConfig.commandConfigs 内 | 是，编辑时深拷贝对应命令配置 |
+| 高亮规则 | 测试工具对话框内管理 | 是，对话框打开时取当前规则副本 |
+
+### 代码精简建议（与 CI-G1~CI-G4 合并执行）
+
+| 项目 | 说明 |
+|------|------|
+| HighlightRule.match 函数签名改为数据驱动 | 配合 CI-G4，消除不可序列化的 function matcher |
+| status-timer.ts 已内联到 service（`setInterval` 在 service.ts:109） | 文件可删除（untracked，无消费方） |
+| onCommand 回调签名用 Parameters 间接引用 | 可改为直接类型定义提高可读性 |
+
+---
+
+## 发送页 Service Readiness Audit
+
+**日期**: 2026-05-13
+**基线**: `rewrite/src/features/send/` 当前代码 + D-S1~D-S9 设计条目
+**结论**: 核心发送 API 就绪，2 个 gap 需在 UI 实施前补齐
+
+### 就绪项（直接可用）
+
+| 操作 | 方法/函数 | 状态 |
+|------|---------|------|
+| 发送帧 | `sendService.execute(SendRequest)` → `Promise<SendResult>` | OK |
+| 帧构建 | `frameToBuildInput(frame)` → `{ fields, totalByteLength }` | OK |
+| 字段值解析 | `resolveFieldValues(fields, userFieldValues, variableProvider, variables?)` | OK |
+| 因子逆换算 | `applyFactor(fields, values)` | OK |
+| 字节编码 | `buildFrame(SendBuildInput)` → `FrameBuildOutput` | OK |
+| 后处理补丁 | `applyBuildPostPatch(bytes, fields, options)` → checksum/length 回填 | OK |
+| 单字段预览 | `evaluateFieldPreviewForUI(frame, fieldId, userFieldValues, variableProvider, variables?)` | OK |
+| 发送统计 | `sendReader.getStatistics()` → `SendStatisticsSnapshot` | OK |
+| 发送结果列表 | `sendReader.listResults()` → `SendResult[]` | OK |
+| 帧格式列表 | frame feature `listFrameAssetSummaries(source, { direction, query, favoriteOnly? })` | OK |
+| 收藏切换 | frame feature `replaceFrames(...)` | OK |
+| 目标列表 | connection feature `service.listConnectionSummaries()` | OK |
+| 帧实例类型 | `SendFrameInstance` 已在 `send/core/types.ts` 定义 | OK |
+
+### Gap 清单
+
+| # | Gap | 影响 | 修复 | 文件 |
+|---|-----|------|------|------|
+| GS1 | platform file facade 未实现 | useSendInstances 持久化依赖 `readTextFile`/`writeTextFile`，无法保存/加载实例 | 新增 `platform/files.ts` + preload 桥接 + main 实现。前置依赖已在 design 前置依赖章节列出 | platform/files.ts, preload/, main/ |
+| GS2 | variableProvider 未暴露给 UI | useFramePreview 调用 `evaluateFieldPreviewForUI` 需要 variableProvider，但 SendReader 接口不暴露 | 方案 A: runtime 层提供独立的 variableProvider 实例供 composable 注入（推荐——与 service 注入的 provider 共享同一变量源）。方案 B: SendReader 新增 `getVariableProvider(): SendVariableProvider` | runtime/bootstrap 或 send-service.ts |
+
+### 副作用与 UI 状态管理
+
+| 操作 | 副作用 | UI 需管理 |
+|------|--------|----------|
+| sendService.execute | 更新 send state（statistics/recentResults/status）| isSending loading + 结果通知（$q.notify） |
+| 发送成功 | stats 变化，instance.sendCount/lastSendAt 需更新 | composable 更新本地 instance 计数 |
+| 发送失败 | stats 变化，SendResult 包含 buildIssues | 展示错误信息 + buildIssues |
+| 帧实例创建 | 纯本地状态（nanoid）| 无副作用 |
+| 帧实例编辑 | 纯本地状态 | dirty tracking + 校验 |
+| 帧实例删除 | 纯本地状态 | $q.dialog 确认 |
+| 实例持久化 | 文件 I/O（通过 platform facade）| isSaving loading + 错误处理 |
+| 帧格式收藏 | frame state 变更 | 左栏列表刷新 |
+
+### Selector 返回类型覆盖度
+
+| 展示字段 | 来源 | 覆盖状态 |
+|---------|------|---------|
+| D-S3 实例表：index/name/fieldCount/sendCount/lastSendAt/description | useSendInstances composable 本地管理 | OK — SendFrameInstance 包含全部字段 |
+| D-S4 预览 HEX | frameToBuildInput + buildFrame 纯函数计算 | OK — FrameBuildOutput.bytes 可直接格式化 |
+| D-S4 字段表 | frame.fields + instance.userFieldValues | OK — FrameFieldDefinition + SendFieldValue |
+| D-S4 发送统计 | sendReader.getStatistics() | OK — SendStatisticsSnapshot 包含 totalSent/totalErrors/byFrame/byTarget |
+
+### read-for-edit 分析
+
+| 数据 | 读取方式 | 是否需要 read-for-edit |
+|------|---------|---------------------|
+| 帧实例列表 | useSendInstances composable 内部 shallowRef | 是 — 编辑对话框打开时深拷贝 userFieldValues |
+| 帧格式定义 | frame feature `getFrame(frameId)` 只读快照 | 否 — 只读展示字段分组和约束 |
+| 发送目标列表 | connection service `listConnectionSummaries()` 只读快照 | 否 — 只读选择 |
+| 发送统计 | sendReader 只读快照 | 否 — 只读展示 |

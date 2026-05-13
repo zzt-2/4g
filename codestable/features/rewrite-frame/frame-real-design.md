@@ -126,7 +126,7 @@ Frame feature 已有骨架代码（`rewrite/src/features/frame/`）：
 
 **选择器**（`selectors/frame-selectors.ts`）：findFrameAssets, getFrameAsset, listFrameAssetSummaries 等。**存在浅拷贝问题**。
 
-**旧格式迁移**（`core/legacy-normalizers.ts`）：基础框架已存在，`LegacyFrameMigrationResult` 类型已定义。（注：`core/legacy.ts` 已合并到 `legacy-normalizers.ts`，路径已更新）
+**旧格式迁移**（`core/legacy-normalizers.ts`）：基础框架已存在，`LegacyFrameMigrationResult` 类型已定义。
 
 #### 变化
 
@@ -341,7 +341,7 @@ frameReader 是 `createFrameAssetReader(state.getSnapshot)` 的产物，通过 r
 |--------|------|------|
 | FrameAssetReader 接口 | `features/frame/index.ts` 导出 | receive/send/task 通过此读取帧定义；删了它们拿不到帧数据 |
 | FrameAsset 类型 | `features/frame/core/types.ts` | 全系统唯一帧模型 |
-| Legacy migration 入口 | `features/frame/core/legacy.ts` | 旧 JSON 迁移唯一入口 |
+| Legacy migration 入口 | `features/frame/core/legacy-normalizers.ts` | 旧 JSON 迁移唯一入口 |
 | JSON schema 序列化 | `features/frame/services/` | 序列化/反序列化规则；删了无法持久化 |
 
 ### 2.4 Push strategy
@@ -364,6 +364,8 @@ frameReader 是 `createFrameAssetReader(state.getSnapshot)` 的产物，通过 r
 原因：
 - 文件尺寸健康，无偏胖或职责混杂
 - 改动量小（类型修正 + 深拷贝 + migration 补齐），不涉及文件拆分
+
+**已清理**：`FRAME_INPUT_TYPES` / `FrameInputType` 零外部消费方，已从 `index.ts` re-export 中移除（类型定义和内部消费保留）。
 
 ## 3. Acceptance contract
 

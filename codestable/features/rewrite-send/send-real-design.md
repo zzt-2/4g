@@ -147,8 +147,7 @@ interface SendRequest {
   frameId: string;
   targetId: string;
   userFieldValues?: Record<string, SendFieldValue>;  // 用户填的 configurable 字段（number/字符串/boolean）
-  variables?: VariableMap;                             // 可选：调用方预提供的变量
-  context?: SendContext;
+  context: SendContext;                                // 必选
 }
 
 // SendFieldValue 保持 string | number | boolean，
@@ -158,7 +157,8 @@ interface SendRequest {
 **迁移说明**（相对于旧 `SendRequest`）：
 - `fieldValues` → `userFieldValues`：语义更明确，只放用户输入的值
 - `options` 移除：`checksumKind` 由帧定义 `validOption.checksumMethod` 决定，不在请求层覆盖；`autoChecksum` 由 `frame.options.autoChecksum` 决定
-- `context` 改为可选：无上下文时仍可执行基本发送
+- `variables` 不进 SendRequest：外部变量通过 `resolveFieldValues(fields, userFieldValues, variableProvider, variables?)` 参数级传递。SendService 内部通过注入的 `variableProvider` 获取变量，调用方无需在请求中传递
+- `context` 必选：记录来源信息（source + taskId + stepIndex）
 
 #### 新增 VariableProvider adapter port
 
@@ -277,6 +277,16 @@ build buffer 之后的统一缓冲区修改步骤。Checksum 和 length 都是"b
 #### 步骤 2：resolve frame 扩展
 
 新增 direction 检查：获取 frame 后验证 `frame.direction === 'send'`，不匹配则返回 build-error。
+
+#### UI 面向字段预览 API
+
+代码在 pipeline 函数基础上额外实现了两层预览 API（均从 `send/index.ts` re-export）：
+
+1. **`evaluateFieldPreview(field: SendFieldEncodingDef, userFieldValues, variableProvider, variables?)`** — 底层函数，对单个字段执行 resolveFieldValues + applyFactor，返回 `{ value: SendFieldValue, issues: SendBuildIssue[] }`。消费 SendFieldEncodingDef，适合内部测试和 pipeline 复用。
+
+2. **`evaluateFieldPreviewForUI(frame: ReadonlyFrameAsset, fieldId: string, userFieldValues, variableProvider, variables?)`** — UI 包装函数，内部完成 frame → frameToBuildInput → 按 fieldId 查找字段 → evaluateFieldPreview 的转换链路。UI composable（useFramePreview）通过此函数消费，不直接接触 SendFieldEncodingDef。
+
+UI 消费方只需使用 `evaluateFieldPreviewForUI`。
 
 ### 2.3 挂载点
 

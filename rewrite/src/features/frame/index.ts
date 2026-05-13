@@ -4,7 +4,6 @@ export {
   EXPRESSION_SOURCE_TYPES,
   FRAME_DATA_TYPES,
   FRAME_DIRECTIONS,
-  FRAME_INPUT_TYPES,
   IDENTIFIER_LOGIC_OPERATORS,
   IDENTIFIER_RULE_OPERATORS,
 } from './core';
@@ -17,7 +16,6 @@ export type {
   FrameDataType,
   FrameDirection,
   FrameFieldDefinition,
-  FrameInputType,
   FrameOptionDefinition,
   IdentifierRule,
   IdentifierRuleOperator,
