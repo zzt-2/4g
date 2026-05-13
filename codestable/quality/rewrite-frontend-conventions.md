@@ -99,7 +99,7 @@ $q.dialog({ title: '确认删除', message: '不可恢复', cancel: true }).onOk
 
 ### T2. 列数 ≥ 3 或有自定义渲染时，列定义抽到 `columns.ts`
 
-列宽策略：文本列自适应、状态列设 min-width、操作列固定宽度。不用百分比宽度。
+列宽策略：文本列自适应、状态列设 min-width、操作列固定宽度。不用百分比宽度。QTable `headerStyle` / `style` 中使用 px 值是 API 要求，不视为硬编码违规。
 
 ### T3. 大数据集排序和分页走 service 层
 
@@ -172,6 +172,17 @@ const result = await taskService.validateConfig(config);
 ```
 
 ### D2. 弹窗宽度用语义 class，不硬编码
+
+定义在 `css/tokens/_size.scss` + `css/layers/_utilities.scss`：
+
+| class | min-width | 用途 |
+|-------|-----------|------|
+| `rw-dialog-sm` | 400px | 单字段确认、简单选择 |
+| `rw-dialog-md` | 560px | 表单、配置编辑 |
+| `rw-dialog-lg` | 720px | 多字段编辑、预览 |
+| `rw-dialog-xl` | 960px | 复合编辑器（任务编辑器、帧编辑器） |
+
+所有 class 带 `max-width: 80vw` 响应式下限。禁止在 `<q-card>` 或 scoped SCSS 中硬编码 `min-width`/`max-width` px 值。
 
 ```vue
 <!-- ❌ -->
@@ -311,6 +322,23 @@ watch(() => config.groups.length, () => rebuild());
 ### P4. computed 返回对象/数组必须保持引用稳定
 
 避免 `.filter()` / `.map()` 直接返回（每次新引用）。Vue 3.4+ 用 computed 的 oldValue 参数比较。
+
+推荐模式：表格行数据、筛选结果等派生数组用 `shallowRef` + `watch` 手动更新，不用 `computed` + `.map()`/`.filter()`。
+
+```typescript
+// ❌ 每次 frameList 变化都创建全新数组，触发下游全量 diff
+const tableRows = computed(() =>
+  frameList.value.map((f, i) => ({ ...f, _index: i + 1 })),
+);
+
+// ✅ shallowRef + watch，整组替换（与 P2 一致）
+const tableRows = shallowRef<TableRow[]>([]);
+watch(frameList, (list) => {
+  tableRows.value = list.map((f, i) => ({ ...f, _index: i + 1 }));
+}, { immediate: true });
+```
+
+少量数据（< 50 条）时 computed 也勉强可用，但后续页面数据量可能增大，统一使用 shallowRef 模式减少认知负担。
 
 ### P5. 定时器用 requestAnimationFrame，不用 setInterval
 
