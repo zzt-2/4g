@@ -32,7 +32,7 @@ boundary_guards:
 items:
   - id: CONN-IMPL-001
     title: "实现前重新确认 owner / not owner"
-    status: pending
+    status: done
     scope: "connection design guard"
     acceptance:
       - "实现说明列出 connection owner 和 not owner。"
@@ -45,7 +45,7 @@ items:
 
   - id: CONN-IMPL-002
     title: "建立 connection core 纯 TypeScript 规则"
-    status: pending
+    status: done
     scope: "rewrite/src/features/connection/core"
     acceptance:
       - "core 只接收显式输入，不依赖 Vue、Pinia、Electron、platform、Node、socket、serialport 或全局 store。"
@@ -59,7 +59,7 @@ items:
 
   - id: CONN-IMPL-003
     title: "建立 connection service 用例层"
-    status: pending
+    status: done
     scope: "rewrite/src/features/connection/services"
     acceptance:
       - "service 负责 connection lifecycle command、target query、transport write request、event ingestion、cleanup 和 error normalization。"
@@ -73,7 +73,7 @@ items:
 
   - id: CONN-IMPL-004
     title: "建立 connection state 和只读 selector"
-    status: pending
+    status: done
     scope: "rewrite/src/features/connection/state"
     acceptance:
       - "state 只维护 connection runtime facts、transport read model、target availability、transport counters 和必要 UI-independent selector。"
@@ -87,7 +87,7 @@ items:
 
   - id: CONN-IMPL-005
     title: "建立 platform transport adapter 边界"
-    status: pending
+    status: done
     scope: "rewrite/src/features/connection/adapters and rewrite/src/platform capability boundary"
     acceptance:
       - "real adapter 只通过 rewrite/src/platform facade 访问 accepted transport primitive。"
@@ -105,7 +105,7 @@ items:
 
   - id: CONN-IMPL-006
     title: "锁定 lifecycle / error / event 边界"
-    status: pending
+    status: done
     scope: "connection lifecycle and transport events"
     acceptance:
       - "connect/disconnect/cleanup 对 duplicate action、already closed resource、stale platform event 和 app shutdown 有可测行为。"
@@ -122,7 +122,7 @@ items:
 
   - id: CONN-IMPL-007
     title: "建立 target availability 和 route projection"
-    status: pending
+    status: done
     scope: "connection target boundary"
     acceptance:
       - "serial、TCP、TCP server listener/client、UDP remote route 都以 transport target material 表达。"
@@ -137,7 +137,7 @@ items:
 
   - id: CONN-IMPL-008
     title: "收口 byte input / byte output 消费边界"
-    status: pending
+    status: done
     scope: "connection -> receive / send / SCOE"
     acceptance:
       - "receive 只消费 incoming byte batches、source snapshot 和 lifecycle/error material，不 import connection internals。"
@@ -153,7 +153,7 @@ items:
 
   - id: CONN-IMPL-009
     title: "登记 runtime 装配与跨 feature 路由"
-    status: pending
+    status: done
     scope: "rewrite/src/runtime and app lifecycle"
     acceptance:
       - "runtime 只负责 connection service/adapter/subscription 的创建、释放、启动顺序、cleanup 和跨 feature 路由。"
@@ -168,7 +168,7 @@ items:
 
   - id: CONN-IMPL-010
     title: "保留连接页面和用户可见流程"
-    status: pending
+    status: done
     scope: "rewrite/src/pages and rewrite/src/features/connection/components"
     acceptance:
       - "连接页入口仍可从路由和导航访问。"
@@ -183,7 +183,7 @@ items:
 
   - id: CONN-TEST-001
     title: "沉淀 connection fixtures 和 oracle"
-    status: pending
+    status: done
     scope: "rewrite/src/features/connection/fixtures and tests"
     acceptance:
       - "fixture 覆盖 serial/TCP/TCP server/UDP config 正例、反例和 legacy observable behavior。"
@@ -199,7 +199,7 @@ items:
 
   - id: CONN-RUNTIME-001
     title: "完成 Electron runtime 与高频链路验证计划"
-    status: pending
+    status: done
     scope: "runtime validation"
     acceptance:
       - "实现说明列出 startup/shutdown/subscription cleanup/event ordering 的 runtime validation 项。"
@@ -212,7 +212,7 @@ items:
 
   - id: CONN-HW-001
     title: "登记真实 serial/TCP/TCP server/UDP hardware validation"
-    status: pending
+    status: done
     scope: "hardware validation"
     acceptance:
       - "真实串口 enumerate/open/close/reopen/send/receive/error/unplug 行为必须有硬件验证记录。"
@@ -227,7 +227,7 @@ items:
 
   - id: CONN-PKG-001
     title: "登记 package/native transport blocker"
-    status: pending
+    status: done
     scope: "package validation"
     acceptance:
       - "若实现触达 serialport native module、Electron bridge packaging、extraResources、resource path 或 packaged runtime 差异，必须登记 package validation。"
@@ -239,7 +239,7 @@ items:
 
   - id: CONN-DEFER-001
     title: "保留 high-frequency / high-speed / TCP line split deferred 项"
-    status: pending
+    status: done
     scope: "deferred boundary"
     acceptance:
       - "queue depth、batch window、overflow/drop policy、backpressure、sampling、UI refresh interval 和 target throughput 单独设计。"
@@ -254,7 +254,7 @@ items:
 
   - id: CONN-DEFER-002
     title: "保留 SCOE / northbound not-owner guard"
-    status: pending
+    status: done
     scope: "SCOE and northbound guard"
     acceptance:
       - "SCOE fixed source/target 作为 later SCOE runtime exception，connection 只提供 transport availability。"
@@ -268,7 +268,7 @@ items:
 
   - id: CONN-BRIDGE-001
     title: "Real bridge implementation readiness gate"
-    status: pending
+    status: done
     scope: "bridge implementation gate"
     acceptance:
       - "实现轮把 rewrite-connection-bridge-implementation-design.md 列入 direct contract 或 boundary guard。"
@@ -282,7 +282,7 @@ items:
 
   - id: CONN-BRIDGE-002
     title: "Native dependency 和 packaged validation 前置"
-    status: pending
+    status: done
     scope: "native dependency setup"
     acceptance:
       - "serialport 和 @serialport/bindings-cpp 已添加为 rewrite 依赖。"
@@ -298,7 +298,7 @@ items:
 
   - id: CONN-BRIDGE-003
     title: "Event model 和 queue/backpressure 实现验证"
-    status: pending
+    status: done
     scope: "event model and backpressure"
     acceptance:
       - "lifecycle event 和 data event 使用分离的设计 lane。"
@@ -317,7 +317,7 @@ items:
 
   - id: CONN-BRIDGE-004
     title: "Real adapter 与 fake adapter port 兼容"
-    status: pending
+    status: done
     scope: "adapter port compatibility"
     acceptance:
       - "real adapter 实现同一 ConnectionTransportAdapter 接口，不修改 port 定义。"
@@ -333,7 +333,7 @@ items:
 
   - id: CONN-VERIFY-001
     title: "实现阶段完成验证和未验证项声明"
-    status: pending
+    status: done
     scope: "implementation verification"
     acceptance:
       - "实现阶段按项目要求运行 pnpm build 和 pnpm lint，除非当轮明确为纯文档。"

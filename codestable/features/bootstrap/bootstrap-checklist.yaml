@@ -2,7 +2,7 @@
 
 slug: bootstrap
 feature: bootstrap
-status: pending
+status: done
 
 steps:
   - id: 1
@@ -16,7 +16,7 @@ steps:
       - destroy() 自动调 stopTickDriver
     files:
       - rewrite/src/runtime/index.ts
-    status: pending
+    status: done
 
   - id: 2
     title: "Add bootstrapRewriteRuntime to app/rewriteRuntime.ts"
@@ -29,7 +29,7 @@ steps:
       - 返回 { runtime, mode }
     files:
       - rewrite/src/app/rewriteRuntime.ts
-    status: pending
+    status: done
 
   - id: 3
     title: "Update AppShell.vue to use bootstrap and cleanup"
@@ -40,7 +40,7 @@ steps:
       - 用 onUnmounted 调 runtime.destroy() 清理
     files:
       - rewrite/src/app/AppShell.vue
-    status: pending
+    status: done
 
   - id: 4
     title: "Write end-to-end integration test skeleton"
@@ -52,11 +52,11 @@ steps:
       - 标注 task/send/result 未来扩展点注释
     files:
       - rewrite/src/runtime/__tests__/bootstrap-integration.spec.ts
-    status: pending
+    status: done
 
   - id: 5
     title: "Build and lint verification"
     description: |
       运行 pnpm -C rewrite build 和 pnpm -C rewrite lint 确认通过。
       运行新测试确认通过。
-    status: pending
+    status: done

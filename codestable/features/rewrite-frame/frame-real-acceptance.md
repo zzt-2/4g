@@ -21,7 +21,7 @@
 
 **流程图核对**（第 2.2 节 mermaid 图）：
 
-- [x] Legacy JSON → migrate → FrameAsset[]：`migrateLegacyFrameConfig` in `core/legacy.ts`
+- [x] Legacy JSON → migrate → FrameAsset[]：`migrateLegacyFrameConfig` in `core/legacy-normalizers.ts`
 - [x] Import JSON → parse → schemaVersion check → validate/migrate：`deserializeFrames` in `services/frame-asset-service.ts`
 - [x] Export → FrameAssetFile → JSON：`serializeFrames` in `services/frame-asset-service.ts`
 - [x] FrameStateContainer → snapshot → FrameAssetReader：`createFrameAssetReader` in `services/frame-asset-service.ts`
@@ -64,7 +64,7 @@
 
 - [x] FrameAssetReader 接口（`features/frame/index.ts` 导出）：receive/send/task 通过此读取帧定义 → grep 确认 receive-service.ts, send-service.ts, task/adapters/ports.ts 均引用
 - [x] FrameAsset 类型（`features/frame/core/types.ts`）：全系统唯一帧模型 → 无其他模块定义独立帧类型
-- [x] Legacy migration 入口（`features/frame/core/legacy.ts`）：唯一迁移入口 → 无其他迁移代码
+- [x] Legacy migration 入口（`features/frame/core/legacy-normalizers.ts`）：唯一迁移入口 → 无其他迁移代码
 - [x] JSON schema 序列化（`features/frame/services/`）：唯一序列化/反序列化规则 → grep `serializeFrames|deserializeFrames` 仅在 frame 模块内
 - [x] **反向 grep**：`@/features/frame` 外部引用共 17 处，全部通过 index.ts public API，无一命中内部路径
 - [x] **拔除沙盘推演**：删除 frame 目录后，receive/send/task/runtime 的 import 会断裂但无残留逻辑。序列化函数仅 frame 内部使用，无外部消费。

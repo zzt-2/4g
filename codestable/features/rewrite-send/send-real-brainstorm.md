@@ -95,12 +95,12 @@ factor=1 时 `/ 1 = 原值`，完全兼容。Legacy migration 原样保留 facto
 
 ```typescript
 // shared/expression/index.ts
-compileGroup(expressions: ReadonlyMap<string, string>, functions?: FunctionTable)
+compileConditional(expressions: ReadonlyMap<string, string>, functions?: FunctionTable)
   → GroupCompileResult
   // success 时包含 CompiledGroup { _order: topo排序后的key[], _compiled: Map<string, CompiledExpr> }
   // 失败时返回 errors Map
 
-evaluateGroup(group: CompiledGroup, variables: VariableMap)
+evaluateConditional(group: CompiledGroup, variables: VariableMap)
   → GroupEvalResult
   // { values: Map<string, VariableValue>, errors: Map<string, string> }
   // 按 topo order 逐个求值，成功的值立即加入 vars 供后续表达式使用
@@ -159,7 +159,7 @@ SendRequest { frameId, userFieldValues?, variables?, targetId }
   ├─ 3. resolve field values（新增步骤）
   │     对每个字段按优先级：
   │       3a. userFieldValues[field.id] 存在 → 使用用户值
-  │       3b. field.expressionConfig 存在 → evaluateExpressions()（compileGroup + evaluateGroup）
+  │       3b. field.expressionConfig 存在 → evaluateExpressions()（compileConditional + evaluateConditional）
   │       3c. field.defaultValue 存在 → 使用默认值
   │       3d. 以上都没有 → zero fill + warning（已有实现）
   │
@@ -203,8 +203,8 @@ SendRequest { frameId, userFieldValues?, variables?, targetId }
 | D1 | 字段值优先级 | 用户输入 > 表达式求值 > defaultValue > zero fill | encode.ts 已有 zero fill |
 | D2 | Factor 方向 | 发送用 `/`（`raw = physical / factor`）；当前发送帧 factor 全为 1 | 3.json 实际数据 |
 | D3 | Checksum 回填 | build buffer → 按范围计算 → 回填到 checksum 字段位置 | 旧 frameInstancesUtils.ts 模式 |
-| D4 | 表达式集成 | send 内部执行 compileGroup + evaluateGroup，VariableProvider adapter 注入变量 | shared/expression API 确认 |
-| D5 | 变量来源 | VariableProvider adapter 每次 execute 调用获取最新值；同帧字段由 evaluateGroup 自动传递 | evaluateGroup topo order + 值传递 |
+| D4 | 表达式集成 | send 内部执行 compileConditional + evaluateConditional，VariableProvider adapter 注入变量 | shared/expression API 确认 |
+| D5 | 变量来源 | VariableProvider adapter 每次 execute 调用获取最新值；同帧字段由 evaluateConditional 自动传递 | evaluateConditional topo order + 值传递 |
 | D6 | Target 解析 | targetId → SendTargetResolver → connectionId → SendTransportWriter | connection feature 骨架已确认 |
 | D7 | Queue | 本期实现轻 FIFO，按 targetId 分组，保证单 target 顺序；深度和策略等 runtime 证据 | send design §4.3 |
 | D8 | Direction 过滤 | resolveFrame 时检查 direction='send'，不匹配则 error | FrameAssetQuery.direction 已支持 |
@@ -221,8 +221,8 @@ variables ────────┘        │
                            └─→ evaluateExpressions()
                                   │
                                   ├─ 从 frame.fields 收集 expressionConfig
-                                  ├─ compileGroup({fieldId: expression})
-                                  ├─ evaluateGroup(compiled, variables)
+                                  ├─ compileConditional({fieldId: expression})
+                                  ├─ evaluateConditional(compiled, variables)
                                   └─ 返回 { values, errors }
 ```
 
@@ -239,7 +239,7 @@ interface SendVariableProvider {
 |---|---|---|
 | 遥测当前值 | receive feature selector | VariableProvider adapter 实现 |
 | 全局参数 | 参数 store | VariableProvider adapter 实现 |
-| 同帧其他字段 | 已求值的前序字段 | evaluateGroup 自动处理 |
+| 同帧其他字段 | 已求值的前序字段 | evaluateConditional 自动处理 |
 | 任务上下文 | task runtime | 调用方通过 SendRequest.variables 注入 |
 
 ### D7 Queue 详细方案
@@ -263,7 +263,7 @@ sendService.execute(request)
 |---|---|---|
 | C1 | 扩展 SendFieldEncodingDef：新增 factor、expressionConfig、defaultValue、configurable、validOption、isChecksum | 扩展类型 |
 | C2 | 新增 resolveFieldValues()：按优先级解析每个字段值 | 新增纯函数 |
-| C3 | 新增 evaluateExpressions()：收集 expressionConfig → compileGroup → evaluateGroup | 新增纯函数 |
+| C3 | 新增 evaluateExpressions()：收集 expressionConfig → compileConditional → evaluateConditional | 新增纯函数 |
 | C4 | 新增 applyFactor()：对非 bytes 类型字段做 `value / factor` | 新增纯函数 |
 | C5 | 扩展 buildFrame()：build 后回填 checksum（按 validOption 范围） | 扩展现有 |
 | C6 | 新增 buildLengthField()：build 后回填帧总长度 | 新增纯函数 |
@@ -318,7 +318,7 @@ Design 阶段需要做的具体工作项：
 
 1. **重写 `frameToBuildInput()`**（`send-service.ts:85-105`）：从 5 字段版本扩展为消费 frame-real 全部字段
 2. **新增 `resolveFieldValues()` 纯函数**：输入 frame.fields + userFieldValues + evaluatedValues，输出完整 fieldValues，含优先级逻辑
-3. **新增 `evaluateExpressions()` 纯函数**：从 frame.fields 收集 expressionConfig，调用 compileGroup + evaluateGroup
+3. **新增 `evaluateExpressions()` 纯函数**：从 frame.fields 收集 expressionConfig，调用 compileConditional + evaluateConditional
 4. **新增 `applyFactor()` 纯函数**：对非 bytes 类型字段做 `value / factor`
 5. **扩展 `buildFrame()`**：build 后增加 checksum 回填和 length field 回填
 6. **新增 `checksumCrc32()`**：在 `core/checksum.ts`

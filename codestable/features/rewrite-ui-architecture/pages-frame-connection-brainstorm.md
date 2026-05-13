@@ -54,7 +54,7 @@
 
 | Selector | 输入 | 输出 | 用途 |
 |----------|------|------|------|
-| `selectConnectionSummaries(snapshot)` | ConnectionStateSnapshot | ConnectionSummary[] | 连接摘要列表 |
+| `service.listConnectionSummaries()` | ConnectionStateSnapshot | ConnectionSummary[] | 连接摘要列表 |
 | `selectConnectionFact(snapshot, id)` | snapshot, string | ConnectionRuntimeFact \| undefined | 单连接详情 |
 | `selectTransportConfigs(snapshot)` | snapshot | TransportConfig[] | 所有配置 |
 | `selectTransportTargets(snapshot, query?)` | snapshot, ConnectionTargetQuery? | TransportTargetSnapshot[] | 传输目标 |
