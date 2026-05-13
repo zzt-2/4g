@@ -14,12 +14,13 @@ export interface ScoeProtocolAdapterOptions {
   readonly commandConfigs: readonly ScoeCommandConfig[];
   readonly stateReader: CommandIngressStateReader;
   readonly onCommand?: (parsed: ParsedCommand) => Promise<void>;
+  readonly onConsume?: (bytes: readonly number[]) => void;
 }
 
 export function createScoeProtocolAdapter(
   options: ScoeProtocolAdapterOptions,
 ): ProtocolAdapter {
-  const { globalConfig, stateReader, onCommand } = options;
+  const { globalConfig, stateReader, onCommand, onConsume } = options;
   // Base configs used before LOAD; after LOAD, state.activeCommandConfigs takes over
   const baseCommandConfigs = [...options.commandConfigs];
 
@@ -108,6 +109,7 @@ export function createScoeProtocolAdapter(
             console.warn(`SCOE parse error: ${(err as Error).message}`);
           }
           consumed.push(event);
+          if (onConsume && event.bytes) onConsume(event.bytes);
         } else {
           remaining.push(event);
         }

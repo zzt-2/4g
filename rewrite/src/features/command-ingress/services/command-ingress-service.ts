@@ -128,6 +128,7 @@ export function createCommandIngressService(
     commandConfigs: options.commandConfigs,
     stateReader,
     onCommand,
+    onConsume: (bytes) => testDataRecorder.record(bytes),
   });
 
   // Start status timer (inlined from status-timer.ts)

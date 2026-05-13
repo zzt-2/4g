@@ -59,7 +59,7 @@
 - 底部: SendTargetSelector + [发送] 按钮 `:loading="isSending" :disable="!selectedInstance || !selectedTarget"`(F4)
 - 数据源: useFramePreview composable
 
-**D-S5 SendFrameInstance 类型**（UI 侧，归口 send/composables/）:
+**D-S5 SendFrameInstance 类型**（归口 send/core/types.ts）:
 
 ```typescript
 interface SendFrameInstance {
@@ -79,7 +79,7 @@ interface SendFrameInstance {
 
 **D-S6 单帧发送**: 选中实例 + 选择目标 → `sendService.execute({ frameId, targetId, userFieldValues, context: { source: 'user' } })`。成功 $q.notify('positive')，失败 $q.notify('negative') + buildIssues。
 
-**C9 说明**: `SendRequest.variables` 字段在实际代码中不存在。外部变量通过 service 创建时注入的 `variableProvider` 获取，`resolveFieldValues` 内部合并 provider 变量和调用方传入的 variables 参数。UI 发送时不需传递 variables——service 内部自动从 variableProvider 获取。
+**C9 说明**: `SendRequest.variables` 字段在实际代码中不存在。外部变量通过 service 创建时注入的 `variableProvider` 获取，`resolveFieldValues` 内部合并 provider 变量和调用方传入的 variables 参数。UI 发送时不需传递 variables——service 内部自动从 variableProvider 获取。`SendRequest` 同时接受 `fieldValues` 和 `userFieldValues`，service 内部 `userFieldValues ?? fieldValues`。UI 应统一使用 `userFieldValues`。
 
 **D-S7 实例编辑对话框**:
 - QDialog v-model + @hide 清理(D1)
@@ -135,7 +135,7 @@ interface SendFrameInstance {
 | 列 | 字段 | 宽度 | 渲染 |
 |----|------|------|------|
 | 名称 | name | auto | 文本 |
-| 调度类型 | schedulingMode | fixed 100px | QChip(timed/trigger/sequence) |
+| 调度类型 | schedule.kind | fixed 100px | QChip(immediate/timer/event) |
 | 状态 | status | fixed 100px | StatusBadge |
 | 进度 | progress | fixed 120px | QLinearProgress + 百分比 |
 | 操作 | — | fixed 140px | icon 按钮(暂停/恢复/停止) |
@@ -145,7 +145,7 @@ interface SendFrameInstance {
 | 列 | 字段 | 宽度 | 渲染 |
 |----|------|------|------|
 | 名称 | name | auto | 文本 |
-| 调度类型 | schedulingMode | fixed 100px | QChip |
+| 调度类型 | schedule.kind | fixed 100px | QChip |
 | 结果 | result | fixed 80px | StatusBadge(positive 已完成/negative 失败) |
 | 耗时 | elapsedMs | fixed 100px | 时间格式化(V2) |
 | 完成时间 | completedAt | fixed 140px | 时间格式化(V2) |
@@ -168,22 +168,23 @@ interface SendFrameInstance {
 **D-T5 任务编辑器对话框**:
 - QDialog v-model + @hide 清理(D1)
 - 宽度: `rw-dialog-xl`(D2)
-- 基本信息: 任务名称(QInput `:rules="[val => !!val || '请输入任务名称']"`(F1/F2)) + 调度类型(QSelect)
-- 调度配置: 按 schedulingMode 动态渲染
-  - timer: 间隔(QInput type=number `:rules="[val => val > 0 || '间隔必须大于0']"`) + 次数(QInput `:rules` 非无限时必填) + 无限循环(QToggle)
+- 基本信息: 任务名称(QInput `:rules="[val => !!val || '请输入任务名称']"`(F1/F2)) + 调度类型(QSelect: immediate/timer/event)
+- 调度配置: 按 schedule.kind 动态渲染
+  - immediate: 无额外配置项
+  - timer: 间隔(QInput type=number `:rules="[val => val > 0 || '间隔必须大于0']"`) + 次数归口 TaskStopCondition.maxIterations + 无限循环(QToggle)
   - event: 条件编辑器（ConditionTerm 列表 + 添加按钮，至少一条校验）
 - 步骤编辑器: 步骤列表 + [添加步骤] 下拉(send/wait-condition/delay)
   - 每步: QExpansionItem 展开/折叠 + 类型图标 + 摘要 + 删除按钮
-  - SendStep: FrameSelector(required) + SendTargetSelector(required) + FieldEditWidget(独立 fieldValues) + 发送后延时(QInput type=number) + 可选 repeat 配置
+  - SendStep: FrameSelector(required) + SendTargetSelector(required) + FieldEditWidget(独立 userFieldValues) + 发送后延时(QInput type=number) + 可选 repeat 配置
   - WaitConditionStep: 条件列表(至少一条) + 超时(QInput type=number `:rules="[val => val > 0 || '请输入超时时间']"`) + 超时策略(QSelect: continue/skip/fail)
   - DelayStep: 持续时间(QInput type=number `:rules="[val => val > 0 || '请输入延时时间']"`)
   - 字段数 > 20 时 SendStep 的 FieldEditWidget 必须拆子组件(F3)
 - 高级配置（QExpansionItem 折叠）:
   - 停止条件: maxIterations / maxDurationMs
   - 错误策略: onFailure(QSelect) / retryCount / retryDelayMs
-  - ~~可变参数: FieldVariation 编辑器（字段选择 + 值列表）~~ → Phase 2（task-real 类型重组后启用）
-  - ~~exitCondition~~ → Phase 2（task-real 类型重组后启用）
-  - ~~step repeat 配置~~ → Phase 2（task-real 类型重组后启用）
+  - ~~可变参数: FieldVariation 编辑器（字段选择 + 值列表）~~ → Phase 2（类型已就绪，UI 编辑器待实现）
+  - ~~exitCondition~~ → Phase 2（类型已就绪，UI 编辑器待实现）
+  - ~~step repeat 配置~~ → Phase 2（类型已就绪，UI 编辑器待实现）
 - 操作: [取消] [保存] [保存并启动]
   - [保存] `:loading="isSaving" :disable="!isValid"`(F4)
   - [保存并启动] `:loading="isSaving"`
@@ -204,15 +205,15 @@ interface SendFrameInstance {
 |---------------------|---------|----------------------|
 | created | 待启动 | grey |
 | running | 运行中 | positive |
-| running + schedulingMode=trigger | 等待触发 | positive (副标签) |
-| running + schedulingMode=timed | 等待调度 | positive (副标签) |
+| running + schedule.kind='event' | 等待触发 | positive (副标签) |
+| running + schedule.kind='timer' | 等待调度 | positive (副标签) |
 | paused | 已暂停 | warning |
 | completed | 已完成 | positive |
 | failed | 失败 | negative |
 
-waiting-trigger/waiting-schedule 由 UI 层从 `instance.definitionRef.schedulingMode` + lifecycle 推导，不改 core。
+waiting-trigger/waiting-schedule 由 UI 层从 `instance.definitionRef.schedule.kind` + lifecycle 推导，不改 core。
 
-**D-T8 SendStep 字段值**: 方案 A（copy-on-create）。每步独立持有 fieldValues，不引用发送页实例。提供"复制上一步"按钮降低重复配置成本。
+**D-T8 SendStep 字段值**: 方案 A（copy-on-create）。每步独立持有 userFieldValues，不引用发送页实例。提供"复制上一步"按钮降低重复配置成本。
 
 **D-T9 导入导出**: serializeTaskDefinition → JSON 文件写入(platform facade)；读取 → deserializeTaskDefinition → 校验 → 创建。
 
@@ -227,7 +228,7 @@ resumeTask(instanceId: string): void
 stopTask(instanceId: string): void
 removeTask(instanceId: string): void
 retryTask(sourceInstanceId: string): TaskInstanceState | undefined
-stopAll(): void
+stopAll(): number
 getProgress(instanceId: string): TaskProgress | undefined
 getInstance(instanceId: string): TaskInstanceState | undefined
 // 已实现（工具函数）
@@ -292,9 +293,9 @@ D-T5 编辑器保存逻辑：`created` 态 → `updateTask` → 刷新面板；`
   | 列 | 字段 | 宽度 | 渲染 |
   |----|------|------|------|
   | 时间 | timestamp | fixed 140px | 时间格式化(V2) |
-  | 功能码 | code | fixed 80px | hex |
+  | 功能码 | commandCode | fixed 80px | hex |
   | 结果 | result | fixed 80px | StatusBadge(positive 成功/negative 失败) |
-  | 耗时 | duration | fixed 80px | 数字 + ms |
+  | 耗时 | durationMs | fixed 80px | 数字 + ms |
 
   - 空状态: `#no-data` → "暂无命令记录"
   - loading: `:loading="isLoading"`
@@ -577,7 +578,7 @@ D6 路由表新增:
 |------|------|
 | 新建 validateTaskDefinition | task/core/validation.ts |
 | 新建 createSendStep/createDelayStep/createWaitConditionStep/cloneStepDefinition/createTaskDefinition | task/core/builders.ts |
-| 新增 retryTask(sourceInstanceId): Promise\<TaskInstanceState\> + stopAll(): Promise\<void\> | task/services/task-service.ts |
+| 新增 retryTask(sourceInstanceId): TaskInstanceState \| undefined + stopAll(): number | task/services/task-service.ts |
 | 新增 selectActiveInstances selector（只返回 created/running/paused） | task/selectors/task-selectors.ts |
 | 扩展 selectTaskHistory：返回 history + 仍在 instances 中的终止态实例 | task/selectors/task-selectors.ts |
 | 新建 serializeTaskDefinition/deserializeTaskDefinition | task/core/serialization.ts |
@@ -627,7 +628,7 @@ D6 路由表新增:
 - 不建 config-storage-service（composable 直接调 platform facade）
 - 不建 TaskExecutor 抽象类（handler map 函数签名够了）
 - 不建独立的发送页预览 API（re-export buildFrame 纯函数）
-- 不建 cron 时间触发（TaskSchedulingMode 只有 timed/trigger/sequence）
+- 不建 cron 时间触发（ScheduleDriver 只有 immediate/timer/event）
 
 ---
 
@@ -647,7 +648,7 @@ D6 路由表新增:
 | 停止 | `stopTask(id)` 门控 `running\|paused` | OK |
 | 移除 | `removeTask(id)` 门控 terminal | OK |
 | 重试 | `retryTask(id)` → 新 instance + 自动启动 | OK |
-| 停止全部 | `stopAll()` 遍历 active | OK（无返回值） |
+| 停止全部 | `stopAll()` 遍历 active → stoppedCount | OK |
 | 活动列表 | `selectActiveInstances` 返回非终止态 | OK |
 | 进度查询 | `getProgress(id)` | OK |
 | 校验 | `validateTaskDefinition` | OK |
@@ -657,13 +658,13 @@ D6 路由表新增:
 
 | # | Gap | 影响 | 修复 | 文件 |
 |---|-----|------|------|------|
-| G1 | 无 `updateTask` | 编辑保存无法实现 | 新增方法，仅 `created` 态允许修改 definitionRef | task-service.ts, task-state.ts |
+| G1 | ~~无 `updateTask`~~ **已修复** | ~~编辑保存无法实现~~ | updateTask(instanceId, definition) 已实现，仅 `created` 态可改定义 | task-service.ts, task-state.ts |
 | G2 | 历史记录缺耗时/完成时间字段 | D-T3 历史列无法渲染 | selector 从 `startedAt`/`completedAt`/`stoppedAt`/`failedAt` 派生 elapsedMs + result | task-selectors.ts |
-| G3 | `stopAll()` 无返回值 | UI 无法反馈停止数量 | 返回 `number` | task-service.ts |
+| G3 | ~~`stopAll()` 无返回值~~ **已修复** | ~~UI 无法反馈停止数量~~ | stopAll() 已返回 number（stoppedCount） | task-service.ts |
 
-### Phase 2 功能（task-real 类型重组后）
+### Phase 2 功能（类型已就绪，UI 编辑器待实现）
 
-以下功能在 D-T5 设计中已预留入口但标注 Phase 2，UI 初始版隐藏：
+以下功能在 D-T5 设计中已预留入口但标注 Phase 2，UI 初始版隐藏。task-real 类型重组已完成，相关类型（FieldVariation、exitCondition/ConditionTerm、StepRepeat）已在 task/core/types.ts 定义：
 - FieldVariation 编辑器（`task-real-brainstorm.md` 决策 6）
 - exitCondition 停止条件（`task-real-brainstorm.md` 决策 1）
 - step repeat 配置（`task-real-brainstorm.md` 决策 2）
@@ -709,10 +710,10 @@ D6 路由表新增:
 
 | # | Gap | 影响 | 修复 | 文件 |
 |---|-----|------|------|------|
-| CI-G1 | 无命令执行日志记录 | D-CI2 命令执行日志 DataTable 无法渲染 | 新增 `CommandLogEntry` 类型和 `CommandLogRecorder` 服务，在 onCommand 回调中追加执行记录（timestamp/code/result/duration）；service 暴露 `getCommandLog(): readonly CommandLogEntry[]` | command-ingress/services/command-log-recorder.ts, command-ingress-service.ts |
-| CI-G2 | 测试工具无法获取原始接收数据 | D-CI2 测试工具接收区无数据源 | 方案 A: service 暴露 `testDataRecorder: DataRecorder`，adapter.consume 时同步记录 consumed events 的 raw bytes；方案 B: composable 层直接从 connection service 获取 event 数据。推荐方案 A（数据流已在 service 内部，避免 composable 重复订阅） | command-ingress-service.ts, scoe-protocol-adapter.ts |
-| CI-G3 | 无 sendTestData 方法 | D-CI2 测试工具发送区无法发送 HEX 数据 | 新增 `service.sendTestData(hex: string, targetId: string): Promise<void>`，内部 hex→bytes→connection.write()；或由 useTestTool composable 直接调 connection service（如果 connection 暴露 write 公共 API） | command-ingress-service.ts |
-| CI-G4 | HighlightRule 使用 function matcher，不可序列化 | D-CI2 高亮配置对话框无法构造/持久化 HighlightRule | 新增数据驱动的 `HighlightRuleConfig { offset, length, pattern, severity }` 类型，`calculateHighlights` 改为接受 config 数组 + raw bytes | core/highlight.ts, core/types.ts |
+| CI-G1 | ~~无命令执行日志记录~~ **已修复** | ~~D-CI2 命令执行日志 DataTable 无法渲染~~ | 已实现 `CommandLogEntry` 类型（id/timestamp/commandCode/result/durationMs/error）和 `CommandLogRecorder` 服务，在 onCommand 回调中追加执行记录；service 暴露 `getCommandLog(): readonly CommandLogEntry[]` | core/command-log.ts, command-ingress-service.ts |
+| CI-G2 | ~~测试工具无法获取原始接收数据~~ **已修复** | ~~D-CI2 测试工具接收区无数据源~~ | 方案 A 已实现：adapter.consume 通过 onConsume 回调同步记录 consumed events 的 raw bytes 到 testDataRecorder | command-ingress-service.ts, scoe-protocol-adapter.ts |
+| CI-G3 | ~~无 sendTestData 方法~~ **已修复** | ~~D-CI2 测试工具发送区无法发送 HEX 数据~~ | 已实现 `service.sendTestData(hex: string, connectionId: string): Promise<void>`，内部 hex→bytes→connection.write() | command-ingress-service.ts |
+| CI-G4 | ~~HighlightRule 使用 function matcher，不可序列化~~ **已修复** | ~~D-CI2 高亮配置对话框无法构造/持久化 HighlightRule~~ | 已实现数据驱动的 `HighlightRuleConfig { id, offset, length, pattern?, severity }` 类型，`calculateHighlights` 改为接受 config 数组 + raw bytes | core/highlight.ts, core/types.ts |
 
 ### 甲方 Tab（D-CI4）— 全部 stub
 

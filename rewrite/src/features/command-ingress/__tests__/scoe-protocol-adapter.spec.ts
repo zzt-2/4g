@@ -406,3 +406,86 @@ describe('CommandIngressState container', () => {
   });
 });
 
+// --- onConsume callback ---
+
+describe('ScoeProtocolAdapter onConsume callback', () => {
+  it('calls onConsume with raw bytes for each consumed event', async () => {
+    const stateReader = createFakeStateReader({ scoeFramesLoaded: true });
+    const consumedData: number[][] = [];
+    const adapter = createScoeProtocolAdapter({
+      globalConfig: testGlobalConfig,
+      commandConfigs: testCommandConfigs,
+      stateReader,
+      onConsume: (bytes) => consumedData.push([...bytes]),
+    });
+
+    const bytes1 = buildScoeFrame(0x01);
+    const bytes2 = buildScoeFrame(0x02);
+    const event1 = buildDataEvent(bytes1);
+    const event2 = buildDataEvent(bytes2);
+
+    await adapter.consume([event1, event2]);
+
+    expect(consumedData).toHaveLength(2);
+    expect(consumedData[0]).toEqual(bytes1);
+    expect(consumedData[1]).toEqual(bytes2);
+  });
+
+  it('does not call onConsume for non-consumed events', async () => {
+    const stateReader = createFakeStateReader({ scoeFramesLoaded: true });
+    const consumedData: number[][] = [];
+    const adapter = createScoeProtocolAdapter({
+      globalConfig: testGlobalConfig,
+      commandConfigs: testCommandConfigs,
+      stateReader,
+      onConsume: (bytes) => consumedData.push([...bytes]),
+    });
+
+    const normalEvent = buildDataEvent([0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00]);
+    await adapter.consume([normalEvent]);
+
+    expect(consumedData).toHaveLength(0);
+  });
+
+  it('calls onConsume even when parse fails', async () => {
+    const stateReader = createFakeStateReader({ scoeFramesLoaded: true });
+    const consumedData: number[][] = [];
+    const adapter = createScoeProtocolAdapter({
+      globalConfig: testGlobalConfig,
+      commandConfigs: [sendFrameCommandConfig],
+      stateReader,
+      onConsume: (bytes) => consumedData.push([...bytes]),
+    });
+
+    const cs = sendFrameCommandConfig.checksums[0]!;
+    const bytes = buildScoeFrameWithChecksum(0x05, cs, [
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      0x00,
+    ]);
+    // Corrupt checksum to cause parse error
+    bytes[cs.checksumOffset] = 0xff;
+    const event = buildDataEvent(bytes);
+
+    await adapter.consume([event]);
+
+    // Event is consumed (canHandle passes) even though parse throws
+    expect(consumedData).toHaveLength(1);
+    expect(consumedData[0]).toEqual(bytes);
+  });
+
+  it('works without onConsume callback (backward compatible)', async () => {
+    const stateReader = createFakeStateReader({ scoeFramesLoaded: true });
+    const adapter = createScoeProtocolAdapter({
+      globalConfig: testGlobalConfig,
+      commandConfigs: testCommandConfigs,
+      stateReader,
+    });
+
+    const event = buildDataEvent(buildScoeFrame(0x01));
+    const result = await adapter.consume([event]);
+
+    expect(result.consumed).toHaveLength(1);
+  });
+});
+
