@@ -172,7 +172,7 @@ describe('ConnectionToReceiveInputSource', () => {
   });
 
   it('returns empty array for events without bytes', async () => {
-    const { bytes: _, ...eventWithoutBytes } = dataEvent('conn-1', [0x01]);
+    const { bytes: _, ...eventWithoutBytes } = dataEvent('conn-1', [0x01]); // eslint-disable-line @typescript-eslint/no-unused-vars
     const source = new ConnectionToReceiveInputSource([eventWithoutBytes]);
     const result = await source.drainEvents();
 

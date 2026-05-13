@@ -37,9 +37,6 @@ export { createCommandIngressState } from './core';
 // Handler dispatch
 export { dispatchCommand } from './core';
 
-// Task builder
-export { buildSendFrameTask, buildReadFileAndSendTask, buildWaitConditions } from './core';
-
 // Validation
 export {
   validateGlobalConfig,
@@ -49,7 +46,7 @@ export {
 
 // Highlight
 export { calculateHighlights } from './core';
-export type { HighlightRule, Highlight, HighlightSeverity } from './core';
+export type { HighlightRule, HighlightRuleConfig, Highlight, HighlightSeverity } from './core';
 
 // Adapters
 export { createScoeProtocolAdapter } from './adapters';
@@ -60,6 +57,8 @@ export { createCommandIngressService } from './services/command-ingress-service'
 export type { CommandIngressServiceOptions, CommandIngressService } from './services/command-ingress-service';
 export { createDataRecorder } from './services/data-recorder';
 export type { DataRecorder, DataRecord } from './services/data-recorder';
+export { createCommandLogRecorder } from './core/command-log';
+export type { CommandLogEntry, CommandLogRecorder } from './core/command-log';
 
 // Handlers (for direct use in tests)
 export {

@@ -1,5 +1,5 @@
 import { defaultNow } from '@/shared';
-import { TRANSPORT_ERROR_KINDS, type TransportConfig, type TransportErrorKind, type TransportKind, type TransportTargetRole } from '../core';
+import type { TransportConfig } from '../core';
 import type {
   ConnectionAdapterCommandOutcome,
   ConnectionAdapterErrorInput,
@@ -11,70 +11,12 @@ import type {
 import type {
   TransportFacade,
   SerialPortCandidate,
-  TransportBridgeEvent,
 } from '@/platform';
-
-const TRANSPORT_ERROR_KIND_SET: ReadonlySet<string> = new Set(TRANSPORT_ERROR_KINDS);
-
-function toAdapterErrorKind(
-  kind: string | undefined,
-  fallback: TransportErrorKind,
-): TransportErrorKind {
-  if (kind !== undefined && TRANSPORT_ERROR_KIND_SET.has(kind)) return kind;
-  return fallback;
-}
+import { mapBridgeEvent, toAdapterErrorKind } from './internal/map-bridge-event';
 
 export interface CreateRealSerialAdapterOptions {
   readonly transport: TransportFacade;
   readonly now?: () => string;
-}
-
-
-function mapBridgeEvent(event: TransportBridgeEvent): ConnectionAdapterEvent {
-  const base = {
-    connectionId: event.connectionId,
-    occurredAt: event.occurredAt,
-  };
-
-  switch (event.kind) {
-    case 'connected':
-      return {
-        kind: 'connected',
-        ...base,
-        ...(event.target
-          ? {
-              target: {
-                targetId: event.target.targetId,
-                connectionId: event.connectionId,
-                kind: event.target.kind as TransportKind,
-                role: event.target.role as TransportTargetRole,
-                label: event.target.label,
-                routeLabel: event.target.routeLabel,
-                available: true,
-              },
-            }
-          : {}),
-      };
-    case 'disconnected':
-      return { kind: 'disconnected', ...base };
-    case 'data':
-      return {
-        kind: 'data',
-        ...base,
-        ...(event.bytes ? { bytes: [...event.bytes] } : {}),
-        byteLength: event.byteLength,
-      };
-    case 'error':
-      return {
-        kind: 'error',
-        ...base,
-        error: {
-          kind: event.error?.kind ?? 'resource-unavailable',
-          message: event.error?.message ?? 'Unknown transport error',
-          recoverable: event.error?.recoverable ?? true,
-        },
-      };
-  }
 }
 
 export interface RealSerialAdapter extends ConnectionTransportAdapter {

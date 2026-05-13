@@ -4,7 +4,7 @@ import {
   validateSatelliteConfig,
   validateCommandConfig,
 } from '../core/validation';
-import type { ScoeGlobalConfig, SatelliteConfig, ScoeCommandConfig } from '../core/types';
+import type { SatelliteConfig, ScoeCommandConfig } from '../core/types';
 import { testGlobalConfig, testCommandConfigs } from '../fixtures/command-ingress-fixtures';
 
 describe('validateGlobalConfig', () => {

@@ -7,6 +7,8 @@ import type { CommandContext, CommandHandler, CommandResult } from '../core/hand
 import type { ScoeCommandFunction, SatelliteConfig, ScoeStatisticsSnapshot, ScoeRuntimeStatus } from '../core/types';
 import type { CommandIngressStateReader, CommandIngressStateWriter } from '../core/state';
 import type { ScoeProtocolAdapterOptions } from '../adapters/scoe-protocol-adapter';
+import type { CommandLogEntry } from '../core/command-log';
+import type { DataRecorder } from './data-recorder';
 import { dispatchCommand } from '../core/handler';
 import { createScoeProtocolAdapter } from '../adapters/scoe-protocol-adapter';
 import { createHandleLoadSatelliteId } from '../handlers/handle-load';
@@ -16,6 +18,8 @@ import { handleLinkCheck } from '../handlers/handle-link-check';
 import { handleSendFrame } from '../handlers/handle-send-frame';
 import { handleReadFileAndSend } from '../handlers/handle-read-file-and-send';
 import { sendAckFrame } from '../handlers/send-ack-frame';
+import { createCommandLogRecorder } from '../core/command-log';
+import { createDataRecorder } from './data-recorder';
 
 export interface CommandIngressServiceOptions {
   readonly globalConfig: ScoeProtocolAdapterOptions['globalConfig'];
@@ -40,6 +44,10 @@ export interface CommandIngressService {
   getScoeRuntimeStatus(): ScoeRuntimeStatus;
   getLoadedSatelliteId(): string;
   isScoeFramesLoaded(): boolean;
+  getCommandLog(): readonly CommandLogEntry[];
+  clearCommandLog(): void;
+  getTestDataRecorder(): DataRecorder;
+  sendTestData(hex: string, connectionId: string): Promise<void>;
   dispose(): void;
 }
 
@@ -61,6 +69,12 @@ export function createCommandIngressService(
 
   // Tracking: connectionId → taskInstanceIds
   const trackingMap = new Map<string, Set<string>>();
+
+  // C1: Command log recorder
+  const logRecorder = createCommandLogRecorder();
+
+  // C2: Test data recorder
+  const testDataRecorder = createDataRecorder();
 
   // Handler map
   const handlerMap = new Map<ScoeCommandFunction, CommandHandler>([
@@ -88,10 +102,21 @@ export function createCommandIngressService(
   async function onCommand(parsed: Parameters<typeof dispatchCommand>[0]): Promise<void> {
     stateWriter.updateStatus({ lastCommandCode: parsed.commandCode });
 
+    const logEntry = logRecorder.record({
+      timestamp: new Date().toISOString(),
+      commandCode: parsed.commandCode,
+      result: 'pending',
+    });
+
     const result = await dispatchCommand(parsed, handlerMap, ctx);
 
     if (result.taskId) {
-      trackTask(parsed.connectionId, result.taskId, parsed);
+      trackTask(parsed.connectionId, result.taskId, parsed, logEntry.id);
+    } else {
+      logRecorder.complete(logEntry.id, {
+        result: result.success ? 'success' : 'error',
+        error: result.error,
+      });
     }
 
     cleanupDisconnectedConnections();
@@ -114,6 +139,7 @@ export function createCommandIngressService(
     connectionId: string,
     taskId: string,
     command: Parameters<typeof dispatchCommand>[0],
+    logEntryId: string,
   ): void {
     let set = trackingMap.get(connectionId);
     if (!set) {
@@ -133,8 +159,18 @@ export function createCommandIngressService(
             // Ack frame send failure — don't crash, just count as error
           }
           stateWriter.incrementSuccessCount();
+          logRecorder.complete(logEntryId, {
+            result: 'success',
+            durationMs: inst.completedAt && inst.startedAt
+              ? new Date(inst.completedAt).getTime() - new Date(inst.startedAt).getTime()
+              : undefined,
+          });
         } else {
           stateWriter.incrementErrorCount(inst?.error ?? 'task failed');
+          logRecorder.complete(logEntryId, {
+            result: 'error',
+            error: inst?.error ?? 'task failed',
+          });
         }
 
         // Re-lookup Set from trackingMap (avoids stale closure reference)
@@ -189,7 +225,7 @@ export function createCommandIngressService(
   }
 
   // CI-R2: delegate loadSatellite to handler logic
-  const loadHandler = createHandleLoadSatelliteId(satelliteConfigs);
+  createHandleLoadSatelliteId(satelliteConfigs);
   async function loadSatellite(satelliteId: string): Promise<CommandResult> {
     if (stateReader.loadedSatelliteId !== '') {
       return { success: false, error: 'Satellite already loaded' };
@@ -243,6 +279,23 @@ export function createCommandIngressService(
     return stateReader.scoeFramesLoaded;
   }
 
+  function getCommandLog(): readonly CommandLogEntry[] {
+    return logRecorder.getAll();
+  }
+
+  function clearCommandLog(): void {
+    logRecorder.clear();
+  }
+
+  function getTestDataRecorder(): DataRecorder {
+    return testDataRecorder;
+  }
+
+  async function sendTestData(hex: string, connectionId: string): Promise<void> {
+    const bytes = hexToBytes(hex);
+    await connectionService.write({ connectionId, bytes });
+  }
+
   return {
     adapter,
     loadSatellite,
@@ -251,6 +304,22 @@ export function createCommandIngressService(
     getScoeRuntimeStatus,
     getLoadedSatelliteId,
     isScoeFramesLoaded,
+    getCommandLog,
+    clearCommandLog,
+    getTestDataRecorder,
+    sendTestData,
     dispose,
   };
+}
+
+function hexToBytes(hex: string): number[] {
+  const cleaned = hex.replace(/\s/g, '');
+  if (cleaned.length % 2 !== 0) {
+    throw new Error('Hex string must have even length');
+  }
+  const bytes: number[] = [];
+  for (let i = 0; i < cleaned.length; i += 2) {
+    bytes.push(parseInt(cleaned.substring(i, i + 2), 16));
+  }
+  return bytes;
 }

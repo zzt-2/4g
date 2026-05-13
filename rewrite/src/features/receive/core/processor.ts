@@ -12,8 +12,7 @@ import {
 } from './clone';
 import { parseReceiveFrameFields } from './field-parser';
 import { matchReceiveFrame } from './frame-matcher';
-// TODO: integrate expression evaluation into the matched path
-// import { evaluateFrameExpressions } from './expression-pass';
+import { evaluateFrameExpressions } from './expression-pass';
 import type {
   ReceiveBatchOutcome,
   ReceiveFrameStatisticsSnapshot,
@@ -235,6 +234,86 @@ export function processReceiveBatch(input: ReceiveProcessInput): ReceiveBatchOut
     );
   }
 
+  // Expression pass
+  const compileResult = input.expressionCache?.get(frame.id);
+
+  if (compileResult && !compileResult.success) {
+    return outcome(
+      batch.id,
+      'config-error',
+      input.processedAt,
+      [
+        ...parsed.issues,
+        receiveIssue(
+          'receive.expression.compileFailed',
+          `frame.${frame.id}`,
+          compileResult.error ?? 'Expression compile failed',
+        ),
+      ],
+      batch.source,
+      normalizedBytes.bytes.length,
+      batch,
+      matchedFrame,
+      parsed.fields.map((f) => ({ ...f, expressionApplied: false })),
+    );
+  }
+
+  if (compileResult?.success && compileResult.compiled) {
+    const rawValues = new Map(
+      parsed.fields.map((f) => [f.fieldId, f.value as number | string]),
+    );
+    const evalResult = evaluateFrameExpressions({
+      compiled: compileResult.compiled,
+      frameId: frame.id,
+      currentFrameRawValues: rawValues,
+      readModel: new Map(),
+      globalParams: new Map(),
+    });
+
+    const updatedFields = parsed.fields.map((f) => {
+      if (!compileResult.compiled!.fields.has(f.fieldId)) {
+        return { ...f, expressionApplied: false };
+      }
+
+      const error = evalResult.errors.get(f.fieldId);
+      if (error) {
+        return { ...f, expressionApplied: true, expressionError: error };
+      }
+
+      const evalValue = evalResult.values.get(f.fieldId);
+      if (evalValue !== undefined) {
+        return {
+          ...f,
+          expressionApplied: true,
+          value: evalValue as ReceiveParsedFieldPrimitive,
+          displayValue: String(evalValue),
+        };
+      }
+
+      return { ...f, expressionApplied: false };
+    });
+
+    const evalIssues: ReceiveIssue[] = [];
+    for (const [fieldId, error] of evalResult.errors) {
+      evalIssues.push(
+        receiveIssue('receive.expression.evalFailed', `field.${fieldId}`, error),
+      );
+    }
+
+    return outcome(
+      batch.id,
+      'matched',
+      input.processedAt,
+      [...parsed.issues, ...evalIssues],
+      batch.source,
+      normalizedBytes.bytes.length,
+      batch,
+      matchedFrame,
+      updatedFields,
+    );
+  }
+
+  // No expression cache or no compile result for this frame
   return outcome(
     batch.id,
     'matched',
@@ -244,7 +323,7 @@ export function processReceiveBatch(input: ReceiveProcessInput): ReceiveBatchOut
     normalizedBytes.bytes.length,
     batch,
     matchedFrame,
-    parsed.fields,
+    parsed.fields.map((f) => ({ ...f, expressionApplied: false })),
   );
 }
 

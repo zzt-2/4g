@@ -13,8 +13,8 @@ export function fanOutToDisplay(
 
     for (const f of outcome.fields) {
       fields.push({
-        frameId: f.frameId,
-        fieldId: f.fieldId,
+        groupId: f.frameId,
+        dataItemId: f.fieldId,
         fieldName: f.fieldName,
         value: f.value,
         displayValue: f.displayValue,

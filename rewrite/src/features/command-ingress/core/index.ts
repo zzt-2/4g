@@ -50,4 +50,4 @@ export {
 
 // Highlight
 export { calculateHighlights } from './highlight';
-export type { HighlightRule, Highlight, HighlightSeverity } from './highlight';
+export type { HighlightRule, HighlightRuleConfig, Highlight, HighlightSeverity } from './highlight';
