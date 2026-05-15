@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useRewritePlatform } from '@/app/useRewritePlatform';
+import { usePolling } from '@/shared/composables';
 import SummaryMetricGrid from '@/widgets/SummaryMetricGrid.vue';
+import type { ConnectionSummary } from '@/features/connection';
 
 interface SummaryMetric {
   readonly id: string;
@@ -12,100 +15,199 @@ interface SummaryMetric {
   readonly icon: string;
 }
 
+interface QuickAction {
+  readonly label: string;
+  readonly description: string;
+  readonly icon: string;
+  readonly to: string;
+  readonly color: string;
+}
+
+const router = useRouter();
 const runtime = useRewriteRuntime();
 const platform = useRewritePlatform();
-const overview = ref(runtime.getOverviewSnapshot());
-const operationMessage = ref('');
+
+const frameService = runtime.features.frameService;
+const connectionService = runtime.features.connectionService;
+const taskService = runtime.features.taskService;
+const sendService = runtime.features.sendService;
+
+// ===== Business data =====
+const frameCount = ref(0);
+const fieldCount = ref(0);
+const selectedFrameName = ref<string | null>(null);
+const connectionSummaries = ref<readonly ConnectionSummary[]>([]);
+const taskStats = ref({ totalCreated: 0, totalCompleted: 0, totalFailed: 0, totalStepsExecuted: 0 });
+const sendStats = ref({ totalSent: 0, totalErrors: 0, totalBytesSent: 0 });
 
 const bridgeLabel = computed(() => platform.bridgeInfo.value?.name ?? 'desktop bridge pending');
+
+const connectedCount = computed(() =>
+  connectionSummaries.value.filter((s) => s.lifecycle === 'connected').length,
+);
+
 const metrics = computed<SummaryMetric[]>(() => [
   {
-    id: 'frame-count',
+    id: 'connections',
+    label: '连接',
+    value: `${connectedCount.value} / ${connectionSummaries.value.length}`,
+    caption: connectedCount.value > 0 ? '已连接' : '无活跃连接',
+    icon: 'link',
+  },
+  {
+    id: 'frames',
     label: '帧资产',
-    value: overview.value.frame.totalFrames,
-    caption: `字段 ${overview.value.frame.totalFields}`,
+    value: frameCount.value,
+    caption: `字段 ${fieldCount.value}`,
     icon: 'view_agenda',
   },
   {
-    id: 'selected-frame',
-    label: '当前帧',
-    value: overview.value.frame.selectedFrameName ?? '未选择',
-    icon: 'fact_check',
+    id: 'tasks',
+    label: '任务',
+    value: taskStats.value.totalCreated,
+    caption: `完成 ${taskStats.value.totalCompleted} · 失败 ${taskStats.value.totalFailed}`,
+    icon: 'assignment',
   },
   {
-    id: 'recording',
-    label: '自动记录',
-    value: overview.value.settings.autoStartRecording ? '开启' : '关闭',
-    caption: `CSV 间隔 ${overview.value.settings.csvSaveIntervalMinutes} 分钟`,
-    icon: 'settings',
-  },
-  {
-    id: 'storage-material',
-    label: '本地材料',
-    value:
-      overview.value.storage.localRecordCount +
-      overview.value.storage.historyHourCount +
-      overview.value.storage.csvMaterialCount +
-      overview.value.storage.legacyMaterialCount,
-    caption: overview.value.storage.lastIssue?.message ?? '状态正常',
-    icon: 'inventory_2',
+    id: 'sends',
+    label: '发送',
+    value: sendStats.value.totalSent,
+    caption: sendStats.value.totalErrors > 0 ? `错误 ${sendStats.value.totalErrors}` : '状态正常',
+    icon: 'send',
   },
 ]);
 
-function refreshOverviewSnapshot(): void {
-  overview.value = runtime.getOverviewSnapshot();
+const quickActions: readonly QuickAction[] = [
+  { label: '连接管理', description: '新建串口或网络连接', icon: 'link', to: '/connection', color: 'primary' },
+  { label: '帧定义', description: '管理帧结构与字段', icon: 'view_agenda', to: '/frames', color: 'primary' },
+  { label: '帧发送', description: '编辑发送参数并执行', icon: 'send', to: '/send', color: 'primary' },
+  { label: '任务管理', description: '创建和监控执行任务', icon: 'assignment', to: '/tasks', color: 'primary' },
+  { label: '指令接入', description: 'SCOE 与外部指令配置', icon: 'settings_input_antenna', to: '/command-ingress', color: 'primary' },
+];
+
+function refreshData(): void {
+  const summaries = frameService.listFrameAssetSummaries();
+  frameCount.value = summaries.length;
+  fieldCount.value = summaries.reduce((sum, f) => sum + f.fieldCount, 0);
+  selectedFrameName.value = frameService.getSelectedFrame()?.name ?? null;
+
+  connectionSummaries.value = connectionService.listConnectionSummaries();
+
+  const ts = taskService.getStatistics();
+  taskStats.value = {
+    totalCreated: ts.totalCreated,
+    totalCompleted: ts.totalCompleted,
+    totalFailed: ts.totalFailed,
+    totalStepsExecuted: ts.totalStepsExecuted,
+  };
+
+  const ss = sendService.getStatistics();
+  sendStats.value = {
+    totalSent: ss.totalSent,
+    totalErrors: ss.totalErrors,
+    totalBytesSent: ss.totalBytesSent,
+  };
 }
 
-function refreshOverview(): void {
-  refreshOverviewSnapshot();
-  operationMessage.value = '已刷新';
+const polling = usePolling(refreshData, 2000);
+
+function navigateTo(to: string): void {
+  void router.push(to);
 }
 
-function resetRecordingSettings(): void {
-  const result = runtime.resetSettings('recording');
-  refreshOverviewSnapshot();
-  operationMessage.value = result.ok ? '记录设置已复位' : '记录设置未更新';
+function connectionStatusColor(lifecycle: string): string {
+  switch (lifecycle) {
+    case 'connected': return 'positive';
+    case 'connecting': return 'warning';
+    case 'error': return 'negative';
+    default: return 'grey';
+  }
 }
+
+onMounted(() => {
+  refreshData();
+  polling.start();
+});
 </script>
 
 <template>
-  <q-page class="overview-page">
-    <section class="overview-page__content">
-      <div class="overview-page__header">
+  <q-page class="home-page">
+    <section class="home-page__content">
+      <!-- Header -->
+      <div class="home-page__header">
         <div>
-          <p class="overview-page__eyebrow">{{ bridgeLabel }}</p>
-          <h1 class="overview-page__title">运行总览</h1>
+          <p class="home-page__eyebrow">{{ bridgeLabel }}</p>
+          <h1 class="home-page__title">运行总览</h1>
         </div>
-        <div class="overview-page__actions">
-          <q-btn flat round icon="refresh" aria-label="刷新" @click="refreshOverview" />
-          <q-btn outline color="primary" icon="restart_alt" label="记录复位" @click="resetRecordingSettings" />
-        </div>
+        <q-btn flat round icon="refresh" aria-label="刷新" @click="refreshData" />
       </div>
 
+      <!-- Metrics -->
       <SummaryMetricGrid :metrics="metrics" />
 
-      <div class="overview-page__snapshot">
-        <div class="overview-page__snapshot-item">
-          <span>CSV 路径</span>
-          <strong>{{ overview.settings.csvDefaultOutputPath || '未设置' }}</strong>
+      <!-- Quick Actions -->
+      <section class="home-page__section">
+        <h2 class="home-page__section-title">快速入口</h2>
+        <div class="home-page__actions">
+          <q-card
+            v-for="action in quickActions"
+            :key="action.to"
+            flat
+            bordered
+            clickable
+            class="home-page__action-card"
+            @click="navigateTo(action.to)"
+          >
+            <q-card-section class="home-page__action-content">
+              <q-icon :name="action.icon" size="24px" :color="action.color" />
+              <div class="home-page__action-text">
+                <div class="home-page__action-label">{{ action.label }}</div>
+                <div class="home-page__action-desc">{{ action.description }}</div>
+              </div>
+              <q-icon name="chevron_right" color="grey" />
+            </q-card-section>
+          </q-card>
         </div>
-        <div class="overview-page__snapshot-item">
-          <span>本地记录</span>
-          <strong>{{ overview.storage.localRecordCount }}</strong>
-        </div>
-        <div class="overview-page__snapshot-item">
-          <span>历史小时</span>
-          <strong>{{ overview.storage.historyHourCount }}</strong>
-        </div>
-        <div class="overview-page__snapshot-item">
-          <span>CSV 材料</span>
-          <strong>{{ overview.storage.csvMaterialCount }}</strong>
-        </div>
-      </div>
+      </section>
 
-      <q-banner v-if="operationMessage" dense rounded class="overview-page__message">
-        {{ operationMessage }}
-      </q-banner>
+      <!-- Active Connections -->
+      <section v-if="connectionSummaries.length > 0" class="home-page__section">
+        <h2 class="home-page__section-title">连接状态</h2>
+        <div class="home-page__conn-list">
+          <div v-for="conn in connectionSummaries" :key="conn.connectionId" class="home-page__conn-item">
+            <q-badge
+              :color="connectionStatusColor(conn.lifecycle)"
+              :label="conn.lifecycle"
+              outline
+            />
+            <span class="home-page__conn-label">{{ conn.label }}</span>
+            <span class="rw-text-desc">{{ conn.routeLabel }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Frame & Task Info -->
+      <section class="home-page__section">
+        <h2 class="home-page__section-title">系统快照</h2>
+        <div class="home-page__snapshot">
+          <div class="home-page__snapshot-item">
+            <span>当前帧</span>
+            <strong>{{ selectedFrameName ?? '--' }}</strong>
+          </div>
+          <div class="home-page__snapshot-item">
+            <span>任务步骤执行</span>
+            <strong>{{ taskStats.totalStepsExecuted }}</strong>
+          </div>
+          <div class="home-page__snapshot-item">
+            <span>发送字节</span>
+            <strong>{{ sendStats.totalBytesSent }}</strong>
+          </div>
+          <div class="home-page__snapshot-item">
+            <span>连接总数</span>
+            <strong>{{ connectionSummaries.length }}</strong>
+          </div>
+        </div>
+      </section>
     </section>
   </q-page>
 </template>
@@ -113,113 +215,185 @@ function resetRecordingSettings(): void {
 <style scoped lang="scss">
 @use '../css/tokens' as tokens;
 
-.overview-page {
+.home-page {
   background: var(--rw-color-surface-app);
   min-height: 100%;
   padding: var(--rw-space-page);
 }
 
-.overview-page__content {
+.home-page__content {
   display: grid;
   gap: var(--rw-space-4);
-  margin: var(--rw-space-0) auto;
+  margin: 0 auto;
   max-width: var(--rw-size-content-wide);
 }
 
-.overview-page__header {
+.home-page__header {
   align-items: flex-start;
   display: flex;
   gap: var(--rw-space-4);
   justify-content: space-between;
 }
 
-.overview-page__eyebrow {
+.home-page__eyebrow {
   color: var(--rw-color-text-muted);
   font-size: var(--rw-font-size-label);
   line-height: var(--rw-line-height-body);
-  margin: var(--rw-space-0) var(--rw-space-0) var(--rw-space-1);
+  margin: 0 0 var(--rw-space-1);
 }
 
-.overview-page__title {
+.home-page__title {
   color: var(--rw-color-text-primary);
   font-size: var(--rw-font-size-title-lg);
   font-weight: var(--rw-font-weight-semibold);
   line-height: var(--rw-line-height-title-lg);
-  margin: var(--rw-space-0);
+  margin: 0;
 }
 
-.overview-page__actions {
+.home-page__section {
+  display: grid;
+  gap: var(--rw-space-2);
+}
+
+.home-page__section-title {
+  color: var(--rw-color-text-secondary);
+  font-size: var(--rw-font-size-label);
+  font-weight: var(--rw-font-weight-semibold);
+  line-height: var(--rw-line-height-body);
+  margin: 0;
+  padding-bottom: var(--rw-space-1);
+  border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+}
+
+// Quick Actions
+.home-page__actions {
+  display: grid;
+  gap: var(--rw-space-2);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.home-page__action-card {
+  border-radius: var(--rw-radius-panel);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--rw-color-surface-selected);
+  }
+}
+
+.home-page__action-content {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--rw-space-2);
-  justify-content: flex-end;
+  gap: var(--rw-space-3);
 }
 
-.overview-page__snapshot {
+.home-page__action-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-page__action-label {
+  color: var(--rw-color-text-primary);
+  font-size: var(--rw-font-size-body);
+  font-weight: var(--rw-font-weight-medium);
+  line-height: var(--rw-line-height-body);
+}
+
+.home-page__action-desc {
+  color: var(--rw-color-text-secondary);
+  font-size: var(--rw-font-size-caption);
+  line-height: var(--rw-line-height-caption);
+  margin-top: var(--rw-space-0-5);
+}
+
+// Connection list
+.home-page__conn-list {
+  background: var(--rw-color-surface-base);
+  border: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+  border-radius: var(--rw-radius-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.home-page__conn-item {
+  align-items: center;
+  border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+  display: flex;
+  gap: var(--rw-space-3);
+  padding: var(--rw-space-2-5) var(--rw-space-4);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.home-page__conn-label {
+  color: var(--rw-color-text-primary);
+  font-size: var(--rw-font-size-body);
+  font-weight: var(--rw-font-weight-medium);
+}
+
+// Snapshot grid
+.home-page__snapshot {
   background: var(--rw-color-surface-base);
   border: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
   border-radius: var(--rw-radius-panel);
   display: grid;
-  gap: var(--rw-space-0);
+  gap: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.overview-page__snapshot-item {
+.home-page__snapshot-item {
   border-right: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
   display: grid;
   gap: var(--rw-space-1);
   min-width: 0;
   padding: var(--rw-space-3-5) var(--rw-space-4);
-}
 
-.overview-page__snapshot-item:last-child {
-  border-right: var(--rw-border-width-none);
-}
+  &:last-child {
+    border-right: none;
+  }
 
-.overview-page__snapshot-item span {
-  color: var(--rw-color-text-muted);
-  font-size: var(--rw-font-size-caption);
-  line-height: var(--rw-line-height-caption);
-}
+  span {
+    color: var(--rw-color-text-muted);
+    font-size: var(--rw-font-size-caption);
+    line-height: var(--rw-line-height-caption);
+  }
 
-.overview-page__snapshot-item strong {
-  color: var(--rw-color-text-primary);
-  font-size: var(--rw-font-size-body);
-  font-weight: var(--rw-font-weight-semibold);
-  line-height: var(--rw-line-height-body);
-  overflow-wrap: anywhere;
-}
-
-.overview-page__message {
-  background: var(--rw-color-surface-selected);
-  color: var(--rw-color-action-primary);
+  strong {
+    color: var(--rw-color-text-primary);
+    font-size: var(--rw-font-size-body);
+    font-weight: var(--rw-font-weight-semibold);
+    line-height: var(--rw-line-height-body);
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
-  .overview-page {
+  .home-page {
     padding: var(--rw-space-page-compact);
   }
 
-  .overview-page__header {
+  .home-page__header {
     display: grid;
   }
 
-  .overview-page__actions {
-    justify-content: flex-start;
-  }
-
-  .overview-page__snapshot {
+  .home-page__actions {
     grid-template-columns: 1fr;
   }
 
-  .overview-page__snapshot-item {
-    border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
-    border-right: var(--rw-border-width-none);
+  .home-page__snapshot {
+    grid-template-columns: 1fr;
   }
 
-  .overview-page__snapshot-item:last-child {
-    border-bottom: var(--rw-border-width-none);
+  .home-page__snapshot-item {
+    border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+    border-right: none;
+
+    &:last-child {
+      border-bottom: none;
+    }
   }
 }
 </style>
