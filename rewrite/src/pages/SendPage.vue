@@ -38,7 +38,7 @@ function refreshFrameList(): void {
 const frameSummaries = computed<FrameAssetSummary[]>(() => {
   void refreshKey.value;
   return listFrameAssetSummaries(frameService.getSnapshot(), {
-    direction: 'o_send',
+    direction: 'send',
     query: searchText.value || undefined,
     favoriteOnly: favoriteOnly.value || undefined,
   });
@@ -575,7 +575,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                 <FieldEditWidget
                   :fields="editFrameFields"
                   :values="editValues"
-                  direction="o_send"
+                  direction="send"
                   @update:values="editValues = $event"
                 />
               </div>
