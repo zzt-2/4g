@@ -6,16 +6,17 @@ import { connectionStatusMap } from './connectionStatusMap';
 defineProps<{
   readonly summary: ConnectionSummary;
   readonly operating: boolean;
+  readonly autoConnect: boolean;
 }>();
 
 const emit = defineEmits<{
   connect: [];
   disconnect: [];
   remove: [];
+  'toggle-autoconnect': [];
 }>();
 
 function formatRoute(s: ConnectionSummary): string {
-  if (s.kind === 'serial') return s.routeLabel;
   return s.routeLabel;
 }
 </script>
@@ -27,6 +28,14 @@ function formatRoute(s: ConnectionSummary): string {
         <StatusBadge :status="summary.lifecycle" :status-map="connectionStatusMap" />
         <span class="connection-card__name">{{ summary.label }}</span>
         <span class="connection-card__route">{{ formatRoute(summary) }}</span>
+        <q-toggle
+          :model-value="autoConnect"
+          dense
+          label="自动连接"
+          :disable="operating"
+          class="connection-card__auto-connect"
+          @update:model-value="emit('toggle-autoconnect')"
+        />
       </div>
       <div class="connection-card__actions gap-1">
         <q-btn
@@ -119,6 +128,10 @@ function formatRoute(s: ConnectionSummary): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.connection-card__auto-connect {
+  flex-shrink: 0;
 }
 
 .connection-card__actions {

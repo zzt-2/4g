@@ -27,12 +27,16 @@ const networkSummaries = computed(() =>
   summaries.value.filter((s) => s.kind !== 'serial'),
 );
 
+function getAutoConnect(connectionId: string): boolean {
+  return service.getConnectionFact(connectionId)?.config?.autoConnect ?? false;
+}
+
 // --- Polling ---
 function refreshSummaries(): void {
   summaries.value = service.listConnectionSummaries();
 }
 
-const polling = usePolling(refreshSummaries, 500);
+const polling = usePolling(refreshSummaries, 1000);
 
 // --- Handlers ---
 async function handleConnect(summary: ConnectionSummary): Promise<void> {
@@ -76,6 +80,14 @@ function handleRemove(summary: ConnectionSummary): void {
   });
 }
 
+function handleToggleAutoConnect(summary: ConnectionSummary): void {
+  const fact = service.getConnectionFact(summary.connectionId);
+  if (fact?.config) {
+    fact.config.autoConnect = !fact.config.autoConnect;
+    notify.info(`${summary.label} 自动连接已${fact.config.autoConnect ? '开启' : '关闭'}`);
+  }
+}
+
 async function handleCreate(config: TransportConfig): Promise<void> {
   const result = await service.connect(config);
   if (result.ok) {
@@ -86,18 +98,22 @@ async function handleCreate(config: TransportConfig): Promise<void> {
   refreshSummaries();
 }
 
-function refreshResources(): readonly { kind: string; id: string; label: string }[] {
-  return service.discoverResources();
+function refreshResources(): void {
+  resources.value = service.discoverResources();
 }
 
+const resources = ref<readonly { kind: string; id: string; label: string }[]>([]);
+
+
 onMounted(() => {
+  refreshResources();
   refreshSummaries();
   polling.start();
 });
 </script>
 
 <template>
-  <q-page class="connection-page p-6">
+  <q-page class="connection-page p-6 min-h-full">
     <section class="connection-page__content gap-4 mx-auto">
       <div class="connection-page__header">
         <h1 class="connection-page__title">连接管理</h1>
@@ -119,9 +135,11 @@ onMounted(() => {
             :key="s.connectionId"
             :summary="s"
             :operating="isOperating(s.connectionId)"
+            :auto-connect="getAutoConnect(s.connectionId)"
             @connect="handleConnect(s)"
             @disconnect="handleDisconnect(s)"
             @remove="handleRemove(s)"
+            @toggle-autoconnect="handleToggleAutoConnect(s)"
           />
         </div>
       </section>
@@ -135,9 +153,11 @@ onMounted(() => {
             :key="s.connectionId"
             :summary="s"
             :operating="isOperating(s.connectionId)"
+            :auto-connect="getAutoConnect(s.connectionId)"
             @connect="handleConnect(s)"
             @disconnect="handleDisconnect(s)"
             @remove="handleRemove(s)"
+            @toggle-autoconnect="handleToggleAutoConnect(s)"
           />
         </div>
       </section>
@@ -154,8 +174,9 @@ onMounted(() => {
 
     <NewConnectionDialog
       v-model="showNewDialog"
-      :resources="refreshResources()"
+      :resources="resources"
       @create="handleCreate"
+      @refresh-resources="refreshResources"
     />
   </q-page>
 </template>
@@ -165,7 +186,6 @@ onMounted(() => {
 
 .connection-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
 }
 
 .connection-page__content {
@@ -215,7 +235,7 @@ onMounted(() => {
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
   .connection-page {
-    padding: 16px;
+    padding: var(--rw-space-4);
   }
 }
 </style>

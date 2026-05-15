@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { FrameOptionDefinition } from '@/features/frame';
 import { useStableKeys } from '@/shared/composables';
 
@@ -14,6 +15,11 @@ const emit = defineEmits<{
 const { keys: optKeys, syncKeys: syncOptKeys } = useStableKeys('opt');
 
 syncOptKeys(props.options);
+
+const validationError = computed(() => {
+  if (props.options.length < 2) return '至少需要 2 个选项';
+  return '';
+});
 
 function addOption(): void {
   const next = [...props.options, { value: '', label: '' }];
@@ -34,20 +40,28 @@ function updateOption(
 ): void {
   const next = [...props.options];
   next[index] = { ...next[index], ...patch };
+
+  // Radio: only one default allowed
+  if (patch.isDefault && props.inputType === 'radio') {
+    for (let i = 0; i < next.length; i++) {
+      if (i !== index) next[i] = { ...next[i], isDefault: false };
+    }
+  }
+
   emit('update:options', next);
 }
 </script>
 
 <template>
   <div>
-    <div class="rw-text-label text-caption q-mb-sm">
+    <div class="rw-text-label text-caption mb-2">
       {{ inputType === 'select' ? '选择项' : '单选项' }}
     </div>
 
     <div
       v-for="(option, index) in options"
       :key="optKeys[index]"
-      class="flex items-center gap-2 q-mb-xs"
+      class="flex items-center gap-2 mb-1"
     >
       <q-input
         outlined
@@ -74,21 +88,26 @@ function updateOption(
         flat
         round
         dense
-        icon="delete"
+        icon="o_delete"
         size="xs"
         color="negative"
         @click="removeOption(index)"
       />
     </div>
 
+    <div v-if="validationError" class="text-xs rw-text-error mt-1">
+      {{ validationError }}
+    </div>
+
     <q-btn
       flat
       dense
       no-caps
-      icon="add"
+      icon="o_add"
       label="添加选项"
       color="primary"
       size="sm"
+      class="mt-1"
       @click="addOption"
     />
   </div>

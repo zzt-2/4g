@@ -55,27 +55,27 @@ function updateRule(index: number, patch: Partial<IdentifierRule>): void {
 <template>
   <q-card flat bordered>
     <q-card-section>
-      <div class="flex items-center justify-between q-mb-md">
+      <div class="flex items-center justify-between mb-3">
         <span class="rw-text-label text-body2">帧识别规则</span>
         <q-btn
           flat
           dense
           no-caps
-          icon="add"
+          icon="o_add"
           label="添加规则"
           color="primary"
           @click="addRule"
         />
       </div>
 
-      <div v-if="rules.length === 0" class="rw-text-desc text-body2 q-pa-sm">
+      <div v-if="rules.length === 0" class="rw-text-desc text-body2 p-2">
         暂无识别规则
       </div>
 
       <div
         v-for="(rule, index) in rules"
         :key="ruleKeys[index]"
-        class="flex items-center gap-2 q-mb-sm"
+        class="flex items-center gap-2 mb-2"
       >
         <q-input
           outlined
@@ -115,7 +115,7 @@ function updateRule(index: number, patch: Partial<IdentifierRule>): void {
           @update:model-value="(v: string) => updateRule(index, { value: v })"
         />
         <q-select
-          v-if="index > 0"
+          v-if="index > 0 && index < rules.length - 1"
           outlined
           dense
           :model-value="rule.logicOperator"
@@ -130,7 +130,7 @@ function updateRule(index: number, patch: Partial<IdentifierRule>): void {
           flat
           round
           dense
-          icon="delete"
+          icon="o_delete"
           color="negative"
           size="sm"
           @click="removeRule(index)"

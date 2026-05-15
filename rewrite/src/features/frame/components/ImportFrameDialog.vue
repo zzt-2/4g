@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { deserializeFrames, type FrameAsset, type FrameDeserializeResult } from '../services';
+import { useStableKeys } from '@/shared/composables';
 
 interface ImportFrameDialogProps {
   modelValue: boolean;
@@ -13,10 +14,26 @@ const emit = defineEmits<{
   confirm: [frames: FrameAsset[]];
 }>();
 
+const show = computed({
+  get: () => props.modelValue,
+  set: (val: boolean) => emit('update:modelValue', val),
+});
+
 const fileContent = ref('');
 const fileName = ref('');
 const parseResult = ref<FrameDeserializeResult | null>(null);
 const isImporting = ref(false);
+
+const { keys: issueKeys, syncKeys: syncIssueKeys } = useStableKeys('issue');
+watch(() => parseResult.value?.issues ?? [], (issues) => syncIssueKeys(issues));
+
+const errorIssues = computed(() =>
+  (parseResult.value?.issues ?? []).filter((i) => i.severity === 'error' || i.severity === 'o_error'),
+);
+const warningIssues = computed(() =>
+  (parseResult.value?.issues ?? []).filter((i) => i.severity === 'warning' || i.severity === 'o_warning'),
+);
+const hasBlockingErrors = computed(() => !parseResult.value?.ok || errorIssues.value.length > 0);
 
 function onFileSelected(file: File | File[] | null): void {
   const f = Array.isArray(file) ? file[0] : file;
@@ -40,7 +57,7 @@ function onFileSelected(file: File | File[] | null): void {
 }
 
 function onConfirm(): void {
-  if (parseResult.value?.ok && parseResult.value.frames.length > 0) {
+  if (parseResult.value?.ok && parseResult.value.frames.length > 0 && !hasBlockingErrors.value) {
     emit('confirm', parseResult.value.frames);
     onClose();
   }
@@ -56,13 +73,13 @@ function onClose(): void {
 </script>
 
 <template>
-  <q-dialog :model-value="props.modelValue" @update:model-value="emit('update:modelValue', $event)" @hide="onClose">
+  <q-dialog v-model="show" @hide="onClose">
     <q-card class="rw-dialog-md">
       <q-card-section>
         <div class="text-h6 rw-text-value">导入帧定义</div>
       </q-card-section>
 
-      <q-card-section class="q-pt-none">
+      <q-card-section class="pt-0">
         <q-file
           outlined
           dense
@@ -72,24 +89,31 @@ function onClose(): void {
           @update:model-value="onFileSelected"
         >
           <template #prepend>
-            <q-icon name="upload_file" />
+            <q-icon name="o_upload_file" />
           </template>
         </q-file>
 
         <template v-if="parseResult">
-          <div v-if="parseResult.ok" class="mt-4">
+          <div v-if="parseResult.ok && parseResult.frames.length > 0" class="mt-4">
             <div class="text-sm rw-text-desc">
               成功解析 {{ parseResult.frames.length }} 个帧定义
             </div>
-            <div v-if="parseResult.issues.length > 0" class="mt-2">
-              <div v-for="(issue, idx) in parseResult.issues" :key="idx" class="text-xs rw-text-warn">
-                {{ issue.message }}
+            <template v-if="parseResult.issues.length > 0">
+              <div v-if="errorIssues.length > 0" class="mt-2">
+                <div v-for="(issue, idx) in errorIssues" :key="'e-' + issueKeys[idx]" class="text-xs rw-text-error">
+                  {{ issue.message }}
+                </div>
               </div>
-            </div>
+              <div v-if="warningIssues.length > 0" class="mt-2">
+                <div v-for="(issue, idx) in warningIssues" :key="'w-' + issueKeys[idx]" class="text-xs rw-text-warn">
+                  {{ issue.message }}
+                </div>
+              </div>
+            </template>
           </div>
-          <div v-else class="mt-4">
+          <div v-else-if="!parseResult.ok" class="mt-4">
             <div class="text-sm rw-text-error">解析失败</div>
-            <div v-for="(issue, idx) in parseResult.issues" :key="idx" class="text-xs mt-1 rw-text-error">
+            <div v-for="(issue, idx) in parseResult.issues" :key="issueKeys[idx]" class="text-xs mt-1 rw-text-error">
               {{ issue.message }}
             </div>
           </div>
@@ -102,7 +126,7 @@ function onClose(): void {
           unelevated
           color="primary"
           label="导入"
-          :disable="!parseResult?.ok || parseResult.frames.length === 0"
+          :disable="!parseResult?.ok || parseResult.frames.length === 0 || hasBlockingErrors"
           @click="onConfirm"
         />
       </q-card-actions>

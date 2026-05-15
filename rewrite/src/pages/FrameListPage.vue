@@ -17,8 +17,10 @@ import {
   type ReadonlyFrameAsset,
 } from '@/features/frame';
 import { useToggleFavorite } from '@/features/frame/composables';
+import { useNotify } from '@/shared/composables';
 import { getFileFacade } from '@/platform';
 
+const notify = useNotify();
 const $q = useQuasar();
 const router = useRouter();
 const runtime = useRewriteRuntime();
@@ -89,7 +91,7 @@ function onSelectionChange(selected: TableRow[]): void {
   selectedFrameIds.value = selected.map((r) => r.id);
 }
 
-const { toggleFavorite } = useToggleFavorite(frameService, (msg) => $q.notify({ type: 'negative', message: msg }), refreshList);
+const { toggleFavorite } = useToggleFavorite(frameService, (msg) => notify.error(msg), refreshList);
 
 function cloneFrame(frame: FrameAssetSummary): void {
   const full = frameService.getFrame(frame.id);
@@ -100,9 +102,9 @@ function cloneFrame(frame: FrameAssetSummary): void {
   const result = frameService.upsertFrame(cloned);
   if (result.ok) {
     refreshList();
-    $q.notify({ type: 'positive', message: '已复制' });
+    notify.success('已复制');
   } else {
-    $q.notify({ type: 'negative', message: '复制失败' });
+    notify.error('复制失败');
   }
 }
 
@@ -117,7 +119,7 @@ function removeFrame(frameId: string): void {
     if (result.ok) {
       selectedFrameIds.value = selectedFrameIds.value.filter((id) => id !== frameId);
       refreshList();
-      $q.notify({ type: 'positive', message: '已删除' });
+      notify.success('已删除');
     }
   });
 }
@@ -126,9 +128,9 @@ function onImportConfirm(frames: FrameAsset[]): void {
   const result = frameService.replaceFrames(frames);
   if (result.ok) {
     refreshList();
-    $q.notify({ type: 'positive', message: `成功导入 ${frames.length} 个帧定义` });
+    notify.success(`成功导入 ${frames.length} 个帧定义`);
   } else {
-    $q.notify({ type: 'negative', message: '导入失败' });
+    notify.error('导入失败');
   }
 }
 
@@ -145,7 +147,7 @@ async function onExport(): Promise<void> {
     });
     if (path) {
       await fileFacade.writeTextFile(path, json);
-      $q.notify({ type: 'positive', message: '导出成功' });
+      notify.success('导出成功');
     }
   } else {
     const blob = new Blob([json], { type: 'application/json' });
@@ -155,7 +157,7 @@ async function onExport(): Promise<void> {
     a.download = 'frames.json';
     a.click();
     URL.revokeObjectURL(url);
-    $q.notify({ type: 'positive', message: '已下载' });
+    notify.success('已下载');
   }
 }
 
@@ -173,7 +175,7 @@ function onEditFrame(frameId: string): void {
 </script>
 
 <template>
-  <q-page class="frame-list-page">
+  <q-page class="frame-list-page min-h-full">
     <div class="flex flex-col h-full">
       <!-- Toolbar -->
       <div class="p-4 pb-3 rw-divider-b">
@@ -203,7 +205,7 @@ function onEditFrame(frameId: string): void {
               dense
               no-caps
               :color="favoriteOnly ? 'warning' : 'grey'"
-              icon="star"
+              icon="o_star"
               @click="favoriteOnly = !favoriteOnly"
             />
           </template>
@@ -212,7 +214,7 @@ function onEditFrame(frameId: string): void {
             <q-btn
               outline
               color="primary"
-              icon="add"
+              icon="o_add"
               label="新建"
               dense
               no-caps
@@ -221,7 +223,7 @@ function onEditFrame(frameId: string): void {
             <q-btn
               outline
               color="primary"
-              icon="upload"
+              icon="o_upload"
               label="导入"
               dense
               no-caps
@@ -230,7 +232,7 @@ function onEditFrame(frameId: string): void {
             <q-btn
               outline
               color="primary"
-              icon="download"
+              icon="o_download"
               label="导出"
               dense
               no-caps
@@ -249,7 +251,7 @@ function onEditFrame(frameId: string): void {
             :columns="frameListColumns"
             :rows="tableRows"
             row-key="id"
-            selection="multiple"
+            selection="single"
             :selected="selectedRows"
             container-height="calc(100vh - 160px)"
             @row-click="(_row: TableRow, _index: number) => onRowClick(_row)"
@@ -284,7 +286,7 @@ function onEditFrame(frameId: string): void {
                   flat
                   round
                   dense
-                  :icon="props.row.isFavorite ? 'star' : 'star_border'"
+                  :icon="props.row.isFavorite ? 'o_star' : 'o_star_border'"
                   :color="props.row.isFavorite ? 'warning' : 'grey'"
                   size="sm"
                   @click.stop="toggleFavorite(props.row)"
@@ -295,9 +297,9 @@ function onEditFrame(frameId: string): void {
             <template #body-cell-_actions="props">
               <q-td :props="props">
                 <div class="flex items-center justify-center gap-1">
-                  <q-btn flat round dense icon="edit" size="sm" color="primary" @click.stop="onEditFrame(props.row.id)" />
-                  <q-btn flat round dense icon="content_copy" size="sm" color="primary" @click.stop="cloneFrame(props.row)" />
-                  <q-btn flat round dense icon="delete" size="sm" color="negative" @click.stop="removeFrame(props.row.id)" />
+                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditFrame(props.row.id)" />
+                  <q-btn flat round dense icon="o_content_copy" size="sm" color="primary" @click.stop="cloneFrame(props.row)" />
+                  <q-btn flat round dense icon="o_delete" size="sm" color="negative" @click.stop="removeFrame(props.row.id)" />
                 </div>
               </q-td>
             </template>
@@ -305,12 +307,17 @@ function onEditFrame(frameId: string): void {
         </div>
 
         <!-- Detail panel -->
-        <div v-if="showDetailPanel && detailFrame" class="w-[320px] flex-shrink-0">
+        <div v-if="showDetailPanel" class="w-[320px] flex-shrink-0">
           <FrameDetailPanel
+            v-if="detailFrame"
             :frame="detailFrame"
             @close="onCloseDetail"
             @edit="onEditFrame"
           />
+          <div v-else class="flex flex-col items-center justify-center h-full rw-panel-base rw-divider-l gap-3 p-4">
+            <q-icon name="o_info" size="32px" color="grey" />
+            <span class="text-sm rw-text-desc">选择一个帧查看详情</span>
+          </div>
         </div>
       </div>
     </div>
@@ -326,6 +333,5 @@ function onEditFrame(frameId: string): void {
 <style scoped lang="scss">
 .frame-list-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
 }
 </style>

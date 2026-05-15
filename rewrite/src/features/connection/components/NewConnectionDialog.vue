@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   create: [config: TransportConfig];
+  'refresh-resources': [];
 }>();
 
 type Step = 'type' | 'form';
@@ -21,6 +22,7 @@ type Step = 'type' | 'form';
 const step = ref<Step>('type');
 const selectedKind = ref<TransportKind>('serial');
 const submitting = ref(false);
+const serialRefreshing = ref(false);
 
 // Serial fields
 const label = ref('');
@@ -43,6 +45,11 @@ const udpRemotePort = ref<number | undefined>(undefined);
 
 // Shared
 const autoConnect = ref(false);
+
+const show = computed({
+  get: () => props.modelValue,
+  set: (val: boolean) => emit('update:modelValue', val),
+});
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 
@@ -83,6 +90,12 @@ function resetForm(): void {
   udpRemotePort.value = undefined;
   autoConnect.value = false;
   submitting.value = false;
+}
+
+function refreshSerialPorts(): void {
+  serialRefreshing.value = true;
+  emit('refresh-resources');
+  setTimeout(() => { serialRefreshing.value = false; }, 500);
 }
 
 function onCancel(): void {
@@ -155,7 +168,7 @@ watch(
 </script>
 
 <template>
-  <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" @hide="resetForm">
+  <q-dialog v-model="show" @hide="resetForm">
     <q-card class="rw-dialog-md">
       <q-card-section class="new-connection-dialog__header py-3 px-4">
         <div class="text-h6">{{ dialogTitle }}</div>
@@ -219,9 +232,35 @@ watch(
               label="端口"
               dense
               outlined
+              use-input
+              use-chips
+              input-debounce="0"
               emit-value
               map-options
-            />
+              :loading="serialRefreshing"
+              :rules="[(v: string) => !!v || '请选择端口路径']"
+            >
+              <template #append>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="o_refresh"
+                  size="sm"
+                  :loading="serialRefreshing"
+                  @click.stop="refreshSerialPorts"
+                >
+                  <q-tooltip>刷新端口列表</q-tooltip>
+                </q-btn>
+              </template>
+              <template #no-option>
+                <q-item dense>
+                  <q-item-section class="text-caption rw-text-desc">
+                    未检测到串口设备，请连接设备后点击刷新
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
             <q-select
               v-model="baudRate"
               :options="BAUD_RATES"
@@ -304,7 +343,7 @@ watch(
           <q-toggle
             v-model="autoConnect"
             label="自动连接"
-            class="q-mt-sm"
+            class="mt-2"
           />
 
           <div class="new-connection-dialog__form-actions gap-2 pt-3">

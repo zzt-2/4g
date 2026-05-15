@@ -2,6 +2,7 @@
 import { provide } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
+import { cloneFrameField } from '@/features/frame';
 import type { FrameFieldDefinition } from '@/features/frame';
 import { useFrameEditor } from '@/features/frame/composables/use-frame-editor';
 import { useFieldEditor } from '@/features/frame/composables/use-field-editor';
@@ -79,6 +80,15 @@ function onFieldRemove(index: number): void {
   updateFields((fields) => fields.splice(index, 1));
 }
 
+function onFieldCopy(index: number): void {
+  const field = workingFrame.value.fields[index];
+  if (!field) return;
+  const cloned = cloneFrameField(field);
+  cloned.id = `${cloned.id || 'field'}_copy`;
+  cloned.name = `${cloned.name || '字段'} (副本)`;
+  updateFields((fields) => fields.splice(index + 1, 0, cloned));
+}
+
 function moveField(from: number, to: number): void {
   updateFields((fields) => {
     const [item] = fields.splice(from, 1);
@@ -98,12 +108,12 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
 </script>
 
 <template>
-  <q-page class="frame-editor-page">
+  <q-page class="frame-editor-page min-h-full">
     <div class="mx-auto max-w-[1120px] p-4">
       <!-- Sticky header bar -->
       <div class="flex items-center justify-between pb-4 mb-4 rw-divider-b">
         <div class="flex items-center gap-2">
-          <q-btn flat round dense icon="arrow_back" color="primary" to="/frames" />
+          <q-btn flat round dense icon="o_arrow_back" color="primary" to="/frames" />
           <span class="text-h6">{{ pageTitle }}</span>
         </div>
         <div class="flex items-center gap-2">
@@ -121,10 +131,10 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
       </div>
 
       <!-- Validation issues -->
-      <div v-if="validationIssues.length > 0" class="q-mb-md">
+      <div v-if="validationIssues.length > 0" class="mb-3">
         <q-banner dense rounded class="bg-negative text-white">
           <template #avatar>
-            <q-icon name="error" />
+            <q-icon name="o_error" />
           </template>
           <div v-for="(issue, i) in validationIssues" :key="issue.code + ':' + i">
             {{ issue.message }}
@@ -133,7 +143,7 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
       </div>
 
       <!-- Basic info -->
-      <div class="q-mb-md">
+      <div class="mb-3">
         <FrameBasicInfoForm
           :frame="workingFrame"
           :is-new="isNew"
@@ -142,7 +152,7 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
       </div>
 
       <!-- Identifier rules (receive only) -->
-      <div v-if="workingFrame.direction === 'receive'" class="q-mb-md">
+      <div v-if="workingFrame.direction === 'receive'" class="mb-3">
         <FrameIdentifierRulesEditor
           :rules="workingFrame.identifierRules ?? []"
           @update:rules="(v) => updateFrame({ identifierRules: v })"
@@ -150,12 +160,13 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
       </div>
 
       <!-- Field list -->
-      <div class="q-mb-md">
+      <div class="mb-3">
         <FrameFieldList
           :fields="workingFrame.fields"
           @add="onFieldAdd"
           @edit="onFieldEdit"
           @remove="onFieldRemove"
+          @copy="onFieldCopy"
           @move-up="onFieldMoveUp"
           @move-down="onFieldMoveDown"
         />
@@ -175,6 +186,5 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
 <style scoped lang="scss">
 .frame-editor-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
 }
 </style>

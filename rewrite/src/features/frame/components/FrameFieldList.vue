@@ -13,6 +13,7 @@ const emit = defineEmits<{
   add: [];
   edit: [index: number];
   remove: [index: number];
+  copy: [index: number];
   'move-up': [index: number];
   'move-down': [index: number];
 }>();
@@ -66,10 +67,10 @@ function confirmRemove(index: number): void {
 <template>
   <q-card flat bordered>
     <q-card-section>
-      <div class="flex items-center justify-between q-mb-md">
+      <div class="flex items-center justify-between mb-3">
         <div>
           <span class="rw-text-label text-body2">字段列表</span>
-          <span class="rw-text-desc q-ml-sm">
+          <span class="rw-text-desc ml-2">
             {{ fields.length }}项 / 总长: {{ totalBytes }}B
           </span>
         </div>
@@ -77,7 +78,7 @@ function confirmRemove(index: number): void {
           flat
           dense
           no-caps
-          icon="add"
+          icon="o_add"
           label="添加字段"
           color="primary"
           @click="emit('add')"
@@ -91,9 +92,10 @@ function confirmRemove(index: number): void {
         row-key="id"
         :rows-per-page-options="[0]"
         hide-pagination
+        @row-click="(_evt: MouseEvent, row: FieldRow) => { if (!((_evt.target as HTMLElement)?.closest?.('button'))) emit('edit', row._index) }"
       >
         <template #no-data>
-          <div class="text-center w-full q-pa-lg rw-text-label">暂无字段</div>
+          <div class="text-center w-full p-4 rw-text-label">暂无字段</div>
         </template>
 
         <template #body-cell-name="s">
@@ -127,7 +129,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="arrow_upward"
+                icon="o_arrow_upward"
                 size="sm"
                 color="primary"
                 :disable="s.row._index === 0"
@@ -137,7 +139,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="arrow_downward"
+                icon="o_arrow_downward"
                 size="sm"
                 color="primary"
                 :disable="s.row._index === fields.length - 1"
@@ -147,7 +149,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="edit"
+                icon="o_edit"
                 size="sm"
                 color="primary"
                 @click="emit('edit', s.row._index)"
@@ -156,7 +158,16 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="delete"
+                icon="o_content_copy"
+                size="sm"
+                color="primary"
+                @click="emit('copy', s.row._index)"
+              />
+              <q-btn
+                flat
+                round
+                dense
+                icon="o_delete"
                 size="sm"
                 color="negative"
                 @click="confirmRemove(s.row._index)"
