@@ -34,7 +34,6 @@ export {
   resolveFieldValues,
   applyFactor,
   frameToBuildInput,
-  evaluateFieldPreview,
   evaluateFieldPreviewForUI,
   calculateChecksum,
   checksumCrc32,

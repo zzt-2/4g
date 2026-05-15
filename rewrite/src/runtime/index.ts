@@ -169,7 +169,7 @@ export function createRewriteRuntime(
     startTickDriver(intervalMs = ROUTING_TICK_DEFAULT_INTERVAL_MS) {
       if (tickIntervalId !== null || destroyed) return;
       tickIntervalId = setInterval(() => {
-        routingTick(wiredFeatures).catch(() => {});
+        routingTick(wiredFeatures).catch((err) => console.error('[routingTick]', err));
       }, intervalMs);
     },
 
@@ -185,6 +185,7 @@ export function createRewriteRuntime(
       if (destroyed) return;
       destroyed = true;
       stopTick();
+      wiredFeatures.commandIngressService.dispose();
       wiredFeatures.connectionService.cleanup();
       wiredFeatures.receiveEventSourceBridge.clear();
     },

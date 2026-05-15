@@ -28,6 +28,8 @@ export type {
 } from './core';
 export {
   cloneExpressionDefinition,
+  cloneFrameAsset,
+  cloneFrameAssets,
   cloneFrameField,
   cloneFrameOption,
 } from './core/clone';
@@ -47,5 +49,5 @@ export type {
   FrameFieldReferenceQuery,
   FrameReferenceOption,
 } from './selectors';
-export { createFrameAssetReader, deserializeFrames, serializeFrames } from './services';
-export type { FrameAssetReader, FrameAssetFile, FrameDeserializeResult } from './services';
+export { createFrameAssetReader, createFrameAssetService, deserializeFrames, serializeFrames } from './services';
+export type { FrameAssetReader, FrameAssetFile, FrameAssetOperationResult, FrameAssetService, FrameDeserializeResult } from './services';

@@ -11,6 +11,7 @@ import type { CommandLogEntry } from '../core/command-log';
 import type { DataRecorder } from './data-recorder';
 import { dispatchCommand } from '../core/handler';
 import { createScoeProtocolAdapter } from '../adapters/scoe-protocol-adapter';
+import { hexToBytes } from '../core/utils';
 import { createHandleLoadSatelliteId } from '../handlers/handle-load';
 import { handleUnloadSatelliteId } from '../handlers/handle-unload';
 import { handleHealthCheck } from '../handlers/handle-health-check';
@@ -156,8 +157,9 @@ export function createCommandIngressService(
         if (inst?.lifecycle === 'completed') {
           try {
             await sendAckFrame(command, ctx);
-          } catch {
+          } catch (err) {
             // Ack frame send failure — don't crash, just count as error
+            console.warn('Ack frame send failed', err);
           }
           stateWriter.incrementSuccessCount();
           logRecorder.complete(logEntryId, {
@@ -202,8 +204,9 @@ export function createCommandIngressService(
         for (const taskId of taskIds) {
           try {
             taskService.stopTask(taskId);
-          } catch {
+          } catch (err) {
             // Task may already be settled
+            console.warn('Failed to stop task during cleanup', taskId, err);
           }
         }
         trackingMap.delete(connId);
@@ -217,8 +220,9 @@ export function createCommandIngressService(
       for (const taskId of taskIds) {
         try {
           taskService.stopTask(taskId);
-        } catch {
+        } catch (err) {
           // Ignore errors during cleanup
+          console.warn('Failed to stop task during dispose', taskId, err);
         }
       }
     }
@@ -226,7 +230,6 @@ export function createCommandIngressService(
   }
 
   // CI-R2: delegate loadSatellite to handler logic
-  createHandleLoadSatelliteId(satelliteConfigs);
   async function loadSatellite(satelliteId: string): Promise<CommandResult> {
     if (stateReader.loadedSatelliteId !== '') {
       return { success: false, error: 'Satellite already loaded' };
@@ -313,14 +316,3 @@ export function createCommandIngressService(
   };
 }
 
-function hexToBytes(hex: string): number[] {
-  const cleaned = hex.replace(/\s/g, '');
-  if (cleaned.length % 2 !== 0) {
-    throw new Error('Hex string must have even length');
-  }
-  const bytes: number[] = [];
-  for (let i = 0; i < cleaned.length; i += 2) {
-    bytes.push(parseInt(cleaned.substring(i, i + 2), 16));
-  }
-  return bytes;
-}

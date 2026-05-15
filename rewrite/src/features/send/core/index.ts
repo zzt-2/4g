@@ -45,6 +45,5 @@ export {
   frameToBuildInput,
   resolveFieldValues,
   applyFactor,
-  evaluateFieldPreview,
   evaluateFieldPreviewForUI,
 } from './frame-resolver';

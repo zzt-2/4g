@@ -5,15 +5,12 @@ import type {
   TaskStepResult,
 } from '../core';
 import { isStepResultFailed } from '../core';
+import { deepClone } from '@/shared/utils/deep-clone';
 
 const MAX_HISTORY = 50;
 const DEFAULT_MAX_STEP_RESULT_ITERATIONS = 100;
 
 // --- Helpers ---
-
-function deepClone<T>(value: T): T {
-  return structuredClone(value);
-}
 
 // --- Statistics ---
 

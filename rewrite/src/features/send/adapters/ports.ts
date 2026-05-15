@@ -27,3 +27,7 @@ export interface SendResultEmitter {
 export interface SendVariableProvider {
   getVariables(): Map<string, number | string | boolean>;
 }
+
+export const NOOP_VARIABLE_PROVIDER: SendVariableProvider = {
+  getVariables: () => new Map(),
+};

@@ -22,6 +22,11 @@ const navigationItems = [
     to: '/',
     icon: 'dashboard',
   },
+  {
+    label: '帧定义',
+    to: '/frames',
+    icon: 'view_agenda',
+  },
 ] as const;
 
 const activePath = computed(() => route.path);

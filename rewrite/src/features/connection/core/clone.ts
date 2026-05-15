@@ -12,10 +12,7 @@ import type {
   TransportEventSnapshot,
   TransportTargetSnapshot,
 } from './types';
-
-function deepClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
-}
+import { deepClone } from '@/shared/utils/deep-clone';
 
 export function cloneTransportConfig(config: ReadonlyTransportConfig): TransportConfig {
   return deepClone(config);

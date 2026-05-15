@@ -21,6 +21,7 @@ import type {
   SendTransportWriter,
   SendVariableProvider,
 } from '../adapters';
+import { NOOP_VARIABLE_PROVIDER } from '../adapters';
 import { createSendState, type SendStateContainer } from '../state/send-state';
 
 export interface SendReader {
@@ -106,15 +107,11 @@ export function createSendReader(
   };
 }
 
-function noOpVariableProvider(): SendVariableProvider {
-  return { getVariables: () => new Map() };
-}
-
 export function createSendService(options: CreateSendServiceOptions): SendService {
   const state = options.state ?? createSendState();
   const now = options.now ?? defaultNow;
   const reader = createSendReader(() => state.getSnapshot());
-  const variableProvider = options.variableProvider ?? noOpVariableProvider();
+  const variableProvider = options.variableProvider ?? NOOP_VARIABLE_PROVIDER;
 
   return {
     ...reader,

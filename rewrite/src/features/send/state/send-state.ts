@@ -6,10 +6,9 @@ import type {
   SendStatisticsSnapshot,
   SendStatsDelta,
 } from '../core';
+import { deepClone } from '@/shared/utils/deep-clone';
 
 const MAX_RECENT_RESULTS = 100;
-
-function deepClone<T>(value: T): T { return structuredClone(value); }
 
 function emptyStatistics(): SendStatisticsSnapshot {
   return {

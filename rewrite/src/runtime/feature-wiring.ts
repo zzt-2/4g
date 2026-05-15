@@ -1,6 +1,7 @@
 import {
-  createFrameAssetReader,
+  createFrameAssetService,
   type FrameAssetReader,
+  type FrameAssetService,
 } from '@/features/frame';
 import {
   createSettingsService,
@@ -27,18 +28,26 @@ import {
   createTaskService,
   type TaskService,
 } from '@/features/task';
+import {
+  createCommandIngressService,
+  createCommandIngressState,
+  type CommandIngressService,
+  type ScoeGlobalConfig,
+} from '@/features/command-ingress';
 import { ConnectionBackedSendWriter } from './bridges/connection-backed-writer';
 import { ConnectionBackedTargetResolver } from './bridges/connection-backed-target-resolver';
 import { ReceiveEventSourceBridge } from './bridges/receive-event-source-bridge';
 
 export interface RewriteWiredFeatures {
   readonly frameReader: FrameAssetReader;
+  readonly frameService: FrameAssetService;
   readonly settingsService: SettingsService;
   readonly storageReader: StorageLocalReader;
   readonly connectionService: ConnectionService;
   readonly receiveService: ReceiveService;
   readonly sendService: SendService;
   readonly taskService: TaskService;
+  readonly commandIngressService: CommandIngressService;
   readonly receiveEventSourceBridge: ReceiveEventSourceBridge;
 }
 
@@ -46,8 +55,8 @@ export interface WireFeaturesOptions {
   readonly connectionAdapter: ConnectionTransportAdapter;
 }
 
-function createDefaultFrameReader(): FrameAssetReader {
-  return createFrameAssetReader(() => ({ frames: [] }));
+function createDefaultFrameService(): FrameAssetService {
+  return createFrameAssetService();
 }
 
 function createDefaultStorageReader(): StorageLocalReader {
@@ -63,7 +72,8 @@ export function wireFeatures(
   options: WireFeaturesOptions,
 ): RewriteWiredFeatures {
   // L0: no cross-dependencies
-  const frameReader = createDefaultFrameReader();
+  const frameService = createDefaultFrameService();
+  const frameReader = frameService;
   const settingsService = createSettingsService();
   const storageReader = createDefaultStorageReader();
 
@@ -90,14 +100,48 @@ export function wireFeatures(
     receiveEventSource: receiveEventSourceBridge,
   });
 
+  // L4: needs L3 + config
+  const defaultGlobalConfig: ScoeGlobalConfig = {
+    scoeIdentifier: '',
+    tcpServerIp: '0.0.0.0',
+    tcpServerPort: 0,
+    tcpServerAutoConnect: false,
+    udpIpAddress: '0.0.0.0',
+    udpPort: 0,
+    udpTargetId: '',
+    messageIdentifierOffset: 0,
+    sourceIdentifierOffset: 0,
+    destinationIdentifierOffset: 0,
+    modelIdOffset: 0,
+    satelliteIdOffset: 0,
+    functionCodeOffset: 0,
+  };
+  const commandIngressState = createCommandIngressState(defaultGlobalConfig);
+  const commandIngressService = createCommandIngressService({
+    globalConfig: defaultGlobalConfig,
+    commandConfigs: [],
+    satelliteConfigs: [],
+    taskService,
+    sendService,
+    frameReader,
+    connectionService,
+    connectionSnapshot: () => connectionService.getSnapshot(),
+    receiveSnapshot: () => ({}),
+    platformFileReader: async () => [],
+    stateReader: commandIngressState.reader,
+    stateWriter: commandIngressState.writer,
+  });
+
   return {
     frameReader,
+    frameService,
     settingsService,
     storageReader,
     connectionService,
     receiveService,
     sendService,
     taskService,
+    commandIngressService,
     receiveEventSourceBridge,
   };
 }

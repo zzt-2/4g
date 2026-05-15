@@ -82,11 +82,4 @@ export function calculateHighlights(
   return results;
 }
 
-function hexToBytes(hex: string): number[] {
-  const cleaned = hex.replace(/\s/g, '');
-  const bytes: number[] = [];
-  for (let i = 0; i < cleaned.length; i += 2) {
-    bytes.push(parseInt(cleaned.substring(i, i + 2), 16));
-  }
-  return bytes;
-}
+import { hexToBytes } from './utils';

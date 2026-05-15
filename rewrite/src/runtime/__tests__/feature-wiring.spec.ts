@@ -1,9 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from 'vitest';
 import type {
-  ConnectionOperationOutcome,
-  ConnectionService,
-  ConnectionStateSnapshot,
   TransportEventSnapshot,
   TransportTargetSnapshot,
 } from '@/features/connection';
@@ -14,63 +10,14 @@ import { ConnectionBackedTargetResolver } from '../bridges/connection-backed-tar
 import { ConnectionToReceiveInputSource } from '../bridges/connection-to-receive';
 import { ReceiveEventSourceBridge } from '../bridges/receive-event-source-bridge';
 import { wireFeatures } from '../feature-wiring';
+import {
+  createMockConnectionService,
+  dataEvent,
+  okOutcome,
+  failOutcome,
+} from './helpers';
 
 // --- Helpers ---
-
-const emptySnapshot: ConnectionStateSnapshot = {
-  schemaVersion: 1 as const,
-  configs: [],
-  runtimeFacts: [],
-  events: [],
-};
-
-function okOutcome(
-  events: readonly TransportEventSnapshot[] = [],
-): ConnectionOperationOutcome {
-  return {
-    ok: true,
-    validation: { valid: true, issues: [] },
-    snapshot: emptySnapshot,
-    events,
-  };
-}
-
-function failOutcome(
-  error: { kind: string; message: string },
-): ConnectionOperationOutcome {
-  return {
-    ok: false,
-    validation: { valid: true, issues: [] },
-    snapshot: emptySnapshot,
-    events: [],
-    error: { kind: error.kind as any, message: error.message, occurredAt: '', connectionId: '', recoverable: false },
-  };
-}
-
-function dataEvent(
-  connectionId: string,
-  bytes: readonly number[],
-): TransportEventSnapshot {
-  return {
-    id: `${connectionId}:data:2026-01-01T00:00:00.000Z`,
-    kind: 'data',
-    connectionId,
-    occurredAt: '2026-01-01T00:00:00.000Z',
-    bytes,
-    byteLength: bytes.length,
-  };
-}
-
-function dataEventWithTarget(
-  connectionId: string,
-  bytes: readonly number[],
-  target: TransportTargetSnapshot,
-): TransportEventSnapshot {
-  return {
-    ...dataEvent(connectionId, bytes),
-    target,
-  };
-}
 
 const fakeTarget: TransportTargetSnapshot = {
   targetId: 'target-1',
@@ -82,25 +29,15 @@ const fakeTarget: TransportTargetSnapshot = {
   available: true,
 };
 
-function stubConnectionService(
-  overrides: Partial<ConnectionService> = {},
-): ConnectionService {
+function dataEventWithTarget(
+  connectionId: string,
+  bytes: readonly number[],
+  target: TransportTargetSnapshot,
+): TransportEventSnapshot {
   return {
-    getSnapshot: () => emptySnapshot,
-    listTransportConfigs: () => [],
-    listConnectionFacts: () => [],
-    getConnectionFact: () => undefined,
-    listConnectionSummaries: () => [],
-    listTransportTargets: () => [],
-    getLastTransportError: () => undefined,
-    listTransportEvents: () => [],
-    connect: async () => okOutcome(),
-    disconnect: async () => okOutcome(),
-    write: async () => okOutcome(),
-    drainAdapterEvents: async () => okOutcome(),
-    cleanup: async () => okOutcome(),
-    ...overrides,
-  } as ConnectionService;
+    ...dataEvent(connectionId, bytes),
+    target,
+  };
 }
 
 // --- Tests ---
@@ -189,14 +126,14 @@ describe('ConnectionToReceiveInputSource', () => {
 
 describe('ConnectionBackedSendWriter', () => {
   it('maps successful write with write-accepted event', async () => {
-    const acceptedEvent: TransportEventSnapshot = {
+    const acceptedEvent = {
       id: 'conn-1:write-accepted:now',
-      kind: 'write-accepted',
+      kind: 'write-accepted' as const,
       connectionId: 'conn-1',
       occurredAt: '2026-01-01T00:00:00.000Z',
       byteLength: 5,
     };
-    const service = stubConnectionService({
+    const service = createMockConnectionService({
       write: async () => okOutcome([acceptedEvent]),
     });
     const writer = new ConnectionBackedSendWriter(service);
@@ -206,7 +143,7 @@ describe('ConnectionBackedSendWriter', () => {
   });
 
   it('falls back to bytesWritten=0 when no write-accepted event', async () => {
-    const service = stubConnectionService({
+    const service = createMockConnectionService({
       write: async () => okOutcome([]),
     });
     const writer = new ConnectionBackedSendWriter(service);
@@ -216,9 +153,9 @@ describe('ConnectionBackedSendWriter', () => {
   });
 
   it('maps failed write to error outcome', async () => {
-    const service = stubConnectionService({
+    const service = createMockConnectionService({
       write: async () =>
-        failOutcome({ kind: 'timeout', message: 'Write timed out' }),
+        failOutcome('Write timed out', { kind: 'timeout' }),
     });
     const writer = new ConnectionBackedSendWriter(service);
     const result = await writer.writeBytes('conn-1', [1, 2, 3]);
@@ -234,7 +171,7 @@ describe('ConnectionBackedSendWriter', () => {
 
 describe('ConnectionBackedTargetResolver', () => {
   it('resolves target by id', () => {
-    const service = stubConnectionService({
+    const service = createMockConnectionService({
       listTransportTargets: () => [fakeTarget],
     });
     const resolver = new ConnectionBackedTargetResolver(service);
@@ -243,7 +180,7 @@ describe('ConnectionBackedTargetResolver', () => {
   });
 
   it('returns undefined for unknown target', () => {
-    const service = stubConnectionService({
+    const service = createMockConnectionService({
       listTransportTargets: () => [fakeTarget],
     });
     const resolver = new ConnectionBackedTargetResolver(service);

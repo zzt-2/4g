@@ -34,7 +34,7 @@ export type {
   TaskExecutionSummary,
   ConditionMatchInput,
 } from './core';
-export { resolveStopCondition } from './core';
+export { resolveStopCondition, isStepResultFailed, calculateProgress, isTerminal } from './core';
 
 // Core validation & builders
 export { validateTaskDefinition } from './core';

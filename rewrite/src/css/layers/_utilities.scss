@@ -1,3 +1,23 @@
+.rw-dialog-sm {
+  max-width: 80vw;
+  min-width: var(--rw-size-dialog-sm);
+}
+
+.rw-dialog-md {
+  max-width: 80vw;
+  min-width: var(--rw-size-dialog-md);
+}
+
+.rw-dialog-lg {
+  max-width: 80vw;
+  min-width: var(--rw-size-dialog-lg);
+}
+
+.rw-dialog-xl {
+  max-width: 80vw;
+  min-width: var(--rw-size-dialog-xl);
+}
+
 .rw-visually-hidden {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
@@ -6,4 +26,52 @@
   position: absolute;
   white-space: nowrap;
   width: var(--rw-size-visually-hidden);
+}
+
+// --- Text semantic classes (convention C4) ---
+.rw-text-label {
+  color: var(--rw-color-text-muted);
+}
+
+.rw-text-value {
+  color: var(--rw-color-text-primary);
+}
+
+.rw-text-desc {
+  color: var(--rw-color-text-secondary);
+}
+
+.rw-text-error {
+  color: var(--rw-color-status-danger);
+}
+
+.rw-text-warn {
+  color: var(--rw-color-status-warning);
+}
+
+// --- Divider classes ---
+.rw-divider-b {
+  border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+}
+
+.rw-divider-t {
+  border-top: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+}
+
+.rw-divider-l {
+  border-left: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+}
+
+// --- Panel classes ---
+.rw-panel-base {
+  background: var(--rw-color-surface-base);
+}
+
+.rw-surface-elevated {
+  background: var(--rw-color-surface-elevated);
+}
+
+.rw-dialog-scroll-body {
+  max-height: 60vh;
+  overflow-y: auto;
 }

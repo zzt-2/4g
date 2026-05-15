@@ -6,7 +6,11 @@ $rw-size: (
   'metric-card-min': 116px,
   'metric-card-track': 180px,
   'metric-icon': 40px,
-  'visually-hidden': 1px
+  'visually-hidden': 1px,
+  'dialog-sm': 400px,
+  'dialog-md': 560px,
+  'dialog-lg': 720px,
+  'dialog-xl': 960px
 );
 
 @function rw-size($name) {

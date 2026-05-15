@@ -43,6 +43,10 @@
   --rw-size-metric-card-track: #{tokens.rw-size('metric-card-track')};
   --rw-size-metric-icon: #{tokens.rw-size('metric-icon')};
   --rw-size-visually-hidden: #{tokens.rw-size('visually-hidden')};
+  --rw-size-dialog-sm: #{tokens.rw-size('dialog-sm')};
+  --rw-size-dialog-md: #{tokens.rw-size('dialog-md')};
+  --rw-size-dialog-lg: #{tokens.rw-size('dialog-lg')};
+  --rw-size-dialog-xl: #{tokens.rw-size('dialog-xl')};
   --rw-font-family-base: #{tokens.rw-font-family('base')};
   --rw-font-size-caption: #{tokens.rw-font-size('caption')};
   --rw-font-size-label: #{tokens.rw-font-size('label')};
