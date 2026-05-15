@@ -97,8 +97,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <q-page class="connection-page">
-    <section class="connection-page__content">
+  <q-page class="connection-page p-6">
+    <section class="connection-page__content gap-4 mx-auto">
       <div class="connection-page__header">
         <h1 class="connection-page__title">连接管理</h1>
         <q-btn
@@ -111,9 +111,9 @@ onMounted(() => {
       </div>
 
       <!-- Serial section -->
-      <section v-if="serialSummaries.length > 0" class="connection-page__section">
-        <h2 class="connection-page__section-title">串口连接</h2>
-        <div class="connection-page__list">
+      <section v-if="serialSummaries.length > 0" class="connection-page__section gap-2">
+        <h2 class="connection-page__section-title pb-1">串口连接</h2>
+        <div class="connection-page__list gap-2">
           <ConnectionCard
             v-for="s in serialSummaries"
             :key="s.connectionId"
@@ -127,9 +127,9 @@ onMounted(() => {
       </section>
 
       <!-- Network section -->
-      <section v-if="networkSummaries.length > 0" class="connection-page__section">
-        <h2 class="connection-page__section-title">网络连接</h2>
-        <div class="connection-page__list">
+      <section v-if="networkSummaries.length > 0" class="connection-page__section gap-2">
+        <h2 class="connection-page__section-title pb-1">网络连接</h2>
+        <div class="connection-page__list gap-2">
           <ConnectionCard
             v-for="s in networkSummaries"
             :key="s.connectionId"
@@ -145,7 +145,7 @@ onMounted(() => {
       <!-- Empty state -->
       <div
         v-if="summaries.length === 0"
-        class="connection-page__empty"
+        class="connection-page__empty gap-3 py-6"
       >
         <q-icon name="link_off" size="48px" color="grey" />
         <p>暂无连接，点击「新建连接」开始</p>
@@ -166,12 +166,10 @@ onMounted(() => {
 .connection-page {
   background: var(--rw-color-surface-app);
   min-height: 100%;
-  padding: var(--rw-space-page);
 }
 
 .connection-page__content {
   display: grid;
-  gap: var(--rw-space-4);
   margin: 0 auto;
   max-width: var(--rw-size-content-wide);
 }
@@ -192,7 +190,6 @@ onMounted(() => {
 
 .connection-page__section {
   display: grid;
-  gap: var(--rw-space-2);
 }
 
 .connection-page__section-title {
@@ -201,13 +198,11 @@ onMounted(() => {
   font-weight: var(--rw-font-weight-semibold);
   line-height: var(--rw-line-height-body);
   margin: 0;
-  padding-bottom: var(--rw-space-1);
   border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
 }
 
 .connection-page__list {
   display: grid;
-  gap: var(--rw-space-2);
 }
 
 .connection-page__empty {
@@ -216,13 +211,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   font-size: var(--rw-font-size-body);
-  gap: var(--rw-space-3);
-  padding: var(--rw-space-6) 0;
 }
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
   .connection-page {
-    padding: var(--rw-space-page-compact);
+    padding: 16px;
   }
 }
 </style>

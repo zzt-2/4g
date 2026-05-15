@@ -157,7 +157,7 @@ watch(
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" @hide="resetForm">
     <q-card class="rw-dialog-md">
-      <q-card-section class="new-connection-dialog__header">
+      <q-card-section class="new-connection-dialog__header py-3 px-4">
         <div class="text-h6">{{ dialogTitle }}</div>
         <q-btn flat round dense icon="close" @click="onCancel" />
       </q-card-section>
@@ -165,8 +165,8 @@ watch(
       <q-separator />
 
       <!-- Step 1: Type selection -->
-      <q-card-section v-if="step === 'type'" class="new-connection-dialog__types">
-        <div class="new-connection-dialog__type-grid">
+      <q-card-section v-if="step === 'type'" class="new-connection-dialog__types p-4">
+        <div class="new-connection-dialog__type-grid gap-3">
           <q-card
             v-for="kind in (['serial', 'tcp-client', 'tcp-server', 'udp'] as const)"
             :key="kind"
@@ -182,7 +182,7 @@ watch(
                 size="32px"
                 color="primary"
               />
-              <div class="new-connection-dialog__type-label">
+              <div class="new-connection-dialog__type-label mt-2">
                 {{
                   kind === 'serial'
                     ? '串口'
@@ -202,7 +202,7 @@ watch(
       </q-card-section>
 
       <!-- Step 2: Config form -->
-      <q-card-section v-else class="new-connection-dialog__form">
+      <q-card-section v-else class="new-connection-dialog__form gap-3 p-4">
         <q-form @submit.prevent="onSubmit">
           <q-input
             v-model="label"
@@ -307,7 +307,7 @@ watch(
             class="q-mt-sm"
           />
 
-          <div class="new-connection-dialog__form-actions">
+          <div class="new-connection-dialog__form-actions gap-2 pt-3">
             <q-btn flat label="取消" @click="onCancel" />
             <q-btn
               unelevated
@@ -320,7 +320,7 @@ watch(
         </q-form>
       </q-card-section>
 
-      <q-card-section v-if="step === 'type'" class="new-connection-dialog__footer">
+      <q-card-section v-if="step === 'type'" class="new-connection-dialog__footer py-2 px-4">
         <q-btn flat label="取消" @click="onCancel" />
       </q-card-section>
     </q-card>
@@ -334,16 +334,10 @@ watch(
   align-items: center;
   display: flex;
   justify-content: space-between;
-  padding: var(--rw-space-3) var(--rw-space-4);
-}
-
-.new-connection-dialog__types {
-  padding: var(--rw-space-4);
 }
 
 .new-connection-dialog__type-grid {
   display: grid;
-  gap: var(--rw-space-3);
   grid-template-columns: repeat(2, 1fr);
 }
 
@@ -363,7 +357,6 @@ watch(
   color: var(--rw-color-text-primary);
   font-size: var(--rw-font-size-body);
   font-weight: var(--rw-font-weight-semibold);
-  margin-top: var(--rw-space-2);
 }
 
 .new-connection-dialog__type-sub {
@@ -374,20 +367,15 @@ watch(
 .new-connection-dialog__form {
   display: flex;
   flex-direction: column;
-  gap: var(--rw-space-3);
-  padding: var(--rw-space-4);
 }
 
 .new-connection-dialog__form-actions {
   display: flex;
-  gap: var(--rw-space-2);
   justify-content: flex-end;
-  padding-top: var(--rw-space-3);
 }
 
 .new-connection-dialog__footer {
   display: flex;
   justify-content: flex-end;
-  padding: var(--rw-space-2) var(--rw-space-4);
 }
 </style>

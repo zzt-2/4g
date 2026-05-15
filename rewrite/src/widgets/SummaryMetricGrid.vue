@@ -13,16 +13,16 @@ defineProps<{
 </script>
 
 <template>
-  <div class="summary-grid">
+  <div class="summary-grid gap-3">
     <q-card v-for="metric in metrics" :key="metric.id" flat bordered class="summary-card">
-      <q-card-section class="summary-card__content">
+      <q-card-section class="summary-card__content gap-3">
         <div class="summary-card__icon">
           <q-icon :name="metric.icon" class="summary-card__icon-symbol" />
         </div>
         <div class="summary-card__body">
           <div class="summary-card__label">{{ metric.label }}</div>
-          <div class="summary-card__value">{{ metric.value }}</div>
-          <div v-if="metric.caption" class="summary-card__caption">{{ metric.caption }}</div>
+          <div class="summary-card__value mt-1.5">{{ metric.value }}</div>
+          <div v-if="metric.caption" class="summary-card__caption mt-1">{{ metric.caption }}</div>
         </div>
       </q-card-section>
     </q-card>
@@ -32,7 +32,6 @@ defineProps<{
 <style scoped>
 .summary-grid {
   display: grid;
-  gap: var(--rw-space-3);
   grid-template-columns: repeat(auto-fit, minmax(var(--rw-size-metric-card-track), 1fr));
 }
 
@@ -43,7 +42,6 @@ defineProps<{
 .summary-card__content {
   align-items: flex-start;
   display: flex;
-  gap: var(--rw-space-3);
   min-height: var(--rw-size-metric-card-min);
 }
 
@@ -77,7 +75,6 @@ defineProps<{
   font-size: var(--rw-font-size-title-lg);
   font-weight: var(--rw-font-weight-semibold);
   line-height: var(--rw-line-height-title-lg);
-  margin-top: var(--rw-space-1-5);
   overflow-wrap: anywhere;
 }
 
@@ -85,7 +82,6 @@ defineProps<{
   color: var(--rw-color-text-subtle);
   font-size: var(--rw-font-size-caption);
   line-height: var(--rw-line-height-caption);
-  margin-top: var(--rw-space-1);
   overflow-wrap: anywhere;
 }
 </style>

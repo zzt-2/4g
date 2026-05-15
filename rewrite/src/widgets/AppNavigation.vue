@@ -36,7 +36,7 @@ function navigate(item: AppNavigationItem): void {
       :active="isActive(item)"
       :disable="item.disabled"
       active-class="app-navigation__item--active"
-      class="app-navigation__item"
+      class="app-navigation__item my-0.5 mx-2"
       @click="navigate(item)"
     >
       <q-item-section avatar>
@@ -57,7 +57,6 @@ function navigate(item: AppNavigationItem): void {
 
 .app-navigation__item {
   border-radius: var(--rw-radius-control);
-  margin: var(--rw-space-0-5) var(--rw-space-2);
 }
 
 .app-navigation__item--active {

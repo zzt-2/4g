@@ -241,9 +241,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <q-page class="command-ingress-page">
+  <q-page class="command-ingress-page p-6">
     <!-- Title bar -->
-    <div class="command-ingress-page__header">
+    <div class="command-ingress-page__header mb-4">
       <h1 class="command-ingress-page__title">指令接入</h1>
       <div class="flex gap-2">
         <q-btn
@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
               <q-btn
                 flat
                 dense
-                icon="delete_sweep"
+                icon="o_delete_sweep"
                 color="grey"
                 size="sm"
                 @click="handleClearCommandLog"
@@ -369,7 +369,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="highlight"
+                    icon="o_highlight"
                     color="grey"
                     size="sm"
                     @click="openHighlightDialog"
@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="delete_sweep"
+                    icon="o_delete_sweep"
                     color="grey"
                     size="sm"
                     @click="handleClearTestRecords"
@@ -443,7 +443,7 @@ onBeforeUnmount(() => {
               search-placeholder="搜索卫星..."
             >
               <template #actions>
-                <q-btn flat dense icon="add" color="primary" size="sm">
+                <q-btn flat dense icon="o_add" color="primary" size="sm">
                   <q-tooltip>添加卫星</q-tooltip>
                 </q-btn>
               </template>
@@ -463,7 +463,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="content_copy"
+                    icon="o_content_copy"
                     color="grey"
                     size="xs"
                     @click.stop="handleDuplicateSatellite((props.row as SatelliteRow).satelliteId)"
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="delete"
+                    icon="o_delete"
                     color="grey"
                     size="xs"
                     @click.stop="handleDeleteSatellite((props.row as SatelliteRow).satelliteId)"
@@ -500,7 +500,7 @@ onBeforeUnmount(() => {
             </template>
             <template v-else>
               <div class="rw-panel-base rounded p-8 text-center">
-                <q-icon name="settings" size="48px" color="grey" />
+                <q-icon name="o_settings" size="48px" color="grey" />
                 <p class="rw-text-desc mt-4">请从左侧选择一个卫星配置进行编辑</p>
               </div>
             </template>
@@ -586,12 +586,12 @@ onBeforeUnmount(() => {
             />
             <q-select
               :model-value="rule.severity"
-              :options="(['info', 'warning', 'error'] as const)"
+              :options="(['info', 'warning', 'o_error'] as const)"
               dense
               label="颜色"
               emit-value
               class="w-25"
-              @update:model-value="(val: 'info' | 'warning' | 'error') => {
+              @update:model-value="(val: 'info' | 'warning' | 'o_error') => {
                 const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
                 if (idx >= 0) {
                   const next = [...editingHighlightRules];
@@ -603,7 +603,7 @@ onBeforeUnmount(() => {
             <q-btn
               flat
               dense
-              icon="delete"
+              icon="o_delete"
               color="grey"
               size="sm"
               @click="handleDeleteHighlightRule(rule.id)"
@@ -612,7 +612,7 @@ onBeforeUnmount(() => {
           <q-btn
             flat
             dense
-            icon="add"
+            icon="o_add"
             color="primary"
             label="添加规则"
             @click="addHighlightRule"
@@ -638,14 +638,12 @@ onBeforeUnmount(() => {
 .command-ingress-page {
   background: var(--rw-color-surface-app);
   min-height: 100%;
-  padding: var(--rw-space-page);
 }
 
 .command-ingress-page__header {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  margin-bottom: var(--rw-space-4);
 }
 
 .command-ingress-page__title {
@@ -658,7 +656,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
   .command-ingress-page {
-    padding: var(--rw-space-page-compact);
+    padding: 16px;
   }
 }
 </style>

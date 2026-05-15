@@ -22,13 +22,13 @@ function formatRoute(s: ConnectionSummary): string {
 
 <template>
   <q-card flat bordered class="connection-card">
-    <div class="connection-card__body">
-      <div class="connection-card__left">
+    <div class="connection-card__body gap-3 py-2 px-3">
+      <div class="connection-card__left gap-2">
         <StatusBadge :status="summary.lifecycle" :status-map="connectionStatusMap" />
         <span class="connection-card__name">{{ summary.label }}</span>
         <span class="connection-card__route">{{ formatRoute(summary) }}</span>
       </div>
-      <div class="connection-card__actions">
+      <div class="connection-card__actions gap-1">
         <q-btn
           v-if="summary.lifecycle === 'connected'"
           flat
@@ -66,7 +66,7 @@ function formatRoute(s: ConnectionSummary): string {
       v-if="summary.lifecycle === 'error' && summary.lastError"
       dense
       dense-toggle
-      header-class="connection-card__error-toggle"
+      header-class="connection-card__error-toggle pl-3"
       class="connection-card__error"
     >
       <template #header>
@@ -74,7 +74,7 @@ function formatRoute(s: ConnectionSummary): string {
           {{ summary.lastError.message }}
         </span>
       </template>
-      <div class="connection-card__error-detail">
+      <div class="connection-card__error-detail gap-1 pt-1 px-3 pb-2">
         <span>类型: {{ summary.lastError.kind }}</span>
         <span>时间: {{ summary.lastError.occurredAt }}</span>
       </div>
@@ -93,15 +93,12 @@ function formatRoute(s: ConnectionSummary): string {
 .connection-card__body {
   align-items: center;
   display: flex;
-  gap: var(--rw-space-3);
   justify-content: space-between;
-  padding: var(--rw-space-2) var(--rw-space-3);
 }
 
 .connection-card__left {
   align-items: center;
   display: flex;
-  gap: var(--rw-space-2);
   min-width: 0;
 }
 
@@ -128,12 +125,8 @@ function formatRoute(s: ConnectionSummary): string {
   align-items: center;
   display: flex;
   flex-shrink: 0;
-  gap: var(--rw-space-1);
 }
 
-.connection-card__error-toggle {
-  padding-left: var(--rw-space-3);
-}
 
 .connection-card__error-summary {
   font-size: var(--rw-font-size-caption);
@@ -144,8 +137,6 @@ function formatRoute(s: ConnectionSummary): string {
   display: flex;
   flex-direction: column;
   font-size: var(--rw-font-size-caption);
-  gap: var(--rw-space-1);
   line-height: var(--rw-line-height-caption);
-  padding: var(--rw-space-1) var(--rw-space-3) var(--rw-space-2);
 }
 </style>

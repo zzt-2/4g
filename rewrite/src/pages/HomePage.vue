@@ -131,13 +131,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <q-page class="home-page">
-    <section class="home-page__content">
+  <q-page class="home-page p-6">
+    <section class="home-page__content gap-4 mx-auto">
       <!-- Header -->
-      <div class="home-page__header">
+      <div class="home-page__header gap-4">
         <div>
-          <p class="home-page__eyebrow">{{ bridgeLabel }}</p>
-          <h1 class="home-page__title">运行总览</h1>
+          <p class="home-page__eyebrow mb-1">{{ bridgeLabel }}</p>
+          <h1 class="home-page__title m-0">运行总览</h1>
         </div>
         <q-btn flat round icon="refresh" aria-label="刷新" @click="refreshData" />
       </div>
@@ -146,9 +146,9 @@ onMounted(() => {
       <SummaryMetricGrid :metrics="metrics" />
 
       <!-- Quick Actions -->
-      <section class="home-page__section">
-        <h2 class="home-page__section-title">快速入口</h2>
-        <div class="home-page__actions">
+      <section class="home-page__section gap-2">
+        <h2 class="home-page__section-title pb-1">快速入口</h2>
+        <div class="home-page__actions gap-2">
           <q-card
             v-for="action in quickActions"
             :key="action.to"
@@ -158,11 +158,11 @@ onMounted(() => {
             class="home-page__action-card"
             @click="navigateTo(action.to)"
           >
-            <q-card-section class="home-page__action-content">
+            <q-card-section class="home-page__action-content gap-3">
               <q-icon :name="action.icon" size="24px" :color="action.color" />
               <div class="home-page__action-text">
                 <div class="home-page__action-label">{{ action.label }}</div>
-                <div class="home-page__action-desc">{{ action.description }}</div>
+                <div class="home-page__action-desc mt-0.5">{{ action.description }}</div>
               </div>
               <q-icon name="chevron_right" color="grey" />
             </q-card-section>
@@ -171,10 +171,10 @@ onMounted(() => {
       </section>
 
       <!-- Active Connections -->
-      <section v-if="connectionSummaries.length > 0" class="home-page__section">
-        <h2 class="home-page__section-title">连接状态</h2>
+      <section v-if="connectionSummaries.length > 0" class="home-page__section gap-2">
+        <h2 class="home-page__section-title pb-1">连接状态</h2>
         <div class="home-page__conn-list">
-          <div v-for="conn in connectionSummaries" :key="conn.connectionId" class="home-page__conn-item">
+          <div v-for="conn in connectionSummaries" :key="conn.connectionId" class="home-page__conn-item gap-3 py-2.5 px-4">
             <q-badge
               :color="connectionStatusColor(conn.lifecycle)"
               :label="conn.lifecycle"
@@ -187,22 +187,22 @@ onMounted(() => {
       </section>
 
       <!-- Frame & Task Info -->
-      <section class="home-page__section">
-        <h2 class="home-page__section-title">系统快照</h2>
+      <section class="home-page__section gap-2">
+        <h2 class="home-page__section-title pb-1">系统快照</h2>
         <div class="home-page__snapshot">
-          <div class="home-page__snapshot-item">
+          <div class="home-page__snapshot-item gap-1 py-3.5 px-4">
             <span>当前帧</span>
             <strong>{{ selectedFrameName ?? '--' }}</strong>
           </div>
-          <div class="home-page__snapshot-item">
+          <div class="home-page__snapshot-item gap-1 py-3.5 px-4">
             <span>任务步骤执行</span>
             <strong>{{ taskStats.totalStepsExecuted }}</strong>
           </div>
-          <div class="home-page__snapshot-item">
+          <div class="home-page__snapshot-item gap-1 py-3.5 px-4">
             <span>发送字节</span>
             <strong>{{ sendStats.totalBytesSent }}</strong>
           </div>
-          <div class="home-page__snapshot-item">
+          <div class="home-page__snapshot-item gap-1 py-3.5 px-4">
             <span>连接总数</span>
             <strong>{{ connectionSummaries.length }}</strong>
           </div>
@@ -218,12 +218,10 @@ onMounted(() => {
 .home-page {
   background: var(--rw-color-surface-app);
   min-height: 100%;
-  padding: var(--rw-space-page);
 }
 
 .home-page__content {
   display: grid;
-  gap: var(--rw-space-4);
   margin: 0 auto;
   max-width: var(--rw-size-content-wide);
 }
@@ -231,7 +229,6 @@ onMounted(() => {
 .home-page__header {
   align-items: flex-start;
   display: flex;
-  gap: var(--rw-space-4);
   justify-content: space-between;
 }
 
@@ -239,7 +236,6 @@ onMounted(() => {
   color: var(--rw-color-text-muted);
   font-size: var(--rw-font-size-label);
   line-height: var(--rw-line-height-body);
-  margin: 0 0 var(--rw-space-1);
 }
 
 .home-page__title {
@@ -247,12 +243,10 @@ onMounted(() => {
   font-size: var(--rw-font-size-title-lg);
   font-weight: var(--rw-font-weight-semibold);
   line-height: var(--rw-line-height-title-lg);
-  margin: 0;
 }
 
 .home-page__section {
   display: grid;
-  gap: var(--rw-space-2);
 }
 
 .home-page__section-title {
@@ -260,15 +254,12 @@ onMounted(() => {
   font-size: var(--rw-font-size-label);
   font-weight: var(--rw-font-weight-semibold);
   line-height: var(--rw-line-height-body);
-  margin: 0;
-  padding-bottom: var(--rw-space-1);
   border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
 }
 
 // Quick Actions
 .home-page__actions {
   display: grid;
-  gap: var(--rw-space-2);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
@@ -284,7 +275,6 @@ onMounted(() => {
 .home-page__action-content {
   align-items: center;
   display: flex;
-  gap: var(--rw-space-3);
 }
 
 .home-page__action-text {
@@ -303,7 +293,6 @@ onMounted(() => {
   color: var(--rw-color-text-secondary);
   font-size: var(--rw-font-size-caption);
   line-height: var(--rw-line-height-caption);
-  margin-top: var(--rw-space-0-5);
 }
 
 // Connection list
@@ -320,8 +309,6 @@ onMounted(() => {
   align-items: center;
   border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
   display: flex;
-  gap: var(--rw-space-3);
-  padding: var(--rw-space-2-5) var(--rw-space-4);
 
   &:last-child {
     border-bottom: none;
@@ -347,9 +334,7 @@ onMounted(() => {
 .home-page__snapshot-item {
   border-right: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
   display: grid;
-  gap: var(--rw-space-1);
   min-width: 0;
-  padding: var(--rw-space-3-5) var(--rw-space-4);
 
   &:last-child {
     border-right: none;
@@ -372,7 +357,7 @@ onMounted(() => {
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
   .home-page {
-    padding: var(--rw-space-page-compact);
+    padding: 16px;
   }
 
   .home-page__header {
