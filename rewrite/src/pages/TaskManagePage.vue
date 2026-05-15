@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, shallowRef, computed, onUnmounted } from 'vue';
-import { useQuasar } from 'quasar';
+import { useQuasar, type QForm } from 'quasar';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import DataTable from '@/widgets/DataTable.vue';
 import TableToolbar from '@/widgets/TableToolbar.vue';
@@ -9,7 +9,7 @@ import TaskExecutionDetail from '@/widgets/TaskExecutionDetail.vue';
 import FieldEditWidget from '@/widgets/FieldEditWidget.vue';
 import SendTargetSelector from '@/features/send/components/SendTargetSelector.vue';
 import { useAsyncAction, useNotify, usePolling } from '@/shared/composables';
-import { formatElapsed } from '@/shared/utils/format';
+import { formatElapsed, formatDateTime } from '@/shared/utils/format';
 import { isTerminal } from '@/features/task/core';
 import { calculateProgress } from '@/features/task/core';
 import { createSendStep, createDelayStep, createWaitConditionStep } from '@/features/task/core';
@@ -22,6 +22,16 @@ import { SCHEDULE_KIND_MAP, SCHEDULE_KIND_OPTIONS } from '@/features/task/compon
 import { STEP_KIND_LABELS, ERROR_ACTION_LABELS, ON_TIMEOUT_OPTIONS, ADD_STEP_OPTIONS } from '@/features/task/components/task-labels';
 import { useTaskEditor } from '@/features/task/composables/use-task-editor';
 import { toTaskRow, toHistoryRow } from '@/features/task/composables/use-task-list';
+
+// P4: Status filter options at module level
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: '全部' },
+  { value: 'created', label: '待启动' },
+  { value: 'running', label: '运行中' },
+  { value: 'paused', label: '已暂停' },
+  { value: 'completed', label: '已完成' },
+  { value: 'failed', label: '失败' },
+] as const;
 
 const $q = useQuasar();
 const notify = useNotify();
@@ -36,6 +46,8 @@ const editor = useTaskEditor(taskService);
 // ===== Tab & filter state =====
 const activeTab = ref<'active' | 'history'>('active');
 const searchText = ref('');
+const statusFilter = ref('');
+const editorFormRef = ref<QForm | null>(null);
 
 // ===== Task list data =====
 const activeRows = shallowRef<TaskTableRow[]>([]);
@@ -51,7 +63,10 @@ function refreshLists(): void {
   const active = snapshot.instances.filter(
     (i) => !isTerminal(i.lifecycle),
   );
-  activeRows.value = active.map(toTaskRow);
+  const filteredActive = statusFilter.value
+    ? active.filter((i) => i.lifecycle === statusFilter.value)
+    : active;
+  activeRows.value = filteredActive.map(toTaskRow);
 
   const terminated = snapshot.instances.filter((i) => isTerminal(i.lifecycle));
   const historyIds = new Set(snapshot.history.map((i) => i.instanceId));
@@ -87,6 +102,21 @@ const selectedDisplayStatus = computed(() => {
 const selectedStatusInfo = computed(() => {
   return TASK_STATUS_MAP[selectedDisplayStatus.value] ?? { label: selectedDisplayStatus.value, color: 'grey' };
 });
+
+const selectedScheduleKindDisplay = computed(() => {
+  if (!selectedInstance.value) return { color: 'grey', label: '' };
+  const kind = selectedInstance.value.definitionRef.schedule.kind;
+  return SCHEDULE_KIND_MAP[kind] ?? { color: 'grey', label: kind };
+});
+
+// ===== 派生数据 =====
+const frameOptions = computed(() =>
+  frameService.listFrames().map(f => ({ value: f.id, label: f.name })),
+);
+
+const errorActionOptions = computed(() =>
+  Object.entries(ERROR_ACTION_LABELS).map(([v, l]) => ({ value: v, label: l })),
+);
 
 // ===== Active tab actions =====
 function onActiveRowClick(row: TaskTableRow): void {
@@ -189,6 +219,25 @@ async function onStopAll(): Promise<void> {
   });
 }
 
+// ===== Import / Export stubs =====
+function onImport(): void {
+  notify.info('导入功能需要文件系统支持，待实现');
+}
+
+function onExport(): void {
+  if (!selectedInstance.value) {
+    notify.warning('请先选择一个任务');
+    return;
+  }
+  notify.info('导出功能需要文件系统支持，待实现');
+}
+
+function onMoveToHistory(id: string): void {
+  taskService.removeTask(id);
+  notify.success('已移至历史');
+  refreshLists();
+}
+
 // ===== Editor dialog =====
 let nextStepId = 1;
 
@@ -236,7 +285,7 @@ function onSaveAndStart(): void {
 function onAddStep(kind: string): void {
   let step: TaskStepDefinition;
   switch (kind) {
-    case 'send':
+    case 'o_send':
       step = createSendStep(
         { frameId: '', targetId: '' },
         { id: `step-${nextStepId++}`, name: '发送步骤' },
@@ -257,14 +306,6 @@ function onAddStep(kind: string): void {
   editor.addStep(step);
 }
 
-// ===== Formatting helpers =====
-
-function formatTime(iso?: string): string {
-  if (!iso) return '--';
-  const d = new Date(iso);
-  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
 // ===== Step editor helpers =====
 function getFrameFields(frameId: string) {
   if (!frameId) return [];
@@ -272,13 +313,9 @@ function getFrameFields(frameId: string) {
   return frame?.fields ?? [];
 }
 
-function resolveScheduleKindDisplay(kind: string): { color: string; label: string } {
-  return SCHEDULE_KIND_MAP[kind] ?? { color: 'grey', label: kind };
-}
-
 function updateSendStepField(index: number, key: keyof SendStepConfig, value: SendStepConfig[keyof SendStepConfig]): void {
   const step = editor.steps[index];
-  if (step.kind !== 'send') return;
+  if (step.kind !== 'o_send') return;
   const config = { ...step.config, [key]: value } as SendStepConfig;
   editor.updateStep(index, { ...step, config });
 }
@@ -321,13 +358,15 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
 </script>
 
 <template>
-  <q-page class="task-page">
+  <q-page class="task-page min-h-full">
     <!-- Toolbar -->
     <div class="flex items-center gap-3 p-4 rw-divider-b">
       <span class="rw-text-value text-h6">任务管理</span>
       <div class="flex-1" />
-      <q-btn unelevated no-caps color="primary" icon="add" label="新建任务" @click="onNewTask" />
-      <q-btn flat no-caps icon="stop_circle" label="全部停止" :disable="activeRows.length === 0" @click="onStopAll" />
+      <q-btn unelevated no-caps color="primary" icon="o_add" label="新建任务" @click="onNewTask" />
+      <q-btn flat no-caps icon="o_file_upload" label="导入" @click="onImport" />
+      <q-btn flat no-caps icon="o_file_download" label="导出" :disable="!selectedInstance" @click="onExport" />
+      <q-btn flat no-caps icon="o_stop_circle" label="全部停止" :disable="activeRows.length === 0" @click="onStopAll" />
     </div>
 
     <!-- Main layout: list + right panel -->
@@ -339,165 +378,189 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
           search-placeholder="搜索任务名称..."
         />
 
-        <q-tabs v-model="activeTab" dense inline-label class="q-px-4">
+        <q-tabs v-model="activeTab" dense inline-label class="px-4">
           <q-tab name="active" label="活动任务" no-caps />
           <q-tab name="history" label="历史记录" no-caps />
         </q-tabs>
 
-        <!-- Active tab -->
-        <div v-show="activeTab === 'active'" class="flex-1">
-          <DataTable
-            :columns="taskColumns"
-            :rows="activeRows"
-            row-key="instanceId"
-            selection="single"
-            :selected="selectedActiveRow"
-            container-height="calc(100vh - 240px)"
-            @row-click="(_row: TaskTableRow) => onActiveRowClick(_row)"
-            @update:selected="onActiveSelectionChange"
+        <!-- Status filter chips (active tab only) -->
+        <div v-if="activeTab === 'active'" class="flex items-center gap-1 px-4 py-1">
+          <q-chip
+            v-for="opt in STATUS_FILTER_OPTIONS"
+            :key="opt.value"
+            dense
+            clickable
+            :color="statusFilter === opt.value ? 'primary' : 'grey-4'"
+            :text-color="statusFilter === opt.value ? 'white' : 'grey-7'"
+            @click="statusFilter = opt.value"
           >
-            <template #no-data>
-              <div class="text-center w-full q-pa-lg rw-text-label">暂无活动任务</div>
-            </template>
-
-            <template #body-cell-scheduleKind="props">
-              <q-td :props="props">
-                <q-chip
-                  dense
-                  outline
-                  :color="resolveScheduleKindDisplay(props.row.scheduleKind).color"
-                  :label="resolveScheduleKindDisplay(props.row.scheduleKind).label"
-                  class="q-ma-none"
-                />
-              </q-td>
-            </template>
-
-            <template #body-cell-status="props">
-              <q-td :props="props">
-                <StatusBadge :status="props.row.displayStatus" :status-map="TASK_STATUS_MAP" />
-              </q-td>
-            </template>
-
-            <template #body-cell-progress="props">
-              <q-td :props="props">
-                <div class="flex items-center gap-2">
-                  <q-linear-progress
-                    :value="props.row.progressPercent / 100"
-                    color="primary"
-                    size="4px"
-                    class="flex-1"
-                    rounded
-                  />
-                  <span class="rw-text-desc text-xs min-w-[32px] text-right">{{ props.row.progressLabel }}</span>
-                </div>
-              </q-td>
-            </template>
-
-            <template #body-cell-_actions="props">
-              <q-td :props="props">
-                <div class="flex items-center justify-center gap-1">
-                  <q-btn
-                    v-if="props.row.lifecycle === 'created'"
-                    flat round dense icon="play_arrow" size="sm" color="positive"
-                    :loading="isOperating(`start-${props.row.instanceId}`)"
-                    @click.stop="onStart(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'running'"
-                    flat round dense icon="pause" size="sm" color="warning"
-                    :loading="isOperating(`pause-${props.row.instanceId}`)"
-                    @click.stop="onPause(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'paused'"
-                    flat round dense icon="play_arrow" size="sm" color="primary"
-                    :loading="isOperating(`resume-${props.row.instanceId}`)"
-                    @click.stop="onResume(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'running' || props.row.lifecycle === 'paused'"
-                    flat round dense icon="stop" size="sm" color="negative"
-                    @click.stop="onStop(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'created'"
-                    flat round dense icon="edit" size="sm" color="primary"
-                    @click.stop="onEditTask()"
-                  />
-                  <q-btn
-                    v-if="isTerminal(props.row.lifecycle)"
-                    flat round dense icon="delete" size="sm" color="negative"
-                    @click.stop="onRemove(props.row.instanceId)"
-                  />
-                </div>
-              </q-td>
-            </template>
-          </DataTable>
+            {{ opt.label }}
+          </q-chip>
         </div>
 
-        <!-- History tab -->
-        <div v-show="activeTab === 'history'" class="flex-1">
-          <DataTable
-            :columns="historyColumns"
-            :rows="historyRows"
-            row-key="instanceId"
-            selection="single"
-            :selected="selectedHistoryRow"
-            container-height="calc(100vh - 240px)"
-            @row-click="(_row: HistoryTableRow) => onHistoryRowClick(_row)"
-            @update:selected="onHistorySelectionChange"
-          >
-            <template #no-data>
-              <div class="text-center w-full q-pa-lg rw-text-label">暂无历史记录</div>
-            </template>
+        <q-tab-panels v-model="activeTab" animated keep-alive>
+          <!-- Active tab -->
+          <q-tab-panel name="active" class="p-0 pt-0">
+            <DataTable
+              :columns="taskColumns"
+              :rows="activeRows"
+              row-key="instanceId"
+              selection="single"
+              :selected="selectedActiveRow"
+              container-height="calc(100vh - 280px)"
+              @row-click="(_row: TaskTableRow) => onActiveRowClick(_row)"
+              @update:selected="onActiveSelectionChange"
+            >
+              <template #no-data>
+                <div class="text-center w-full p-4 rw-text-label">暂无活动任务</div>
+              </template>
 
-            <template #body-cell-scheduleKind="props">
-              <q-td :props="props">
-                <q-chip
-                  dense
-                  outline
-                  :color="resolveScheduleKindDisplay(props.row.scheduleKind).color"
-                  :label="resolveScheduleKindDisplay(props.row.scheduleKind).label"
-                  class="q-ma-none"
-                />
-              </q-td>
-            </template>
-
-            <template #body-cell-result="props">
-              <q-td :props="props">
-                <StatusBadge :status="props.row.lifecycle" :status-map="TASK_STATUS_MAP" />
-              </q-td>
-            </template>
-
-            <template #body-cell-elapsed="props">
-              <q-td :props="props">
-                <span class="rw-text-value text-xs">{{ formatElapsed(props.row.elapsedMs) }}</span>
-              </q-td>
-            </template>
-
-            <template #body-cell-finishedAt="props">
-              <q-td :props="props">
-                <span class="rw-text-value text-xs">{{ formatTime(props.row.finishedAt) }}</span>
-              </q-td>
-            </template>
-
-            <template #body-cell-_actions="props">
-              <q-td :props="props">
-                <div class="flex items-center justify-center gap-1">
-                  <q-btn
-                    flat round dense icon="replay" size="sm" color="primary"
-                    :loading="isOperating(`retry-${props.row.instanceId}`)"
-                    @click.stop="onRetry(props.row.instanceId)"
+              <template #body-cell-scheduleKind="props">
+                <q-td :props="props">
+                  <q-chip
+                    dense
+                    outline
+                    :color="props.row.scheduleKindDisplay.color"
+                    :label="props.row.scheduleKindDisplay.label"
+                    class="m-0"
                   />
-                  <q-btn
-                    flat round dense icon="delete" size="sm" color="negative"
-                    @click.stop="onRemove(props.row.instanceId)"
+                </q-td>
+              </template>
+
+              <template #body-cell-status="props">
+                <q-td :props="props">
+                  <StatusBadge :status="props.row.displayStatus" :status-map="TASK_STATUS_MAP" />
+                </q-td>
+              </template>
+
+              <template #body-cell-progress="props">
+                <q-td :props="props">
+                  <div class="flex items-center gap-2">
+                    <q-linear-progress
+                      :value="props.row.progressPercent / 100"
+                      color="primary"
+                      size="4px"
+                      class="flex-1"
+                      rounded
+                    />
+                    <span class="rw-text-desc text-xs min-w-[32px] text-right">{{ props.row.progressLabel }}</span>
+                  </div>
+                </q-td>
+              </template>
+
+              <template #body-cell-_actions="props">
+                <q-td :props="props">
+                  <div class="flex items-center justify-center gap-1">
+                    <q-btn
+                      v-if="props.row.lifecycle === 'created'"
+                      flat round dense icon="o_play_arrow" size="sm" color="positive"
+                      :loading="isOperating(`start-${props.row.instanceId}`)"
+                      @click.stop="onStart(props.row.instanceId)"
+                    />
+                    <q-btn
+                      v-if="props.row.lifecycle === 'running'"
+                      flat round dense icon="o_pause" size="sm" color="warning"
+                      :loading="isOperating(`pause-${props.row.instanceId}`)"
+                      @click.stop="onPause(props.row.instanceId)"
+                    />
+                    <q-btn
+                      v-if="props.row.lifecycle === 'paused'"
+                      flat round dense icon="o_play_arrow" size="sm" color="primary"
+                      :loading="isOperating(`resume-${props.row.instanceId}`)"
+                      @click.stop="onResume(props.row.instanceId)"
+                    />
+                    <q-btn
+                      v-if="props.row.lifecycle === 'running' || props.row.lifecycle === 'paused'"
+                      flat round dense icon="o_stop" size="sm" color="negative"
+                      @click.stop="onStop(props.row.instanceId)"
+                    />
+                    <q-btn
+                      v-if="props.row.lifecycle === 'created'"
+                      flat round dense icon="o_edit" size="sm" color="primary"
+                      @click.stop="onEditTask()"
+                    />
+                    <q-btn
+                      v-if="isTerminal(props.row.lifecycle)"
+                      flat round dense icon="o_delete" size="sm" color="negative"
+                      @click.stop="onRemove(props.row.instanceId)"
+                    />
+                    <q-btn
+                      v-if="isTerminal(props.row.lifecycle)"
+                      flat round dense icon="o_archive" size="sm" color="grey"
+                      @click.stop="onMoveToHistory(props.row.instanceId)"
+                    >
+                      <q-tooltip>移至历史</q-tooltip>
+                    </q-btn>
+                  </div>
+                </q-td>
+              </template>
+            </DataTable>
+          </q-tab-panel>
+
+          <!-- History tab -->
+          <q-tab-panel name="history" class="p-0 pt-0">
+            <DataTable
+              :columns="historyColumns"
+              :rows="historyRows"
+              row-key="instanceId"
+              selection="single"
+              :selected="selectedHistoryRow"
+              container-height="calc(100vh - 280px)"
+              @row-click="(_row: HistoryTableRow) => onHistoryRowClick(_row)"
+              @update:selected="onHistorySelectionChange"
+            >
+              <template #no-data>
+                <div class="text-center w-full p-4 rw-text-label">暂无历史记录</div>
+              </template>
+
+              <template #body-cell-scheduleKind="props">
+                <q-td :props="props">
+                  <q-chip
+                    dense
+                    outline
+                    :color="props.row.scheduleKindDisplay.color"
+                    :label="props.row.scheduleKindDisplay.label"
+                    class="m-0"
                   />
-                </div>
-              </q-td>
-            </template>
-          </DataTable>
-        </div>
+                </q-td>
+              </template>
+
+              <template #body-cell-result="props">
+                <q-td :props="props">
+                  <StatusBadge :status="props.row.lifecycle" :status-map="TASK_STATUS_MAP" />
+                </q-td>
+              </template>
+
+              <template #body-cell-elapsed="props">
+                <q-td :props="props">
+                  <span class="rw-text-value text-xs">{{ formatElapsed(props.row.elapsedMs) }}</span>
+                </q-td>
+              </template>
+
+              <template #body-cell-finishedAt="props">
+                <q-td :props="props">
+                  <span class="rw-text-value text-xs">{{ formatDateTime(props.row.finishedAt) }}</span>
+                </q-td>
+              </template>
+
+              <template #body-cell-_actions="props">
+                <q-td :props="props">
+                  <div class="flex items-center justify-center gap-1">
+                    <q-btn
+                      flat round dense icon="o_replay" size="sm" color="primary"
+                      :loading="isOperating(`retry-${props.row.instanceId}`)"
+                      @click.stop="onRetry(props.row.instanceId)"
+                    />
+                    <q-btn
+                      flat round dense icon="o_delete" size="sm" color="negative"
+                      @click.stop="onRemove(props.row.instanceId)"
+                    />
+                  </div>
+                </q-td>
+              </template>
+            </DataTable>
+          </q-tab-panel>
+        </q-tab-panels>
       </div>
 
       <!-- Right panel: 360px -->
@@ -516,8 +579,8 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                   <q-chip
                     dense
                     outline
-                    :color="resolveScheduleKindDisplay(selectedInstance.definitionRef.schedule.kind).color"
-                    :label="resolveScheduleKindDisplay(selectedInstance.definitionRef.schedule.kind).label"
+                    :color="selectedScheduleKindDisplay.color"
+                    :label="selectedScheduleKindDisplay.label"
                   />
                 </div>
               </div>
@@ -525,19 +588,23 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                 <span class="rw-text-label text-xs">步骤数</span>
                 <div class="rw-text-value">{{ selectedInstance.definitionRef.steps.length }}</div>
               </div>
+              <div class="mt-3">
+                <span class="rw-text-label text-xs">可变参数</span>
+                <div class="rw-text-value">{{ (selectedInstance.definitionRef as Record<string, unknown>).variableParams ? '有' : '无' }}</div>
+              </div>
             </div>
 
             <div class="p-4">
               <div class="flex items-center gap-2">
                 <q-btn
                   unelevated no-caps color="primary"
-                  icon="edit" label="编辑"
-                  :loading="isOperating('edit')"
+                  icon="o_edit" label="编辑"
+                  :loading="isOperating('o_edit')"
                   @click="onEditTask"
                 />
                 <q-btn
                   unelevated no-caps color="positive"
-                  icon="play_arrow" label="启动"
+                  icon="o_play_arrow" label="启动"
                   :loading="isOperating(`start-${selectedInstance.instanceId}`)"
                   @click="onStart(selectedInstance.instanceId)"
                 />
@@ -573,8 +640,8 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                   <q-chip
                     dense
                     outline
-                    :color="resolveScheduleKindDisplay(selectedInstance.definitionRef.schedule.kind).color"
-                    :label="resolveScheduleKindDisplay(selectedInstance.definitionRef.schedule.kind).label"
+                    :color="selectedScheduleKindDisplay.color"
+                    :label="selectedScheduleKindDisplay.label"
                   />
                 </div>
               </div>
@@ -585,12 +652,12 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
             <div class="p-4">
               <div class="flex items-center gap-2">
                 <q-btn
-                  flat no-caps icon="replay" label="重新执行" color="primary"
+                  flat no-caps icon="o_replay" label="重新执行" color="primary"
                   :loading="isOperating(`retry-${selectedInstance.instanceId}`)"
                   @click="onRetry(selectedInstance.instanceId)"
                 />
                 <q-btn
-                  flat no-caps icon="delete" label="删除" color="negative"
+                  flat no-caps icon="o_delete" label="删除" color="negative"
                   @click="onRemove(selectedInstance.instanceId)"
                 />
               </div>
@@ -600,7 +667,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
 
         <!-- Empty state -->
         <div v-else class="flex flex-col items-center justify-center flex-1 rw-text-desc">
-          <q-icon name="assignment" size="48px" color="grey" class="q-mb-sm" />
+          <q-icon name="o_assignment" size="48px" color="grey" class="mb-2" />
           <p>请选择一个任务</p>
         </div>
       </div>
@@ -613,7 +680,8 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
           <div class="text-h6">{{ editor.editingInstanceId.value ? '编辑任务' : '新建任务' }}</div>
         </q-card-section>
 
-        <q-card-section class="q-pt-none rw-dialog-scroll-body">
+        <q-card-section class="pt-0 rw-dialog-scroll-body">
+          <q-form ref="editorFormRef" @submit.prevent>
           <div class="flex flex-col gap-4">
             <!-- Basic info -->
             <q-input
@@ -637,7 +705,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
             </div>
 
             <!-- Timer config -->
-            <template v-if="editor.scheduleKind.value === 'timer'">
+            <template v-if="editor.scheduleKind.value === 'o_timer'">
               <q-input
                 v-model.number="editor.timerIntervalMs.value"
                 dense outlined
@@ -664,7 +732,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                   <span class="rw-text-label text-xs">触发条件</span>
-                  <q-btn flat dense no-caps icon="add" label="添加条件" size="sm" color="primary" @click="editor.addEventCondition()" />
+                  <q-btn flat dense no-caps icon="o_add" label="添加条件" size="sm" color="primary" @click="editor.addEventCondition()" />
                 </div>
                 <div
                   v-for="(cond, ci) in editor.eventConditions.value"
@@ -686,7 +754,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                     class="flex-1"
                     @update:model-value="editor.updateEventCondition(ci, { ...cond, threshold: $event })"
                   />
-                  <q-btn flat round dense icon="close" size="xs" color="negative" @click="editor.removeEventCondition(ci)" />
+                  <q-btn flat round dense icon="o_close" size="xs" color="negative" @click="editor.removeEventCondition(ci)" />
                 </div>
                 <div v-if="editor.eventConditions.value.length === 0" class="rw-text-desc text-xs">至少添加一条触发条件</div>
               </div>
@@ -723,9 +791,9 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                 :caption="STEP_KIND_LABELS[step.kind].label"
                 header-class="rw-text-value text-sm"
               >
-                <div class="q-pl-md flex flex-col gap-3">
+                <div class="pl-3 flex flex-col gap-3">
                   <!-- Send step -->
-                  <template v-if="step.kind === 'send'">
+                  <template v-if="step.kind === 'o_send'">
                     <q-input
                       :model-value="step.name"
                       dense outlined
@@ -736,7 +804,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                       <span class="rw-text-label text-xs">帧格式</span>
                       <q-select
                         :model-value="step.config.frameId"
-                        :options="frameService.listFrames().map(f => ({ value: f.id, label: f.name }))"
+                        :options="frameOptions"
                         emit-value map-options
                         outlined dense clearable
                         class="mt-1"
@@ -757,7 +825,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                       <FieldEditWidget
                         :fields="getFrameFields(step.config.frameId)"
                         :values="step.config.userFieldValues ?? {}"
-                        direction="send"
+                        direction="o_send"
                         @update:values="updateSendStepField(si, 'userFieldValues', $event)"
                       />
                     </template>
@@ -769,7 +837,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                       @update:model-value="updateSendStepField(si, 'intervalAfterMs', Number($event) || undefined)"
                     />
                     <q-btn
-                      v-if="si > 0 && editor.steps.value[si - 1]?.kind === 'send'"
+                      v-if="si > 0 && editor.steps.value[si - 1]?.kind === 'o_send'"
                       flat dense no-caps
                       label="复制上一步字段值"
                       size="sm"
@@ -789,7 +857,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                     <div class="flex flex-col gap-2">
                       <div class="flex items-center justify-between">
                         <span class="rw-text-label text-xs">等待条件</span>
-                        <q-btn flat dense no-caps icon="add" label="添加" size="sm" color="primary" @click="addWaitConditionTerm(si)" />
+                        <q-btn flat dense no-caps icon="o_add" label="添加" size="sm" color="primary" @click="addWaitConditionTerm(si)" />
                       </div>
                       <div
                         v-for="(term, ti) in step.config.conditions"
@@ -803,7 +871,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                           class="flex-1"
                           @update:model-value="updateWaitConditionTerm(si, ti, { ...term, threshold: $event })"
                         />
-                        <q-btn flat round dense icon="close" size="xs" color="negative" @click="removeWaitConditionTerm(si, ti)" />
+                        <q-btn flat round dense icon="o_close" size="xs" color="negative" @click="removeWaitConditionTerm(si, ti)" />
                       </div>
                       <div v-if="step.config.conditions.length === 0" class="rw-text-desc text-xs">至少添加一条条件</div>
                     </div>
@@ -850,7 +918,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                   <q-btn
                     flat dense no-caps
                     label="删除步骤"
-                    icon="delete"
+                    icon="o_delete"
                     size="sm"
                     color="negative"
                     @click="editor.removeStep(si)"
@@ -858,7 +926,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                 </div>
               </q-expansion-item>
 
-              <div v-if="editor.steps.value.length === 0" class="rw-text-desc text-xs text-center q-pa-sm">
+              <div v-if="editor.steps.value.length === 0" class="rw-text-desc text-xs text-center p-2">
                 点击上方按钮添加步骤
               </div>
             </div>
@@ -867,7 +935,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
 
             <!-- Advanced config -->
             <q-expansion-item dense label="高级配置" header-class="rw-text-label text-sm">
-              <div class="q-pl-md flex flex-col gap-3">
+              <div class="pl-3 flex flex-col gap-3">
                 <q-input
                   :model-value="editor.stopCondition.value.maxIterations"
                   dense outlined
@@ -886,7 +954,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                   <span class="rw-text-label text-xs">失败策略</span>
                   <q-select
                     :model-value="editor.errorPolicy.value.onFailure"
-                    :options="Object.entries(ERROR_ACTION_LABELS).map(([v, l]) => ({ value: v, label: l }))"
+                    :options="errorActionOptions"
                     emit-value map-options
                     outlined dense
                     class="mt-1"
@@ -923,13 +991,14 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                   v-for="(issue, ii) in editor.validationIssues.value"
                   :key="ii"
                   class="text-xs"
-                  :class="issue.severity === 'error' ? 'text-negative' : 'text-warning'"
+                  :class="issue.severity === 'o_error' ? 'text-negative' : 'text-warning'"
                 >
                   {{ issue.message }}
                 </div>
               </div>
             </template>
           </div>
+          </q-form>
         </q-card-section>
 
         <q-card-actions align="right">
@@ -956,7 +1025,6 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
 <style scoped lang="scss">
 .task-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
   display: flex;
   flex-direction: column;
 }

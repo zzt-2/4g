@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, onBeforeUnmount } from 'vue';
+import { ref, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useAsyncAction, usePolling, useNotify } from '@/shared/composables';
+import { formatDateTime } from '@/shared/utils/format';
 import DataTable from '@/widgets/DataTable.vue';
 import TableToolbar from '@/widgets/TableToolbar.vue';
 import StatusBadge from '@/widgets/StatusBadge.vue';
@@ -10,13 +11,12 @@ import { useScoeConfig } from '@/features/command-ingress/composables/use-scoe-c
 import { useScoeMonitor } from '@/features/command-ingress/composables/use-scoe-monitor';
 import { useTestTool } from '@/features/command-ingress/composables/use-test-tool';
 import { useCentralDocking } from '@/features/command-ingress/composables/use-central-docking';
-import { useTaskReport } from '@/features/command-ingress/composables/use-task-report';
 import { commandLogColumns } from '@/features/command-ingress/components/command-log-columns';
 import { satelliteColumns, type SatelliteRow } from '@/features/command-ingress/components/satellite-columns';
 import { dockingTaskColumns } from '@/features/command-ingress/components/docking-task-columns';
 import { healthStatusMap, linkTestStatusMap, commandResultMap } from '@/features/command-ingress/components/scoeStatusMap';
 import { statsRow1, statsRow2 } from '@/features/command-ingress/components/ci-labels';
-import type { HighlightRuleConfig } from '@/features/command-ingress';
+import type { SatelliteConfig, ScoeCommandConfig, HighlightRuleConfig } from '@/features/command-ingress/core';
 
 // P3-7: Extracted docking status maps
 const DOCKING_HTTPS_STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -49,7 +49,6 @@ const scoeConfig = useScoeConfig();
 const monitor = useScoeMonitor(service);
 const testTool = useTestTool(service, () => '');
 const docking = useCentralDocking();
-const taskReport = useTaskReport();
 
 // ===== Actions =====
 const { execute, isOperating } = useAsyncAction();
@@ -57,7 +56,9 @@ const { execute, isOperating } = useAsyncAction();
 // ===== Polling =====
 function refreshAll(): void {
   monitor.refresh();
-  testTool.refreshRecords();
+  if (isTestRecording.value) {
+    testTool.refreshRecords();
+  }
 }
 
 const polling = usePolling(refreshAll, 1000);
@@ -155,10 +156,12 @@ function handleClearCommandLog(): void {
   });
 }
 
-function handleSaveHighlightRules(rules: HighlightRuleConfig[]): void {
-  testTool.saveHighlightRules(rules);
-  testTool.showHighlightDialog.value = false;
-  notify.success('高亮规则已保存');
+async function handleSaveHighlightRules(rules: HighlightRuleConfig[]): Promise<void> {
+  await execute('save-highlight', async () => {
+    testTool.saveHighlightRules(rules);
+    testTool.showHighlightDialog.value = false;
+    notify.success('高亮规则已保存');
+  });
 }
 
 function handleDeleteHighlightRule(ruleId: string): void {
@@ -219,6 +222,37 @@ function getStatusValue(key: string): string {
 // ===== Config search =====
 const configSearch = ref('');
 
+// ===== Test tool recording state =====
+const isTestRecording = ref(true);
+
+// ===== Docking inner tabs =====
+const dockingInnerTab = ref('tasks');
+const showDockingConfigDialog = ref(false);
+const showTaskReportDialog = ref(false);
+
+// ===== SCOE Config edit form =====
+const editForm = ref({
+  messageIdentifier: '',
+  sourceIdentifier: '',
+  destinationIdentifier: '',
+  modelId: '',
+});
+
+function syncEditForm(): void {
+  const config = scoeConfig.selectedConfig.value;
+  if (!config) return;
+  editForm.value = {
+    messageIdentifier: config.messageIdentifier,
+    sourceIdentifier: config.sourceIdentifier,
+    destinationIdentifier: config.destinationIdentifier,
+    modelId: config.modelId,
+  };
+}
+
+watch(scoeConfig.selectedConfigId, () => {
+  syncEditForm();
+});
+
 // ===== Format helpers =====
 function formatCommandCode(code: number): string {
   return `0x${code.toString(16).toUpperCase().padStart(2, '0')}`;
@@ -229,9 +263,73 @@ function formatDuration(ms: number | undefined | null): string {
   return `${ms} ms`;
 }
 
+// ===== Add satellite =====
+function handleAddSatellite(): void {
+  const newId = `SAT_${Date.now()}`;
+  const newConfig: SatelliteConfig = {
+    satelliteId: newId,
+    messageIdentifier: '',
+    sourceIdentifier: '',
+    destinationIdentifier: '',
+    modelId: '',
+    commandConfigs: [],
+  };
+  scoeConfig.addSatellite(newConfig);
+  scoeConfig.selectSatellite(newId);
+}
+
+// ===== Import/Export config stubs =====
+function handleImportConfig(): void {
+  notify.info('导入功能需要文件系统支持，待实现');
+}
+
+function handleExportConfig(): void {
+  notify.info('导出功能需要文件系统支持，待实现');
+}
+
+// ===== SCOE Config right panel handlers =====
+function handleAddCommand(): void {
+  const config = scoeConfig.selectedConfig.value;
+  if (!config) return;
+  const newCmd: ScoeCommandConfig = {
+    id: `cmd_${Date.now()}`,
+    label: '新命令',
+    code: '',
+    function: 'send_frame',
+    checksums: [],
+  };
+  scoeConfig.updateSatellite(config.satelliteId, {
+    ...config,
+    commandConfigs: [...config.commandConfigs, newCmd],
+  });
+}
+
+function handleSaveSatelliteConfig(): void {
+  const config = scoeConfig.selectedConfig.value;
+  if (!config) return;
+  scoeConfig.updateSatellite(config.satelliteId, {
+    ...config,
+    messageIdentifier: editForm.value.messageIdentifier,
+    sourceIdentifier: editForm.value.sourceIdentifier,
+    destinationIdentifier: editForm.value.destinationIdentifier,
+    modelId: editForm.value.modelId,
+  });
+  notify.success('配置已更新');
+}
+
+// ===== Test tool recording controls =====
+function startTestRecording(): void {
+  isTestRecording.value = true;
+}
+
+function stopTestRecording(): void {
+  isTestRecording.value = false;
+}
+
 // ===== Lifecycle =====
 onMounted(() => {
   scoeConfig.loadConfigs();
+  syncEditForm();
   polling.start();
 });
 
@@ -241,7 +339,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <q-page class="command-ingress-page p-6">
+  <q-page class="command-ingress-page p-6 min-h-full">
     <!-- Title bar -->
     <div class="command-ingress-page__header mb-4">
       <h1 class="command-ingress-page__title">指令接入</h1>
@@ -354,7 +452,7 @@ onBeforeUnmount(() => {
                 </q-td>
               </template>
               <template #no-data>
-                <div class="text-center q-pa-lg rw-text-desc">暂无命令记录</div>
+                <div class="text-center p-4 rw-text-desc">暂无命令记录</div>
               </template>
             </DataTable>
           </div>
@@ -379,6 +477,28 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
+                    icon="o_play_arrow"
+                    color="positive"
+                    size="sm"
+                    :disable="isTestRecording"
+                    @click="startTestRecording"
+                  >
+                    <q-tooltip>开始</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    icon="o_stop"
+                    color="warning"
+                    size="sm"
+                    :disable="!isTestRecording"
+                    @click="stopTestRecording"
+                  >
+                    <q-tooltip>停止</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
                     icon="o_delete_sweep"
                     color="grey"
                     size="sm"
@@ -390,22 +510,25 @@ onBeforeUnmount(() => {
               </div>
               <div
                 v-if="testTool.records.value.length === 0"
-                class="text-center q-pa-lg rw-text-desc flex-1 flex items-center justify-center"
+                class="text-center p-4 rw-text-desc flex-1 flex items-center justify-center"
               >
                 暂无接收数据
               </div>
-              <div
+              <q-virtual-scroll
                 v-else
-                class="flex-1 overflow-auto max-h-50"
+                :items="testTool.records.value"
+                virtual-scroll-item-size="28"
+                class="flex-1"
+                :style="{ maxHeight: '300px' }"
               >
-                <div
-                  v-for="(record, idx) in testTool.records.value"
-                  :key="`${record.timestamp}_${idx}`"
-                  class="font-mono text-xs rw-text-value py-1 rw-divider-b"
-                >
-                  {{ String(record.data) }}
-                </div>
-              </div>
+                <template #default="{ item: record, index }">
+                  <div :key="index" class="flex items-center py-1 rw-divider-b font-mono text-xs">
+                    <span class="rw-text-desc w-[100px] flex-shrink-0">{{ formatDateTime(new Date(record.timestamp).toISOString()) }}</span>
+                    <span class="rw-text-value flex-1 truncate">{{ String(record.data) }}</span>
+                    <q-btn flat round dense icon="o_check_circle" size="xs" color="positive" />
+                  </div>
+                </template>
+              </q-virtual-scroll>
             </div>
 
             <!-- Send area -->
@@ -443,8 +566,14 @@ onBeforeUnmount(() => {
               search-placeholder="搜索卫星..."
             >
               <template #actions>
-                <q-btn flat dense icon="o_add" color="primary" size="sm">
+                <q-btn flat dense icon="o_add" color="primary" size="sm" @click="handleAddSatellite">
                   <q-tooltip>添加卫星</q-tooltip>
+                </q-btn>
+                <q-btn flat dense icon="o_file_upload" color="primary" size="sm" @click="handleImportConfig">
+                  <q-tooltip>导入</q-tooltip>
+                </q-btn>
+                <q-btn flat dense icon="o_file_download" color="primary" size="sm" @click="handleExportConfig">
+                  <q-tooltip>导出</q-tooltip>
                 </q-btn>
               </template>
             </TableToolbar>
@@ -483,7 +612,7 @@ onBeforeUnmount(() => {
                 </q-td>
               </template>
               <template #no-data>
-                <div class="text-center q-pa-lg rw-text-desc">暂无卫星配置</div>
+                <div class="text-center p-4 rw-text-desc">暂无卫星配置</div>
               </template>
             </DataTable>
           </div>
@@ -495,7 +624,72 @@ onBeforeUnmount(() => {
                 <h3 class="text-subtitle1 rw-text-value m-0 mb-4">
                   {{ scoeConfig.selectedConfig.value.satelliteId }}
                 </h3>
-                <div class="rw-text-desc">配置编辑区域（待实现）</div>
+
+                <!-- Satellite basic info -->
+                <div class="flex flex-col gap-3">
+                  <q-input
+                    v-model="editForm.messageIdentifier"
+                    dense outlined
+                    label="消息标识"
+                    :rules="[val => !!val || '请输入消息标识']"
+                  />
+                  <q-input
+                    v-model="editForm.sourceIdentifier"
+                    dense outlined
+                    label="源标识"
+                    :rules="[val => !!val || '请输入源标识']"
+                  />
+                  <q-input
+                    v-model="editForm.destinationIdentifier"
+                    dense outlined
+                    label="目标标识"
+                    :rules="[val => !!val || '请输入目标标识']"
+                  />
+                  <q-input
+                    v-model="editForm.modelId"
+                    dense outlined
+                    label="型号标识"
+                    :rules="[val => !!val || '请输入型号标识']"
+                  />
+                </div>
+
+                <q-separator class="my-4" />
+
+                <!-- Command configs -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="rw-text-label text-sm">命令配置</span>
+                    <q-btn flat dense no-caps icon="o_add" label="添加命令" size="sm" color="primary" @click="handleAddCommand" />
+                  </div>
+
+                  <template v-if="scoeConfig.selectedConfig.value.commandConfigs.length > 0">
+                    <q-expansion-item
+                      v-for="cmd in scoeConfig.selectedConfig.value.commandConfigs"
+                      :key="cmd.id"
+                      dense
+                      switch-toggle-side
+                      :label="cmd.label || cmd.code"
+                      :caption="cmd.function"
+                      header-class="rw-text-value text-sm"
+                    >
+                      <div class="rw-text-desc text-xs p-3">
+                        命令详细编辑待实现（功能码: {{ cmd.code }}）
+                      </div>
+                    </q-expansion-item>
+                  </template>
+                  <div v-else class="rw-text-desc text-xs text-center p-4">暂无命令配置</div>
+                </div>
+
+                <q-separator class="my-4" />
+
+                <div class="flex justify-end">
+                  <q-btn
+                    unelevated no-caps color="primary"
+                    label="保存"
+                    :loading="scoeConfig.isSaving.value"
+                    @click="handleSaveSatelliteConfig"
+                  />
+                </div>
               </div>
             </template>
             <template v-else>
@@ -508,7 +702,7 @@ onBeforeUnmount(() => {
         </div>
       </q-tab-panel>
 
-      <!-- Tab 3: Central Docking (stub) -->
+      <!-- Tab 3: Central Docking -->
       <q-tab-panel name="docking" class="p-0 pt-4">
         <div class="flex gap-4 mb-4">
           <div class="flex items-center gap-2">
@@ -524,26 +718,71 @@ onBeforeUnmount(() => {
             <StatusBadge :status="docking.connectionState.value.device" :status-map="DOCKING_DEVICE_STATUS_MAP" />
           </div>
           <div class="flex-1" />
-          <q-btn unelevated color="primary" label="对接配置" :loading="docking.isConfiguring.value" disable />
-          <q-btn unelevated color="primary" label="任务上报" :loading="taskReport.isReporting.value" disable />
+          <q-btn unelevated color="primary" label="对接配置" @click="showDockingConfigDialog = true" />
+          <q-btn unelevated color="primary" label="任务上报" @click="showTaskReportDialog = true" />
         </div>
 
         <q-separator class="mb-4" />
 
-        <DataTable
-          :columns="dockingTaskColumns"
-          :rows="docking.tasks.value"
-          row-key="taskId"
-        >
-          <template #no-data>
-            <div class="text-center q-pa-lg rw-text-desc">功能开发中</div>
-          </template>
-        </DataTable>
+        <!-- Internal tabs -->
+        <q-tabs v-model="dockingInnerTab" dense inline-label class="text-primary mb-4">
+          <q-tab name="tasks" label="任务列表" no-caps />
+          <q-tab name="devices" label="设备列表" no-caps />
+        </q-tabs>
+
+        <!-- Task list tab -->
+        <div v-if="dockingInnerTab === 'tasks'">
+          <DataTable
+            :columns="dockingTaskColumns"
+            :rows="docking.tasks.value"
+            row-key="taskId"
+          >
+            <template #no-data>
+              <div class="text-center p-4 rw-text-desc">功能开发中</div>
+            </template>
+          </DataTable>
+        </div>
+
+        <!-- Device list tab (stub) -->
+        <div v-else class="text-center p-8 rw-text-desc">
+          <q-icon name="o_developer_board" size="48px" color="grey" class="mb-2" />
+          <p>功能开发中</p>
+        </div>
+
+        <!-- Docking config dialog (stub) -->
+        <q-dialog v-model="showDockingConfigDialog">
+          <q-card class="rw-dialog-md">
+            <q-card-section>
+              <div class="text-h6">对接配置</div>
+            </q-card-section>
+            <q-card-section>
+              <div class="rw-text-desc">功能开发中，甲方 schema 未确认</div>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="关闭" @click="showDockingConfigDialog = false" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Task report dialog (stub) -->
+        <q-dialog v-model="showTaskReportDialog">
+          <q-card class="rw-dialog-lg">
+            <q-card-section>
+              <div class="text-h6">任务上报</div>
+            </q-card-section>
+            <q-card-section>
+              <div class="rw-text-desc">功能开发中，甲方上报协议未确认</div>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="关闭" @click="showTaskReportDialog = false" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
       </q-tab-panel>
     </q-tab-panels>
 
     <!-- Highlight config dialog -->
-    <q-dialog v-model="testTool.showHighlightDialog.value">
+    <q-dialog v-model="testTool.showHighlightDialog.value" @hide="editingHighlightRules = []">
       <q-card class="rw-dialog-md">
         <q-card-section>
           <div class="text-h6">高亮规则配置</div>
@@ -586,16 +825,16 @@ onBeforeUnmount(() => {
             />
             <q-select
               :model-value="rule.severity"
-              :options="(['info', 'warning', 'o_error'] as const)"
+              :options="(['info', 'warning', 'negative', 'positive'] as const)"
               dense
               label="颜色"
               emit-value
               class="w-25"
-              @update:model-value="(val: 'info' | 'warning' | 'o_error') => {
+              @update:model-value="(val) => {
                 const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
                 if (idx >= 0) {
                   const next = [...editingHighlightRules];
-                  next[idx] = { ...next[idx], severity: val };
+                  next[idx] = { ...next[idx], severity: val as HighlightRuleConfig['severity'] };
                   editingHighlightRules = next;
                 }
               }"
@@ -624,6 +863,7 @@ onBeforeUnmount(() => {
             unelevated
             color="primary"
             label="保存"
+            :loading="isOperating('save-highlight')"
             @click="handleSaveHighlightRules(editingHighlightRules)"
           />
         </q-card-actions>
@@ -637,7 +877,6 @@ onBeforeUnmount(() => {
 
 .command-ingress-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
 }
 
 .command-ingress-page__header {
@@ -656,7 +895,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
   .command-ingress-page {
-    padding: 16px;
+    padding: var(--rw-space-4);
   }
 }
 </style>

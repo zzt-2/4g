@@ -8,7 +8,7 @@ import SendTargetSelector from '@/features/send/components/SendTargetSelector.vu
 import { instanceColumns, type InstanceTableRow } from '@/features/send/components/instance-columns';
 import { useSendInstances } from '@/features/send/composables/use-send-instances';
 import { useFramePreview } from '@/features/send/composables/use-frame-preview';
-import { useAsyncAction, useNotify } from '@/shared/composables';
+import { useAsyncAction, useNotify, useStableKeys } from '@/shared/composables';
 import { listFrameAssetSummaries } from '@/features/frame';
 import type { ReadonlyFrameAsset, FrameAssetSummary } from '@/features/frame';
 import { useToggleFavorite } from '@/features/frame/composables';
@@ -38,7 +38,7 @@ function refreshFrameList(): void {
 const frameSummaries = computed<FrameAssetSummary[]>(() => {
   void refreshKey.value;
   return listFrameAssetSummaries(frameService.getSnapshot(), {
-    direction: 'send',
+    direction: 'o_send',
     query: searchText.value || undefined,
     favoriteOnly: favoriteOnly.value || undefined,
   });
@@ -75,6 +75,23 @@ function onFrameClick(frame: FrameAssetSummary): void {
   sendInstances.selectInstance(instance.instanceId);
 }
 
+function onFrameDblClick(frame: FrameAssetSummary): void {
+  const fullFrame = frameService.getFrame(frame.id);
+  if (!fullFrame) return;
+  const defaultValues = getDefaultFieldValues(fullFrame);
+  const instance = sendInstances.createInstance(frame.id, frame.name, defaultValues);
+  sendInstances.selectInstance(instance.instanceId);
+  onEditInstance({
+    instanceId: instance.instanceId,
+    name: instance.name,
+    fieldCount: Object.keys(instance.userFieldValues).length,
+    sendCount: 0,
+    lastSendAt: undefined,
+    description: instance.description,
+    _index: 0,
+  });
+}
+
 const { toggleFavorite } = useToggleFavorite(frameService, (msg) => notify.error(msg), refreshFrameList);
 
 // ===== Middle column: instance table =====
@@ -97,6 +114,25 @@ const selectedRows = computed(() => {
   const id = sendInstances.selectedInstanceId.value;
   return id ? tableRows.value.filter((r) => r.instanceId === id) : [];
 });
+
+// ===== Batch delete mode =====
+const batchMode = ref(false);
+const batchSelectedRows = ref<InstanceTableRow[]>([]);
+
+function onBatchDelete(): void {
+  if (batchSelectedRows.value.length === 0) return;
+  $q.dialog({
+    title: '确认批量删除',
+    message: `确定要删除选中的 ${batchSelectedRows.value.length} 个实例吗？此操作不可撤销。`,
+    cancel: true,
+    persistent: false,
+  }).onOk(() => {
+    for (const row of batchSelectedRows.value) {
+      sendInstances.removeInstance(row.instanceId);
+    }
+    batchSelectedRows.value = [];
+  });
+}
 
 function onRowClick(row: InstanceTableRow): void {
   sendInstances.selectInstance(row.instanceId);
@@ -164,6 +200,8 @@ const selectedValues = computed<Readonly<Record<string, SendFieldValue>>>(() => 
 });
 
 const { fullPreview } = useFramePreview(selectedFrame, selectedValues);
+const { keys: issueKeys, syncKeys: syncIssueKeys } = useStableKeys('issue');
+watch(() => fullPreview.issues, (issues) => syncIssueKeys(issues?.length ?? 0), { immediate: true });
 
 const selectedTargetId = ref<string | null>(null);
 
@@ -171,7 +209,7 @@ async function onSend(): Promise<void> {
   const inst = selectedInstance.value;
   if (!inst || !selectedTargetId.value) return;
 
-  await executeAction('send', async () => {
+  await executeAction('o_send', async () => {
     const result = await sendService.execute({
       frameId: inst.frameId,
       targetId: selectedTargetId.value!,
@@ -186,7 +224,7 @@ async function onSend(): Promise<void> {
       notify.error('发送失败', result.error?.message);
       if (result.buildIssues.length > 0) {
         const msgs = result.buildIssues
-          .filter(i => i.severity === 'error')
+          .filter(i => i.severity === 'o_error')
           .map(i => i.message)
           .join('; ');
         if (msgs) {
@@ -218,7 +256,7 @@ function onEditDialogHide(): void {
 async function onEditConfirm(): Promise<void> {
   if (!editingInstanceId.value || !isValid.value) return;
 
-  await executeAction('edit', async () => {
+  await executeAction('o_edit', async () => {
     sendInstances.updateInstance(editingInstanceId.value!, {
       name: editName.value,
       description: editDescription.value,
@@ -229,6 +267,15 @@ async function onEditConfirm(): Promise<void> {
 }
 
 // Configurable fields of selected frame for right panel display
+
+function fieldToHex(_field: { id: string }, value: SendFieldValue | undefined): string {
+  if (value === undefined || value === null) return '--';
+  if (typeof value === 'number') {
+    return `0x${value.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return String(value);
+}
+
 const configurableFields = computed(() => {
   const frame = selectedFrame.value;
   if (!frame) return [];
@@ -247,7 +294,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
 </script>
 
 <template>
-  <q-page class="send-page">
+  <q-page class="send-page min-h-full">
     <div class="flex h-full">
       <!-- Left column: frame format list (240px) -->
       <div class="w-[240px] flex-shrink-0 flex flex-col overflow-hidden">
@@ -260,7 +307,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
             clearable
           >
             <template #prepend>
-              <q-icon name="search" size="xs" />
+              <q-icon name="o_search" size="xs" />
             </template>
           </q-input>
         </div>
@@ -271,7 +318,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
             dense
             no-caps
             size="sm"
-            :icon="favoriteOnly ? 'star' : 'star_border'"
+            :icon="favoriteOnly ? 'o_star' : 'o_star_border'"
             :color="favoriteOnly ? 'warning' : 'grey'"
             @click="favoriteOnly = !favoriteOnly"
           />
@@ -290,8 +337,9 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                 :key="frame.id"
                 clickable
                 dense
-                class="q-py-xs q-px-sm"
+                class="py-1 px-2"
                 @click="onFrameClick(frame)"
+                @dblclick="onFrameDblClick(frame)"
               >
                 <q-item-section>
                   <q-item-label class="rw-text-value text-sm">{{ frame.name }}</q-item-label>
@@ -302,7 +350,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                     flat
                     round
                     dense
-                    :icon="frame.isFavorite ? 'star' : 'star_border'"
+                    :icon="frame.isFavorite ? 'o_star' : 'o_star_border'"
                     :color="frame.isFavorite ? 'warning' : 'grey'"
                     size="xs"
                     @click.stop="toggleFavorite(frame)"
@@ -311,7 +359,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
               </q-item>
             </q-list>
 
-            <q-separator class="q-mx-3 q-my-sm" />
+            <q-separator class="mx-3 my-2" />
           </template>
 
           <!-- All frames section -->
@@ -324,8 +372,9 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
               :key="frame.id"
               clickable
               dense
-              class="q-py-xs q-px-sm"
+              class="py-1 px-2"
               @click="onFrameClick(frame)"
+              @dblclick="onFrameDblClick(frame)"
             >
               <q-item-section>
                 <q-item-label class="rw-text-value text-sm">{{ frame.name }}</q-item-label>
@@ -336,7 +385,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                   flat
                   round
                   dense
-                  :icon="frame.isFavorite ? 'star' : 'star_border'"
+                  :icon="frame.isFavorite ? 'o_star' : 'o_star_border'"
                   :color="frame.isFavorite ? 'warning' : 'grey'"
                   size="xs"
                   @click.stop="toggleFavorite(frame)"
@@ -346,8 +395,8 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
           </q-list>
 
           <!-- Empty state for left column -->
-          <div v-if="frameSummaries.length === 0" class="text-center q-pa-lg rw-text-desc">
-            <q-icon name="inbox" size="32px" color="grey" class="q-mb-sm" />
+          <div v-if="frameSummaries.length === 0" class="text-center p-4 rw-text-desc">
+            <q-icon name="o_inbox" size="32px" color="grey" class="mb-2" />
             <p class="text-xs">暂无发送帧格式</p>
           </div>
         </div>
@@ -355,18 +404,29 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
 
       <!-- Middle column: instance table (flex:1) -->
       <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Batch mode toolbar -->
+        <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b">
+          <q-btn flat dense no-caps icon="o_delete" label="批量删除" color="negative" size="sm" :disable="batchSelectedRows.length === 0" @click="onBatchDelete" />
+          <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
+          <div class="flex-1" />
+          <q-btn flat dense no-caps label="退出批量模式" size="sm" @click="batchMode = false; batchSelectedRows = []" />
+        </div>
+        <div v-else class="flex items-center justify-end px-4 py-1">
+          <q-btn flat dense no-caps icon="o_checklist" label="批量管理" size="sm" @click="batchMode = true" />
+        </div>
+
         <DataTable
           :columns="instanceColumns"
           :rows="tableRows"
           row-key="instanceId"
-          selection="single"
-          :selected="selectedRows"
+          :selection="batchMode ? 'multiple' : 'single'"
+          :selected="batchMode ? batchSelectedRows : selectedRows"
           container-height="calc(100vh - 100px)"
-          @row-click="(_row: InstanceTableRow) => onRowClick(_row)"
-          @update:selected="onSelectionChange"
+          @row-click="(_row: InstanceTableRow) => { if (!batchMode) onRowClick(_row) }"
+          @update:selected="batchMode ? (batchSelectedRows = $event as InstanceTableRow[]) : onSelectionChange($event as InstanceTableRow[])"
         >
           <template #no-data>
-            <div class="text-center w-full q-pa-lg rw-text-label">
+            <div class="text-center w-full p-4 rw-text-label">
               暂无帧实例，从左侧选择帧格式创建
             </div>
           </template>
@@ -380,11 +440,16 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
           <template #body-cell-_actions="props">
             <q-td :props="props">
               <div class="flex items-center justify-center gap-1">
-                <q-btn flat round dense icon="edit" size="sm" color="primary" @click.stop="onEditInstance(props.row)" />
-                <q-btn flat round dense icon="content_copy" size="sm" color="primary" @click.stop="onCloneInstance(props.row)" />
-                <q-btn flat round dense icon="delete" size="sm" color="negative" @click.stop="onRemoveInstance(props.row)" />
-                <q-btn flat round dense icon="arrow_upward" size="sm" color="grey" :disable="props.row._index <= 1" @click.stop="onMoveUp(props.row)" />
-                <q-btn flat round dense icon="arrow_downward" size="sm" color="grey" :disable="props.row._index >= tableRows.length" @click.stop="onMoveDown(props.row)" />
+                <template v-if="!batchMode">
+                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditInstance(props.row)" />
+                  <q-btn flat round dense icon="o_content_copy" size="sm" color="primary" @click.stop="onCloneInstance(props.row)" />
+                  <q-btn flat round dense icon="o_delete" size="sm" color="negative" @click.stop="onRemoveInstance(props.row)" />
+                  <q-btn flat round dense icon="o_arrow_upward" size="sm" color="grey" :disable="props.row._index <= 1" @click.stop="onMoveUp(props.row)" />
+                  <q-btn flat round dense icon="o_arrow_downward" size="sm" color="grey" :disable="props.row._index >= tableRows.length" @click.stop="onMoveDown(props.row)" />
+                </template>
+                <template v-else>
+                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" :disable="true" />
+                </template>
               </div>
             </q-td>
           </template>
@@ -427,7 +492,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                 class="flex items-center justify-between"
               >
                 <span class="rw-text-label text-xs">{{ field.name }}</span>
-                <span class="rw-text-value text-xs">{{ selectedInstance.userFieldValues[field.id] ?? '--' }}</span>
+                <span class="rw-text-value text-xs font-mono">{{ fieldToHex(field, selectedInstance.userFieldValues[field.id]) }}</span>
               </div>
             </div>
           </div>
@@ -438,9 +503,9 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
             <div class="mt-1 flex flex-col gap-1">
               <div
                 v-for="(issue, idx) in fullPreview.issues"
-                :key="idx"
+                :key="issueKeys[idx]"
                 class="rw-text-desc text-xs"
-                :class="issue.severity === 'error' ? 'text-negative' : 'text-warning'"
+                :class="issue.severity === 'o_error' ? 'text-negative' : 'text-warning'"
               >
                 {{ issue.message }}
               </div>
@@ -462,9 +527,9 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
               no-caps
               color="primary"
               label="发送"
-              icon="send"
+              icon="o_send"
               class="w-full"
-              :loading="isOperating('send')"
+              :loading="isOperating('o_send')"
               :disable="!selectedInstance || !selectedTargetId"
               @click="onSend"
             />
@@ -473,7 +538,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
 
         <!-- Empty state -->
         <div v-else class="flex flex-col items-center justify-center flex-1 rw-text-desc">
-          <q-icon name="touch_app" size="48px" color="grey" class="q-mb-sm" />
+          <q-icon name="o_touch_app" size="48px" color="grey" class="mb-2" />
           <p>请选择一个帧实例</p>
         </div>
       </div>
@@ -486,48 +551,50 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
           <div class="text-h6">编辑帧实例</div>
         </q-card-section>
 
-        <q-card-section class="q-pt-none">
-          <div class="flex flex-col gap-3">
-            <q-input
-              v-model="editName"
-              dense
-              outlined
-              label="名称"
-              :rules="[val => !!val || '名称不能为空']"
-            />
-            <q-input
-              v-model="editDescription"
-              dense
-              outlined
-              label="备注"
-              type="textarea"
-              autogrow
-            />
-
-            <!-- Field values editor (D-S7: uses FieldEditWidget) -->
-            <div v-if="editFrameFields.length > 0" class="rw-dialog-scroll-body">
-              <FieldEditWidget
-                :fields="editFrameFields"
-                :values="editValues"
-                direction="send"
-                @update:values="editValues = $event"
+        <q-form @submit.prevent="onEditConfirm">
+          <q-card-section class="pt-0">
+            <div class="flex flex-col gap-3">
+              <q-input
+                v-model="editName"
+                dense
+                outlined
+                label="名称"
+                :rules="[val => !!val || '名称不能为空']"
               />
-            </div>
-          </div>
-        </q-card-section>
+              <q-input
+                v-model="editDescription"
+                dense
+                outlined
+                label="备注"
+                type="textarea"
+                autogrow
+              />
 
-        <q-card-actions align="right">
-          <q-btn flat no-caps label="取消" @click="showEditDialog = false" />
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            label="确认"
-            :loading="isOperating('edit')"
-            :disable="!isValid"
-            @click="onEditConfirm"
-          />
-        </q-card-actions>
+              <!-- Field values editor (D-S7: uses FieldEditWidget) -->
+              <div v-if="editFrameFields.length > 0" class="rw-dialog-scroll-body">
+                <FieldEditWidget
+                  :fields="editFrameFields"
+                  :values="editValues"
+                  direction="o_send"
+                  @update:values="editValues = $event"
+                />
+              </div>
+            </div>
+          </q-card-section>
+
+          <q-card-actions align="right">
+            <q-btn flat no-caps label="取消" @click="showEditDialog = false" />
+            <q-btn
+              unelevated
+              no-caps
+              color="primary"
+              label="确认"
+              :loading="isOperating('o_edit')"
+              :disable="!isValid"
+              type="submit"
+            />
+          </q-card-actions>
+        </q-form>
       </q-card>
     </q-dialog>
   </q-page>
@@ -536,7 +603,6 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
 <style scoped lang="scss">
 .send-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
 }
 
 .hex-preview {

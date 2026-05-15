@@ -1,4 +1,4 @@
-export type HighlightSeverity = 'info' | 'warning' | 'error';
+export type HighlightSeverity = 'info' | 'warning' | 'error' | 'negative' | 'positive';
 
 /**
  * Data-driven highlight rule — fully serializable (no functions).
