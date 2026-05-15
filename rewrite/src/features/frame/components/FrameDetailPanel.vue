@@ -19,7 +19,7 @@ const PREVIEW_FIELD_COUNT = 5;
   <div v-if="frame" class="flex flex-col h-full rw-panel-base rw-divider-l">
     <div class="flex items-center justify-between p-4 rw-divider-b">
       <span class="text-sm font-semibold rw-text-value">帧详情</span>
-      <q-btn flat round dense icon="o_close" size="sm" @click="emit('close')" />
+      <q-btn flat round dense icon="close" size="sm" @click="emit('close')" />
     </div>
 
     <div class="flex-1 overflow-y-auto p-4">
@@ -79,7 +79,7 @@ const PREVIEW_FIELD_COUNT = 5;
         unelevated
         color="primary"
         label="编辑帧"
-        icon="o_edit"
+        icon="edit"
         class="w-full"
         @click="emit('edit', frame.id)"
       />

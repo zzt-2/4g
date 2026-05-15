@@ -156,7 +156,7 @@ function removeConditional(index: number): void {
         flat
         round
         dense
-        icon="o_delete"
+        icon="delete"
         size="xs"
         color="negative"
         @click="removeVariable(vi)"
@@ -166,7 +166,7 @@ function removeConditional(index: number): void {
       flat
       dense
       no-caps
-      icon="o_add"
+      icon="add"
       label="添加变量"
       color="primary"
       size="sm"
@@ -201,7 +201,7 @@ function removeConditional(index: number): void {
           flat
           round
           dense
-          icon="o_delete"
+          icon="delete"
           size="xs"
           color="negative"
           @click="removeConditional(ci)"
@@ -212,7 +212,7 @@ function removeConditional(index: number): void {
       flat
       dense
       no-caps
-      icon="o_add"
+      icon="add"
       label="添加表达式"
       color="primary"
       size="sm"

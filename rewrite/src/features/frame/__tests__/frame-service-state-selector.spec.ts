@@ -218,7 +218,7 @@ describe('frame selector and public api pilot', () => {
 
     expect(reader.getSelectedFrame()?.id).toBe(minimalFrameAsset.id);
     expect(framePublicApi).toHaveProperty('createFrameAssetReader');
-    expect(framePublicApi).not.toHaveProperty('createFrameAssetService');
+    expect(framePublicApi).toHaveProperty('createFrameAssetService');
     expect(framePublicApi).not.toHaveProperty('createFrameState');
   });
 });

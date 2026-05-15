@@ -1,9 +1,9 @@
 import type { TaskStepKind, TaskErrorAction } from '../core';
 
 export const STEP_KIND_LABELS: Record<TaskStepKind, { label: string; icon: string }> = {
-  send: { label: '发送', icon: 'o_send' },
-  'wait-condition': { label: '等待条件', icon: 'o_hourglass_empty' },
-  delay: { label: '延时', icon: 'o_timer' },
+  send: { label: '发送', icon: 'send' },
+  'wait-condition': { label: '等待条件', icon: 'hourglass_empty' },
+  delay: { label: '延时', icon: 'timer' },
 };
 
 export const ERROR_ACTION_LABELS: Record<TaskErrorAction, string> = {

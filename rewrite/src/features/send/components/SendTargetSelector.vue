@@ -55,7 +55,7 @@ const targetOptions = computed(() =>
     class="w-full"
   >
     <template #prepend>
-      <q-icon name="o_send" size="xs" />
+      <q-icon name="send" size="xs" />
     </template>
     <template #no-option>
       <div class="q-pa-sm rw-text-desc">

@@ -119,7 +119,7 @@ const progressPct = computed(() => {
         class="flex items-center gap-2"
       >
         <q-icon
-          :name="item.status === 'running' ? 'o_pending' : item.status === 'done' ? 'o_check_circle' : item.status === 'failed' ? 'o_error' : item.status === 'skipped' ? 'o_skip_next' : 'o_radio_button_unchecked'"
+          :name="item.status === 'running' ? 'pending' : item.status === 'done' ? 'check_circle' : item.status === 'failed' ? 'error' : item.status === 'skipped' ? 'skip_next' : 'radio_button_unchecked'"
           :color="item.status === 'done' ? 'positive' : item.status === 'failed' ? 'negative' : item.status === 'running' ? 'primary' : 'grey'"
           size="xs"
         />
@@ -144,7 +144,7 @@ const progressPct = computed(() => {
         flat
         no-caps
         dense
-        icon="o_pause"
+        icon="pause"
         label="暂停"
         color="warning"
         size="sm"
@@ -155,7 +155,7 @@ const progressPct = computed(() => {
         flat
         no-caps
         dense
-        icon="o_play_arrow"
+        icon="play_arrow"
         label="恢复"
         color="primary"
         size="sm"
@@ -166,7 +166,7 @@ const progressPct = computed(() => {
         flat
         no-caps
         dense
-        icon="o_stop"
+        icon="stop"
         label="停止"
         color="negative"
         size="sm"

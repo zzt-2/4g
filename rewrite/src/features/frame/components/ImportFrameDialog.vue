@@ -72,7 +72,7 @@ function onClose(): void {
           @update:model-value="onFileSelected"
         >
           <template #prepend>
-            <q-icon name="o_upload_file" />
+            <q-icon name="upload_file" />
           </template>
         </q-file>
 

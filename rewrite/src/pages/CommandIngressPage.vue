@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
               <q-btn
                 flat
                 dense
-                icon="o_delete_sweep"
+                icon="delete_sweep"
                 color="grey"
                 size="sm"
                 @click="handleClearCommandLog"
@@ -369,7 +369,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="o_highlight"
+                    icon="highlight"
                     color="grey"
                     size="sm"
                     @click="openHighlightDialog"
@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="o_delete_sweep"
+                    icon="delete_sweep"
                     color="grey"
                     size="sm"
                     @click="handleClearTestRecords"
@@ -463,7 +463,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="o_content_copy"
+                    icon="content_copy"
                     color="grey"
                     size="xs"
                     @click.stop="handleDuplicateSatellite((props.row as SatelliteRow).satelliteId)"
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
                   <q-btn
                     flat
                     dense
-                    icon="o_delete"
+                    icon="delete"
                     color="grey"
                     size="xs"
                     @click.stop="handleDeleteSatellite((props.row as SatelliteRow).satelliteId)"
@@ -500,7 +500,7 @@ onBeforeUnmount(() => {
             </template>
             <template v-else>
               <div class="rw-panel-base rounded p-8 text-center">
-                <q-icon name="o_settings" size="48px" color="grey" />
+                <q-icon name="settings" size="48px" color="grey" />
                 <p class="rw-text-desc mt-4">请从左侧选择一个卫星配置进行编辑</p>
               </div>
             </template>
@@ -603,7 +603,7 @@ onBeforeUnmount(() => {
             <q-btn
               flat
               dense
-              icon="o_delete"
+              icon="delete"
               color="grey"
               size="sm"
               @click="handleDeleteHighlightRule(rule.id)"

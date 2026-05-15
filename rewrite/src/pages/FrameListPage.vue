@@ -203,7 +203,7 @@ function onEditFrame(frameId: string): void {
               dense
               no-caps
               :color="favoriteOnly ? 'warning' : 'grey'"
-              icon="o_star"
+              icon="star"
               @click="favoriteOnly = !favoriteOnly"
             />
           </template>
@@ -212,7 +212,7 @@ function onEditFrame(frameId: string): void {
             <q-btn
               outline
               color="primary"
-              icon="o_add"
+              icon="add"
               label="新建"
               dense
               no-caps
@@ -221,7 +221,7 @@ function onEditFrame(frameId: string): void {
             <q-btn
               outline
               color="primary"
-              icon="o_upload"
+              icon="upload"
               label="导入"
               dense
               no-caps
@@ -230,7 +230,7 @@ function onEditFrame(frameId: string): void {
             <q-btn
               outline
               color="primary"
-              icon="o_download"
+              icon="download"
               label="导出"
               dense
               no-caps
@@ -284,7 +284,7 @@ function onEditFrame(frameId: string): void {
                   flat
                   round
                   dense
-                  :icon="props.row.isFavorite ? 'o_star' : 'o_star_border'"
+                  :icon="props.row.isFavorite ? 'star' : 'star_border'"
                   :color="props.row.isFavorite ? 'warning' : 'grey'"
                   size="sm"
                   @click.stop="toggleFavorite(props.row)"
@@ -295,9 +295,9 @@ function onEditFrame(frameId: string): void {
             <template #body-cell-_actions="props">
               <q-td :props="props">
                 <div class="flex items-center justify-center gap-1">
-                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditFrame(props.row.id)" />
-                  <q-btn flat round dense icon="o_content_copy" size="sm" color="primary" @click.stop="cloneFrame(props.row)" />
-                  <q-btn flat round dense icon="o_delete" size="sm" color="negative" @click.stop="removeFrame(props.row.id)" />
+                  <q-btn flat round dense icon="edit" size="sm" color="primary" @click.stop="onEditFrame(props.row.id)" />
+                  <q-btn flat round dense icon="content_copy" size="sm" color="primary" @click.stop="cloneFrame(props.row)" />
+                  <q-btn flat round dense icon="delete" size="sm" color="negative" @click.stop="removeFrame(props.row.id)" />
                 </div>
               </q-td>
             </template>

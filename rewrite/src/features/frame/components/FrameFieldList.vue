@@ -77,7 +77,7 @@ function confirmRemove(index: number): void {
           flat
           dense
           no-caps
-          icon="o_add"
+          icon="add"
           label="添加字段"
           color="primary"
           @click="emit('add')"
@@ -127,7 +127,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="o_arrow_upward"
+                icon="arrow_upward"
                 size="sm"
                 color="primary"
                 :disable="s.row._index === 0"
@@ -137,7 +137,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="o_arrow_downward"
+                icon="arrow_downward"
                 size="sm"
                 color="primary"
                 :disable="s.row._index === fields.length - 1"
@@ -147,7 +147,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="o_edit"
+                icon="edit"
                 size="sm"
                 color="primary"
                 @click="emit('edit', s.row._index)"
@@ -156,7 +156,7 @@ function confirmRemove(index: number): void {
                 flat
                 round
                 dense
-                icon="o_delete"
+                icon="delete"
                 size="sm"
                 color="negative"
                 @click="confirmRemove(s.row._index)"

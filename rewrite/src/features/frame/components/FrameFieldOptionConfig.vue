@@ -74,7 +74,7 @@ function updateOption(
         flat
         round
         dense
-        icon="o_delete"
+        icon="delete"
         size="xs"
         color="negative"
         @click="removeOption(index)"
@@ -85,7 +85,7 @@ function updateOption(
       flat
       dense
       no-caps
-      icon="o_add"
+      icon="add"
       label="添加选项"
       color="primary"
       size="sm"

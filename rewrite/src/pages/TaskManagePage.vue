@@ -326,8 +326,8 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
     <div class="flex items-center gap-3 p-4 rw-divider-b">
       <span class="rw-text-value text-h6">任务管理</span>
       <div class="flex-1" />
-      <q-btn unelevated no-caps color="primary" icon="o_add" label="新建任务" @click="onNewTask" />
-      <q-btn flat no-caps icon="o_stop_circle" label="全部停止" :disable="activeRows.length === 0" @click="onStopAll" />
+      <q-btn unelevated no-caps color="primary" icon="add" label="新建任务" @click="onNewTask" />
+      <q-btn flat no-caps icon="stop_circle" label="全部停止" :disable="activeRows.length === 0" @click="onStopAll" />
     </div>
 
     <!-- Main layout: list + right panel -->
@@ -398,35 +398,35 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                 <div class="flex items-center justify-center gap-1">
                   <q-btn
                     v-if="props.row.lifecycle === 'created'"
-                    flat round dense icon="o_play_arrow" size="sm" color="positive"
+                    flat round dense icon="play_arrow" size="sm" color="positive"
                     :loading="isOperating(`start-${props.row.instanceId}`)"
                     @click.stop="onStart(props.row.instanceId)"
                   />
                   <q-btn
                     v-if="props.row.lifecycle === 'running'"
-                    flat round dense icon="o_pause" size="sm" color="warning"
+                    flat round dense icon="pause" size="sm" color="warning"
                     :loading="isOperating(`pause-${props.row.instanceId}`)"
                     @click.stop="onPause(props.row.instanceId)"
                   />
                   <q-btn
                     v-if="props.row.lifecycle === 'paused'"
-                    flat round dense icon="o_play_arrow" size="sm" color="primary"
+                    flat round dense icon="play_arrow" size="sm" color="primary"
                     :loading="isOperating(`resume-${props.row.instanceId}`)"
                     @click.stop="onResume(props.row.instanceId)"
                   />
                   <q-btn
                     v-if="props.row.lifecycle === 'running' || props.row.lifecycle === 'paused'"
-                    flat round dense icon="o_stop" size="sm" color="negative"
+                    flat round dense icon="stop" size="sm" color="negative"
                     @click.stop="onStop(props.row.instanceId)"
                   />
                   <q-btn
                     v-if="props.row.lifecycle === 'created'"
-                    flat round dense icon="o_edit" size="sm" color="primary"
+                    flat round dense icon="edit" size="sm" color="primary"
                     @click.stop="onEditTask()"
                   />
                   <q-btn
                     v-if="isTerminal(props.row.lifecycle)"
-                    flat round dense icon="o_delete" size="sm" color="negative"
+                    flat round dense icon="delete" size="sm" color="negative"
                     @click.stop="onRemove(props.row.instanceId)"
                   />
                 </div>
@@ -485,12 +485,12 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
               <q-td :props="props">
                 <div class="flex items-center justify-center gap-1">
                   <q-btn
-                    flat round dense icon="o_replay" size="sm" color="primary"
+                    flat round dense icon="replay" size="sm" color="primary"
                     :loading="isOperating(`retry-${props.row.instanceId}`)"
                     @click.stop="onRetry(props.row.instanceId)"
                   />
                   <q-btn
-                    flat round dense icon="o_delete" size="sm" color="negative"
+                    flat round dense icon="delete" size="sm" color="negative"
                     @click.stop="onRemove(props.row.instanceId)"
                   />
                 </div>
@@ -531,13 +531,13 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
               <div class="flex items-center gap-2">
                 <q-btn
                   unelevated no-caps color="primary"
-                  icon="o_edit" label="编辑"
+                  icon="edit" label="编辑"
                   :loading="isOperating('edit')"
                   @click="onEditTask"
                 />
                 <q-btn
                   unelevated no-caps color="positive"
-                  icon="o_play_arrow" label="启动"
+                  icon="play_arrow" label="启动"
                   :loading="isOperating(`start-${selectedInstance.instanceId}`)"
                   @click="onStart(selectedInstance.instanceId)"
                 />
@@ -585,12 +585,12 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
             <div class="p-4">
               <div class="flex items-center gap-2">
                 <q-btn
-                  flat no-caps icon="o_replay" label="重新执行" color="primary"
+                  flat no-caps icon="replay" label="重新执行" color="primary"
                   :loading="isOperating(`retry-${selectedInstance.instanceId}`)"
                   @click="onRetry(selectedInstance.instanceId)"
                 />
                 <q-btn
-                  flat no-caps icon="o_delete" label="删除" color="negative"
+                  flat no-caps icon="delete" label="删除" color="negative"
                   @click="onRemove(selectedInstance.instanceId)"
                 />
               </div>
@@ -600,7 +600,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
 
         <!-- Empty state -->
         <div v-else class="flex flex-col items-center justify-center flex-1 rw-text-desc">
-          <q-icon name="o_assignment" size="48px" color="grey" class="q-mb-sm" />
+          <q-icon name="assignment" size="48px" color="grey" class="q-mb-sm" />
           <p>请选择一个任务</p>
         </div>
       </div>
@@ -664,7 +664,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
               <div class="flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                   <span class="rw-text-label text-xs">触发条件</span>
-                  <q-btn flat dense no-caps icon="o_add" label="添加条件" size="sm" color="primary" @click="editor.addEventCondition()" />
+                  <q-btn flat dense no-caps icon="add" label="添加条件" size="sm" color="primary" @click="editor.addEventCondition()" />
                 </div>
                 <div
                   v-for="(cond, ci) in editor.eventConditions.value"
@@ -686,7 +686,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                     class="flex-1"
                     @update:model-value="editor.updateEventCondition(ci, { ...cond, threshold: $event })"
                   />
-                  <q-btn flat round dense icon="o_close" size="xs" color="negative" @click="editor.removeEventCondition(ci)" />
+                  <q-btn flat round dense icon="close" size="xs" color="negative" @click="editor.removeEventCondition(ci)" />
                 </div>
                 <div v-if="editor.eventConditions.value.length === 0" class="rw-text-desc text-xs">至少添加一条触发条件</div>
               </div>
@@ -789,7 +789,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                     <div class="flex flex-col gap-2">
                       <div class="flex items-center justify-between">
                         <span class="rw-text-label text-xs">等待条件</span>
-                        <q-btn flat dense no-caps icon="o_add" label="添加" size="sm" color="primary" @click="addWaitConditionTerm(si)" />
+                        <q-btn flat dense no-caps icon="add" label="添加" size="sm" color="primary" @click="addWaitConditionTerm(si)" />
                       </div>
                       <div
                         v-for="(term, ti) in step.config.conditions"
@@ -803,7 +803,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                           class="flex-1"
                           @update:model-value="updateWaitConditionTerm(si, ti, { ...term, threshold: $event })"
                         />
-                        <q-btn flat round dense icon="o_close" size="xs" color="negative" @click="removeWaitConditionTerm(si, ti)" />
+                        <q-btn flat round dense icon="close" size="xs" color="negative" @click="removeWaitConditionTerm(si, ti)" />
                       </div>
                       <div v-if="step.config.conditions.length === 0" class="rw-text-desc text-xs">至少添加一条条件</div>
                     </div>
@@ -850,7 +850,7 @@ function updateWaitConditionTerm(stepIndex: number, termIndex: number, term: Con
                   <q-btn
                     flat dense no-caps
                     label="删除步骤"
-                    icon="o_delete"
+                    icon="delete"
                     size="sm"
                     color="negative"
                     @click="editor.removeStep(si)"

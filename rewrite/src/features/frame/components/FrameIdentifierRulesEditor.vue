@@ -61,7 +61,7 @@ function updateRule(index: number, patch: Partial<IdentifierRule>): void {
           flat
           dense
           no-caps
-          icon="o_add"
+          icon="add"
           label="添加规则"
           color="primary"
           @click="addRule"
@@ -130,7 +130,7 @@ function updateRule(index: number, patch: Partial<IdentifierRule>): void {
           flat
           round
           dense
-          icon="o_delete"
+          icon="delete"
           color="negative"
           size="sm"
           @click="removeRule(index)"

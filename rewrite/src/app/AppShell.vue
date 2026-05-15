@@ -17,16 +17,12 @@ const router = useRouter();
 const drawerOpen = ref(false);
 
 const navigationItems = [
-  {
-    label: '总览',
-    to: '/',
-    icon: 'dashboard',
-  },
-  {
-    label: '帧定义',
-    to: '/frames',
-    icon: 'view_agenda',
-  },
+  { label: '总览', to: '/', icon: 'dashboard' },
+  { label: '连接管理', to: '/connection', icon: 'link' },
+  { label: '帧定义', to: '/frames', icon: 'view_agenda' },
+  { label: '帧发送', to: '/send', icon: 'send' },
+  { label: '任务管理', to: '/tasks', icon: 'assignment' },
+  { label: '指令接入', to: '/command-ingress', icon: 'settings_input_antenna' },
 ] as const;
 
 const activePath = computed(() => route.path);

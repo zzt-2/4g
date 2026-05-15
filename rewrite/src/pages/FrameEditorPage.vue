@@ -103,7 +103,7 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
       <!-- Sticky header bar -->
       <div class="flex items-center justify-between pb-4 mb-4 rw-divider-b">
         <div class="flex items-center gap-2">
-          <q-btn flat round dense icon="o_arrow_back" color="primary" to="/frames" />
+          <q-btn flat round dense icon="arrow_back" color="primary" to="/frames" />
           <span class="text-h6">{{ pageTitle }}</span>
         </div>
         <div class="flex items-center gap-2">
@@ -124,7 +124,7 @@ const pageTitle = isNew ? '创建帧配置' : '编辑帧配置';
       <div v-if="validationIssues.length > 0" class="q-mb-md">
         <q-banner dense rounded class="bg-negative text-white">
           <template #avatar>
-            <q-icon name="o_error" />
+            <q-icon name="error" />
           </template>
           <div v-for="(issue, i) in validationIssues" :key="issue.code + ':' + i">
             {{ issue.message }}

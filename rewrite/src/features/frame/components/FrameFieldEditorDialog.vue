@@ -128,7 +128,7 @@ const dialogVisible = computed({
       <!-- Header -->
       <q-card-section class="flex items-center justify-between rw-divider-b">
         <span class="text-h6">{{ isNew ? '添加字段' : '编辑字段' }}</span>
-        <q-btn flat round dense icon="o_close" @click="tryClose" />
+        <q-btn flat round dense icon="close" @click="tryClose" />
       </q-card-section>
 
       <!-- Body -->

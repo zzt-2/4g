@@ -260,7 +260,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
             clearable
           >
             <template #prepend>
-              <q-icon name="o_search" size="xs" />
+              <q-icon name="search" size="xs" />
             </template>
           </q-input>
         </div>
@@ -271,7 +271,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
             dense
             no-caps
             size="sm"
-            :icon="favoriteOnly ? 'o_star' : 'o_star_border'"
+            :icon="favoriteOnly ? 'star' : 'star_border'"
             :color="favoriteOnly ? 'warning' : 'grey'"
             @click="favoriteOnly = !favoriteOnly"
           />
@@ -302,7 +302,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                     flat
                     round
                     dense
-                    :icon="frame.isFavorite ? 'o_star' : 'o_star_border'"
+                    :icon="frame.isFavorite ? 'star' : 'star_border'"
                     :color="frame.isFavorite ? 'warning' : 'grey'"
                     size="xs"
                     @click.stop="toggleFavorite(frame)"
@@ -336,7 +336,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                   flat
                   round
                   dense
-                  :icon="frame.isFavorite ? 'o_star' : 'o_star_border'"
+                  :icon="frame.isFavorite ? 'star' : 'star_border'"
                   :color="frame.isFavorite ? 'warning' : 'grey'"
                   size="xs"
                   @click.stop="toggleFavorite(frame)"
@@ -347,7 +347,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
 
           <!-- Empty state for left column -->
           <div v-if="frameSummaries.length === 0" class="text-center q-pa-lg rw-text-desc">
-            <q-icon name="o_inbox" size="32px" color="grey" class="q-mb-sm" />
+            <q-icon name="inbox" size="32px" color="grey" class="q-mb-sm" />
             <p class="text-xs">暂无发送帧格式</p>
           </div>
         </div>
@@ -380,11 +380,11 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
           <template #body-cell-_actions="props">
             <q-td :props="props">
               <div class="flex items-center justify-center gap-1">
-                <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditInstance(props.row)" />
-                <q-btn flat round dense icon="o_content_copy" size="sm" color="primary" @click.stop="onCloneInstance(props.row)" />
-                <q-btn flat round dense icon="o_delete" size="sm" color="negative" @click.stop="onRemoveInstance(props.row)" />
-                <q-btn flat round dense icon="o_arrow_upward" size="sm" color="grey" :disable="props.row._index <= 1" @click.stop="onMoveUp(props.row)" />
-                <q-btn flat round dense icon="o_arrow_downward" size="sm" color="grey" :disable="props.row._index >= tableRows.length" @click.stop="onMoveDown(props.row)" />
+                <q-btn flat round dense icon="edit" size="sm" color="primary" @click.stop="onEditInstance(props.row)" />
+                <q-btn flat round dense icon="content_copy" size="sm" color="primary" @click.stop="onCloneInstance(props.row)" />
+                <q-btn flat round dense icon="delete" size="sm" color="negative" @click.stop="onRemoveInstance(props.row)" />
+                <q-btn flat round dense icon="arrow_upward" size="sm" color="grey" :disable="props.row._index <= 1" @click.stop="onMoveUp(props.row)" />
+                <q-btn flat round dense icon="arrow_downward" size="sm" color="grey" :disable="props.row._index >= tableRows.length" @click.stop="onMoveDown(props.row)" />
               </div>
             </q-td>
           </template>
@@ -462,7 +462,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
               no-caps
               color="primary"
               label="发送"
-              icon="o_send"
+              icon="send"
               class="w-full"
               :loading="isOperating('send')"
               :disable="!selectedInstance || !selectedTargetId"
@@ -473,7 +473,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
 
         <!-- Empty state -->
         <div v-else class="flex flex-col items-center justify-center flex-1 rw-text-desc">
-          <q-icon name="o_touch_app" size="48px" color="grey" class="q-mb-sm" />
+          <q-icon name="touch_app" size="48px" color="grey" class="q-mb-sm" />
           <p>请选择一个帧实例</p>
         </div>
       </div>

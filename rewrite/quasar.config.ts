@@ -7,7 +7,7 @@ export default defineConfig(() => ({
   boot: [],
   css: ['app.scss'],
 
-  extras: ['roboto-font', 'material-icons'],
+  extras: ['roboto-font', 'material-icons', 'material-icons-outlined'],
 
   sourceFiles: {
     electronMain: 'src-electron/main/index',
