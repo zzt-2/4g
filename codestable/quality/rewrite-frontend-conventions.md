@@ -244,6 +244,51 @@ background: var(--rw-color-surface-selected);
 | 弱化 | `text-muted` | 时间戳、placeholder |
 | 最弱 | `text-subtle` | 禁用态、hint |
 
+### C4. Token 消费必须走语义 class，禁止 inline style 消费 token
+
+禁止在模板 inline style 中直接使用 color/border/background token。已有语义 class 的 token 必须用 class；同一 token 消费模式出现 2+ 次但尚无 class 时，先提取语义 class 再使用。
+
+```vue
+<!-- ❌ -->
+<span style="color: var(--rw-color-text-muted)">ID</span>
+<span style="color: var(--rw-color-text-primary)">{{ value }}</span>
+<div style="border-bottom: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle)">
+
+<!-- ✅ -->
+<span class="rw-text-label">ID</span>
+<span class="rw-text-value">{{ value }}</span>
+<div class="rw-divider-b">
+```
+
+以下语义 class 在 `css/layers/_utilities.scss` 中统一定义：
+
+**文本色**
+
+| class | 效果 | 用途 |
+|-------|------|------|
+| `rw-text-label` | `color: var(--rw-color-text-muted)` | 字段标签、小标题 |
+| `rw-text-value` | `color: var(--rw-color-text-primary)` | 字段值、重要数据 |
+| `rw-text-desc` | `color: var(--rw-color-text-secondary)` | 描述、辅助文字 |
+| `rw-text-error` | `color: var(--rw-color-status-danger)` | 错误提示 |
+| `rw-text-warn` | `color: var(--rw-color-status-warning)` | 警告提示 |
+
+**边框**
+
+| class | 效果 | 用途 |
+|-------|------|------|
+| `rw-divider-b` | `border-bottom: ... solid var(--rw-color-border-subtle)` | 区域分隔 |
+| `rw-divider-t` | `border-top: ... solid var(--rw-color-border-subtle)` | 区域分隔 |
+| `rw-divider-l` | `border-left: ... solid var(--rw-color-border-subtle)` | 侧边面板分隔 |
+
+**面板 / 弹窗**
+
+| class | 效果 | 用途 |
+|-------|------|------|
+| `rw-panel-base` | `background: var(--rw-color-surface-base)` | 基础面板背景 |
+| `rw-dialog-sm/md/lg/xl` | 弹窗宽度 | 见 §4 D2 |
+
+不在上表中的 token 消费模式出现 2+ 次时，按同一规则提取并补充。
+
 ---
 
 ## 7. 数据展示
@@ -264,6 +309,19 @@ background: var(--rw-color-surface-selected);
 ### V3. 状态用 QBadge + 状态色，空值显示 `--`
 
 不显示 `null` / `undefined` / `NaN`。不裸用文字+颜色替代 badge。
+
+状态 badge 组件必须泛型化，不硬编码特定业务状态枚举。通过 `statusMap` 配置映射：
+
+```vue
+<!-- ❌ 硬编码 ConnectionLifecycleStatus -->
+<StatusBadge :status="conn.lifecycle" />
+
+<!-- ✅ 泛型 + 外部映射 -->
+<StatusBadge :status="conn.lifecycle" :status-map="connectionStatusMap" />
+<StatusBadge :status="task.state" :status-map="taskStatusMap" />
+```
+
+`statusMap` 类型：`Record<string, { label: string; color: string }>`。各 feature 在自己的 `components/` 或 `types` 中定义对应的映射常量。
 
 ### V4. 物理量必须标注单位，长文本截断 + QTooltip
 
@@ -402,3 +460,122 @@ main 进程缓冲串口/网络数据，16ms 批量发送一次。renderer 侧走
 ### E3. 控制单窗口 DOM 节点 ≤ 3000
 
 虚拟滚动、懒渲染、v-if（非 v-show）是主要手段。折叠面板折叠时不渲染内容。
+
+---
+
+## 11. 页面 Composable 模式
+
+页面中以下三种模式不得手写，必须使用对应 composable。
+
+### CM1. 异步操作用 `useAsyncAction()`
+
+操作锁（operatingIds）、try-finally 清理、错误通知统一由 composable 管理。
+
+```typescript
+// ❌ 手写 operatingIds Set + try-finally
+const operatingIds = ref<Set<string>>(new Set());
+async function handleConnect(s: ConnectionSummary) {
+  operatingIds.value = new Set(operatingIds.value).add(s.connectionId);
+  try { /* ... */ }
+  finally { const next = new Set(operatingIds.value); next.delete(s.connectionId); operatingIds.value = next; }
+}
+
+// ✅ composable
+const { execute, isOperating } = useAsyncAction();
+async function handleConnect(s: ConnectionSummary) {
+  await execute(s.connectionId, async () => {
+    const result = await service.connect(config);
+    // composable 负责 finally 清理 + 错误时 $q.notify
+  });
+}
+```
+
+composable 返回：
+- `isOperating(id: string): boolean` — 查询操作锁
+- `execute<T>(id: string, fn: () => Promise<T>): Promise<T | undefined>` — 带锁执行，自动清理，失败时 `$q.notify({ type: 'negative' })`
+
+### CM2. 页面轮询用 `usePolling()`
+
+rAF + 节流 + disposed 检查 + onUnmounted 清理统一由 composable 管理。
+
+```typescript
+// ❌ 手写 rAF + disposed + 节流
+let rafId = 0; let lastPollTime = 0; const disposed = ref(false);
+function tick(now: number) { /* ... */ rafId = requestAnimationFrame(tick); }
+onMounted(() => { rafId = requestAnimationFrame(tick); });
+onBeforeUnmount(() => { disposed.value = true; if (rafId) cancelAnimationFrame(rafId); });
+
+// ✅ composable
+const { start } = usePolling(() => refreshSummaries(), 500);
+onMounted(start);
+```
+
+composable 返回：
+- `start(): void` — 启动轮询
+- `stop(): void` — 停止轮询
+- `restart(): void` — 重启轮询
+- 内部自动 onUnmounted 清理
+
+### CM3. 通知用 `useNotify()`
+
+封装 `$q.notify` 的成功/失败/警告模式，统一消息格式。
+
+```typescript
+const notify = useNotify();
+notify.success('连接已创建');
+notify.error('连接失败', result.error?.message);
+notify.info('操作已取消');
+```
+
+---
+
+## 12. 页面代码组织
+
+### O1. 状态声明按用途分组
+
+页面 `<script setup>` 中的 ref/computed/shallowRef 按以下顺序声明，组间空一行：
+
+```typescript
+// ===== Service 引用 =====
+const service = runtime.features.xxxService;
+
+// ===== 业务数据 =====
+const items = ref<readonly Xxx[]>([]);
+
+// ===== 查询/筛选 =====
+const searchText = ref('');
+const statusFilter = ref<Status | ''>('');
+
+// ===== UI 状态 =====
+const showDialog = ref(false);
+const selectedIds = ref<string[]>([]);
+
+// ===== 派生数据 =====
+const tableRows = shallowRef<TableRow[]>([]);
+
+// ===== 操作 =====
+const { execute, isOperating } = useAsyncAction();
+const notify = useNotify();
+```
+
+### O2. 禁止静默吞错误
+
+所有 catch 块必须至少 log（`console.error`/`console.warn`）或 notify。空 catch 体（`catch {}` / `catch () {}`）禁止出现。runtime tick、service 调用、文件 I/O、computed 内部、异步操作一律适用。
+
+```typescript
+// ❌ 空 catch 静默吞错误
+routingTick(wiredFeatures).catch(() => {});
+try { buildPreview(); } catch { /* nothing */ }
+
+// ✅ 至少记录错误
+routingTick(wiredFeatures).catch((err) => console.error('[routingTick]', err));
+try { buildPreview(); } catch (err) { console.error('preview failed', err); }
+```
+
+### O3. 2+ 处出现的同一代码模式必须提取
+
+标签映射、选项数组、stable key 管理、数组操作样板、默认值工厂等，出现在 2+ 文件/函数中时，提取到 composable、shared 常量或辅助函数。不允许复制粘贴后微调。
+
+### O4. 不变数据定义在模块级
+
+选项数组、标签映射、枚举→标签 Record 等不随组件实例变化的数据，定义在 `<script setup>` 外（模块级常量）。setup 每次挂载都会执行，不应在其中重建不变数据。

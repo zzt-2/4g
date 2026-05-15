@@ -61,10 +61,14 @@
 - `codestable/quality/rewrite-quality-rules.md`
 - `codestable/quality/rewrite-review-checklist.md`
 
-涉及任何 UI 页面、组件、样式的讨论、设计或实现时，**必须**在动手前完整阅读以下两份规范，不允许跳过、略读或凭记忆：
+涉及任何 UI 页面、组件、样式的讨论、设计或实现时，**必须**在动手前完整阅读以下文档，不允许跳过、略读或凭记忆：
 
 - `codestable/quality/rewrite-frontend-conventions.md`（前端 UI 规范 — Quasar 组件、表格、表单、弹窗、布局、颜色、数据展示、性能）
 - `codestable/quality/rewrite-frontend-checklist.md`（前端自检 checklist — 逐条勾选）
+
+**每次**写新页面、新组件、新 composable 或修改现有页面/组件的样式、状态、异步操作、列表渲染时，**必须先读**速查卡确认已用对基础设施、没有踩红线：
+
+- `codestable/reference/rewrite-frontend-quickref.md`（前端速查卡 — shared/ API 索引 + 语义 class + 高频违规清单 + 新页面检查清单）
 
 违反该规范的代码不得合入。设计文档产出后必须附规范合规检查结果。
 

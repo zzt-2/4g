@@ -28,6 +28,7 @@ review 或自检时按分组逐项检查。勾选 `- [x]` 表示通过。
 - [ ] CSS 动画只用 `transform` / `opacity`，无 layout 属性动画
 - [ ] `will-change` 只用于 `transform` / `opacity`，无 `will-change: width/height`
 - [ ] 弹窗宽度用语义 class（`rw-dialog-*`），无硬编码 `width: Npx`
+- [ ] 无 inline style 直接消费 token（文本色、边框、背景 → 语义 class `rw-text-*`/`rw-divider-*`/`rw-panel-*`）
 
 ## B. Quasar 组件检查
 
@@ -88,3 +89,14 @@ review 或自检时按分组逐项检查。勾选 `- [x]` 表示通过。
 - [ ] 高频 IPC 已批量化（main 端缓冲，16ms 批量发送）
 - [ ] 单窗口 DOM 节点数 ≤ 3000
 - [ ] 折叠面板/隐藏区域用 `v-if`（非 `v-show`）
+
+## I. Composable 检查
+
+- [ ] 异步操作用 `useAsyncAction()`，无手写 `operatingIds` Set + try-finally 清理
+- [ ] 页面轮询用 `usePolling()`，无手写 rAF + disposed + 节流逻辑
+- [ ] 通知用 `useNotify()`，无直接 `$q.notify({ type: 'positive/negative', ... })` 散落
+- [ ] StatusBadge 使用泛型 `statusMap` 配置，无硬编码业务状态枚举
+- [ ] 页面状态按 O1 分组声明（Service → 业务数据 → 查询/筛选 → UI → 派生 → 操作）
+- [ ] 所有 `.catch()` / `catch {}` 非空，至少 `console.error`/`console.warn`（O2）
+- [ ] 2+ 文件中的同一代码模式（标签映射、stable key、操作样板、默认值工厂）已提取（O3）
+- [ ] 选项数组和标签映射在模块级定义，非 setup 内（O4）
