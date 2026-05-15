@@ -28,6 +28,7 @@ const IPC_READ_TEXT_FILE = 'file:read-text';
 const IPC_WRITE_TEXT_FILE = 'file:write-text';
 const IPC_SHOW_SAVE_DIALOG = 'file:show-save-dialog';
 const IPC_SHOW_OPEN_DIALOG = 'file:show-open-dialog';
+const IPC_GET_USER_DATA_PATH = 'file:get-user-data-path';
 
 const eventBuffer: TransportBridgeEvent[] = [];
 const eventCallbacks: ((event: TransportBridgeEvent) => void)[] = [];
@@ -122,6 +123,9 @@ const fileBridge: FileBridge = {
   },
   async showOpenDialog(opts: OpenDialogOptions): Promise<string | null> {
     return ipcRenderer.invoke(IPC_SHOW_OPEN_DIALOG, opts);
+  },
+  async getUserDataPath(): Promise<string> {
+    return ipcRenderer.invoke(IPC_GET_USER_DATA_PATH);
   },
 };
 

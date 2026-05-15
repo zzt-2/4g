@@ -28,6 +28,8 @@ export type {
   StorageValidationResult,
 } from './core';
 export type { LocalMaterialAdapter, LocalMaterialAdapterError } from './adapters';
+export { createRealLocalMaterialAdapter } from './adapters';
+export type { RealLocalMaterialAdapterOptions } from './adapters';
 export { createStorageLocalReader, createStorageLocalService } from './services';
 export type {
   CreateStorageLocalServiceOptions,

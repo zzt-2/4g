@@ -126,6 +126,7 @@ export interface FileBridge {
   writeTextFile(path: string, content: string): Promise<void>;
   showSaveDialog(opts: SaveDialogOptions): Promise<string | null>;
   showOpenDialog(opts: OpenDialogOptions): Promise<string | null>;
+  getUserDataPath(): Promise<string>;
 }
 
 // --- Bridge root ---

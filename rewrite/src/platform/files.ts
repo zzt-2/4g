@@ -7,6 +7,7 @@ export interface FileFacade {
   writeTextFile(path: string, content: string): Promise<void>;
   showSaveDialog(opts: SaveDialogOptions): Promise<string | null>;
   showOpenDialog(opts: OpenDialogOptions): Promise<string | null>;
+  getUserDataPath(): Promise<string>;
 }
 
 export function createFileFacade(bridge: FileBridge): FileFacade {
@@ -15,5 +16,6 @@ export function createFileFacade(bridge: FileBridge): FileFacade {
     writeTextFile: (path, content) => bridge.writeTextFile(path, content),
     showSaveDialog: (opts) => bridge.showSaveDialog(opts),
     showOpenDialog: (opts) => bridge.showOpenDialog(opts),
+    getUserDataPath: () => bridge.getUserDataPath(),
   };
 }

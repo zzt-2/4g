@@ -14,9 +14,11 @@ import {
 } from '@/features/connection';
 import { wireFeatures, type RewriteWiredFeatures } from './feature-wiring';
 import { routingTick, type RoutingTickResult } from './routing-tick';
+import type { FeaturePersistence } from './persistence';
 
 export type { RoutingTickResult } from './routing-tick';
 export type { RewriteWiredFeatures } from './feature-wiring';
+export type { FeaturePersistence } from './persistence';
 
 export interface RewriteRuntimeOverviewSnapshot {
   readonly frame: {
@@ -74,6 +76,7 @@ export interface RewriteRuntime {
   getOverviewSnapshot(): RewriteRuntimeOverviewSnapshot;
   resetSettings(scope?: SettingsResetScope): RewriteRuntimeCommandResult;
   readonly features: RewriteWiredFeatures;
+  readonly persistence: FeaturePersistence;
   routingTick(): Promise<RoutingTickResult>;
   startTickDriver(intervalMs?: number): void;
   stopTickDriver(): void;
@@ -105,6 +108,7 @@ function toRuntimeCommandResult(result: SettingsOperationResult): RewriteRuntime
 
 export function createRewriteRuntime(
   dependencies: RewriteRuntimeDependencies = {},
+  persistence?: FeaturePersistence,
 ): RewriteRuntime {
   const adapter = dependencies.connectionAdapter ?? createNoOpConnectionAdapter();
   const wiredFeatures = wireFeatures({ connectionAdapter: adapter });
@@ -125,6 +129,7 @@ export function createRewriteRuntime(
 
   return {
     features: wiredFeatures,
+    persistence: persistence ?? createNoOpPersistence(),
 
     getOverviewSnapshot() {
       const frameSummaries = frameReader.listFrames();
@@ -189,5 +194,15 @@ export function createRewriteRuntime(
       wiredFeatures.connectionService.cleanup();
       wiredFeatures.receiveEventSourceBridge.clear();
     },
+  };
+}
+
+function createNoOpPersistence(): FeaturePersistence {
+  return {
+    async load() { return {}; },
+    async saveFrames() {},
+    async saveConnections() {},
+    async saveSettings() {},
+    async saveAll() {},
   };
 }
