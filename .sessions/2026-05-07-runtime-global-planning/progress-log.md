@@ -116,3 +116,63 @@
 - 12 个 known-gap 测试（7 reconnect + 4 expression + 1 bootstrap）
 - GS1: JSON 持久化为内存态 stub（与持久化缺口重叠）
 - GS2: variableProvider 为 noop
+
+## 2026-05-18 甲方对接闭环讨论
+
+### 背景
+
+拿到甲方 V1.0.1 接口文档（31 个 HTTPS 接口），需要确认"甲方控制我们任务、我们回传结果"的链路是否闭环。
+专题记录：`.sessions/2026-05-18-northbound-integration/`
+
+### 已拍板决策
+
+**核心映射**
+- 甲方 testCase = 我们的 task（TaskDefinition），不是帧，不是独立用例实体
+- setTestTask 的 testCaseInfo[] 每项 → 一个 task 实例
+- task 典型 steps = send step（发帧）+ wait-condition step（等接收帧校验参数）
+- verdict 映射：wait-condition matched → success，timeout/不匹配 → fail，被 stop → tbd
+
+**MVP 接口（6 个）**
+- setTestTask（甲方→我们）：下发任务
+- controlTestTask（甲方→我们）：abort/pause/continue/stop 直接映射 task lifecycle
+- testCaseResultReport（我们→甲方）：task 终态 verdict 翻译上报
+- msgReport（我们→甲方）：步骤进度实时上报（缺 step 事件驱动，需补）
+- heartbeat（甲方→我们）：心跳响应
+- getSubSysState（甲方→我们）：状态查询响应
+
+**架构决策**
+- HTTPS server 放 main process（传输层），业务逻辑在 renderer，IPC bridge 通信
+- northbound 做独立 feature，不合并到 command-ingress
+- 翻译层在 northbound feature 内（inbound-translator + outbound-translator）
+- executionPlan 按顺序执行（不做并行），parallel=true 层 = 多 task 实例同时运行
+
+**不做的**
+- 测试数据文件（testDataFileTranslationComplete）
+- 精细测试报告（checkPoints 详细对比、statisticsItems 等）
+- 用例库管理（CRUD、菜单树）
+- FTP 文件上传（getTestCaseAll 的 FTP 暂不实现，待确认）
+
+### 确认缺失（需实现）
+
+| 缺失 | 影响 | 改动范围 |
+|------|------|---------|
+| step 级事件通知 | msgReport 无驱动源 | task 执行循环加回调 hook |
+| HTTPS outbound client | 无法向甲方 POST 数据 | platform facade 新增 |
+| FTP 上传 | getTestCaseAll 文件上传无通道 | platform facade 新增 |
+| result 自动收集 | 需手动调 collectResult | northbound feature 接线 |
+
+### 待验证（G2、G5）
+
+- G2: step 名称映射 — TaskStepDefinition 有没有 name/label 字段
+- G5: getTestCaseAll — 甲方 JSON 格式哪些字段必填，task 定义是否自然覆盖
+
+### 待甲方确认（2 条）
+
+1. setTestTask 的 immediate=false 时，后续怎么触发任务开始？
+2. isEnd=false 分批下发，实际使用中是否总是一次发完？
+
+### 下一步
+
+- 验证 G2、G5 gap
+- 进入 northbound feature design
+- 同时推进：持久化、Runtime bootstrap、Receive 页面

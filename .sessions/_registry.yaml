@@ -1,0 +1,14 @@
+sessions:
+  - slug: 2026-05-07-runtime-global-planning
+    title: 重写运行时全局规划
+    status: dormant
+    created: 2026-05-07
+    last_updated: 2026-05-15
+    description: 运行时各模块实现进度、技术债、页面状态追踪
+
+  - slug: 2026-05-18-northbound-integration
+    title: 甲方对接闭环分析
+    status: active
+    created: 2026-05-18
+    last_updated: 2026-05-18
+    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项
