@@ -34,6 +34,10 @@ export type {
 export type { ConnectionResourceCandidate, ConnectionTransportAdapter } from './adapters';
 export { createRealSerialAdapter } from './adapters';
 export type { CreateRealSerialAdapterOptions, RealSerialAdapter } from './adapters';
+export { createRealNetworkAdapter } from './adapters';
+export type { CreateRealNetworkAdapterOptions } from './adapters';
+export { createCompositeAdapter } from './adapters';
+export type { CreateCompositeAdapterOptions } from './adapters';
 
 // Test utilities (used by runtime integration tests)
 export { createFakeConnectionTransportAdapter } from './adapters/test-exports';

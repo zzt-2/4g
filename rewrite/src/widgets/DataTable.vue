@@ -54,7 +54,7 @@ const showSelection = computed(() => props.selection !== 'none');
     @row-click="(_evt: MouseEvent, row: T, index: number) => emit('row-click', row, index, _evt)"
   >
     <template #no-data>
-      <div class="text-center w-full q-pa-lg rw-text-label">
+      <div class="text-center w-full p-4 rw-text-label">
         暂无数据
       </div>
     </template>

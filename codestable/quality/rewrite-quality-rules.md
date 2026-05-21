@@ -304,6 +304,34 @@ MUST NOT:
 - 用 Vitest 声明 Electron runtime、打包态 package、真实串口/TCP/UDP/SCOE 硬件或 customer closure 已完成。
 - 用 auto-import 隐藏业务依赖；若引入 auto-import，只允许 Vue、Vue Router、Pinia 等基础框架 API，禁止自动导入 feature service、platform facade、runtime、store、feature public API、adapter 或带业务 owner 的 helper。
 
+### R17. Expression conditions must evaluate to boolean `true`
+
+MUST:
+
+- Expression condition 表达式必须求值为 `boolean true`（`=== true` 严格比较）。
+- 所有 expression condition 必须是显式比较表达式（`>`、`<`、`==`、`>=`、`<=`、`!=`）或布尔字面量 `'true'`/`'false'`。
+
+MUST NOT:
+
+- 裸数字作为 condition（`'1'` 求值为数字 1，不触发分支）。
+- 裸变量作为 condition（`'x'` 求值为变量值，非布尔时不触发）。
+
+WHY: `evaluateConditional` 使用 `condValue === true` 严格比较。`'1'`、`'x'`（x 为正数）等 truthy 值不触发条件分支。此行为同时影响 receive expression-pass 和 send frame-resolver，是表达式消费方最容易犯的错误。
+
+### R18. Config layer merging must not silently drop safety constraints
+
+MUST:
+
+- 配置分层合并（卫星覆盖基础、实例覆盖模板、子 scope 覆盖父 scope）时，子层省略的安全约束字段必须显式继承自父层。
+- 若子层确认需要降级或去掉某个安全约束（如去掉 checksum），必须在配置中显式标记（如 `checksumOverride: 'none'`），不允许靠"省略字段"隐式跳过。
+
+MUST NOT:
+
+- 靠子配置省略字段来静默跳过父配置的校验和、范围检查、方向校验等安全约束。
+- 在合并逻辑中用"有子配置就用子配置、否则用父配置"的简单覆盖策略处理安全相关字段。
+
+WHY: SCOE adapter 的 `getCommandConfigs()` 合并卫星配置 + 基础配置时，卫星版同名 command 覆盖基础版。如果卫星 `send_frame` 没配 checksums，基础版带 checksum 的 `send_frame` 就被静默替换，校验和验证消失。任何"子配置覆盖父配置"的场景都有此风险。
+
 ## 5. Boundary Exceptions
 
 边界例外允许存在，但必须登记。
@@ -390,6 +418,15 @@ Vitest 是 core/service/adapter/selector 的默认单测栈。页面交互先走
 - 页面入口、文件对话框、设置、状态显示等 manual checklist 项。
 - Electron runtime、打包态 data path、真实串口/TCP/UDP/SCOE、高速链路、HTTP/FTP、northbound 和 customer closure 是否涉及，以及未验证时的 blocker。
 - completion claim 中必须明确哪些验证已完成、哪些没有声明完成。
+
+### 集成测试编写规范
+
+测试必须测真实的东西，不测运行时的内部调度：
+
+- **禁止复制生产代码到测试文件**。如果测试需要访问某个未导出的类或函数，优先从生产代码中 `export` 它（可标注 `@internal`），不要在测试文件里抄一份。复制品不会随生产代码同步更新，等于没测。
+- **禁止用 setTimeout(0)、Promise 竞争、advanceTimersByTime(0) 等手段测试调用顺序**。调用顺序依赖 V8 microtask 队列的内部调度，在 CI 环境不稳定。改为用因果链验证：A 失败时 B 是否仍被调用、A 成功时 B 是否收到正确输入。
+- **测试中发现的一行可修 bug，当场修掉并更新测试期望**。不要把生产 bug freeze 成 `expect().rejects.toThrow()` 或"known behavior"就放过。修法包括：加 null check、补 await、移除 `!` non-null assertion。修完后测试期望从"会崩"改为"正确处理"。
+- **ConditionTerm 的 AND/OR 组合是左结合、无优先级**。`A AND B OR C` 的实际求值是 `(A AND B) OR C`，不是 `A AND (B OR C)`。多条件混合 AND/OR 时，必须在设计文档和 checklist 中显式标注期望的求值顺序，不允许依赖"C 风格优先级"的直觉。
 
 ## 9. Quality Gate
 

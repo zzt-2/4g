@@ -96,6 +96,8 @@ function compareRuleSegment(
       return actualHex.includes(expectedHex);
     case 'not_contains':
       return !actualHex.includes(expectedHex);
+    case 'any':
+      return true;
     default:
       return false;
   }

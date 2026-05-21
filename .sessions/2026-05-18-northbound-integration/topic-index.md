@@ -10,9 +10,11 @@
 
 ### S001 — 闭环讨论与决策拍板
 - 完整读入甲方文档并拆分为 11 个文件（31 接口），存放在 `rewrite/docs/甲方文档/集成测试系统与各二级子系统接口设计-拆分/`
-- 对照我方 6 份系统文档 + task 系统代码 + 甲方 4 个核心接口，完成 5 个问题分析
-- 代码级验证 result/task/platform 实际实现状态
-- 拍板所有核心决策
+- 并行 3 个子 agent 读取：我方 6 份 northbound 文档、task 系统代码+设计、甲方 4 个核心接口详细规格
+- 完成 5 个问题分析（Q1 闭环完整性、Q2 HTTPS 放哪、Q3 翻译层形状、Q4 与 command-ingress 关系、Q5 旧 gap 有效性）
+- 代码级验证 result/task/platform 实际实现状态（另派 1 个 explore agent 查代码）
+- 拍板所有核心决策（4 轮决策演进：初始 → testCase=task → verdict 依据确认 → 甲方回复）
+- 产出甲方待确认 2 条 → 甲方回复 immediate=true/isEnd=true → 待确认项清零
 
 ## 已确认结论
 
@@ -76,11 +78,12 @@
 | result 自动收集 | 需手动调 collectResult | northbound feature 接线 |
 | 报告生成 | 只有 placeholder | northbound feature 实现 |
 
-## 待甲方确认（2 条）
+## 甲方已确认
 
-1. **任务启动方式**：你们的 setTestTask 接口有个 immediate 字段，如果 immediate=false（不立即执行），后续由哪个接口、哪个动作来触发任务开始执行？是 controlTestTask 的 continue 吗？还是实际使用中你们都是 immediate=true？
+1. **immediate 始终 true** — 收到 setTestTask 直接 createTask + startTask，不需要延迟启动逻辑
+2. **isEnd 始终 true** — 一次下发全部 testCaseInfo，不需要多批次拼装
 
-2. **任务下发批次**：setTestTask 有个 isEnd 字段，支持分多次下发拼成一个完整任务。实际使用中你们是一次发完（isEnd=true），还是会分多批发？
+甲方说明：接口参照了原入网认证的一二级接口，部分字段暂未用到。
 
 ## 待验证（G2、G5）
 
@@ -107,7 +110,16 @@
 
 ## 未决项
 
-- getTestCaseAll 是否纳入 MVP？甲方查用例，我们需要把 task 定义转成甲方 JSON 格式并通过 FTP 上传
+- getTestCaseAll 是否纳入 MVP？甲方查用例，需要把 task 定义转成甲方 JSON 格式并通过 FTP 上传
 - HTTPS 库选型（Fastify/Express）
 - taskId ↔ instanceId 映射表放在哪里（northbound feature 内部？runtime？）
 - sessionId 生命周期管理
+- step 名称映射方案（G2 待验证）
+- TLS 配置（自签名？双向？）
+
+## 下一步
+
+1. 完成 runtime 真实连接能力（串口/TCP mock → 真实）
+2. 验证 G2（step 名称映射）和 G5（getTestCaseAll 格式）
+3. 本地端到端验证：建 task → 发帧 → 收响应 → 条件匹配 → verdict
+4. 以上全通后设计实施 northbound feature

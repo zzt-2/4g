@@ -8,9 +8,11 @@ import {
   type SettingsService,
 } from '@/features/settings';
 import {
-  createStorageLocalReader,
+  createStorageLocalService,
   type StorageLocalReader,
+  type StorageLocalService,
 } from '@/features/storage-local-baseline';
+import { createFakeLocalMaterialAdapter } from '@/features/storage-local-baseline/adapters/fake-local-material-adapter';
 import {
   createConnectionService,
   type ConnectionService,
@@ -34,6 +36,10 @@ import {
   type CommandIngressService,
   type ScoeGlobalConfig,
 } from '@/features/command-ingress';
+import {
+  createDisplayService,
+  type DisplayService,
+} from '@/features/display';
 import { ConnectionBackedSendWriter } from './bridges/connection-backed-writer';
 import { ConnectionBackedTargetResolver } from './bridges/connection-backed-target-resolver';
 import { ReceiveEventSourceBridge } from './bridges/receive-event-source-bridge';
@@ -43,8 +49,10 @@ export interface RewriteWiredFeatures {
   readonly frameService: FrameAssetService;
   readonly settingsService: SettingsService;
   readonly storageReader: StorageLocalReader;
+  readonly storageService: StorageLocalService;
   readonly connectionService: ConnectionService;
   readonly receiveService: ReceiveService;
+  readonly displayService: DisplayService;
   readonly sendService: SendService;
   readonly taskService: TaskService;
   readonly commandIngressService: CommandIngressService;
@@ -59,13 +67,9 @@ function createDefaultFrameService(): FrameAssetService {
   return createFrameAssetService();
 }
 
-function createDefaultStorageReader(): StorageLocalReader {
-  return createStorageLocalReader(() => ({
-    records: [],
-    historyMaterials: [],
-    csvMaterials: [],
-    legacyMaterials: [],
-  }));
+function createDefaultStorageService(): StorageLocalService {
+  const adapter = createFakeLocalMaterialAdapter();
+  return createStorageLocalService({ adapter });
 }
 
 export function wireFeatures(
@@ -75,7 +79,8 @@ export function wireFeatures(
   const frameService = createDefaultFrameService();
   const frameReader = frameService;
   const settingsService = createSettingsService();
-  const storageReader = createDefaultStorageReader();
+  const storageService = createDefaultStorageService();
+  const storageReader = storageService;
 
   // L1: needs adapter
   const connectionService = createConnectionService({
@@ -84,6 +89,7 @@ export function wireFeatures(
 
   // L2: needs L0 + L1
   const receiveService = createReceiveService({ frameReader });
+  const displayService = createDisplayService();
 
   const sendWriter = new ConnectionBackedSendWriter(connectionService);
   const targetResolver = new ConnectionBackedTargetResolver(connectionService);
@@ -137,8 +143,10 @@ export function wireFeatures(
     frameService,
     settingsService,
     storageReader,
+    storageService,
     connectionService,
     receiveService,
+    displayService,
     sendService,
     taskService,
     commandIngressService,

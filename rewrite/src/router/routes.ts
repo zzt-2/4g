@@ -10,6 +10,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'frames', component: () => import('../pages/FrameListPage.vue') },
       { path: 'frames/editor/:frameId?', component: () => import('../pages/FrameEditorPage.vue') },
       { path: 'send', component: () => import('../pages/SendPage.vue') },
+      { path: 'display', component: () => import('../pages/DisplayPage.vue') },
       { path: 'tasks', component: () => import('../pages/TaskManagePage.vue') },
       { path: 'command-ingress', component: () => import('../pages/CommandIngressPage.vue') },
     ],

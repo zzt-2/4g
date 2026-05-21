@@ -34,7 +34,7 @@ const stepStatuses = computed(() => {
 
   return steps.map((step, idx) => {
     const result = resultMap.get(idx);
-    let status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' = 'pending';
+    let status: 'o_pending' | 'running' | 'done' | 'failed' | 'skipped' = 'o_pending';
     if (result) {
       if (result.appliedPolicy === 'skip-step') {
         status = 'skipped';
@@ -53,8 +53,8 @@ const stepStatuses = computed(() => {
 function formatStepResult(step: TaskStepDefinition, result: TaskStepResult | undefined): string {
   if (!result) return '';
   switch (step.kind) {
-    case 'send':
-      return result.kind === 'send'
+    case 'o_send':
+      return result.kind === 'o_send'
         ? result.sendResult.kind === 'sent' ? '发送成功' : '发送失败'
         : '';
     case 'wait-condition':
@@ -119,7 +119,7 @@ const progressPct = computed(() => {
         class="flex items-center gap-2"
       >
         <q-icon
-          :name="item.status === 'running' ? 'pending' : item.status === 'done' ? 'check_circle' : item.status === 'failed' ? 'error' : item.status === 'skipped' ? 'skip_next' : 'radio_button_unchecked'"
+          :name="item.status === 'running' ? 'o_pending' : item.status === 'done' ? 'o_check_circle' : item.status === 'failed' ? 'o_error' : item.status === 'skipped' ? 'o_skip_next' : 'o_radio_button_unchecked'"
           :color="item.status === 'done' ? 'positive' : item.status === 'failed' ? 'negative' : item.status === 'running' ? 'primary' : 'grey'"
           size="xs"
         />
@@ -144,18 +144,18 @@ const progressPct = computed(() => {
         flat
         no-caps
         dense
-        icon="pause"
+        icon="o_pause"
         label="暂停"
         color="warning"
         size="sm"
-        @click="emit('pause')"
+        @click="emit('o_pause')"
       />
       <q-btn
         v-if="isPaused"
         flat
         no-caps
         dense
-        icon="play_arrow"
+        icon="o_play_arrow"
         label="恢复"
         color="primary"
         size="sm"
@@ -166,11 +166,11 @@ const progressPct = computed(() => {
         flat
         no-caps
         dense
-        icon="stop"
+        icon="o_stop"
         label="停止"
         color="negative"
         size="sm"
-        @click="emit('stop')"
+        @click="emit('o_stop')"
       />
     </div>
   </div>

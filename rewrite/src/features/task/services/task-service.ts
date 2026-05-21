@@ -63,7 +63,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
 
   // Execution control
   const abortResolvers = new Map<string, () => void>();
-  const settleResolvers = new Map<string, () => void>();
+  const settleResolvers = new Map<string, Set<() => void>>();
 
   // Condition matching
   const conditionRegistry = new ConditionRegistry();
@@ -154,6 +154,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
     } finally {
       releaseSubscription();
       abortResolvers.delete(instanceId);
+      lifecycle.resolveSettle(instanceId);
     }
   }
 
@@ -270,7 +271,12 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       if (!inst || isTerminal(inst.lifecycle)) return;
 
       await new Promise<void>((resolve) => {
-        settleResolvers.set(instanceId, resolve);
+        let resolvers = settleResolvers.get(instanceId);
+        if (!resolvers) {
+          resolvers = new Set();
+          settleResolvers.set(instanceId, resolvers);
+        }
+        resolvers.add(resolve);
       });
     },
   };

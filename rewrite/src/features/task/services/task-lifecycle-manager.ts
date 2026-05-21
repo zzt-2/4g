@@ -9,7 +9,7 @@ export interface LifecycleContext {
   state: TaskStateContainer;
   conditionRegistry: ConditionRegistry;
   abortResolvers: Map<string, () => void>;
-  settleResolvers: Map<string, () => void>;
+  settleResolvers: Map<string, Set<() => void>>;
   now: () => string;
 }
 
@@ -37,10 +37,10 @@ export function createLifecycleManager(ctx: LifecycleContext) {
   }
 
   function resolveSettle(instanceId: string): void {
-    const resolve = ctx.settleResolvers.get(instanceId);
-    if (resolve) {
+    const resolvers = ctx.settleResolvers.get(instanceId);
+    if (resolvers) {
       ctx.settleResolvers.delete(instanceId);
-      resolve();
+      for (const resolve of resolvers) resolve();
     }
   }
 

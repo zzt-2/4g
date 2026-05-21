@@ -99,11 +99,11 @@ function removeConditional(index: number): void {
 <template>
   <div>
     <!-- Variable mappings -->
-    <div class="rw-text-label text-caption q-mb-sm">变量映射</div>
+    <div class="rw-text-label text-caption mb-2">变量映射</div>
     <div
       v-for="(variable, vi) in expression.variables"
       :key="varKeys[vi]"
-      class="flex items-center gap-2 q-mb-xs"
+      class="flex items-center gap-2 mb-1"
     >
       <q-input
         outlined
@@ -156,7 +156,7 @@ function removeConditional(index: number): void {
         flat
         round
         dense
-        icon="delete"
+        icon="o_delete"
         size="xs"
         color="negative"
         @click="removeVariable(vi)"
@@ -166,7 +166,7 @@ function removeConditional(index: number): void {
       flat
       dense
       no-caps
-      icon="add"
+      icon="o_add"
       label="添加变量"
       color="primary"
       size="sm"
@@ -174,11 +174,11 @@ function removeConditional(index: number): void {
     />
 
     <!-- Conditional expressions -->
-    <div class="rw-text-label text-caption q-mt-md q-mb-sm">条件表达式</div>
+    <div class="rw-text-label text-caption mt-3 mb-2">条件表达式</div>
     <div
       v-for="(cond, ci) in expression.expressions"
       :key="condKeys[ci]"
-      class="q-mb-sm"
+      class="mb-2"
     >
       <div class="flex items-center gap-2">
         <q-input
@@ -201,7 +201,7 @@ function removeConditional(index: number): void {
           flat
           round
           dense
-          icon="delete"
+          icon="o_delete"
           size="xs"
           color="negative"
           @click="removeConditional(ci)"
@@ -212,7 +212,7 @@ function removeConditional(index: number): void {
       flat
       dense
       no-caps
-      icon="add"
+      icon="o_add"
       label="添加表达式"
       color="primary"
       size="sm"

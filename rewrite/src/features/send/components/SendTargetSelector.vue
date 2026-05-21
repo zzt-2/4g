@@ -55,10 +55,10 @@ const targetOptions = computed(() =>
     class="w-full"
   >
     <template #prepend>
-      <q-icon name="send" size="xs" />
+      <q-icon name="o_send" size="xs" />
     </template>
     <template #no-option>
-      <div class="q-pa-sm rw-text-desc">
+      <div class="p-2 rw-text-desc">
         暂无可用目标，请先连接设备
       </div>
     </template>

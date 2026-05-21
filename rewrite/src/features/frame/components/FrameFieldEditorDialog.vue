@@ -128,12 +128,12 @@ const dialogVisible = computed({
       <!-- Header -->
       <q-card-section class="flex items-center justify-between rw-divider-b">
         <span class="text-h6">{{ isNew ? '添加字段' : '编辑字段' }}</span>
-        <q-btn flat round dense icon="close" @click="tryClose" />
+        <q-btn flat round dense icon="o_close" @click="tryClose" />
       </q-card-section>
 
       <!-- Body -->
       <q-card-section
-        class="flex gap-6 q-py-md rw-dialog-scroll-body"
+        class="flex gap-6 py-3 rw-dialog-scroll-body"
       >
         <!-- Left: basic properties -->
         <div class="flex-1">
@@ -152,7 +152,7 @@ const dialogVisible = computed({
               :model-value="workingField.id"
               label="字段ID"
               :disable="!isNew"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: string) => updateField({ id: v })"
             />
             <q-select
@@ -163,10 +163,10 @@ const dialogVisible = computed({
               emit-value
               map-options
               label="数据类型 *"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: string) => updateField({ dataType: v })"
             />
-            <div class="flex gap-2 q-mt-sm">
+            <div class="flex gap-2 mt-2">
               <q-input
                 outlined
                 dense
@@ -195,7 +195,7 @@ const dialogVisible = computed({
               emit-value
               map-options
               label="输入类型 *"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: string) => updateField({ inputType: v })"
             />
             <q-input
@@ -203,7 +203,7 @@ const dialogVisible = computed({
               dense
               :model-value="workingField.defaultValue"
               label="默认值"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: string) => updateField({ defaultValue: v || undefined })"
             />
             <q-select
@@ -214,10 +214,10 @@ const dialogVisible = computed({
               emit-value
               map-options
               label="参与类型 *"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: string) => updateField({ dataParticipationType: v })"
             />
-            <div class="flex gap-4 q-mt-sm">
+            <div class="flex gap-4 mt-2">
               <q-toggle
                 :model-value="workingField.configurable"
                 label="可配置"
@@ -233,7 +233,7 @@ const dialogVisible = computed({
               v-if="workingField.dataType === 'bytes'"
               :model-value="workingField.isASCII ?? false"
               label="ASCII"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: boolean) => updateField({ isASCII: v })"
             />
             <q-input
@@ -242,7 +242,7 @@ const dialogVisible = computed({
               autogrow
               :model-value="workingField.description"
               label="描述"
-              class="q-mt-sm"
+              class="mt-2"
               @update:model-value="(v: string) => updateField({ description: v || undefined })"
             />
 
@@ -250,7 +250,7 @@ const dialogVisible = computed({
             <q-expansion-item
               dense
               label="校验和配置"
-              class="q-mt-sm"
+              class="mt-2"
               @show="ensureChecksum"
             >
               <template v-if="workingField.validOption">
@@ -270,12 +270,12 @@ const dialogVisible = computed({
                     emit-value
                     map-options
                     label="校验方法"
-                    class="q-mt-sm"
+                    class="mt-2"
                     @update:model-value="(v: string) => updateField({
                       validOption: { ...workingField.validOption!, checksumMethod: v }
                     })"
                   />
-                  <div class="flex gap-2 q-mt-sm">
+                  <div class="flex gap-2 mt-2">
                     <q-input
                       outlined
                       dense

@@ -1,3 +1,7 @@
+<script lang="ts">
+const REQUIRED_RULE = [(val: string) => !!val?.trim() || '此项为必填'];
+</script>
+
 <script setup lang="ts">
 import type { FrameAsset, FrameDirection } from '@/features/frame';
 import { DIRECTION_OPTIONS } from './field-labels';
@@ -14,14 +18,12 @@ const emit = defineEmits<{
 function update(patch: Partial<FrameAsset>): void {
   emit('update:frame', patch);
 }
-
-const requiredRule = (val: string) => !!val?.trim() || '此项为必填';
 </script>
 
 <template>
   <q-card flat bordered>
     <q-card-section>
-      <div class="rw-text-label text-body2 q-mb-md">基本信息</div>
+      <div class="rw-text-label text-body2 mb-3">基本信息</div>
       <q-form>
         <div class="flex flex-wrap gap-4">
           <q-input
@@ -29,7 +31,7 @@ const requiredRule = (val: string) => !!val?.trim() || '此项为必填';
             dense
             :model-value="frame.name"
             label="帧名称 *"
-            :rules="[requiredRule]"
+            :rules="REQUIRED_RULE"
             class="min-w-[200px] flex-1"
             @update:model-value="(v: string) => update({ name: v })"
           />
@@ -38,7 +40,7 @@ const requiredRule = (val: string) => !!val?.trim() || '此项为必填';
             dense
             :model-value="frame.id"
             label="帧ID *"
-            :rules="[requiredRule]"
+            :rules="REQUIRED_RULE"
             :disable="!isNew"
             class="min-w-[200px] flex-1"
             @update:model-value="(v: string) => update({ id: v })"
@@ -55,7 +57,7 @@ const requiredRule = (val: string) => !!val?.trim() || '此项为必填';
             @update:model-value="(v: string) => update({ direction: v as FrameDirection })"
           />
         </div>
-        <div class="flex flex-wrap gap-4 q-mt-md">
+        <div class="flex flex-wrap gap-4 mt-3">
           <q-input
             outlined
             dense
@@ -79,7 +81,7 @@ const requiredRule = (val: string) => !!val?.trim() || '此项为必填';
           autogrow
           :model-value="frame.description"
           label="描述"
-          class="q-mt-md"
+          class="mt-3"
           @update:model-value="(v: string) => update({ description: v || undefined })"
         />
       </q-form>

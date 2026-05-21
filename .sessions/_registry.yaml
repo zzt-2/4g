@@ -1,4 +1,11 @@
 sessions:
+  - slug: 2026-04-23-rewrite-main-thread
+    title: 重写主线全程记录
+    status: active
+    created: 2026-04-23
+    last_updated: 2026-05-19
+    description: 东方红上位机重写项目从架构设计到 UI 实现的完整推进记录，覆盖 10 个阶段
+
   - slug: 2026-05-07-runtime-global-planning
     title: 重写运行时全局规划
     status: dormant
@@ -12,3 +19,10 @@ sessions:
     created: 2026-05-18
     last_updated: 2026-05-18
     description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项
+
+  - slug: 2026-05-19-integration-testing
+    title: 集成测试体系建立
+    status: dormant
+    created: 2026-05-19
+    last_updated: 2026-05-20
+    description: 从设计文档、旧系统行为、新系统代码中提取集测范围，建立端到端集成测试体系。36 条集测项全部完成（343 tests passing）。后续追加见 S006 §十。

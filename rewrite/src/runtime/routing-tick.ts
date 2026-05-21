@@ -1,5 +1,7 @@
 import type { ConditionMatchInput } from '@/features/task';
 import { ConnectionToReceiveInputSource } from './bridges/connection-to-receive';
+import { fanOutToDisplay } from './bridges/receive-display-bridge';
+import { fanOutToStorage } from './bridges/receive-storage-bridge';
 import type { RewriteWiredFeatures } from './feature-wiring';
 
 export interface RoutingTickResult {
@@ -35,6 +37,9 @@ export async function routingTick(
   const source = new ConnectionToReceiveInputSource(dataEvents);
   const receiveOutcome =
     await features.receiveService.drainInputSource(source);
+
+  fanOutToDisplay(features.displayService, receiveOutcome.outcomes);
+  await fanOutToStorage(features.storageService, receiveOutcome.outcomes);
 
   const matchInputs: ConditionMatchInput[] = [];
   for (const outcome of receiveOutcome.outcomes) {

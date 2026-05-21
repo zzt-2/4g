@@ -3,6 +3,7 @@ import type { TaskService } from '../services';
 import type { ReadonlyTaskInstanceState } from '../core';
 import { selectActiveInstances, selectTaskHistory } from '../selectors';
 import { resolveDisplayStatus } from '../components/taskStatusMap';
+import { SCHEDULE_KIND_MAP } from '../components/scheduleKindMap';
 import { calculateProgress } from '../core';
 import type { TaskTableRow } from '../components/task-columns';
 import type { HistoryTableRow } from '../components/history-columns';
@@ -12,10 +13,12 @@ export function toTaskRow(inst: ReadonlyTaskInstanceState): TaskTableRow {
   const progress = calculateProgress(inst);
   const total = progress.stepsTotal || 1;
   const pct = Math.round((progress.stepsCompleted / total) * 100);
+  const kind = inst.definitionRef.schedule.kind;
   return {
     instanceId: inst.instanceId,
     name: inst.definitionRef.name,
-    scheduleKind: inst.definitionRef.schedule.kind,
+    scheduleKind: kind,
+    scheduleKindDisplay: SCHEDULE_KIND_MAP[kind] ?? { color: 'grey', label: kind },
     lifecycle: inst.lifecycle,
     displayStatus,
     progressPercent: pct,
@@ -30,10 +33,12 @@ export function toHistoryRow(inst: ReadonlyTaskInstanceState): HistoryTableRow {
   const endTime = endRef ? new Date(endRef).getTime() : Date.now();
   const elapsedMs = startedAt > 0 ? Math.max(0, endTime - startedAt) : 0;
   const finishedAt = inst.completedAt ?? inst.stoppedAt ?? inst.failedAt ?? '';
+  const kind = inst.definitionRef.schedule.kind;
   return {
     instanceId: inst.instanceId,
     name: inst.definitionRef.name,
-    scheduleKind: inst.definitionRef.schedule.kind,
+    scheduleKind: kind,
+    scheduleKindDisplay: SCHEDULE_KIND_MAP[kind] ?? { color: 'grey', label: kind },
     lifecycle: inst.lifecycle,
     elapsedMs,
     finishedAt,

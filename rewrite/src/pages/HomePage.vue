@@ -5,7 +5,10 @@ import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useRewritePlatform } from '@/app/useRewritePlatform';
 import { usePolling } from '@/shared/composables';
 import SummaryMetricGrid from '@/widgets/SummaryMetricGrid.vue';
+import StatusBadge from '@/widgets/StatusBadge.vue';
+import { listFrameAssetSummaries } from '@/features/frame';
 import type { ConnectionSummary } from '@/features/connection';
+import { connectionStatusMap } from '@/features/connection/components/connectionStatusMap';
 
 interface SummaryMetric {
   readonly id: string;
@@ -86,7 +89,7 @@ const quickActions: readonly QuickAction[] = [
 ];
 
 function refreshData(): void {
-  const summaries = frameService.listFrameAssetSummaries();
+  const summaries = listFrameAssetSummaries(frameService.getSnapshot(), {});
   frameCount.value = summaries.length;
   fieldCount.value = summaries.reduce((sum, f) => sum + f.fieldCount, 0);
   selectedFrameName.value = frameService.getSelectedFrame()?.name ?? null;
@@ -115,15 +118,6 @@ function navigateTo(to: string): void {
   void router.push(to);
 }
 
-function connectionStatusColor(lifecycle: string): string {
-  switch (lifecycle) {
-    case 'connected': return 'positive';
-    case 'connecting': return 'warning';
-    case 'error': return 'negative';
-    default: return 'grey';
-  }
-}
-
 onMounted(() => {
   refreshData();
   polling.start();
@@ -131,7 +125,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <q-page class="home-page p-6">
+  <q-page class="home-page p-6 min-h-full">
     <section class="home-page__content gap-4 mx-auto">
       <!-- Header -->
       <div class="home-page__header gap-4">
@@ -175,11 +169,7 @@ onMounted(() => {
         <h2 class="home-page__section-title pb-1">连接状态</h2>
         <div class="home-page__conn-list">
           <div v-for="conn in connectionSummaries" :key="conn.connectionId" class="home-page__conn-item gap-3 py-2.5 px-4">
-            <q-badge
-              :color="connectionStatusColor(conn.lifecycle)"
-              :label="conn.lifecycle"
-              outline
-            />
+            <StatusBadge :status="conn.lifecycle" :status-map="connectionStatusMap" />
             <span class="home-page__conn-label">{{ conn.label }}</span>
             <span class="rw-text-desc">{{ conn.routeLabel }}</span>
           </div>
@@ -217,7 +207,6 @@ onMounted(() => {
 
 .home-page {
   background: var(--rw-color-surface-app);
-  min-height: 100%;
 }
 
 .home-page__content {
@@ -357,7 +346,7 @@ onMounted(() => {
 
 @media (max-width: tokens.rw-breakpoint('page-compact')) {
   .home-page {
-    padding: 16px;
+    padding: var(--rw-space-4);
   }
 
   .home-page__header {

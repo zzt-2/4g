@@ -19,7 +19,7 @@ const PREVIEW_FIELD_COUNT = 5;
   <div v-if="frame" class="flex flex-col h-full rw-panel-base rw-divider-l">
     <div class="flex items-center justify-between p-4 rw-divider-b">
       <span class="text-sm font-semibold rw-text-value">帧详情</span>
-      <q-btn flat round dense icon="close" size="sm" @click="emit('close')" />
+      <q-btn flat round dense icon="o_close" size="sm" @click="emit('o_close')" />
     </div>
 
     <div class="flex-1 overflow-y-auto p-4">
@@ -63,7 +63,7 @@ const PREVIEW_FIELD_COUNT = 5;
             :key="field.id"
             class="flex items-center gap-2 text-xs"
           >
-            <span class="rw-text-value" style="min-width: 80px">{{ field.name }}</span>
+            <span class="rw-text-value min-w-20">{{ field.name }}</span>
             <span class="rw-text-desc">{{ field.dataType }}</span>
             <span class="rw-text-label">{{ field.length }}B</span>
           </div>
@@ -79,9 +79,9 @@ const PREVIEW_FIELD_COUNT = 5;
         unelevated
         color="primary"
         label="编辑帧"
-        icon="edit"
+        icon="o_edit"
         class="w-full"
-        @click="emit('edit', frame.id)"
+        @click="emit('o_edit', frame.id)"
       />
     </div>
   </div>

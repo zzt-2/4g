@@ -1,9 +1,8 @@
 import { inject, provide, type InjectionKey } from 'vue';
 import { createRewriteRuntime, type RewriteRuntime } from '@/runtime';
 import { getTransportFacade, getFileFacade, type FileFacade } from '@/platform';
-import { createRealSerialAdapter } from '@/features/connection';
+import { createRealSerialAdapter, createRealNetworkAdapter, createCompositeAdapter, type TransportConfig } from '@/features/connection';
 import type { FrameAsset } from '@/features/frame';
-import type { TransportConfig } from '@/features/connection';
 import { createFeaturePersistence, type FeaturePersistence } from '@/runtime/persistence';
 
 const rewriteRuntimeKey: InjectionKey<RewriteRuntime> = Symbol('rewrite-runtime');
@@ -13,7 +12,7 @@ export interface BootstrapResult {
   readonly mode: 'real' | 'noOp';
 }
 
-class LazyPersistence implements FeaturePersistence {
+export class LazyPersistence implements FeaturePersistence {
   private delegate: FeaturePersistence = {
     async load() { return {}; },
     async saveFrames() {},
@@ -37,10 +36,14 @@ export function bootstrapRewriteRuntime(): BootstrapResult {
   const transportFacade = getTransportFacade();
   const fileFacade = getFileFacade();
 
-  const connectionAdapter = transportFacade
+  const serialAdapter = transportFacade
     ? createRealSerialAdapter({ transport: transportFacade })
     : undefined;
-  const mode = connectionAdapter ? 'real' : 'noOp';
+  const networkAdapter = transportFacade
+    ? createRealNetworkAdapter({ transport: transportFacade })
+    : undefined;
+  const connectionAdapter = createCompositeAdapter({ serialAdapter, networkAdapter });
+  const mode = transportFacade ? 'real' : 'noOp';
 
   const lazyPersistence = new LazyPersistence();
   const runtime = createRewriteRuntime({ connectionAdapter }, lazyPersistence);

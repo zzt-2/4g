@@ -1,5 +1,6 @@
 import { defineConfig } from '#q-app/wrappers';
 import UnoCSS from 'unocss/vite';
+import VueDevTools from 'vite-plugin-vue-devtools';
 import { fileURLToPath, URL } from 'node:url';
 import unoConfig from './uno.config';
 
@@ -35,6 +36,7 @@ export default defineConfig(() => ({
 
       viteConf.plugins = viteConf.plugins ?? [];
       viteConf.plugins.push(UnoCSS(unoConfig));
+      viteConf.plugins.push(VueDevTools({ launchEditor: 'antigravity' }));
 
       // Externalize native modules for Electron main process
       viteConf.build = viteConf.build ?? {};
@@ -51,11 +53,14 @@ export default defineConfig(() => ({
 
   devServer: {
     open: false,
+    fs: {
+      allow: ['..'],
+    },
   },
 
   framework: {
     config: {},
-    plugins: [],
+    plugins: ['Dialog', 'Notify'],
   },
 
   animations: [],

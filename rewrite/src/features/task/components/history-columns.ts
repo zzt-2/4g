@@ -5,6 +5,7 @@ export interface HistoryTableRow {
   readonly instanceId: string;
   readonly name: string;
   readonly scheduleKind: string;
+  readonly scheduleKindDisplay: { readonly color: string; readonly label: string };
   readonly lifecycle: string;
   readonly elapsedMs: number;
   readonly finishedAt: string;

@@ -5,6 +5,7 @@ export interface TaskTableRow {
   readonly instanceId: string;
   readonly name: string;
   readonly scheduleKind: string;
+  readonly scheduleKindDisplay: { readonly color: string; readonly label: string };
   readonly lifecycle: string;
   readonly displayStatus: string;
   readonly progressPercent: number;

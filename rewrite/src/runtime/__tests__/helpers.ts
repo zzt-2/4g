@@ -11,6 +11,8 @@ import type {
   ReceiveStateSnapshot,
 } from '@/features/receive';
 import type { RewriteWiredFeatures } from '../feature-wiring';
+import type { DisplayService } from '@/features/display';
+import type { StorageLocalService } from '@/features/storage-local-baseline';
 import { ReceiveEventSourceBridge } from '../bridges/receive-event-source-bridge';
 
 // --- Shared snapshots ---
@@ -211,8 +213,32 @@ export function createMockWiredFeatures(
     frameReader: {},
     settingsService: {},
     storageReader: {},
+    storageService: {
+      getSnapshot: () => ({} as StorageLocalService['getSnapshot'] extends () => infer R ? R : never),
+      getMaterialIds: () => [],
+      getLocalRecords: () => [],
+      loadLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
+      appendLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
+      loadHistoryMaterials: async () => ({ ok: true, issues: [], snapshot: {} }),
+      createCsvFromLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
+      clearLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
+      reset: async () => ({ ok: true, issues: [], snapshot: {} }),
+    } as StorageLocalService,
     connectionService: createMockConnectionService(overrides.connectionService),
     receiveService: createMockReceiveService(overrides.receiveService),
+    displayService: {
+      getSnapshot: () => ({} as DisplayService['getSnapshot'] extends () => infer R ? R : never),
+      getPreferences: () => ({} as DisplayService['getPreferences'] extends () => infer R ? R : never),
+      getTable1Rows: () => [],
+      getTable2Rows: () => [],
+      getChartSeries: () => [],
+      getScatterProjection: () => ({ points: [], sampleCount: 0 }),
+      getAvailability: () => ({ available: false }),
+      updatePreferences: () => ({ ok: true, issues: [], snapshot: {} as DisplayService['getSnapshot'] extends () => infer R ? R : never }),
+      ingestSourceMaterial: () => ({ ok: true, issues: [], snapshot: {} as DisplayService['getSnapshot'] extends () => infer R ? R : never }),
+      clearProjection: () => ({ ok: true, issues: [], snapshot: {} as DisplayService['getSnapshot'] extends () => infer R ? R : never }),
+      reset: () => ({ ok: true, issues: [], snapshot: {} as DisplayService['getSnapshot'] extends () => infer R ? R : never }),
+    } as DisplayService,
     sendService: {},
     taskService: {},
     commandIngressService: {

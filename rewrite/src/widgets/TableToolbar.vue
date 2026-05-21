@@ -25,10 +25,10 @@ const emit = defineEmits<{
       @update:model-value="emit('update:searchModelValue', $event)"
     >
       <template #prepend>
-        <q-icon name="search" size="xs" />
+        <q-icon name="o_search" size="xs" />
       </template>
       <template v-if="searchModelValue" #append>
-        <q-icon name="close" class="cursor-pointer" size="xs" @click="emit('update:searchModelValue', '')" />
+        <q-icon name="o_close" class="cursor-pointer" size="xs" @click="emit('update:searchModelValue', '')" />
       </template>
     </q-input>
 
