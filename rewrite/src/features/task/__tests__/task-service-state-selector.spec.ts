@@ -784,3 +784,326 @@ describe('TaskService - state and selector integration', () => {
     expect(new Set(ids).size).toBe(3);
   });
 });
+
+// ========================================================================
+// Step repeat
+// ========================================================================
+
+describe('TaskService - step repeat', () => {
+  it('repeats send step up to maxCount', async () => {
+    const def: TaskDefinition = {
+      id: 'repeat-max',
+      name: 'Repeat Max',
+      schedule: { kind: 'immediate' },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: {
+          frameId: 'f1', targetId: 't1',
+          repeat: { maxCount: 3, intervalMs: 10 },
+        },
+      }],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 5 }, () => makeSentResult());
+    const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
+
+    service.startTask(instance.instanceId);
+    await settle(service, instance.instanceId, 2000);
+
+    const final = service.getInstance(instance.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    expect(fakeSend.calls.length).toBe(3);
+  });
+
+  it('repeats until condition is met', async () => {
+    let fieldValueCounter = 0;
+    const fakeSendSvc = createFakeSendService({ results: Array.from({ length: 15 }, () => makeSentResult()) });
+    const def: TaskDefinition = {
+      id: 'repeat-until',
+      name: 'Repeat Until',
+      schedule: { kind: 'immediate' },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: {
+          frameId: 'f1', targetId: 't1',
+          repeat: {
+            intervalMs: 10,
+            maxCount: 10,
+            until: [{ frameId: 'f1', fieldId: 'counter', operator: 'gte', threshold: 3 }],
+          },
+        },
+      }],
+      errorPolicy: { onFailure: 'stop' },
+    };
+
+    const svc = createTaskService({
+      sendService: fakeSendSvc,
+      receiveEventSource: createFakeReceiveEventSource(),
+      fieldValueProvider: () => ({ counter: ++fieldValueCounter }),
+      now: () => '2026-05-06T12:00:00.000Z',
+    });
+    const inst = svc.createTask(def);
+    svc.startTask(inst.instanceId);
+    await settle(svc, inst.instanceId, 2000);
+
+    const final = svc.getInstance(inst.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    // Should stop repeating when counter >= 3 (after ~3 sends)
+    expect(fakeSendSvc.calls.length).toBeGreaterThanOrEqual(3);
+    expect(fakeSendSvc.calls.length).toBeLessThan(10);
+  });
+
+  it('repeat stops when send fails and breaks iteration', async () => {
+    const def: TaskDefinition = {
+      id: 'repeat-fail',
+      name: 'Repeat Fail',
+      schedule: { kind: 'immediate' },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: {
+          frameId: 'f1', targetId: 't1',
+          repeat: { maxCount: 5, intervalMs: 10 },
+        },
+      }],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    // First succeeds, second fails
+    const results = [makeSentResult(), makeErrorResult()];
+    const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
+
+    service.startTask(instance.instanceId);
+    await settle(service, instance.instanceId, 2000);
+
+    const final = service.getInstance(instance.instanceId);
+    // Repeat send failure breaks the iteration loop; task completes (repeat doesn't trigger error policy)
+    expect(final?.lifecycle).toBe('completed');
+    expect(fakeSend.calls.length).toBe(2);
+  });
+
+  it('repeat with infinite maxCount (no maxCount)', async () => {
+    let callCount = 0;
+    const fakeSendSvc = createFakeSendService({
+      results: Array.from({ length: 50 }, () => makeSentResult()),
+    });
+    const def: TaskDefinition = {
+      id: 'repeat-infinite',
+      name: 'Repeat Infinite',
+      schedule: { kind: 'immediate' },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: {
+          frameId: 'f1', targetId: 't1',
+          repeat: { intervalMs: 5, until: [{ frameId: 'f1', fieldId: 'x', operator: 'eq', threshold: 1 }] },
+        },
+      }],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const svc = createTaskService({
+      sendService: fakeSendSvc,
+      receiveEventSource: createFakeReceiveEventSource(),
+      fieldValueProvider: () => {
+        callCount++;
+        return callCount >= 4 ? { x: 1 } : { x: 0 };
+      },
+      now: () => '2026-05-06T12:00:00.000Z',
+    });
+    const inst = svc.createTask(def);
+    svc.startTask(inst.instanceId);
+    await settle(svc, inst.instanceId, 2000);
+
+    const final = svc.getInstance(inst.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    expect(fakeSendSvc.calls.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+// ========================================================================
+// fieldVariations injection
+// ========================================================================
+
+describe('TaskService - fieldVariations injection', () => {
+  it('injects fieldVariations per iteration in timed task', async () => {
+    const def: TaskDefinition = {
+      id: 'fv-timed',
+      name: 'FieldVariations Timed',
+      schedule: { kind: 'timer', intervalMs: 10 },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: { frameId: 'f1', targetId: 't1', userFieldValues: { cmd: 'BASE' } },
+      }],
+      fieldVariations: [
+        { fieldId: 'cmd', values: ['CMD_A', 'CMD_B', 'CMD_C'] as const },
+      ],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 5 }, () => makeSentResult());
+    const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
+
+    service.startTask(instance.instanceId);
+    await settle(service, instance.instanceId, 2000);
+
+    const final = service.getInstance(instance.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    expect(fakeSend.calls.length).toBe(3);
+    expect(fakeSend.calls[0]!.request.userFieldValues).toEqual({ cmd: 'CMD_A' });
+    expect(fakeSend.calls[1]!.request.userFieldValues).toEqual({ cmd: 'CMD_B' });
+    expect(fakeSend.calls[2]!.request.userFieldValues).toEqual({ cmd: 'CMD_C' });
+  });
+
+  it('auto-derives maxIterations from fieldVariations', async () => {
+    const def: TaskDefinition = {
+      id: 'fv-auto',
+      name: 'FieldVariations Auto',
+      schedule: { kind: 'timer', intervalMs: 10 },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: { frameId: 'f1', targetId: 't1' },
+      }],
+      fieldVariations: [
+        { fieldId: 'v1', values: [1, 2, 3] as const },
+        { fieldId: 'v2', values: [10, 20] as const },
+      ],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 10 }, () => makeSentResult());
+    const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
+
+    service.startTask(instance.instanceId);
+    await settle(service, instance.instanceId, 2000);
+
+    const final = service.getInstance(instance.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    // maxIterations = max(3, 2) = 3
+    expect(fakeSend.calls.length).toBe(3);
+  });
+
+  it('preserves base values for non-varied fields', async () => {
+    const def: TaskDefinition = {
+      id: 'fv-preserve',
+      name: 'FieldVariations Preserve',
+      schedule: { kind: 'timer', intervalMs: 10 },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: { frameId: 'f1', targetId: 't1', userFieldValues: { fixed: 99, varied: 0 } },
+      }],
+      fieldVariations: [
+        { fieldId: 'varied', values: [10, 20] as const },
+      ],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 5 }, () => makeSentResult());
+    const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
+
+    service.startTask(instance.instanceId);
+    await settle(service, instance.instanceId, 2000);
+
+    expect(fakeSend.calls[0]!.request.userFieldValues).toEqual({ fixed: 99, varied: 10 });
+    expect(fakeSend.calls[1]!.request.userFieldValues).toEqual({ fixed: 99, varied: 20 });
+  });
+});
+
+// ========================================================================
+// exitCondition
+// ========================================================================
+
+describe('TaskService - exitCondition', () => {
+  it('stops task when exitCondition is met', async () => {
+    let fieldValueCounter = 0;
+    const def: TaskDefinition = {
+      id: 'exit-cond',
+      name: 'Exit Condition',
+      schedule: { kind: 'timer', intervalMs: 10 },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: { frameId: 'f1', targetId: 't1' },
+      }],
+      stopCondition: {
+        maxIterations: 100,
+        exitCondition: [{ frameId: 'f1', fieldId: 'done', operator: 'eq', threshold: 1 }],
+      },
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 100 }, () => makeSentResult());
+    const svc = createTaskService({
+      sendService: createFakeSendService({ results }),
+      receiveEventSource: createFakeReceiveEventSource(),
+      fieldValueProvider: () => {
+        fieldValueCounter++;
+        return fieldValueCounter >= 3 ? { done: 1 } : { done: 0 };
+      },
+      now: () => '2026-05-06T12:00:00.000Z',
+    });
+    const inst = svc.createTask(def);
+    svc.startTask(inst.instanceId);
+    await settle(svc, inst.instanceId, 2000);
+
+    const final = svc.getInstance(inst.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    // Should have stopped early (around iteration 3), not 100
+    expect(fieldValueCounter).toBeGreaterThanOrEqual(3);
+    expect(fieldValueCounter).toBeLessThan(50);
+  });
+
+  it('ignores exitCondition when no fieldValueProvider', async () => {
+    const def: TaskDefinition = {
+      id: 'exit-no-provider',
+      name: 'Exit No Provider',
+      schedule: { kind: 'timer', intervalMs: 10 },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: { frameId: 'f1', targetId: 't1' },
+      }],
+      stopCondition: {
+        maxIterations: 3,
+        exitCondition: [{ frameId: 'f1', fieldId: 'x', operator: 'eq', threshold: 1 }],
+      },
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 10 }, () => makeSentResult());
+    const { service, fakeSend, instance } = createTestSetup({ definition: def, sendResults: results });
+
+    service.startTask(instance.instanceId);
+    await settle(service, instance.instanceId, 2000);
+
+    const final = service.getInstance(instance.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    // Without fieldValueProvider, exitCondition can't fire, runs all 3 iterations
+    expect(fakeSend.calls.length).toBe(3);
+  });
+
+  it('exitCondition with maxDurationMs still works', async () => {
+    let counter = 0;
+    const def: TaskDefinition = {
+      id: 'exit-duration',
+      name: 'Exit Duration',
+      schedule: { kind: 'timer', intervalMs: 10 },
+      steps: [{
+        id: 's1', kind: 'send',
+        config: { frameId: 'f1', targetId: 't1' },
+      }],
+      stopCondition: {
+        maxDurationMs: 5000,
+        exitCondition: [{ frameId: 'f1', fieldId: 'flag', operator: 'eq', threshold: 'stop' }],
+      },
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const results = Array.from({ length: 100 }, () => makeSentResult());
+    const svc = createTaskService({
+      sendService: createFakeSendService({ results }),
+      receiveEventSource: createFakeReceiveEventSource(),
+      fieldValueProvider: () => {
+        counter++;
+        return counter >= 2 ? { flag: 'stop' } : { flag: 'go' };
+      },
+      now: () => '2026-05-06T12:00:00.000Z',
+    });
+    const inst = svc.createTask(def);
+    svc.startTask(inst.instanceId);
+    await settle(svc, inst.instanceId, 2000);
+
+    const final = svc.getInstance(inst.instanceId);
+    expect(final?.lifecycle).toBe('completed');
+    // Should stop on exitCondition, not maxDurationMs
+    expect(counter).toBeLessThan(10);
+  });
+});

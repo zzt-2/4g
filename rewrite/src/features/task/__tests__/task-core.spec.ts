@@ -9,6 +9,8 @@ import {
   resolveStopCondition,
 } from '../core';
 import type { TaskLifecycleStatus, TaskStepResult, ConditionTerm, TaskDefinition } from '../core';
+import { resolveFieldValues } from '../services/task-iteration-loops';
+import { buildSendRequest } from '../services/task-step-executors';
 import {
   timedTaskDef,
   triggerTaskDef,
@@ -528,5 +530,139 @@ describe('Fixtures', () => {
     expect(errorPolicies.retryTwice().retryCount).toBe(2);
     expect(errorPolicies.skipStep().onFailure).toBe('skip-step');
     expect(errorPolicies.pauseOnFailure().onFailure).toBe('pause');
+  });
+});
+
+// ============================================================
+// resolveFieldValues
+// ============================================================
+
+describe('resolveFieldValues', () => {
+  it('returns empty object when no base and no variations', () => {
+    expect(resolveFieldValues(undefined, undefined, 0)).toEqual({});
+  });
+
+  it('returns base values when no variations', () => {
+    const base = { field1: 100, field2: 'hello' };
+    expect(resolveFieldValues(base, undefined, 0)).toEqual(base);
+  });
+
+  it('returns base values when variations is empty', () => {
+    const base = { field1: 100 };
+    expect(resolveFieldValues(base, [], 0)).toEqual(base);
+  });
+
+  it('overrides base field with variation value at iteration 0', () => {
+    const base = { field1: 100 };
+    const variations = [{ fieldId: 'field1', values: [10, 20, 30] as const }];
+    expect(resolveFieldValues(base, variations, 0)).toEqual({ field1: 10 });
+  });
+
+  it('uses different variation values per iteration', () => {
+    const base = { field1: 100 };
+    const variations = [{ fieldId: 'field1', values: [10, 20, 30] as const }];
+    expect(resolveFieldValues(base, variations, 0)).toEqual({ field1: 10 });
+    expect(resolveFieldValues(base, variations, 1)).toEqual({ field1: 20 });
+    expect(resolveFieldValues(base, variations, 2)).toEqual({ field1: 30 });
+  });
+
+  it('keeps base value when iteration exceeds variation length', () => {
+    const base = { field1: 100 };
+    const variations = [{ fieldId: 'field1', values: [10, 20] as const }];
+    expect(resolveFieldValues(base, variations, 5)).toEqual({ field1: 100 });
+  });
+
+  it('handles multiple field variations simultaneously', () => {
+    const base = { f1: 0, f2: 0 };
+    const variations = [
+      { fieldId: 'f1', values: [1, 2, 3] as const },
+      { fieldId: 'f2', values: ['a', 'b'] as const },
+    ];
+    expect(resolveFieldValues(base, variations, 0)).toEqual({ f1: 1, f2: 'a' });
+    expect(resolveFieldValues(base, variations, 1)).toEqual({ f1: 2, f2: 'b' });
+    // f2 exceeds its length, keeps base
+    expect(resolveFieldValues(base, variations, 2)).toEqual({ f1: 3, f2: 0 });
+  });
+
+  it('preserves non-varied base fields', () => {
+    const base = { field1: 100, field2: 200, field3: true };
+    const variations = [{ fieldId: 'field1', values: [10] as const }];
+    expect(resolveFieldValues(base, variations, 0)).toEqual({ field1: 10, field2: 200, field3: true });
+  });
+});
+
+// ============================================================
+// buildSendRequest alignment
+// ============================================================
+
+describe('buildSendRequest', () => {
+  const baseDef: TaskDefinition = {
+    id: 'build-test',
+    name: 'Build Test',
+    schedule: { kind: 'immediate' },
+    steps: [],
+    errorPolicy: { onFailure: 'stop' },
+  };
+
+  it('maps frameId, targetId, userFieldValues', () => {
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'frame-X', targetId: 'target-Y', userFieldValues: { f: 42 } },
+    };
+    const req = buildSendRequest(step, baseDef, 0, 0);
+    expect(req.frameId).toBe('frame-X');
+    expect(req.targetId).toBe('target-Y');
+    expect(req.userFieldValues).toEqual({ f: 42 });
+  });
+
+  it('passes variables from step config', () => {
+    const vars = new Map([['v1', { type: 'literal' as const, value: 1 }]]);
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1', targetId: 't1', variables: vars },
+    };
+    const req = buildSendRequest(step, baseDef, 2, 3);
+    expect(req.variables).toBe(vars);
+  });
+
+  it('includes context with source=task, taskId and stepIndex', () => {
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1', targetId: 't1' },
+    };
+    const req = buildSendRequest(step, baseDef, 5, 3);
+    expect(req.context).toEqual({ source: 'task', taskId: 'build-test', stepIndex: 5 });
+  });
+
+  it('does not include options field', () => {
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1', targetId: 't1' },
+    };
+    const req = buildSendRequest(step, baseDef, 0, 0);
+    expect((req as Record<string, unknown>).options).toBeUndefined();
+  });
+
+  it('uses targetId from step config (no fallback to definition)', () => {
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1', targetId: 'explicit-target' },
+    };
+    const req = buildSendRequest(step, baseDef, 0, 0);
+    expect(req.targetId).toBe('explicit-target');
+  });
+
+  it('merges fieldVariations into userFieldValues at given iteration', () => {
+    const def: TaskDefinition = {
+      ...baseDef,
+      fieldVariations: [{ fieldId: 'v', values: [10, 20, 30] as const }],
+    };
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1', targetId: 't1', userFieldValues: { v: 0, other: 99 } },
+    };
+    expect(buildSendRequest(step, def, 0, 0).userFieldValues).toEqual({ v: 10, other: 99 });
+    expect(buildSendRequest(step, def, 0, 1).userFieldValues).toEqual({ v: 20, other: 99 });
+    expect(buildSendRequest(step, def, 0, 2).userFieldValues).toEqual({ v: 30, other: 99 });
   });
 });
