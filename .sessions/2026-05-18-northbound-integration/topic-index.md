@@ -123,3 +123,10 @@
 2. 验证 G2（step 名称映射）和 G5（getTestCaseAll 格式）
 3. 本地端到端验证：建 task → 发帧 → 收响应 → 条件匹配 → verdict
 4. 以上全通后设计实施 northbound feature
+
+### S002 — Northbound feature 实施
+- 按 approved design + checklist 实施 8 步，全部完成
+- 新增 northbound feature（types + translator + state + service）、platform HttpFacade、task onStepResult callback
+- feature-wiring 注册 resultService + northboundService
+- 43 个单元测试通过，build + lint 通过
+- 5 项跨 feature 遗留详见 S002 §后续

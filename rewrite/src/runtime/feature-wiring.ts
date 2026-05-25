@@ -29,6 +29,7 @@ import {
 import {
   createTaskService,
   type TaskService,
+  type TaskStepResult,
 } from '@/features/task';
 import {
   createCommandIngressService,
@@ -40,6 +41,16 @@ import {
   createDisplayService,
   type DisplayService,
 } from '@/features/display';
+import {
+  createResultService,
+  createResultState,
+  type ResultService,
+} from '@/features/result';
+import {
+  createNorthboundService,
+  type NorthboundService,
+} from '@/features/northbound';
+import { getHttpFacade } from '@/platform';
 import { ConnectionBackedSendWriter } from './bridges/connection-backed-writer';
 import { ConnectionBackedTargetResolver } from './bridges/connection-backed-target-resolver';
 import { ReceiveEventSourceBridge } from './bridges/receive-event-source-bridge';
@@ -55,7 +66,9 @@ export interface RewriteWiredFeatures {
   readonly displayService: DisplayService;
   readonly sendService: SendService;
   readonly taskService: TaskService;
+  readonly resultService: ResultService;
   readonly commandIngressService: CommandIngressService;
+  readonly northboundService: NorthboundService;
   readonly receiveEventSourceBridge: ReceiveEventSourceBridge;
 }
 
@@ -101,9 +114,17 @@ export function wireFeatures(
 
   // L3: needs L2
   const receiveEventSourceBridge = new ReceiveEventSourceBridge();
+
+  // Late-binding for onStepResult (northbound not yet created)
+  const stepResultHolder = { current: undefined as ((instanceId: string, result: TaskStepResult) => void) | undefined };
+
+  const resultState = createResultState();
+  const resultService = createResultService(resultState);
+
   const taskService = createTaskService({
     sendService,
     receiveEventSource: receiveEventSourceBridge,
+    onStepResult: (instanceId, result) => stepResultHolder.current?.(instanceId, result),
   });
 
   // L4: needs L3 + config
@@ -138,6 +159,18 @@ export function wireFeatures(
     stateWriter: commandIngressState.writer,
   });
 
+  // L5: needs L3 + L4 + platform facades
+  const httpFacade = getHttpFacade();
+  const northboundService = createNorthboundService({
+    taskService,
+    resultService,
+    httpFacade: httpFacade!,
+    connectionSnapshot: () => connectionService.getSnapshot(),
+  });
+
+  // Bind the step result callback
+  stepResultHolder.current = northboundService.handleStepResult;
+
   return {
     frameReader,
     frameService,
@@ -149,7 +182,9 @@ export function wireFeatures(
     displayService,
     sendService,
     taskService,
+    resultService,
     commandIngressService,
+    northboundService,
     receiveEventSourceBridge,
   };
 }

@@ -48,6 +48,7 @@ export interface CreateTaskServiceOptions {
   readonly fieldValueProvider?: () => Readonly<Record<string, number | string | null>>;
   readonly state?: TaskStateContainer;
   readonly now?: () => string;
+  readonly onStepResult?: (instanceId: string, result: import('../core').TaskStepResult) => void;
 }
 
 // --- Factory ---
@@ -103,6 +104,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
     errorPolicy,
     fieldValueProvider,
     now,
+    onStepResult: options.onStepResult,
   });
 
   // --- Subscription management ---

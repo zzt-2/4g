@@ -1,6 +1,6 @@
 export const REWRITE_PLATFORM_BRIDGE_KEY = 'dongfanghongRewritePlatform';
 
-export type RewritePlatformCapability = 'transport' | 'file';
+export type RewritePlatformCapability = 'transport' | 'file' | 'http';
 
 export interface RewritePlatformBridgeInfo {
   readonly name: 'dongfanghong-rewrite-platform';
@@ -129,12 +129,50 @@ export interface FileBridge {
   getUserDataPath(): Promise<string>;
 }
 
+// --- HTTP bridge types ---
+
+export interface HttpServerConfig {
+  readonly host: string;
+  readonly port: number;
+  readonly tls?: { readonly cert: string; readonly key: string };
+}
+
+export interface HttpClientConfig {
+  readonly url: string;
+  readonly method: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
+  readonly tls?: { readonly cert: string; readonly key: string; readonly ca?: string };
+}
+
+export interface HttpRequest {
+  readonly method: string;
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+  readonly remoteAddress?: string;
+}
+
+export interface HttpResponse {
+  readonly statusCode: number;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
+export interface HttpBridge {
+  startServer(config: HttpServerConfig): Promise<string>;
+  stopServer(serverId: string): Promise<void>;
+  onRequest(serverId: string, handler: (req: HttpRequest) => Promise<HttpResponse>): () => void;
+  sendRequest(config: HttpClientConfig): Promise<HttpResponse>;
+}
+
 // --- Bridge root ---
 
 export interface RewritePlatformBridge {
   getBridgeInfo(): RewritePlatformBridgeInfo;
   readonly transport: TransportBridge;
   readonly file: FileBridge;
+  readonly http?: HttpBridge;
 }
 
 export function createRewriteBridgeInfo(

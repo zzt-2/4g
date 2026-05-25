@@ -1,0 +1,92 @@
+feature: rewrite-northbound
+created: 2026-05-25
+
+steps:
+  - action: "Platform HTTP facade：main process HTTP handler + preload bridge + platform/http.ts"
+    exit_signal: "HttpFacade 单测通过（mock IPC），startServer/onRequest/sendRequest 跑通"
+    status: pending
+
+  - action: "Task service step 回调：CreateTaskServiceOptions 加 onStepResult，iteration loops try/catch 内调用"
+    exit_signal: "现有测试全通过 + 新增 step callback 触发验证 + 回调异常不中断 task 执行"
+    status: pending
+
+  - action: "Northbound 名词层 + 编排骨架：types + translator 纯函数 + state 容器 + service 空壳"
+    exit_signal: "translator 单测覆盖正常+边界，service 可创建和销毁"
+    status: pending
+
+  - action: "入站接线：handleRequest → inbound translator → executionPlan 编排 → task service → 状态映射"
+    exit_signal: "setTestTask JSON → TaskDefinition 创建 → task 启动 → 并行/顺序层处理正确，单测覆盖"
+    status: pending
+
+  - action: "出站接线：onSettled → result 收集 → outbound translator → HttpFacade.sendRequest"
+    exit_signal: "task 终态 → testCaseResultReport POST 被调用，verdict 映射正确"
+    status: pending
+
+  - action: "step 事件接线：onStepResult 回调 → getInstance → outbound translator → msgReport POST"
+    exit_signal: "step 完成 → msgReport POST 被调用，stepName 从 definition 正确取出"
+    status: pending
+
+  - action: "controlTestTask + heartbeat + getSubSysState handler 实现"
+    exit_signal: "controlType 正确映射到 task service 方法，heartbeat 返回 200，getSubSysState 读 connection/activeTestCases"
+    status: pending
+
+  - action: "测试覆盖 + 集成验证：补齐边界和错误路径"
+    exit_signal: "pnpm build + pnpm lint + 全部测试通过"
+    status: pending
+
+checks:
+  - item: "甲方接口类型只在 northbound/core/types.ts 定义一次，其他文件不重复"
+    source: 名词契约
+    status: pending
+
+  - item: "HttpFacade 接口只含通用 HttpRequest/HttpResponse，无甲方业务名称"
+    source: 名词契约
+    status: pending
+
+  - item: "main process 不 import northbound/core/types.ts"
+    source: 名词契约
+    status: pending
+
+  - item: "onStepResult 回调在 try/catch 内调用，异常不传播到 task 执行循环"
+    source: 跨层纪律
+    status: pending
+
+  - item: "executionPlan 并行层用 Promise.all 等全部 onSettled，顺序层逐个等 onSettled"
+    source: 编排骨架
+    status: pending
+
+  - item: "task 创建中途失败时已创建的 task 不回滚，继续执行并上报"
+    source: 跨层纪律
+    status: pending
+
+  - item: "出站 POST 失败只记日志不重试不崩溃"
+    source: 跨层纪律
+    status: pending
+
+  - item: "setTestTask 同 testCaseId 幂等忽略"
+    source: 验收场景
+    status: pending
+
+  - item: "controlType abort/pause/continue/stop 正确映射到 taskService 方法"
+    source: 验收场景
+    status: pending
+
+  - item: "verdict 映射：passed→success, failed→fail, stopped→tbd"
+    source: 验收场景
+    status: pending
+
+  - item: "删掉 platform/index.ts + main index + preload + feature-wiring 的注册 + northbound 目录，feature 消失"
+    source: 挂载点
+    status: pending
+
+  - item: "代码中不出现 FTP 相关 API 调用"
+    source: 范围守护
+    status: pending
+
+  - item: "输出 JSON 不含 checkPoints / statisticsItems 字段"
+    source: 范围守护
+    status: pending
+
+  - item: "northbound 不注册 TransportEventConsumer"
+    source: 范围守护
+    status: pending

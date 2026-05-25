@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { registerSerialHandlers, cleanupSerialHandlers } from './serial-handlers';
 import { registerNetworkHandlers, cleanupNetworkHandlers } from './network-handlers';
 import { registerFileHandlers, cleanupFileHandlers } from './file-handlers';
+import { registerHttpHandlers, cleanupHttpHandlers } from './http-handlers';
 
 const platform = process.platform || os.platform();
 const currentDir = fileURLToPath(new URL('.', import.meta.url));
@@ -37,6 +38,7 @@ async function createWindow() {
   registerSerialHandlers(mainWindow);
   registerNetworkHandlers(mainWindow);
   registerFileHandlers();
+  registerHttpHandlers();
 
   const appUrl = process.env.APP_URL;
   mainWindow.once('ready-to-show', () => {
@@ -59,6 +61,7 @@ async function createWindow() {
     cleanupSerialHandlers();
     cleanupNetworkHandlers();
     cleanupFileHandlers();
+    cleanupHttpHandlers();
     mainWindow = undefined;
   });
 }

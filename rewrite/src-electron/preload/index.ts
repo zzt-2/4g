@@ -10,6 +10,11 @@ import {
   type FileBridge,
   type SaveDialogOptions,
   type OpenDialogOptions,
+  type HttpBridge,
+  type HttpServerConfig,
+  type HttpClientConfig,
+  type HttpRequest,
+  type HttpResponse,
 } from '../../src/shared/platform-bridge';
 
 const IPC_ENUMERATE = 'transport:enumerate-serial-ports';
@@ -29,6 +34,12 @@ const IPC_WRITE_TEXT_FILE = 'file:write-text';
 const IPC_SHOW_SAVE_DIALOG = 'file:show-save-dialog';
 const IPC_SHOW_OPEN_DIALOG = 'file:show-open-dialog';
 const IPC_GET_USER_DATA_PATH = 'file:get-user-data-path';
+
+const IPC_HTTP_START_SERVER = 'http:start-server';
+const IPC_HTTP_STOP_SERVER = 'http:stop-server';
+const IPC_HTTP_SEND_REQUEST = 'http:send-request';
+const IPC_HTTP_RESPOND = 'http:respond';
+const IPC_HTTP_INCOMING_REQUEST = 'http:incoming-request';
 
 const eventBuffer: TransportBridgeEvent[] = [];
 const eventCallbacks: ((event: TransportBridgeEvent) => void)[] = [];
@@ -129,10 +140,60 @@ const fileBridge: FileBridge = {
   },
 };
 
+// --- HTTP bridge ---
+
+const httpRequestHandlers = new Map<string, (req: HttpRequest) => Promise<HttpResponse>>();
+
+ipcRenderer.on(IPC_HTTP_INCOMING_REQUEST, (_e, { requestId, serverId, request }: {
+  requestId: string;
+  serverId: string;
+  request: HttpRequest;
+}) => {
+  const handler = httpRequestHandlers.get(serverId);
+  if (!handler) {
+    ipcRenderer.invoke(IPC_HTTP_RESPOND, {
+      requestId,
+      response: { statusCode: 503, body: 'No handler registered' },
+    });
+    return;
+  }
+
+  handler(request)
+    .then((response) => {
+      return ipcRenderer.invoke(IPC_HTTP_RESPOND, { requestId, response });
+    })
+    .catch((err) => {
+      return ipcRenderer.invoke(IPC_HTTP_RESPOND, {
+        requestId,
+        response: {
+          statusCode: 500,
+          body: err instanceof Error ? err.message : 'Internal handler error',
+        },
+      });
+    });
+});
+
+const httpBridge: HttpBridge = {
+  async startServer(config: HttpServerConfig): Promise<string> {
+    return ipcRenderer.invoke(IPC_HTTP_START_SERVER, config);
+  },
+  async stopServer(serverId: string): Promise<void> {
+    return ipcRenderer.invoke(IPC_HTTP_STOP_SERVER, serverId);
+  },
+  onRequest(serverId: string, handler: (req: HttpRequest) => Promise<HttpResponse>): () => void {
+    httpRequestHandlers.set(serverId, handler);
+    return () => { httpRequestHandlers.delete(serverId); };
+  },
+  async sendRequest(config: HttpClientConfig): Promise<HttpResponse> {
+    return ipcRenderer.invoke(IPC_HTTP_SEND_REQUEST, config);
+  },
+};
+
 const rewriteBridge = Object.freeze({
   getBridgeInfo: () => createRewriteBridgeInfo('0.0.0'),
   transport: transportBridge,
   file: fileBridge,
+  http: httpBridge,
 });
 
 contextBridge.exposeInMainWorld(REWRITE_PLATFORM_BRIDGE_KEY, rewriteBridge);
