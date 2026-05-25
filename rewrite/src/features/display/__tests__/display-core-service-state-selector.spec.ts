@@ -8,7 +8,6 @@ import {
   projectChartSeries,
   projectScatter,
   projectTableRows,
-  type ChartPoint,
 } from '../core';
 import { createDisplayReader, createDisplayService } from '../services';
 import { createDisplayState } from '../state';
@@ -20,6 +19,8 @@ import {
   nonNumericFieldMaterial,
   sampleFieldMaterial,
   sampleIqFieldMaterial,
+  updateChart1Patch,
+  updateChart0Patch,
   updateScatterPatch,
   updateTable1Patch,
 } from '../fixtures/display-fixtures';
@@ -57,23 +58,15 @@ describe('display core projection', () => {
   });
 
   it('returns empty chart series when no items selected', () => {
-    const history = new Map<string, ChartPoint[]>();
-    const series = projectChartSeries(sampleFieldMaterial, { selectedItems: [], performance: { maxPoints: 500, refreshIntervalMs: 200 } }, history);
+    const series = projectChartSeries(sampleFieldMaterial, []);
     expect(series).toHaveLength(0);
   });
 
   it('projects chart series with field name from matching fields', () => {
-    const history = new Map<string, ChartPoint[]>([
-      ['g1:f1', [{ timestamp: '2026-05-06T10:00:00Z', value: 3.3 }]],
-    ]);
-    const series = projectChartSeries(
-      sampleFieldMaterial,
-      { selectedItems: ['g1:f1'], performance: { maxPoints: 500, refreshIntervalMs: 200 } },
-      history,
-    );
+    const series = projectChartSeries(sampleFieldMaterial, ['g1:f1']);
     expect(series).toHaveLength(1);
     expect(series[0].fieldName).toBe('Voltage');
-    expect(series[0].points).toHaveLength(1);
+    expect(series[0].points).toEqual([]);
   });
 
   it('returns empty scatter when I/Q sources not matched', () => {
@@ -109,11 +102,11 @@ describe('display core projection', () => {
 
   it('computeDisplayProjection combines all projections', () => {
     const prefs = defaultDisplayFixture.preferences;
-    const history = new Map<string, ChartPoint[]>();
-    const projection = computeDisplayProjection(sampleFieldMaterial, prefs, history);
+    const projection = computeDisplayProjection(sampleFieldMaterial, prefs);
     expect(projection.table1Rows).toHaveLength(4);
     expect(projection.table2Rows).toHaveLength(4);
-    expect(projection.chartSeries).toHaveLength(0);
+    expect(projection.charts).toHaveLength(1);
+    expect(projection.charts[0].series).toHaveLength(0);
     expect(projection.scatter.points).toHaveLength(0);
   });
 });
@@ -140,7 +133,7 @@ describe('display core normalize', () => {
   it('downgrades invalid values to defaults', () => {
     const result = normalizeDisplayPreferencesInput(invalidPreferenceInput);
     expect(result.snapshot.preferences.table1.displayMode).toBe('table');
-    expect(result.snapshot.preferences.chart.performance.maxPoints).toBe(500);
+    expect(result.snapshot.preferences.charts[0].performance.maxPoints).toBe(500);
     expect(result.snapshot.preferences.scatter.sampleCount).toBe(256);
     expect(result.issues.map((i) => i.code)).toEqual(
       expect.arrayContaining([
@@ -207,13 +200,14 @@ describe('display service', () => {
 
   it('ingests source material and produces projections', () => {
     const service = createDisplayService();
-    service.updatePreferences({ chart: { selectedItems: ['g1:f1'] } });
+    service.updatePreferences(updateChart0Patch);
     const result = service.ingestSourceMaterial({ fields: sampleFieldMaterial });
 
     expect(result.ok).toBe(true);
-    const series = service.getChartSeries();
-    expect(series).toHaveLength(1);
-    expect(series[0].fieldName).toBe('Voltage');
+    const instances = service.getChartInstances();
+    expect(instances).toHaveLength(1);
+    expect(instances[0].series).toHaveLength(2);
+    expect(instances[0].series[0].fieldName).toBe('Voltage');
   });
 
   it('ingests scatter source material and projects I/Q', () => {
@@ -262,6 +256,63 @@ describe('display service', () => {
   });
 });
 
+// --- Multi-chart service tests ---
+
+describe('display service multi-chart', () => {
+  it('updateChartConfig updates a single chart', () => {
+    const service = createDisplayService();
+    service.ingestSourceMaterial({ fields: sampleFieldMaterial });
+
+    service.updateChartConfig('chart-1', updateChart1Patch);
+    const instances = service.getChartInstances();
+    expect(instances[0].series).toHaveLength(2);
+    expect(instances[0].series.map((s) => s.fieldName)).toEqual(['Voltage', 'Current']);
+  });
+
+  it('updateChartConfig returns error for unknown chart', () => {
+    const service = createDisplayService();
+    const result = service.updateChartConfig('nonexistent', { selectedItems: ['a'] });
+    expect(result.ok).toBe(false);
+    expect(result.issues[0].code).toBe('display.chart.notFound');
+  });
+
+  it('updateChartCount adds charts up to 4', () => {
+    const service = createDisplayService();
+    service.updateChartCount(3);
+    const prefs = service.getPreferences();
+    expect(prefs.charts).toHaveLength(3);
+    expect(prefs.charts[1].id).toBe('chart-2');
+    expect(prefs.charts[2].id).toBe('chart-3');
+  });
+
+  it('updateChartCount removes charts from the end', () => {
+    const service = createDisplayService();
+    service.updateChartCount(3);
+    service.updateChartConfig('chart-1', updateChart1Patch);
+    service.updateChartCount(1);
+    const prefs = service.getPreferences();
+    expect(prefs.charts).toHaveLength(1);
+    expect(prefs.charts[0].id).toBe('chart-1');
+    expect(prefs.charts[0].selectedItems).toEqual(['g1:f1', 'g1:f2']);
+  });
+
+  it('updateChartCount clamps to 1-4', () => {
+    const service = createDisplayService();
+    service.updateChartCount(0);
+    expect(service.getPreferences().charts).toHaveLength(1);
+    service.updateChartCount(10);
+    expect(service.getPreferences().charts).toHaveLength(4);
+  });
+
+  it('getChartSeries returns first chart series for backward compat', () => {
+    const service = createDisplayService();
+    service.ingestSourceMaterial({ fields: sampleFieldMaterial });
+    service.updateChartConfig('chart-1', updateChart1Patch);
+    const series = service.getChartSeries();
+    expect(series).toHaveLength(2);
+  });
+});
+
 // --- Selector and public API tests ---
 
 describe('display selector and public api', () => {
@@ -283,9 +334,92 @@ describe('display selector and public api', () => {
     expect(displayPublicApi).toHaveProperty('createDisplayReader');
     expect(displayPublicApi).toHaveProperty('createDisplayService');
     expect(displayPublicApi).toHaveProperty('selectTable1Rows');
+    expect(displayPublicApi).toHaveProperty('selectChartInstances');
     expect(displayPublicApi).toHaveProperty('selectChartSeries');
     expect(displayPublicApi).toHaveProperty('selectScatterProjection');
     expect(displayPublicApi).not.toHaveProperty('createDisplayState');
     expect(displayPublicApi).not.toHaveProperty('normalizeDisplayPreferencesInput');
+  });
+});
+
+// --- Multi-chart edge case tests ---
+
+describe('display service multi-chart edge cases', () => {
+  it('updateChartCount to 4 gives unique IDs and default settings', () => {
+    const service = createDisplayService();
+    service.updateChartCount(4);
+    const prefs = service.getPreferences();
+    expect(prefs.charts).toHaveLength(4);
+    const ids = prefs.charts.map((c) => c.id);
+    expect(new Set(ids).size).toBe(4);
+    prefs.charts.forEach((c, i) => {
+      expect(c.id).toBe(`chart-${i + 1}`);
+      expect(c.selectedItems).toEqual([]);
+      expect(c.yAxis.autoScale).toBe(true);
+    });
+  });
+
+  it('new charts do not inherit selectedItems from existing charts', () => {
+    const service = createDisplayService();
+    service.ingestSourceMaterial({ fields: sampleFieldMaterial });
+    service.updateChartConfig('chart-1', updateChart1Patch);
+    service.updateChartCount(3);
+    const prefs = service.getPreferences();
+    // chart-1 keeps its selection
+    expect(prefs.charts[0].selectedItems).toEqual(['g1:f1', 'g1:f2']);
+    // new charts start empty
+    expect(prefs.charts[1].selectedItems).toEqual([]);
+    expect(prefs.charts[2].selectedItems).toEqual([]);
+  });
+
+  it('updateChartConfig merges yAxis partially', () => {
+    const service = createDisplayService();
+    service.updateChartConfig('chart-1', { yAxis: { min: 0, max: 100 } });
+    const chart = service.getPreferences().charts[0];
+    expect(chart.yAxis.autoScale).toBe(true);
+    expect(chart.yAxis.min).toBe(0);
+    expect(chart.yAxis.max).toBe(100);
+  });
+
+  it('updateChartConfig updates title', () => {
+    const service = createDisplayService();
+    service.updateChartConfig('chart-1', { title: '自定义图表' });
+    expect(service.getPreferences().charts[0].title).toBe('自定义图表');
+  });
+
+  it('updateChartCount with negative clamps to 1', () => {
+    const service = createDisplayService();
+    service.updateChartCount(-5);
+    expect(service.getPreferences().charts).toHaveLength(1);
+  });
+
+  it('getChartInstances returns empty series when no data', () => {
+    const service = createDisplayService();
+    const instances = service.getChartInstances();
+    expect(instances).toHaveLength(1);
+    expect(instances[0].series).toEqual([]);
+  });
+
+  it('updatePreferences with empty charts normalizes to single chart', () => {
+    const service = createDisplayService();
+    service.updatePreferences({ charts: [] });
+    expect(service.getPreferences().charts).toHaveLength(1);
+    expect(service.getPreferences().charts[0].id).toBe('chart-1');
+  });
+});
+
+// --- Normalize edge case tests ---
+
+describe('display normalize edge cases', () => {
+  it('normalizes >4 charts input by truncating with warning', () => {
+    const fiveCharts = Array.from({ length: 5 }, (_, i) => ({
+      id: `chart-${i + 1}`,
+      selectedItems: [`g1:f${i + 1}`],
+    }));
+    const result = normalizeDisplayPreferencesInput({
+      charts: fiveCharts,
+    });
+    expect(result.snapshot.preferences.charts).toHaveLength(4);
+    expect(result.issues.some((i) => i.code === 'display.chart.countExceeded')).toBe(true);
   });
 });

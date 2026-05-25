@@ -1,5 +1,6 @@
 import type {
-  ChartDisplayPreference,
+  ChartInstancePreference,
+  ChartInstanceProjection,
   ChartPoint,
   ChartSeriesProjection,
   DisplayPreferences,
@@ -21,9 +22,12 @@ export function cloneTableDisplayPreference(pref: TableDisplayPreference): Table
   };
 }
 
-export function cloneChartDisplayPreference(pref: ChartDisplayPreference): ChartDisplayPreference {
+export function cloneChartInstancePreference(pref: ChartInstancePreference): ChartInstancePreference {
   return {
+    id: pref.id,
+    title: pref.title,
     selectedItems: [...pref.selectedItems],
+    yAxis: { ...pref.yAxis },
     performance: { ...pref.performance },
   };
 }
@@ -48,7 +52,7 @@ export function cloneDisplayPreferences(pref: DisplayPreferences): DisplayPrefer
   return {
     table1: cloneTableDisplayPreference(pref.table1),
     table2: cloneTableDisplayPreference(pref.table2),
-    chart: cloneChartDisplayPreference(pref.chart),
+    charts: pref.charts.map(cloneChartInstancePreference),
     scatter: cloneScatterDisplayPreference(pref.scatter),
     refreshCadenceMs: pref.refreshCadenceMs,
   };
@@ -70,6 +74,13 @@ export function cloneChartSeriesProjection(series: ChartSeriesProjection): Chart
   };
 }
 
+export function cloneChartInstanceProjection(proj: ChartInstanceProjection): ChartInstanceProjection {
+  return {
+    id: proj.id,
+    series: proj.series.map(cloneChartSeriesProjection),
+  };
+}
+
 export function cloneScatterPoint(point: ScatterPoint): ScatterPoint {
   return { ...point };
 }
@@ -85,7 +96,7 @@ export function cloneDisplayProjection(projection: DisplayProjection): DisplayPr
   return {
     table1Rows: projection.table1Rows.map(cloneTableRowProjection),
     table2Rows: projection.table2Rows.map(cloneTableRowProjection),
-    chartSeries: projection.chartSeries.map(cloneChartSeriesProjection),
+    charts: projection.charts.map(cloneChartInstanceProjection),
     scatter: cloneScatterProjection(projection.scatter),
   };
 }

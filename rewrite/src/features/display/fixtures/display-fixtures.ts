@@ -1,17 +1,21 @@
-import type {
-  DisplayFieldMaterial,
-  DisplayPreferencesPatch,
-  DisplaySnapshot,
+import {
+  DISPLAY_SCHEMA_VERSION,
+  type ChartInstancePatch,
+  type DisplayFieldMaterial,
+  type DisplayPreferencesPatch,
+  type DisplaySnapshot,
 } from '../core';
 
 // --- Default fixture ---
 
 export const defaultDisplayFixture: DisplaySnapshot = {
-  schemaVersion: 1,
+  schemaVersion: DISPLAY_SCHEMA_VERSION,
   preferences: {
     table1: { displayMode: 'table', selectedGroupId: '', selectedItems: [] },
     table2: { displayMode: 'table', selectedGroupId: '', selectedItems: [] },
-    chart: { selectedItems: [], performance: { maxPoints: 500, refreshIntervalMs: 200 } },
+    charts: [
+      { id: 'chart-1', title: '图表1', selectedItems: [], yAxis: { autoScale: true }, performance: { maxPoints: 500, refreshIntervalMs: 200 } },
+    ],
     scatter: {
       iSource: { groupId: '', dataItemId: '' },
       qSource: { groupId: '', dataItemId: '' },
@@ -24,7 +28,7 @@ export const defaultDisplayFixture: DisplaySnapshot = {
   projection: {
     table1Rows: [],
     table2Rows: [],
-    chartSeries: [],
+    charts: [{ id: 'chart-1', series: [] }],
     scatter: { points: [], sampleCount: 0 },
   },
   availability: { available: false, reason: 'no-source' },
@@ -57,8 +61,13 @@ export const updateTable1Patch: DisplayPreferencesPatch = {
   table1: { displayMode: 'chart', selectedGroupId: 'g1', selectedItems: ['f1', 'f2'] },
 };
 
-export const updateChartPatch: DisplayPreferencesPatch = {
-  chart: { selectedItems: ['g1:f1', 'g1:f2'] },
+/** Patches chart-0's selectedItems via positional patch array. */
+export const updateChart0Patch: DisplayPreferencesPatch = {
+  charts: [{ selectedItems: ['g1:f1', 'g1:f2'] }],
+};
+
+export const updateChart1Patch: ChartInstancePatch = {
+  selectedItems: ['g1:f1', 'g1:f2'],
 };
 
 export const updateScatterPatch: DisplayPreferencesPatch = {
@@ -69,7 +78,7 @@ export const updateScatterPatch: DisplayPreferencesPatch = {
 
 export const invalidPreferenceInput = {
   table1: { displayMode: 'invalid-mode', selectedItems: 42 },
-  chart: { performance: { maxPoints: -1, refreshIntervalMs: 0 } },
+  charts: [{ performance: { maxPoints: -1, refreshIntervalMs: 0 } }],
   scatter: { sampleCount: -10, bitWidth: 0 },
   refreshCadenceMs: -100,
 } as const;

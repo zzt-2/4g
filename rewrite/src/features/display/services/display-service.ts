@@ -3,7 +3,11 @@ import {
   createDefaultDisplaySnapshot,
   computeDisplayProjection,
   applyDisplayPreferencesPatch,
-  type ChartPoint,
+  normalizeDisplayPreferencesInput,
+  createDisplayIssue,
+  type ChartInstancePatch,
+  type ChartInstancePreference,
+  type ChartInstanceProjection,
   type DisplayFieldMaterial,
   type DisplayPreferences,
   type DisplayPreferencesPatch,
@@ -17,9 +21,10 @@ import {
   type ChartSeriesProjection,
   type ScatterProjection,
 } from '../core';
+import { DEFAULT_CHART_INSTANCE } from '../core/defaults';
 import {
   selectAvailability,
-  selectChartSeries,
+  selectChartInstances,
   selectDisplaySnapshot,
   selectPreferences,
   selectScatterProjection,
@@ -33,6 +38,7 @@ export interface DisplayReader {
   getPreferences(): ReadonlyDisplayPreferences;
   getTable1Rows(): TableRowProjection[];
   getTable2Rows(): TableRowProjection[];
+  getChartInstances(): ChartInstanceProjection[];
   getChartSeries(): ChartSeriesProjection[];
   getScatterProjection(): ScatterProjection;
   getAvailability(): DisplaySourceAvailability;
@@ -46,13 +52,14 @@ export interface DisplayOperationResult {
 
 export interface DisplayService extends DisplayReader {
   updatePreferences(patch: DisplayPreferencesPatch): DisplayOperationResult;
+  updateChartConfig(chartId: string, patch: ChartInstancePatch): DisplayOperationResult;
+  updateChartCount(count: number): DisplayOperationResult;
   ingestSourceMaterial(material: DisplaySourceMaterial): DisplayOperationResult;
   clearProjection(): DisplayOperationResult;
   reset(): DisplayOperationResult;
 }
 
 interface DisplayBuffer {
-  chartHistory: Map<string, ChartPoint[]>;
   sourceFields: DisplayFieldMaterial[];
 }
 
@@ -63,11 +70,7 @@ function recomputeSnapshot(
   state: DisplayStateContainer,
 ): DisplaySnapshot {
   const now = new Date().toISOString();
-  const projection = computeDisplayProjection(
-    buffer.sourceFields,
-    preferences,
-    buffer.chartHistory,
-  );
+  const projection = computeDisplayProjection(buffer.sourceFields, preferences);
 
   return state.replaceSnapshot({
     schemaVersion: state.getSnapshot().schemaVersion,
@@ -105,8 +108,12 @@ export function createDisplayReader(
     getTable2Rows() {
       return selectTable2Rows(snapshotProvider());
     },
+    getChartInstances() {
+      return selectChartInstances(snapshotProvider());
+    },
     getChartSeries() {
-      return selectChartSeries(snapshotProvider());
+      const charts = selectChartInstances(snapshotProvider());
+      return charts.length > 0 ? charts[0].series : [];
     },
     getScatterProjection() {
       return selectScatterProjection(snapshotProvider());
@@ -123,7 +130,6 @@ export function createDisplayService(
   const reader = createDisplayReader(() => state.getSnapshot());
 
   const buffer: DisplayBuffer = {
-    chartHistory: new Map(),
     sourceFields: [],
   };
 
@@ -139,6 +145,51 @@ export function createDisplayService(
         current.availability,
         state,
       );
+      return toOperationResult(snapshot, result.issues);
+    },
+
+    updateChartConfig(chartId, patch) {
+      const current = state.getSnapshot();
+      const chartIdx = current.preferences.charts.findIndex((c) => c.id === chartId);
+      if (chartIdx === -1) {
+        return toOperationResult(current, [createDisplayIssue('display.chart.notFound', `charts[${chartId}]`, 'Chart instance not found.', 'error')]);
+      }
+
+      // Build merged preferences directly, skip double-indirection through patch
+      const charts = current.preferences.charts.map((c, i) =>
+        i === chartIdx
+          ? {
+              id: c.id,
+              title: patch.title ?? c.title,
+              selectedItems: patch.selectedItems ? [...patch.selectedItems] : c.selectedItems,
+              yAxis: patch.yAxis ? { ...c.yAxis, ...patch.yAxis } : c.yAxis,
+              performance: patch.performance ? { ...c.performance, ...patch.performance } : c.performance,
+            }
+          : c,
+      );
+
+      const newPrefs: DisplayPreferences = { ...current.preferences, charts };
+      const result = normalizeDisplayPreferencesInput(newPrefs, current);
+      const snapshot = recomputeSnapshot(buffer, result.snapshot.preferences, current.availability, state);
+      return toOperationResult(snapshot, result.issues);
+    },
+
+    updateChartCount(count) {
+      const clamped = Math.max(1, Math.min(4, count));
+      const current = state.getSnapshot();
+      const currentCharts = current.preferences.charts;
+
+      const charts: ChartInstancePreference[] = Array.from({ length: clamped }, (_, i) =>
+        currentCharts[i] ?? {
+          ...DEFAULT_CHART_INSTANCE,
+          id: `chart-${i + 1}`,
+          title: `图表${i + 1}`,
+        },
+      );
+
+      const newPrefs: DisplayPreferences = { ...current.preferences, charts };
+      const result = normalizeDisplayPreferencesInput(newPrefs, current);
+      const snapshot = recomputeSnapshot(buffer, result.snapshot.preferences, current.availability, state);
       return toOperationResult(snapshot, result.issues);
     },
 
@@ -171,7 +222,6 @@ export function createDisplayService(
     clearProjection() {
       const current = state.getSnapshot();
       buffer.sourceFields = [];
-      buffer.chartHistory.clear();
 
       const snapshot = state.replaceSnapshot({
         ...createDefaultDisplaySnapshot(),
@@ -183,7 +233,6 @@ export function createDisplayService(
 
     reset() {
       buffer.sourceFields = [];
-      buffer.chartHistory.clear();
 
       const snapshot = state.resetSnapshot();
       return toOperationResult(snapshot, []);

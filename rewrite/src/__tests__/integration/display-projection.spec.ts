@@ -93,7 +93,7 @@ describe('T024f: Display projection correctness', () => {
 
     // Select field-a for chart (fieldId format is groupId:dataItemId)
     service.updatePreferences({
-      chart: { selectedItems: ['frame-1:field-a'] },
+      charts: [{ selectedItems: ['frame-1:field-a'] }],
     });
 
     const series = service.getChartSeries();
@@ -201,10 +201,35 @@ describe('T024f: Display projection correctness', () => {
     expect(service.getTable1Rows()).toHaveLength(0);
     expect(service.getTable2Rows()).toHaveLength(0);
     expect(service.getChartSeries()).toHaveLength(0);
+    expect(service.getChartInstances()).toHaveLength(1);
+    expect(service.getChartInstances()[0].series).toHaveLength(0);
     expect(service.getScatterProjection().points).toHaveLength(0);
 
     // Preferences survived
     const prefs = service.getPreferences();
     expect(prefs.table1.selectedGroupId).toBe('frame-1');
+  });
+
+  it('multi-chart instances project independently', () => {
+    service.ingestSourceMaterial({
+      fields: [
+        field('frame-1', 'field-a', 'Field A', 42, '42'),
+        field('frame-1', 'field-b', 'Field B', 100, '100'),
+        field('frame-2', 'field-c', 'Field C', 7, '7'),
+      ],
+    });
+
+    service.updateChartCount(2);
+    service.updateChartConfig('chart-1', { selectedItems: ['frame-1:field-a'] });
+    service.updateChartConfig('chart-2', { selectedItems: ['frame-1:field-b', 'frame-2:field-c'] });
+
+    const instances = service.getChartInstances();
+    expect(instances).toHaveLength(2);
+    expect(instances[0].id).toBe('chart-1');
+    expect(instances[0].series).toHaveLength(1);
+    expect(instances[0].series[0].fieldId).toBe('frame-1:field-a');
+    expect(instances[1].id).toBe('chart-2');
+    expect(instances[1].series).toHaveLength(2);
+    expect(instances[1].series.map((s) => s.fieldId)).toEqual(['frame-1:field-b', 'frame-2:field-c']);
   });
 });

@@ -208,7 +208,7 @@ onMounted(() => {
               <span class="rw-text-label">波形图</span>
             </div>
             <div class="p-2">
-              <WaveformChart :series="displayRefresh.chartSeries.value" height="340px" />
+              <WaveformChart :series="displayRefresh.chartInstances[0]?.series ?? []" height="340px" />
             </div>
           </div>
 
@@ -218,7 +218,7 @@ onMounted(() => {
               <span class="rw-text-label">星座图</span>
             </div>
             <div class="p-2">
-              <ScatterChart :data="displayRefresh.scatter.value" height="340px" />
+              <ScatterChart :data="displayRefresh.scatter" height="340px" />
             </div>
           </div>
         </div>

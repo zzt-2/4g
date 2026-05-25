@@ -1,5 +1,6 @@
 import { onUnmounted, readonly, shallowRef, type Ref } from 'vue';
 import type {
+  ChartInstanceProjection,
   ChartSeriesProjection,
   DisplayService,
   ScatterProjection,
@@ -11,6 +12,7 @@ import type {
 export interface DisplayRefreshState {
   readonly table1Rows: Readonly<Ref<TableRowProjection[]>>;
   readonly table2Rows: Readonly<Ref<TableRowProjection[]>>;
+  readonly chartInstances: Readonly<Ref<ChartInstanceProjection[]>>;
   readonly chartSeries: Readonly<Ref<ChartSeriesProjection[]>>;
   readonly scatter: Readonly<Ref<ScatterProjection>>;
   readonly availability: Readonly<Ref<DisplaySourceAvailability>>;
@@ -23,6 +25,7 @@ export function useDisplayRefresh(
 ): DisplayRefreshState & { start: () => void; stop: () => void } {
   const table1Rows = shallowRef<TableRowProjection[]>([]);
   const table2Rows = shallowRef<TableRowProjection[]>([]);
+  const chartInstances = shallowRef<ChartInstanceProjection[]>([]);
   const chartSeries = shallowRef<ChartSeriesProjection[]>([]);
   const scatter = shallowRef<ScatterProjection>({ points: [], sampleCount: 0 });
   const availability = shallowRef<DisplaySourceAvailability>({ available: false });
@@ -35,6 +38,7 @@ export function useDisplayRefresh(
   function refresh(): void {
     table1Rows.value = service.getTable1Rows();
     table2Rows.value = service.getTable2Rows();
+    chartInstances.value = service.getChartInstances();
     chartSeries.value = service.getChartSeries();
     scatter.value = service.getScatterProjection();
     availability.value = service.getAvailability();
@@ -73,6 +77,7 @@ export function useDisplayRefresh(
   return {
     table1Rows: readonly(table1Rows),
     table2Rows: readonly(table2Rows),
+    chartInstances: readonly(chartInstances),
     chartSeries: readonly(chartSeries),
     scatter: readonly(scatter),
     availability: readonly(availability),

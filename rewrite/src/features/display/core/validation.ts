@@ -42,14 +42,45 @@ export function validateDisplaySnapshot(snapshot: DisplaySnapshot): DisplayValid
     );
   }
 
-  if (snapshot.preferences.chart.performance.maxPoints <= 0) {
+  const charts = snapshot.preferences.charts;
+  if (!Array.isArray(charts) || charts.length === 0) {
     issues.push(
       createDisplayIssue(
-        'display.chart.maxPointsInvalid',
-        'preferences.chart.performance.maxPoints',
-        'Chart max points must be positive.',
+        'display.chart.emptyOrMissing',
+        'preferences.charts',
+        'Charts array is missing or empty.',
+        'error',
       ),
     );
+  } else {
+    if (charts.length > 4) {
+      issues.push(
+        createDisplayIssue(
+          'display.chart.countExceeded',
+          'preferences.charts',
+          `Chart count ${charts.length} exceeds maximum 4.`,
+        ),
+      );
+    }
+
+    const seenIds = new Set<string>();
+    charts.forEach((chart, i) => {
+      const path = `preferences.charts[${i}] (id=${chart.id})`;
+      if (seenIds.has(chart.id)) {
+        issues.push(createDisplayIssue('display.chart.duplicateId', path, `Duplicate chart id "${chart.id}".`, 'error'));
+      }
+      seenIds.add(chart.id);
+
+      if (chart.performance.maxPoints <= 0) {
+        issues.push(
+          createDisplayIssue(
+            'display.chart.maxPointsInvalid',
+            `${path}.performance.maxPoints`,
+            'Chart max points must be positive.',
+          ),
+        );
+      }
+    });
   }
 
   if (snapshot.preferences.scatter.sampleCount <= 0) {

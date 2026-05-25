@@ -1,6 +1,6 @@
 import type {
-  ChartDisplayPreference,
-  ChartPoint,
+  ChartInstancePreference,
+  ChartInstanceProjection,
   ChartSeriesProjection,
   DisplayFieldMaterial,
   DisplayPreferences,
@@ -39,33 +39,46 @@ function toRow(f: DisplayFieldMaterial): TableRowProjection {
   };
 }
 
+/**
+ * Project chart series from selected items.
+ * selectedItems use composite key format "groupId:dataItemId".
+ * Points are always empty — display does not accumulate time-series history.
+ */
 export function projectChartSeries(
   fields: readonly DisplayFieldMaterial[],
-  preference: ChartDisplayPreference,
-  historyBuffer: ReadonlyMap<string, ChartPoint[]>,
+  selectedItems: readonly string[],
 ): ChartSeriesProjection[] {
-  const selectedItems = preference.selectedItems;
-
   if (selectedItems.length === 0) {
     return [];
   }
 
-  const maxPoints = preference.performance.maxPoints;
+  const fieldMap = new Map<string, DisplayFieldMaterial>();
+  for (const f of fields) {
+    fieldMap.set(`${f.groupId}:${f.dataItemId}`, f);
+  }
+
   const result: ChartSeriesProjection[] = [];
 
   for (const fieldId of selectedItems) {
-    const field = fields.find((f) => `${f.groupId}:${f.dataItemId}` === fieldId);
-    const history = historyBuffer.get(fieldId);
-    const points: ChartPoint[] = history ? history.slice(-maxPoints) : [];
-
+    const field = fieldMap.get(fieldId);
     result.push({
       fieldId,
       fieldName: field?.fieldName ?? fieldId,
-      points,
+      points: [],
     });
   }
 
   return result;
+}
+
+export function projectChartInstances(
+  fields: readonly DisplayFieldMaterial[],
+  charts: readonly ChartInstancePreference[],
+): ChartInstanceProjection[] {
+  return charts.map((chart) => ({
+    id: chart.id,
+    series: projectChartSeries(fields, chart.selectedItems),
+  }));
 }
 
 export function projectScatter(
@@ -107,12 +120,11 @@ function findFieldByBinding(
 export function computeDisplayProjection(
   fields: readonly DisplayFieldMaterial[],
   preferences: DisplayPreferences,
-  historyBuffer: ReadonlyMap<string, ChartPoint[]>,
 ): DisplayProjection {
   return {
     table1Rows: projectTableRows(fields, preferences.table1.selectedGroupId, preferences.table1.selectedItems),
     table2Rows: projectTableRows(fields, preferences.table2.selectedGroupId, preferences.table2.selectedItems),
-    chartSeries: projectChartSeries(fields, preferences.chart, historyBuffer),
+    charts: projectChartInstances(fields, preferences.charts),
     scatter: projectScatter(fields, preferences.scatter),
   };
 }

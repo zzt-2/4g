@@ -1,5 +1,7 @@
 export type {
-  ChartDisplayPreference,
+  ChartInstancePatch,
+  ChartInstancePreference,
+  ChartInstanceProjection,
   ChartPerformancePreference,
   ChartPoint,
   ChartSeriesProjection,
@@ -20,9 +22,11 @@ export type {
   ScatterProjection,
   ScatterSourceBinding,
   TableRowProjection,
+  YAxisPreference,
 } from './core';
 export {
   selectAvailability,
+  selectChartInstances,
   selectChartSeries,
   selectDisplaySnapshot,
   selectPreferences,

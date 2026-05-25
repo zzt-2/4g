@@ -17,8 +17,17 @@ export interface ChartPerformancePreference {
   readonly refreshIntervalMs: number;
 }
 
-export interface ChartDisplayPreference {
+export interface YAxisPreference {
+  readonly autoScale: boolean;
+  readonly min?: number;
+  readonly max?: number;
+}
+
+export interface ChartInstancePreference {
+  readonly id: string;
+  readonly title: string;
   readonly selectedItems: readonly string[];
+  readonly yAxis: YAxisPreference;
   readonly performance: ChartPerformancePreference;
 }
 
@@ -38,7 +47,7 @@ export interface ScatterDisplayPreference {
 export interface DisplayPreferences {
   readonly table1: TableDisplayPreference;
   readonly table2: TableDisplayPreference;
-  readonly chart: ChartDisplayPreference;
+  readonly charts: readonly ChartInstancePreference[];
   readonly scatter: ScatterDisplayPreference;
   readonly refreshCadenceMs: number;
 }
@@ -96,10 +105,15 @@ export interface ScatterProjection {
   readonly sampleCount: number;
 }
 
+export interface ChartInstanceProjection {
+  readonly id: string;
+  readonly series: readonly ChartSeriesProjection[];
+}
+
 export interface DisplayProjection {
   readonly table1Rows: readonly TableRowProjection[];
   readonly table2Rows: readonly TableRowProjection[];
-  readonly chartSeries: readonly ChartSeriesProjection[];
+  readonly charts: readonly ChartInstanceProjection[];
   readonly scatter: ScatterProjection;
 }
 
@@ -115,10 +129,17 @@ export interface DisplaySnapshot {
 
 // --- Patch types ---
 
+export interface ChartInstancePatch {
+  readonly title?: string;
+  readonly selectedItems?: readonly string[];
+  readonly yAxis?: Partial<YAxisPreference>;
+  readonly performance?: Partial<ChartPerformancePreference>;
+}
+
 export interface DisplayPreferencesPatch {
   readonly table1?: Partial<TableDisplayPreference>;
   readonly table2?: Partial<TableDisplayPreference>;
-  readonly chart?: Partial<ChartDisplayPreference>;
+  readonly charts?: readonly ChartInstancePatch[];
   readonly scatter?: Partial<ScatterDisplayPreference>;
   readonly refreshCadenceMs?: unknown;
 }
