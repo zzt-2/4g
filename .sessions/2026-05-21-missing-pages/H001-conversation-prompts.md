@@ -105,6 +105,44 @@ Lane B | 历史分析页 UI 设计实施 | 前置：对话 B 完成
 - 统计量（mean/RMSE）在 UI 层计算，不在 display state
 
 按 H001 §通用流程指令执行。实施前必须先做 Service Readiness Audit。
+
+对话 B 遗留项（C 必须处理）：
+1. WaveformChart 颜色硬编码 → 迁移到 CSS token（BUG/SMELL）
+2. UI 页面组件实现：HistoryPage / HistoryDataSelector / HistoryTimeSelector / CSVExportDialog
+3. storage→ChartSeriesProjection 转换 composable（identity: channel+key → groupId:dataItemId）
+4. 统计量计算（mean/RMSE）在 UI 层实现
+5. 多图表集成测试补全
+6-15. 其他 UI 相关测试覆盖缺口（yAxis merge 边界、charts>4 truncation、getChartInstances 集成测试等）
+```
+
+## 对话 DP：实时显示页 UX 重做
+
+```
+Lane B | 实时显示页(DisplayPage) UX 重设计重实施
+
+先读 .sessions/2026-05-21-missing-pages/S001-research-and-planning.md §历史分析补充（display 部分）
+再读 rewrite/src/pages/DisplayPage.vue（当前新系统 — 277行壳子，功能仅旧系统15%）
+再读旧系统对比文件：
+  - src/pages/DisplayPage.vue 或 src/components/display/ 下所有文件
+  - src/stores/dataDisplayStore.ts（1073行，双面板+三模式+录制+分组+统计）
+
+目标：重做 DisplayPage，达到旧系统同等 UX 水平。核心差距：
+  - 旧系统有双面板（2个独立可配置面板），新系统只有单视图
+  - 旧系统有三种显示模式（表格/折线图/星座图）可切换，新系统无
+  - 旧系统有图表配置（字段选择/Y轴/统计叠加），新系统无
+  - 旧系统有录制控制（开始/停止/CSV），新系统无
+  - 旧系统有分组管理，新系统无
+  - 旧系统有字段排序/收藏，新系统无
+  - UI 设计丑、UX 不合理是主要问题
+
+直接合同：旧系统 DisplayPage 行为 + display feature 现有 API
+边界护栏：R4（UI不承载业务逻辑）+ 前端 conventions + display feature API 不改（只做 UI 层）
+
+按 H001 §通用流程指令执行。
+Wave 1 重点：
+  - 旧系统完整交互提取（双面板操作流/模式切换/图表配置/录制/分组）
+  - 新系统 display service API 全量梳理（确认哪些能力已就绪）
+  - 前端规范 + 旧系统 UI 截图参考（如有）
 ```
 
 ## 对话 D：存储管理 — feature 设计
