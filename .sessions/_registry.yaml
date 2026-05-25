@@ -17,8 +17,8 @@ sessions:
     title: 甲方对接闭环分析
     status: active
     created: 2026-05-18
-    last_updated: 2026-05-18
-    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项
+    last_updated: 2026-05-25
+    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项。S002 完成 northbound feature 实施。
 
   - slug: 2026-05-19-integration-testing
     title: 集成测试体系建立
@@ -26,3 +26,10 @@ sessions:
     created: 2026-05-19
     last_updated: 2026-05-20
     description: 从设计文档、旧系统行为、新系统代码中提取集测范围，建立端到端集成测试体系。36 条集测项全部完成（343 tests passing）。后续追加见 S006 §十。
+
+  - slug: 2026-05-21-missing-pages
+    title: 缺失页面规划与实施
+    status: active
+    created: 2026-05-21
+    last_updated: 2026-05-24
+    description: 存储管理/历史分析/系统设置三个缺失页面的调研、feature 扩展、UI 设计和实施。每页先扩 feature API 再做 UI，按 feature 归口推进。
