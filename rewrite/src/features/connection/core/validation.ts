@@ -14,6 +14,10 @@ const CONFIG_KEYS = new Set([
   ...COMMON_CONFIG_KEYS,
   'portPath',
   'baudRate',
+  'dataBits',
+  'stopBits',
+  'parity',
+  'flowControl',
   'host',
   'port',
   'localHost',
@@ -113,6 +117,41 @@ function warnUnknownFields(value: UnknownRecord, issues: ConnectionValidationIss
     }
   }
 }
+
+function optionalNumberEnum<T extends number>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+  path: string,
+  issues: ConnectionValidationIssue[],
+): T {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'number' && Number.isFinite(value) && allowed.includes(value as T)) {
+    return value as T;
+  }
+  issues.push(issue('connection.config.valueInvalid', path, `Invalid value for ${path}.`));
+  return fallback;
+}
+
+function optionalStringEnum<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+  path: string,
+  issues: ConnectionValidationIssue[],
+): T {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'string' && allowed.includes(value as T)) {
+    return value as T;
+  }
+  issues.push(issue('connection.config.valueInvalid', path, `Invalid value for ${path}.`));
+  return fallback;
+}
+
+const DATA_BITS_VALUES = [5, 6, 7, 8] as const;
+const STOP_BITS_VALUES = [1, 1.5, 2] as const;
+const PARITY_VALUES = ['none', 'even', 'odd', 'mark', 'space'] as const;
+const FLOW_CONTROL_VALUES = ['none', 'hardware', 'software'] as const;
 
 export function createConnectionIssue(
   code: string,
@@ -228,6 +267,10 @@ export function normalizeTransportConfig(value: unknown): ConnectionConfigNormal
         kind: 'serial',
         portPath: nonEmptyString(value.portPath, 'unknown', 'portPath', issues),
         baudRate: numberInRange(value.baudRate, 115200, 'baudRate', 1, Number.MAX_SAFE_INTEGER, issues),
+        dataBits: optionalNumberEnum(value.dataBits, DATA_BITS_VALUES, 8, 'dataBits', issues),
+        stopBits: optionalNumberEnum(value.stopBits, STOP_BITS_VALUES, 1, 'stopBits', issues),
+        parity: optionalStringEnum(value.parity, PARITY_VALUES, 'none', 'parity', issues),
+        flowControl: optionalStringEnum(value.flowControl, FLOW_CONTROL_VALUES, 'none', 'flowControl', issues),
       };
       break;
     case 'tcp-client':

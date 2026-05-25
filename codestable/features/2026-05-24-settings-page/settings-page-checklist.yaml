@@ -1,0 +1,104 @@
+version: 2
+feature: 2026-05-24-settings-page
+status: approved
+date: "2026-05-24"
+purpose: "系统设置页 UI + SerialTransportConfig 串口参数扩展实施清单"
+
+direct_contract:
+  - "codestable/features/2026-05-24-settings-page/settings-page-design.md"
+  - "codestable/features/rewrite-settings/rewrite-settings-design.md"
+  - ".sessions/2026-05-21-missing-pages/S002-settings-page-wave1.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-frontend-conventions.md"
+  - "codestable/quality/rewrite-frontend-checklist.md"
+  - "codestable/reference/rewrite-frontend-quickref.md"
+
+boundary_guards:
+  - "页面直接消费各 feature public API，不经过 settings feature 中转（R7）。"
+  - "不改 settings feature core（types/defaults/normalize/validation/service/selector）。"
+  - "connection 更新串口参数走 connect()（内部 upsertConfig），无独立 updateConfig 方法。"
+  - "持久化由子组件保存 handler 显式调用 runtime.persistence.saveXxx()。"
+  - "占位分组内联在 SettingsPage.vue，不建独立文件。"
+  - "不做 Display/Status/Advanced 分组的实际功能。"
+
+steps:
+  - action: "扩展 SerialTransportConfig：types.ts 加 4 个可选字段 + validation.ts normalizeTransportConfig 加默认值 + clone.ts 支持新字段"
+    exit_signal: "TypeScript 编译通过，新字段有默认值（dataBits=8, stopBits=1, parity='none', flowControl='none'）"
+    status: pending
+
+  - action: "实现 SettingsPage.vue 骨架：Mode C 布局 + QExpansionItem 分组 + 3 个内联禁用占位 + 路由注册 + HomePage 入口"
+    exit_signal: "页面可通过 /settings 访问，占位分组显示禁用状态"
+    status: pending
+
+  - action: "实现 ApplicationSettings.vue：7 项 settings 配置表单（QToggle/QInput/QSelect）+ dirty tracking + 保存/重置 handler"
+    exit_signal: "7 项配置可编辑、可保存（settingsService.update + persistence.saveSettings）、可重置，dirty 标记正确"
+    status: pending
+
+  - action: "实现 ConnectionSettings.vue：串口参数表单（QSelect 预设值）+ dirty tracking + 保存 handler（connect + persistence.saveConnections）"
+    exit_signal: "5 个串口参数可编辑、可保存，新字段有正确默认值"
+    status: pending
+
+  - action: "验证：pnpm build + pnpm lint + 补 connection 扩展相关测试"
+    exit_signal: "build 和 lint 通过，新增测试通过"
+    status: pending
+
+checks:
+  - item: "SerialTransportConfig 包含 dataBits/stopBits/parity/flowControl 4 个可选字段"
+    source: 名词契约
+    status: pending
+
+  - item: "normalizeTransportConfig 对新字段有正确默认值（dataBits=8, stopBits=1, parity='none', flowControl='none'）"
+    source: 名词契约
+    status: pending
+
+  - item: "SettingsPage 可通过 /settings 路由访问，HomePage 有设置入口"
+    source: 验收场景
+    status: pending
+
+  - item: "ApplicationSettings 展示 7 项配置，toggle/number 控件正确绑定"
+    source: 验收场景
+    status: pending
+
+  - item: "ApplicationSettings 保存调用 settingsService.update + runtime.persistence.saveSettings"
+    source: 编排骨架
+    status: pending
+
+  - item: "ApplicationSettings 重置弹出确认对话框，确认后 settingsService.reset('all')"
+    source: 验收场景
+    status: pending
+
+  - item: "ConnectionSettings 展示串口参数，QSelect 预设值正确"
+    source: 验收场景
+    status: pending
+
+  - item: "ConnectionSettings 保存调用 connectionService.connect + runtime.persistence.saveConnections"
+    source: 编排骨架
+    status: pending
+
+  - item: "dirty tracking：修改任何字段后 isDirty=true，保存后 isDirty=false"
+    source: 验收场景
+    status: pending
+
+  - item: "校验失败时显示错误提示，保存按钮禁用（csvSaveIntervalMinutes=-1 等边界场景）"
+    source: 验收场景
+    status: pending
+
+  - item: "3 个占位分组为禁用 QExpansionItem + tooltip '即将推出'，无可交互表单元素"
+    source: 验收场景
+    status: pending
+
+  - item: "页面不直接 import 任何 feature 的 state/internal module，只通过 service public API"
+    source: 范围守护 (R2/R14)
+    status: pending
+
+  - item: "不应出现 window.electron / ipcRenderer / fs 调用"
+    source: 范围守护 (R5)
+    status: pending
+
+  - item: "设置页消费模式与 ConnectionPage/DisplayPage 一致（useRewriteRuntime → runtime.features.xxxService）"
+    source: 跨模块一致性
+    status: pending
+
+  - item: "pnpm build && pnpm lint 通过"
+    source: 验证基线
+    status: pending

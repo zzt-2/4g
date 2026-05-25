@@ -86,6 +86,7 @@ const quickActions: readonly QuickAction[] = [
   { label: '帧发送', description: '编辑发送参数并执行', icon: 'send', to: '/send', color: 'primary' },
   { label: '任务管理', description: '创建和监控执行任务', icon: 'assignment', to: '/tasks', color: 'primary' },
   { label: '指令接入', description: 'SCOE 与外部指令配置', icon: 'settings_input_antenna', to: '/command-ingress', color: 'primary' },
+  { label: '系统设置', description: '应用配置与串口参数', icon: 'settings', to: '/settings', color: 'primary' },
 ];
 
 function refreshData(): void {
