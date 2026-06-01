@@ -1,0 +1,297 @@
+version: 1
+feature: rewrite-storage-highspeed
+status: done
+date: "2026-05-25"
+purpose: "高速存储 feature 实施入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - ".sessions/2026-05-21-missing-pages/S001-research-and-planning.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - ".sessions/2026-05-19-integration-testing/S004-legacy-observable-behaviors.md"
+  - "codestable/features/rewrite-storage-local-baseline/rewrite-storage-local-baseline-design.md"
+
+boundary_guards:
+  - "只实现高速存储三层架构：规则模型 + 分流机制 + Platform 文件流。"
+  - "不修改 routing-tick、receive pipeline、connection feature 内部实现。"
+  - "不设计 report delivery、northbound file delivery、TestReport、HTTP/FTP 或客户闭环。"
+  - "renderer 不直接访问 Node、Electron、fs、path、ipcRenderer。"
+  - "main process 只做 byte prefix comparison 和文件 I/O，不承载业务规则。"
+  - "旧系统代码只作为 evidence，不作为新代码模板。"
+
+items:
+  # ===== Layer 1: 规则模型 (renderer feature) =====
+
+  - id: HSS-001
+    title: "core/types.ts — 核心类型定义"
+    status: done
+    scope: "feature core"
+    acceptance:
+      - "HighSpeedStorageConfig 类型（enabled, maxFileSize, enableRotation, rotationCount）。"
+      - "FrameHeaderRule 类型（id, connectionId, headerPatterns, enabled）。"
+      - "HighSpeedStorageStats 类型（totalFramesStored, totalBytesStored, currentFileSize, storageStartTime, lastStorageTime, isStorageActive）。"
+      - "StorageStatus 联合类型（disabled | no-rule | rule-disabled | ready | active）。"
+      - "HighSpeedStorageState 聚合类型。"
+    validation:
+      - unit
+
+  - id: HSS-002
+    title: "core/defaults.ts — 默认值"
+    status: done
+    scope: "feature core"
+    acceptance:
+      - "defaultConfig: enabled=false, maxFileSize=100, enableRotation=true, rotationCount=5。"
+    validation:
+      - unit
+
+  - id: HSS-003
+    title: "core/matching.ts — 帧头匹配纯函数"
+    status: done
+    scope: "feature core"
+    acceptance:
+      - "compilePattern(hex): string → number[]。"
+      - "matchesPrefix(data, pattern): readonly number[] → boolean。"
+      - "matchFrameHeader(data, patterns): readonly number[] → boolean — 任一 pattern 匹配返回 true。"
+      - "字节类型用 readonly number[]，与 platform bridge (TransportBridgeEvent.bytes) 保持一致。"
+      - "零 Vue/Pinia/Electron 依赖。"
+      - "覆盖率 ≥ 90%。"
+    validation:
+      - unit
+
+  - id: HSS-004
+    title: "core/validation.ts — 规则验证纯函数"
+    status: done
+    scope: "feature core"
+    acceptance:
+      - "validateHexPattern(pattern): 检查非空、偶数长度、合法 hex 字符。"
+      - "validateRule(rule): 检查 connectionId 非空、至少一个 headerPattern、所有 pattern 合法。"
+      - "返回 RuleValidationResult { valid, errors }。"
+      - "覆盖率 ≥ 90%。"
+    validation:
+      - unit
+
+  - id: HSS-005
+    title: "state/ — 状态管理"
+    status: done
+    scope: "feature state"
+    acceptance:
+      - "StorageHighspeedStateContainer 管理 config + rule + stats + isLoading + lastError。"
+      - "提供 getSnapshot() 返回 readonly 快照。"
+      - "状态变更方法：setConfig, setRule, deleteRule, setStats, setLoading, setError。"
+    validation:
+      - unit
+
+  - id: HSS-006
+    title: "services/storage-highspeed-service.ts — Service 实现"
+    status: done
+    scope: "feature service"
+    acceptance:
+      - "createService(options): factory，接收 StoragePlatformFacade。"
+      - "activate(): enabled=true + 调 platformFacade.activateFilter。"
+      - "deactivate(): enabled=false + 调 platformFacade.deactivateFilter。"
+      - "setRule/updateRule/deleteRule: 规则 CRUD + 状态更新。"
+      - "refreshStats(): 调 platformFacade.getStats → 更新 state。"
+      - "resetStats(): 调 platformFacade.resetStats。"
+      - "getSnapshot(): 返回 state readonly 快照。"
+      - "不依赖 Vue/Pinia，依赖 platform facade 接口。"
+    validation:
+      - unit
+      - "使用 facade test double 测试"
+
+  - id: HSS-007
+    title: "selectors/ — 只读投影"
+    status: done
+    scope: "feature selectors"
+    acceptance:
+      - "selectStorageStatus: disabled/no-rule/rule-disabled/ready/active 5 态判定。"
+      - "selectFormattedStats: 人类可读格式（bytes → KB/MB/GB, duration, relative time）。"
+      - "selectCanActivate: enabled=false 且有 rule 且 rule.enabled=true。"
+      - "selectRuleSummary: rule 摘要（connectionId, pattern count, enabled）。"
+      - "纯函数，零副作用。"
+    validation:
+      - unit
+
+  - id: HSS-008
+    title: "composables/use-highspeed-storage.ts — Vue composable"
+    status: done
+    scope: "feature composable"
+    acceptance:
+      - "暴露响应式 state：config, rule, stats, status, isLoading, lastError, formattedStats。"
+      - "暴露操作：activate, deactivate, setRule, updateRule, deleteRule, refreshStats, resetStats。"
+      - "使用 usePolling 或 setInterval 定时 refreshStats（1 秒间隔）。"
+      - "使用 useAsyncAction 包装异步操作。"
+    validation:
+      - unit
+
+  - id: HSS-009
+    title: "index.ts — Public API"
+    status: done
+    scope: "feature public surface"
+    acceptance:
+      - "导出：createService, core 函数, 类型, selectors, composable factory。"
+      - "不导出 state 内部实现。"
+      - "不导出 platform facade（归 platform 模块）。"
+    validation:
+      - manual
+
+  # ===== Layer 2: Platform Facade =====
+
+  - id: HSS-010
+    title: "platform/storage.ts — StoragePlatformFacade"
+    status: done
+    scope: "platform"
+    acceptance:
+      - "StoragePlatformFacade 接口定义（activateFilter, deactivateFilter, getStats, resetStats, updateConfig）。"
+      - "createStoragePlatformFacade(bridge): factory。"
+      - "类型与 shared/platform-bridge.ts 对齐。"
+    validation:
+      - unit
+
+  - id: HSS-011
+    title: "shared/platform-bridge.ts — Bridge 类型扩展"
+    status: done
+    scope: "shared"
+    acceptance:
+      - "StoragePlatformBridge 类型定义（preload 暴露的方法签名）。"
+      - "与现有 TransportBridge/FileBridge/HttpBridge 同模式。"
+    validation:
+      - unit
+      - "类型检查通过"
+
+  - id: HSS-012
+    title: "preload/index.ts — Storage bridge 方法"
+    status: done
+    scope: "preload"
+    acceptance:
+      - "storage 对象：activate, deactivate, getStats, reset, updateConfig。"
+      - "每个方法使用 ipcRenderer.invoke 调用对应通道。"
+      - "contextBridge.exposeInMainWorld 暴露 storage bridge。"
+    validation:
+      - manual
+
+  # ===== Layer 3: Main Process =====
+
+  - id: HSS-013
+    title: "main/storage-filter.ts — StorageFilter 类"
+    status: done
+    scope: "main process"
+    acceptance:
+      - "单规则扁平结构：connectionId: string | null, patterns: (readonly number[])[]。不使用 Map。"
+      - "activate(request): 存储 compiled patterns + connectionId, 内部解析 storageDir (app.getPath('userData') + '/dongfanghong/business-data'), 初始化 WriteStream。"
+      - "deactivate(): 关闭 WriteStream, 清空 connectionId + patterns。"
+      - "shouldStore(connectionId, data: Buffer | readonly number[]): connectionId 匹配 + 任一 pattern 前缀匹配, 返回 boolean。"
+      - "storeData(data: Buffer | readonly number[]): toHexString → writeStream.write, 更新 stats。"
+      - "checkRotation(): file size ≥ maxFileSize → close stream → cleanup old → init new。"
+      - "cleanupOldFiles(): 保留 rotationCount 个最新文件。"
+      - "getStats(): 返回统计快照。"
+      - "resetStats(): close stream + delete file + zero counters。"
+      - "updateConfig(config): 运行时更新 maxFileSize/rotationCount。"
+      - "cleanup(): app shutdown 时关闭资源。"
+    validation:
+      - manual
+      - "主进程测试需 fixture 验证"
+
+  - id: HSS-014
+    title: "main/storage-handlers.ts — IPC Handlers"
+    status: done
+    scope: "main process"
+    acceptance:
+      - "注册 5 个 IPC 通道：activateFilter, deactivateFilter, getStats, resetStats, updateConfig。"
+      - "使用 createHandlerRegistry 模式（与其他 handlers 一致）。"
+      - "委托 StorageFilter 实例。"
+    validation:
+      - manual
+
+  - id: HSS-015
+    title: "main serial-handlers.ts / network-handlers.ts — 分流集成"
+    status: done
+    scope: "main process"
+    acceptance:
+      - "serial-handlers.ts wirePortEvents(): port.on('data', chunk) 回调中，在 batchBuffer.push 前插入 filter 检查。"
+      - "network-handlers.ts socket.on('data', chunk) 同模式改造。"
+      - "匹配数据：storageFilter.shouldStore(id, chunk) → true → storeData(chunk) + return（不入 batchBuffer，不调 scheduleBatchFlush）。"
+      - "不匹配数据：正常入 batchBuffer + scheduleBatchFlush。"
+      - "每个 chunk 独立匹配帧头前缀，不处理跨 chunk 协议帧（与旧系统行为一致）。"
+      - "storageFilter 实例在 setupIPC 中创建并注入 handlers。"
+      - "导出 storageFilter 实例（供 IPC handlers 委托）。"
+    validation:
+      - manual
+      - "打包态 data path 验证需 runtime/hardware"
+
+  - id: HSS-016
+    title: "main/index.ts — IPC 注册"
+    status: done
+    scope: "main process"
+    acceptance:
+      - "setupIPC 中注册 storageHandlers。"
+      - "app shutdown 时调用 storageFilter.cleanup()。"
+    validation:
+      - manual
+
+  # ===== Runtime Wiring =====
+
+  - id: HSS-017
+    title: "runtime/feature-wiring.ts — L0 层 wiring"
+    status: done
+    scope: "runtime"
+    acceptance:
+      - "L0 层创建 highSpeedStorageService（在 connectionService 之前）。"
+      - "注入 StoragePlatformFacade。"
+      - "启动时从 persistence 加载 config + rule。"
+      - "如果 enabled=true 且 rule 存在，立即 activateFilter。"
+    validation:
+      - unit
+
+  - id: HSS-018
+    title: "runtime/persistence.ts — 持久化注册"
+    status: done
+    scope: "runtime"
+    acceptance:
+      - "注册 storage-highspeed 到 FeaturePersistence。"
+      - "保存/加载 config + rule（不含 stats）。"
+    validation:
+      - unit
+
+  # ===== 集成验证 =====
+
+  - id: HSS-019
+    title: "build + lint 通过"
+    status: done
+    scope: "quality gate"
+    acceptance:
+      - "pnpm build 零错误。"
+      - "pnpm lint 零错误。"
+      - "全部现有测试通过。"
+    validation:
+      - automated
+
+  - id: HSS-020
+    title: "行为基线覆盖确认"
+    status: done
+    scope: "acceptance"
+    acceptance:
+      - "STO-009: 帧头匹配 + connectionId 匹配触发 — 通过 unit test + manual 验证。"
+      - "STO-010: 匹配数据不发渲染进程 — 通过 manual 验证（数据走 main 分流路径）。"
+      - "STO-011: hex 文件格式正确 — 通过 fixture 文件检查。"
+      - "STO-012: 文件轮转（100MB + 5 文件）— 通过 fixture 验证。"
+      - "STO-013: 统计正确（帧数/字节数/文件大小/活跃状态）— 通过 unit test + manual。"
+      - "STO-014: 重置统计 = 删当前文件 — 通过 fixture 验证。"
+    validation:
+      - unit
+      - manual
+      - "runtime/hardware validation required for STO-010, STO-012"
+
+  # ===== 边界例外注册 =====
+
+  - id: HSS-021
+    title: "Runtime 边界例外注册"
+    status: done
+    scope: "architecture"
+    acceptance:
+      - "在 runtime exception 登记表中注册：高速存储分流短路正常 receive/display/trigger 链。"
+      - "注明合规依据：R5 允许 main 做高频数据分流。"
+      - "注明业务决策权在 renderer，matching 算法在 core/ 可独立测试。"
+    validation:
+      - manual

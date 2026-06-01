@@ -5,14 +5,17 @@ import {
   type TransportBridge,
   type FileBridge,
   type HttpBridge,
+  type StorageBridge,
 } from '@/shared/platform-bridge';
 import { createTransportFacade, type TransportFacade } from './transport';
 import { createFileFacade, type FileFacade } from './files';
 import { createHttpFacade, type HttpFacade } from './http';
+import { createStorageFacade, type StoragePlatformFacade } from './storage';
 
 export type { TransportFacade } from './transport';
 export type { FileFacade, FileBridge } from './files';
 export type { HttpFacade, HttpBridge } from './http';
+export type { StoragePlatformFacade } from './storage';
 export type {
   SerialPortCandidate,
   TransportBridgeEvent,
@@ -86,4 +89,18 @@ export function getHttpFacade(): HttpFacade | null {
 
 export function resetHttpFacade(): void {
   cachedHttpFacade = null;
+}
+
+let cachedStorageFacade: StoragePlatformFacade | null = null;
+
+export function getStorageFacade(): StoragePlatformFacade | null {
+  if (cachedStorageFacade) return cachedStorageFacade;
+  const bridge = getBridge();
+  if (!bridge?.storage) return null;
+  cachedStorageFacade = createStorageFacade(bridge.storage as StorageBridge);
+  return cachedStorageFacade;
+}
+
+export function resetStorageFacade(): void {
+  cachedStorageFacade = null;
 }

@@ -50,7 +50,11 @@ import {
   createNorthboundService,
   type NorthboundService,
 } from '@/features/northbound';
-import { getHttpFacade } from '@/platform';
+import {
+  createStorageHighspeedService,
+  type StorageHighspeedService,
+} from '@/features/storage-highspeed';
+import { getHttpFacade, getStorageFacade } from '@/platform';
 import { ConnectionBackedSendWriter } from './bridges/connection-backed-writer';
 import { ConnectionBackedTargetResolver } from './bridges/connection-backed-target-resolver';
 import { ReceiveEventSourceBridge } from './bridges/receive-event-source-bridge';
@@ -61,6 +65,7 @@ export interface RewriteWiredFeatures {
   readonly settingsService: SettingsService;
   readonly storageReader: StorageLocalReader;
   readonly storageService: StorageLocalService;
+  readonly highSpeedStorageService: StorageHighspeedService;
   readonly connectionService: ConnectionService;
   readonly receiveService: ReceiveService;
   readonly displayService: DisplayService;
@@ -94,6 +99,20 @@ export function wireFeatures(
   const settingsService = createSettingsService();
   const storageService = createDefaultStorageService();
   const storageReader = storageService;
+
+  const storageFacade = getStorageFacade();
+  const highSpeedStorageService = createStorageHighspeedService({
+    platformFacade: storageFacade ?? {
+      activateFilter: async () => ({ ok: false, error: 'Storage facade not available' }),
+      deactivateFilter: async () => ({ ok: false, error: 'Storage facade not available' }),
+      getStats: async () => ({
+        totalFramesStored: 0, totalBytesStored: 0, currentFileSize: 0,
+        storageStartTime: null, lastStorageTime: null, isStorageActive: false,
+      }),
+      resetStats: async () => ({ ok: false, error: 'Storage facade not available' }),
+      updateConfig: async () => ({ ok: false, error: 'Storage facade not available' }),
+    },
+  });
 
   // L1: needs adapter
   const connectionService = createConnectionService({
@@ -177,6 +196,7 @@ export function wireFeatures(
     settingsService,
     storageReader,
     storageService,
+    highSpeedStorageService,
     connectionService,
     receiveService,
     displayService,

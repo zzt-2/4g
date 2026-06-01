@@ -7,6 +7,7 @@ import type {
   TransportBridgeEventError,
   TransportCommandResult,
 } from '../../src/shared/platform-bridge';
+import { storageFilter } from './storage-filter';
 
 const IPC_ENUMERATE = 'transport:enumerate-serial-ports';
 const IPC_CONNECT = 'transport:serial-connect';
@@ -107,6 +108,10 @@ function wirePortEvents(conn: ManagedSerialPort, win: BrowserWindow): void {
   const { port, config } = conn;
 
   port.on('data', (chunk: Buffer) => {
+    if (storageFilter.shouldStore(config.id, chunk)) {
+      storageFilter.storeData(chunk);
+      return;
+    }
     for (let i = 0; i < chunk.length; i++) {
       conn.batchBuffer.push(chunk[i] as number);
     }

@@ -10,6 +10,7 @@ import type {
   UdpConnectConfig,
   TransportConnectConfig,
 } from '../../src/shared/platform-bridge';
+import { storageFilter } from './storage-filter';
 
 const IPC_NETWORK_CONNECT = 'transport:network-connect';
 const IPC_NETWORK_DISCONNECT = 'transport:network-disconnect';
@@ -204,6 +205,10 @@ async function handleTcpClientConnect(
     });
 
     socket.on('data', (chunk: Buffer) => {
+      if (storageFilter.shouldStore(config.id, chunk)) {
+        storageFilter.storeData(chunk);
+        return;
+      }
       for (let i = 0; i < chunk.length; i++) {
         conn.batchBuffer.push(chunk[i] as number);
       }
@@ -324,6 +329,10 @@ async function handleTcpServerConnect(
       emitToRenderer(win, connectedEvent);
 
       socket.on('data', (chunk: Buffer) => {
+        if (storageFilter.shouldStore(clientId, chunk)) {
+          storageFilter.storeData(chunk);
+          return;
+        }
         for (let i = 0; i < chunk.length; i++) {
           clientConn.batchBuffer.push(chunk[i] as number);
         }
@@ -409,6 +418,10 @@ async function handleUdpConnect(
     };
 
     socket.on('message', (msg: Buffer) => {
+      if (storageFilter.shouldStore(config.id, msg)) {
+        storageFilter.storeData(msg);
+        return;
+      }
       for (let i = 0; i < msg.length; i++) {
         conn.batchBuffer.push(msg[i] as number);
       }

@@ -6,12 +6,14 @@ export interface PersistedFeatureState {
   readonly frames?: { readonly frames: readonly FrameAsset[]; readonly selectedFrameId?: string };
   readonly connectionConfigs?: readonly TransportConfig[];
   readonly settings?: Record<string, unknown>;
+  readonly storageHighspeed?: { readonly config: unknown; readonly rule: unknown };
 }
 
 export interface PersistenceStateSources {
   getFrameSnapshot(): { readonly frames: readonly FrameAsset[]; readonly selectedFrameId?: string };
   getConnectionConfigs(): readonly TransportConfig[];
   getSettingsSnapshot(): Record<string, unknown>;
+  getStorageHighspeedSnapshot?(): { readonly config: unknown; readonly rule: unknown };
 }
 
 export interface FeaturePersistence {
@@ -19,6 +21,7 @@ export interface FeaturePersistence {
   saveFrames(): Promise<void>;
   saveConnections(): Promise<void>;
   saveSettings(): Promise<void>;
+  saveStorageHighspeed(): Promise<void>;
   saveAll(): Promise<void>;
 }
 
@@ -54,16 +57,18 @@ export function createFeaturePersistence(
 ): FeaturePersistence {
   return {
     async load(): Promise<PersistedFeatureState> {
-      const [frameData, connData, settingsData] = await Promise.all([
+      const [frameData, connData, settingsData, storageHighspeedData] = await Promise.all([
         safeReadJson(fileFacade, dataPath(dataDir, 'frames')),
         safeReadJson(fileFacade, dataPath(dataDir, 'connections')),
         safeReadJson(fileFacade, dataPath(dataDir, 'settings')),
+        safeReadJson(fileFacade, dataPath(dataDir, 'storage-highspeed')),
       ]);
 
       return {
         frames: isFrameData(frameData) ? frameData as PersistedFeatureState['frames'] : undefined,
         connectionConfigs: isConnectionData(connData) ? (connData as { configs: readonly TransportConfig[] }).configs : undefined,
         settings: isSettingsData(settingsData) ? settingsData as Record<string, unknown> : undefined,
+        storageHighspeed: isStorageHighspeedData(storageHighspeedData) ? storageHighspeedData as PersistedFeatureState['storageHighspeed'] : undefined,
       };
     },
 
@@ -82,11 +87,18 @@ export function createFeaturePersistence(
       await safeWriteJson(fileFacade, dataPath(dataDir, 'settings'), snapshot);
     },
 
+    async saveStorageHighspeed(): Promise<void> {
+      if (!sources.getStorageHighspeedSnapshot) return;
+      const snapshot = sources.getStorageHighspeedSnapshot();
+      await safeWriteJson(fileFacade, dataPath(dataDir, 'storage-highspeed'), snapshot);
+    },
+
     async saveAll(): Promise<void> {
       await Promise.all([
         this.saveFrames(),
         this.saveConnections(),
         this.saveSettings(),
+        this.saveStorageHighspeed(),
       ]);
     },
   };
@@ -106,12 +118,18 @@ function isSettingsData(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
 }
 
+function isStorageHighspeedData(value: unknown): value is { config: unknown; rule: unknown } {
+  if (value === null || typeof value !== 'object') return false;
+  return 'config' in (value as Record<string, unknown>);
+}
+
 export function createNoOpPersistence(): FeaturePersistence {
   return {
     async load() { return {}; },
     async saveFrames() {},
     async saveConnections() {},
     async saveSettings() {},
+    async saveStorageHighspeed() {},
     async saveAll() {},
   };
 }

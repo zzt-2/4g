@@ -15,6 +15,9 @@ import {
   type HttpClientConfig,
   type HttpRequest,
   type HttpResponse,
+  type StorageBridge,
+  type StorageActivateRequest,
+  type StorageConfigUpdate,
 } from '../../src/shared/platform-bridge';
 
 const IPC_ENUMERATE = 'transport:enumerate-serial-ports';
@@ -40,6 +43,12 @@ const IPC_HTTP_STOP_SERVER = 'http:stop-server';
 const IPC_HTTP_SEND_REQUEST = 'http:send-request';
 const IPC_HTTP_RESPOND = 'http:respond';
 const IPC_HTTP_INCOMING_REQUEST = 'http:incoming-request';
+
+const IPC_STORAGE_ACTIVATE = 'storage:activate';
+const IPC_STORAGE_DEACTIVATE = 'storage:deactivate';
+const IPC_STORAGE_GET_STATS = 'storage:get-stats';
+const IPC_STORAGE_RESET = 'storage:reset';
+const IPC_STORAGE_UPDATE_CONFIG = 'storage:update-config';
 
 const eventBuffer: TransportBridgeEvent[] = [];
 const eventCallbacks: ((event: TransportBridgeEvent) => void)[] = [];
@@ -189,11 +198,30 @@ const httpBridge: HttpBridge = {
   },
 };
 
+const storageBridge: StorageBridge = {
+  async activate(request: StorageActivateRequest) {
+    return ipcRenderer.invoke(IPC_STORAGE_ACTIVATE, request);
+  },
+  async deactivate() {
+    return ipcRenderer.invoke(IPC_STORAGE_DEACTIVATE);
+  },
+  async getStats() {
+    return ipcRenderer.invoke(IPC_STORAGE_GET_STATS);
+  },
+  async reset() {
+    return ipcRenderer.invoke(IPC_STORAGE_RESET);
+  },
+  async updateConfig(config: StorageConfigUpdate) {
+    return ipcRenderer.invoke(IPC_STORAGE_UPDATE_CONFIG, config);
+  },
+};
+
 const rewriteBridge = Object.freeze({
   getBridgeInfo: () => createRewriteBridgeInfo('0.0.0'),
   transport: transportBridge,
   file: fileBridge,
   http: httpBridge,
+  storage: storageBridge,
 });
 
 contextBridge.exposeInMainWorld(REWRITE_PLATFORM_BRIDGE_KEY, rewriteBridge);

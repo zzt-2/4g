@@ -1,6 +1,6 @@
 export const REWRITE_PLATFORM_BRIDGE_KEY = 'dongfanghongRewritePlatform';
 
-export type RewritePlatformCapability = 'transport' | 'file' | 'http';
+export type RewritePlatformCapability = 'transport' | 'file' | 'http' | 'storage';
 
 export interface RewritePlatformBridgeInfo {
   readonly name: 'dongfanghong-rewrite-platform';
@@ -166,6 +166,41 @@ export interface HttpBridge {
   sendRequest(config: HttpClientConfig): Promise<HttpResponse>;
 }
 
+// --- Storage bridge types ---
+
+export interface StorageActivateRequest {
+  readonly connectionId: string;
+  readonly compiledPatterns: readonly (readonly number[])[];
+  readonly fileConfig: {
+    readonly maxFileSize: number;
+    readonly enableRotation: boolean;
+    readonly rotationCount: number;
+  };
+}
+
+export interface StorageStats {
+  readonly totalFramesStored: number;
+  readonly totalBytesStored: number;
+  readonly currentFileSize: number;
+  readonly storageStartTime: string | null;
+  readonly lastStorageTime: string | null;
+  readonly isStorageActive: boolean;
+}
+
+export interface StorageConfigUpdate {
+  readonly maxFileSize?: number;
+  readonly enableRotation?: boolean;
+  readonly rotationCount?: number;
+}
+
+export interface StorageBridge {
+  activate(request: StorageActivateRequest): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  deactivate(): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  getStats(): Promise<StorageStats>;
+  reset(): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  updateConfig(config: StorageConfigUpdate): Promise<{ readonly ok: boolean; readonly error?: string }>;
+}
+
 // --- Bridge root ---
 
 export interface RewritePlatformBridge {
@@ -173,6 +208,7 @@ export interface RewritePlatformBridge {
   readonly transport: TransportBridge;
   readonly file: FileBridge;
   readonly http?: HttpBridge;
+  readonly storage?: StorageBridge;
 }
 
 export function createRewriteBridgeInfo(

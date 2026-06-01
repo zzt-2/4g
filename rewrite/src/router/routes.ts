@@ -14,6 +14,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'tasks', component: () => import('../pages/TaskManagePage.vue') },
       { path: 'command-ingress', component: () => import('../pages/CommandIngressPage.vue') },
       { path: 'settings', component: () => import('../pages/SettingsPage.vue') },
+      { path: 'history', component: () => import('../pages/HistoryPage.vue') },
     ],
   },
 ];
