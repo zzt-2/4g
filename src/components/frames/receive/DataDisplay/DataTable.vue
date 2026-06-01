@@ -88,6 +88,16 @@ const pagination = ref({
   rowsPerPage: 0, // 0表示不分页，显示所有数据
 });
 
+// 科学计数法格式化：纯数值且 >100 或 <0.01 时用科学计数法
+const formatValue = (val: string): string => {
+  if (!val) return val;
+  const num = Number(val);
+  if (isNaN(num) || val.trim() !== String(num) && !/^-?\d+(\.\d+)?$/.test(val.trim())) return val;
+  if (num === 0) return val;
+  if (num > 100 || num < 0.01) return num.toExponential(1);
+  return val;
+};
+
 // 更新表格数据的方法
 const updateTableData = () => {
   if (!groupId.value) {
@@ -170,8 +180,7 @@ onUnmounted(() => {
         <q-td :props="props" class="text-center">
           <div class="truncate max-w-full" :title="props.row.displayValue || '-'">
             <span class="font-mono text-sm px-2 py-1 rounded bg-industrial-secondary text-industrial-primary">
-              {{ props.row.displayValue.length > 10 ? props.row.displayValue.slice(0, 10) + '...' :
-                props.row.displayValue }}
+              {{ formatValue(props.row.displayValue) }}
             </span>
           </div>
         </q-td>

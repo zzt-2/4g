@@ -16,7 +16,9 @@ $rw-palette: (
   'gray-500': #6b7280,
   'gray-600': #4b5563,
   'gray-800': #1f2937,
-  'gray-900': #111827
+  'gray-900': #111827,
+  'indigo-500': #6366f1,
+  'violet-500': #8b5cf6
 );
 
 @function rw-palette($name) {

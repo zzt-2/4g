@@ -5,7 +5,7 @@
         <div class="flex items-center justify-center h-[32px] w-[32px] bg-[#0f172a] rounded-md mr-3">
           <img src="../../assets/icons/logo.svg" alt="RS485" class="h-[20px] w-[20px]" />
         </div>
-        <div class="text-[16px] font-medium text-white m-0 tracking-wide">激光链路标准测试设备</div>
+        <div class="text-[16px] font-medium text-white m-0 tracking-wide">激光模拟器</div>
       </div>
 
       <q-space />

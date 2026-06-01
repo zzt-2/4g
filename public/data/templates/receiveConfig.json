@@ -713,6 +713,275 @@
             "id": 21
           }
         ]
+      },
+      {
+        "id": 7,
+        "label": "测试",
+        "dataItems": [
+          {
+            "label": "波长状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 0,
+            "displayValue": "1563nm",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "1563nm"
+              },
+              {
+                "value": "1",
+                "label": "1540nm"
+              }
+            ],
+            "id": 1
+          },
+          {
+            "label": "信号功率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint16",
+            "value": 1132,
+            "displayValue": "1132",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 2
+          },
+          {
+            "label": "频偏估计值",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "int16",
+            "value": 8,
+            "displayValue": "8",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 3
+          },
+          {
+            "label": "编码方式",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 0,
+            "displayValue": "RS编码",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "RS编码"
+              },
+              {
+                "value": "1",
+                "label": "LDPC编码"
+              }
+            ],
+            "id": 4
+          },
+          {
+            "label": "发送速率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 0,
+            "displayValue": "5G",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "5G"
+              },
+              {
+                "value": "1",
+                "label": "2.5G"
+              },
+              {
+                "value": "2",
+                "label": "1.25G"
+              },
+              {
+                "value": "3",
+                "label": "625M"
+              },
+              {
+                "value": "4",
+                "label": "312.5M"
+              }
+            ],
+            "id": 5
+          },
+          {
+            "label": "接收速率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 0,
+            "displayValue": "5G",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "5G"
+              },
+              {
+                "value": "1",
+                "label": "2.5G"
+              },
+              {
+                "value": "2",
+                "label": "1.25G"
+              },
+              {
+                "value": "3",
+                "label": "625M"
+              },
+              {
+                "value": "4",
+                "label": "312.5M"
+              }
+            ],
+            "id": 6
+          },
+          {
+            "label": "载波同步锁定",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 1,
+            "displayValue": "锁定",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未锁定"
+              },
+              {
+                "value": "1",
+                "label": "锁定"
+              }
+            ],
+            "id": 7
+          },
+          {
+            "label": "定时同步锁定",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 1,
+            "displayValue": "锁定",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未锁定"
+              },
+              {
+                "value": "1",
+                "label": "锁定"
+              }
+            ],
+            "id": 8
+          },
+          {
+            "label": "帧同步锁定",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 1,
+            "displayValue": "锁定",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未锁定"
+              },
+              {
+                "value": "1",
+                "label": "锁定"
+              }
+            ],
+            "id": 9
+          },
+          {
+            "label": "译码前误码率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": 0,
+            "displayValue": "0",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 10
+          },
+          {
+            "label": "译码后误码率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": 0,
+            "displayValue": "0",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 11
+          },
+          {
+            "label": "数据传输误码率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": 0,
+            "displayValue": "0",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 16
+          },
+          {
+            "label": "帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 625000,
+            "displayValue": "625000",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 12
+          },
+          {
+            "label": "数据帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 59219,
+            "displayValue": "59219",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 13
+          },
+          {
+            "label": "误帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 0,
+            "displayValue": "0",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 14
+          },
+          {
+            "label": "数据误帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 0,
+            "displayValue": "0",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 15
+          }
+        ]
       }
     ],
     "mappings": [
@@ -1030,10 +1299,122 @@
         "fieldName": "激光器机体温度",
         "groupId": 6,
         "dataItemId": 21
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f002",
+        "fieldName": "波长状态",
+        "groupId": 7,
+        "dataItemId": 1
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f003",
+        "fieldName": "信号功率",
+        "groupId": 7,
+        "dataItemId": 2
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f004",
+        "fieldName": "频偏估计值",
+        "groupId": 7,
+        "dataItemId": 3
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f005",
+        "fieldName": "编码方式",
+        "groupId": 7,
+        "dataItemId": 4
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f006",
+        "fieldName": "发送速率",
+        "groupId": 7,
+        "dataItemId": 5
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f007",
+        "fieldName": "接收速率",
+        "groupId": 7,
+        "dataItemId": 6
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f008",
+        "fieldName": "载波同步锁定",
+        "groupId": 7,
+        "dataItemId": 7
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f009",
+        "fieldName": "定时同步锁定",
+        "groupId": 7,
+        "dataItemId": 8
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f010",
+        "fieldName": "帧同步锁定",
+        "groupId": 7,
+        "dataItemId": 9
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f011",
+        "fieldName": "译码前误码率",
+        "groupId": 7,
+        "dataItemId": 10
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f012",
+        "fieldName": "译码后误码率",
+        "groupId": 7,
+        "dataItemId": 11
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f013",
+        "fieldName": "帧计数",
+        "groupId": 7,
+        "dataItemId": 12
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f014",
+        "fieldName": "数据帧计数",
+        "groupId": 7,
+        "dataItemId": 13
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f015",
+        "fieldName": "误帧计数",
+        "groupId": 7,
+        "dataItemId": 14
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "ls-r-f016",
+        "fieldName": "数据误帧计数",
+        "groupId": 7,
+        "dataItemId": 15
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "BWcM4GopsRs9vf0AJpKGB",
+        "fieldName": "数据传输误码率",
+        "groupId": 7,
+        "dataItemId": 16
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2025-11-06T02:30:57.320Z",
-    "updatedAt": "2025-11-06T02:30:57.320Z"
+    "createdAt": "2026-05-27T08:10:26.109Z",
+    "updatedAt": "2026-05-27T08:10:26.109Z"
   }
 ]

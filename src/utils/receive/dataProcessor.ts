@@ -375,10 +375,12 @@ export function extractFieldValue(
             numValue = applyFactor(numValue, field.factor!);
           }
           value = numValue;
-          displayValue = numValue.toFixed(2);
+          displayValue = (numValue === 0 || (Math.abs(numValue) >= 0.01 && Math.abs(numValue) < 1e7))
+            ? parseFloat(numValue.toFixed(4)).toString()
+            : numValue.toExponential(2);
         } else {
           value = 0.0;
-          displayValue = '0.00';
+          displayValue = '0';
         }
         break;
       }
@@ -390,10 +392,12 @@ export function extractFieldValue(
             numValue = applyFactor(numValue, field.factor!);
           }
           value = numValue;
-          displayValue = numValue.toFixed(4);
+          displayValue = (numValue === 0 || (Math.abs(numValue) >= 0.01 && Math.abs(numValue) < 1e7))
+            ? parseFloat(numValue.toFixed(6)).toString()
+            : numValue.toExponential(2);
         } else {
           value = 0.0;
-          displayValue = '0.0000';
+          displayValue = '0';
         }
         break;
       }

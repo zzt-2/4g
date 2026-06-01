@@ -62,4 +62,10 @@
   --rw-font-weight-regular: #{tokens.rw-font-weight('regular')};
   --rw-font-weight-semibold: #{tokens.rw-font-weight('semibold')};
   --rw-letter-spacing-normal: #{tokens.rw-letter-spacing('normal')};
+  --rw-chart-color-1: #{tokens.rw-palette('blue-600')};
+  --rw-chart-color-2: #{tokens.rw-palette('teal-700')};
+  --rw-chart-color-3: #{tokens.rw-palette('yellow-500')};
+  --rw-chart-color-4: #{tokens.rw-palette('red-600')};
+  --rw-chart-color-5: #{tokens.rw-palette('indigo-500')};
+  --rw-chart-color-6: #{tokens.rw-palette('violet-500')};
 }
