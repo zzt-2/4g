@@ -8,9 +8,12 @@ import type { ChartSeriesProjection } from '@/features/display';
 
 echarts.use([ELineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, CanvasRenderer]);
 
-const CHART_COLORS = [
-  '#1f6feb', '#0f766e', '#f59e0b', '#dc2626', '#6366f1', '#8b5cf6',
-];
+function getChartColors(): string[] {
+  const style = getComputedStyle(document.documentElement);
+  return Array.from({ length: 6 }, (_, i) =>
+    style.getPropertyValue(`--rw-chart-color-${i + 1}`).trim() || '#1f6feb',
+  );
+}
 
 interface WaveformChartProps {
   series: ChartSeriesProjection[];
@@ -55,7 +58,7 @@ function buildOption(series: ChartSeriesProjection[]): echarts.EChartsOption {
       data: s.points.map((p) => p.value),
       showSymbol: false,
       lineStyle: { width: 1.5 },
-      itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
+      itemStyle: { color: getChartColors()[i % 6] },
     })),
   };
 }
