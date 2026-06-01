@@ -191,7 +191,88 @@ fdbfa6b feat: 持久化层
 
 DP 和 C 可以并行（不同页面），D 可与 C/DP 并行。
 
-## 七、关键决策记录
+## 七、UI 已知问题
+
+### 严重 — DisplayPage 需重做
+- 当前仅 277 行壳子，功能不到旧系统 15%
+- 旧系统有：双面板+三显示模式（表格/折线图/星座图）+图表配置+录制控制+分组管理+字段排序+统计
+- 新系统只有：基础 tab + 简单表格 + 空壳图表
+- **UX 极差**，比旧系统更烂
+- 设计已完成（S007），待实施（对话 DP）
+
+### 中等 — 各页面遗留
+- 47 项 UI 审计未全部修复（见 `codestable/quality/ui-audit-2026-05-15.md`）
+  - P0(3): Task editor 无 QForm、Send instance 无 QForm、CI highlight 缺 @hide
+  - P1(12): 8 处 $q.notify() 应改 useNotify()、Quasar spacing 应改 UnoCSS 等
+  - P2(4): v-show 应改 v-if、template 内联 .map() 应改 computed
+- 13 个文件 Quasar spacing 未迁移到 UnoCSS
+- Display 多图表扩展有 15 项遗留给对话 C（WaveformChart 颜色硬编码、测试覆盖缺口等）
+
+### 轻微
+- 1 个 connection test 间歇性失败（test isolation 问题，非逻辑 bug）
+- sendInstances.json 时间戳噪音（应在 .gitignore 或防格式化）
+
+## 八、.sessions/ 和 codestable/ 使用指南
+
+### .sessions/ — 跨对话过程记录
+
+**是什么**：记录跨多个 AI 对话的讨论、决策和实施过程。每个专题一个目录。
+
+**什么时候用**：
+- 需要跨对话交接时（开新对话前写 handoff）
+- 多轮讨论需要保留决策脉络时
+- 需要 topic-index 帮助定位上下文时
+
+**什么时候不用**：
+- 单次对话能完成的小任务（Lane A）
+- 设计文档、质量规则等长期工件（归 codestable/）
+- 每对话内部的实施细节（留在代码和 commit message）
+
+**怎么用**：
+1. **开新专题**：在 `_registry.yaml` 登记，创建 `topic-index.md` + `S001-简述.md`
+2. **续接专题**：先读 `topic-index.md`，再读最新 S/R/H 文件
+3. **新建 vs 追加**：默认追加到当前最后一个 S###，只有内容性质变了才开新 S###
+4. **编号体系**：S=session note，R=research note，H=handoff，3 位递增编号
+
+### codestable/ — 长期工程工件
+
+**是什么**：存放设计文档、质量规则、roadmap、feature 设计、架构文档等长期可复用资产。
+
+**什么时候用**：
+- 设计 feature 时产出 design doc + checklist
+- 建立质量规则、编码规范、审查标准
+- 规划大需求（roadmap）
+- 存放参考材料（旧系统行为、UI 审计结果、速查卡）
+
+**什么时候不用**：
+- 对话逐轮推进过程（归 .sessions/）
+- 代码实现细节（留在代码和 commit）
+
+**怎么用**：
+- `codestable/features/` — 各 feature 的设计文档，新建 feature 时先写设计再实施
+- `codestable/quality/` — 质量规则（R1-R18）、前端规范、审查 checklist
+- `codestable/architecture/` — 目录结构、feature 边界、交互矩阵
+- `codestable/compound/` — 跨模块设计（执行章程、northbound 规划）
+- `codestable/reference/` — 速查卡、模板、UI 审计结果
+- `codestable/roadmap/` — 大需求拆解（Lane C）
+- `codestable/reference/claude-config/` — Claude Code 配置快照（含全局指令、settings、项目记忆）
+
+### 两者的关系
+
+```
+.codestable/                    .sessions/
+  ↓ 长期真相源                     ↓ 过程记录
+  设计文档 = 直接合同               session note = 讨论脉络
+  质量规则 = 硬约束                 handoff = 跨对话交接
+  checklist = 验收标准              topic-index = 快速定位
+```
+
+- .sessions/ 可以引用 codestable/ 的内容，但不复制
+- codestable/ 不承载对话过程
+- **直接合同**（决定能不能做、做到什么程度的）放 codestable/
+- **边界护栏**（补上下文的）可以来自 .sessions/ 的 handoff/note
+
+## 九、关键决策记录
 
 | 决策 | 原因 |
 |------|------|
@@ -204,7 +285,7 @@ DP 和 C 可以并行（不同页面），D 可与 C/DP 并行。
 | 高速存储 deferred | 三层架构（UI配置/主进程文件操作/网络分流）全部缺失，最复杂 |
 | 北向 4 接口已定 | setTestTask/controlTestTask/testCaseResultReport/msgReport |
 
-## 八、文档地图（AI 辅助接手必读）
+## 十、文档地图（AI 辅助接手必读）
 
 ### 必读（最高优先级）
 
@@ -216,6 +297,7 @@ DP 和 C 可以并行（不同页面），D 可与 C/DP 并行。
 | rewrite-frontend-conventions.md | 前端 UI 规范（表格/表单/弹窗/布局/颜色） | codestable/quality/ |
 | rewrite-frontend-checklist.md | 前端自检 checklist | codestable/quality/ |
 | rewrite-frontend-quickref.md | 前端速查卡（composable 索引+违规清单） | codestable/reference/ |
+| Claude Code 配置 | 全局指令+settings+项目记忆+使用说明 | codestable/reference/claude-config/ |
 
 ### 设计文档
 
