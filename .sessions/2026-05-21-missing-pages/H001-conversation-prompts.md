@@ -115,34 +115,51 @@ Lane B | 历史分析页 UI 设计实施 | 前置：对话 B 完成
 6-15. 其他 UI 相关测试覆盖缺口（yAxis merge 边界、charts>4 truncation、getChartInstances 集成测试等）
 ```
 
-## 对话 DP：实时显示页 UX 重做
+## 对话 DP：实时显示页 UX 重做（设计已完成，直接实施）
 
 ```
-Lane B | 实时显示页(DisplayPage) UX 重设计重实施
+Lane B | DisplayPage UX 重做实施 | 设计已完成见 S007
 
-先读 .sessions/2026-05-21-missing-pages/S001-research-and-planning.md §历史分析补充（display 部分）
-再读 rewrite/src/pages/DisplayPage.vue（当前新系统 — 277行壳子，功能仅旧系统15%）
-再读旧系统对比文件：
-  - src/pages/DisplayPage.vue 或 src/components/display/ 下所有文件
-  - src/stores/dataDisplayStore.ts（1073行，双面板+三模式+录制+分组+统计）
+先读 .sessions/2026-05-21-missing-pages/S007-display-page-ux-design.md（设计记录，必须完整读完）
+再读必读规范（实施前硬门槛）：
+  - codestable/quality/rewrite-frontend-conventions.md
+  - codestable/quality/rewrite-frontend-checklist.md
+  - codestable/reference/rewrite-frontend-quickref.md
+再读现有代码：
+  - rewrite/src/pages/DisplayPage.vue（将被重写）
+  - rewrite/src/features/display/core/types.ts（display 类型）
+  - rewrite/src/features/display/services/display-service.ts（display service API）
+  - rewrite/src/features/display/composables/use-display-refresh.ts（刷新 composable）
+  - rewrite/src/features/display/components/display-columns.ts（现有列定义）
+  - rewrite/src/widgets/DataTable.vue / WaveformChart.vue / ScatterChart.vue（复用 widget）
 
-目标：重做 DisplayPage，达到旧系统同等 UX 水平。核心差距：
-  - 旧系统有双面板（2个独立可配置面板），新系统只有单视图
-  - 旧系统有三种显示模式（表格/折线图/星座图）可切换，新系统无
-  - 旧系统有图表配置（字段选择/Y轴/统计叠加），新系统无
-  - 旧系统有录制控制（开始/停止/CSV），新系统无
-  - 旧系统有分组管理，新系统无
-  - 旧系统有字段排序/收藏，新系统无
-  - UI 设计丑、UX 不合理是主要问题
+目标：按 S007 设计实施 DisplayPage UX 重做。
 
-直接合同：旧系统 DisplayPage 行为 + display feature 现有 API
-边界护栏：R4（UI不承载业务逻辑）+ 前端 conventions + display feature API 不改（只做 UI 层）
+直接合同：S007-display-page-ux-design.md（8 项设计决策 + 组件关系 + 文件清单）
+边界护栏：R4（UI不承载业务逻辑）+ 前端 conventions + display feature API 不改
 
-按 H001 §通用流程指令执行。
-Wave 1 重点：
-  - 旧系统完整交互提取（双面板操作流/模式切换/图表配置/录制/分组）
-  - 新系统 display service API 全量梳理（确认哪些能力已就绪）
-  - 前端规范 + 旧系统 UI 截图参考（如有）
+已确认的设计决策（不允许推翻）：
+  D1 scope: 双面板+三模式+分组选择+图表/星座配置+字段排序+录制+统计栏
+  D2 录制: 存储层干活，页面 composable 协调 display+storage+receive
+  D3 字段收藏: 不做
+  D4 字段排序: 做，简单 up/down
+  D5 星座限制: 同时只能一个面板用 constellation
+  D6 overview tab: 去掉（旧系统没有，双面板 table 模式已覆盖字段展示）
+  D7 display API: 不改，只做 UI 层
+  D8 组件原则: 页面持有全部状态 + 面板纯展示 + dialog 共享实例
+
+实施文件清单：
+  重写：DisplayPage.vue（pages/）
+  新建：DisplayPanel.vue, ChartConfigDialog.vue, ScatterConfigDialog.vue（features/display/components/）
+  追加：面板表格列定义（display-columns.ts）
+  复用不动：DataTable.vue, WaveformChart.vue, ScatterChart.vue, StatusBadge.vue, use-display-refresh.ts
+
+录制逻辑：inline composable 在 DisplayPage.vue setup 中，~40 行
+  - 协调 receiveService（取数据）+ storageService（存数据）
+  - 不单独建文件
+
+验证：pnpm build + pnpm lint + pnpm test
+实施摘要含：Changed files / Verify evidence / Open issues
 ```
 
 ## 对话 D：存储管理 — feature 设计

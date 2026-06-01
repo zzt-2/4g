@@ -112,10 +112,12 @@ rewrite/
       receive/
       send/
       task/
-      scoe/
+      command-ingress/
       storage/
+      storage-highspeed/
       settings/
       status/
+      display/
       result/
       report/
       northbound/
@@ -199,8 +201,9 @@ features/<feature>/adapters
 | `receive` | 输入字节流承接、帧匹配、字段解析、表达式输入、接收结果输出 | 任务生命周期 owner、SCOE 完整执行、历史落盘编排 |
 | `send` | 单帧发送（SendRequest→构帧→target 路由→transport write→SendResult）、发送队列、target 落地、发送统计 read model | 任务编排/step 序列执行、SCOE 成功条件、报告交付、northbound 回执语义 |
 | `task` | 通用执行引擎（step 序列执行、错误处理、进度追踪）、多态 step（send/wait-condition/delay）、多触发来源入口适配、调度、取消/停止/暂停/恢复语义 | 页面工作台状态、发送链局部状态、northbound 回执协议、SCOE 领域规则、receive 解析 |
-| `scoe` | SCOE 协议、命令解析（指令码→step 定义）、完成条件定义、确认帧配置、SCOE 领域状态、SCOE 静态资产、测试工具记录 | 通用执行引擎（task owns）、单帧发送（send owns）、通用 receive/send 主链定义权、统一运行主状态 |
-| `storage` | 本地持久化、历史记录、CSV、高速存储、迁移输入输出 | northbound 文件回传协议、任务结果事实定义 |
+| `command-ingress` | 外部系统命令接入（SCOE TCP 协议、甲方 HTTPS 接口）、命令配置、卫星配置、命令翻译为 TaskDefinition、source/target 声明 | 通用执行引擎（task owns）、单帧发送（send owns）、通用 receive/send 主链定义权、统一运行主状态 |
+| `storage` | 本地持久化、历史记录、CSV、迁移输入输出 | northbound 文件回传协议、任务结果事实定义 |
+| `storage-highspeed` | 高速存储规则、过滤激活/停用、存储统计、文件写入 | 普通接收链路、展示逻辑 |
 | `settings` | 设置模型、默认值、持久化、设置页可见配置 | 领域运行事实、跨域调度 |
 | `status` | 状态指示、健康状态、状态视图、内部状态摘要 | 心跳协议本身、任务主状态事实 |
 | `result` | 内部结果事实（case result、task result summary）、结果归因和聚合规则、执行摘要、结果 read model | 报告文件交付、外部响应语义、外部 schema/枚举/错误码 |

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(python3 *)",
       "Bash(rtk gain *)",
-      "Bash(rtk tsc *)"
+      "Bash(rtk tsc *)",
+      "Bash(cp /home/zzt/.claude/CLAUDE.md /mnt/d/code/frontend/dongfanghong/codestable/reference/claude-config/CLAUDE-global.md)",
+      "Bash(cp /home/zzt/.claude/RTK.md /mnt/d/code/frontend/dongfanghong/codestable/reference/claude-config/RTK.md)"
     ]
   }
 }

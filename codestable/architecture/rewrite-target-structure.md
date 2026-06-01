@@ -96,8 +96,9 @@ rewrite/
       receive/
       send/
       task/
-      scoe/
+      command-ingress/
       storage/
+      storage-highspeed/
       settings/
       status/
       display/
@@ -372,6 +373,25 @@ Must not:
 - 直接把 history/CSV 文件当作 report 交付闭环。
 - 把外部响应语义散落到 task/send/report/storage 各处。
 
+Implementation status (MVP):
+
+- `features/northbound/core/types.ts` — CustomerRequest discriminated union, SetTestTaskRequest with ExecutionPlanLayer, TestCaseInfo, TestCaseStep, ControlTestTaskRequest, HeartbeatRequest, GetSubSysStateRequest, TestCaseResultReport, MsgReport, StepInfo, CustomerResponse.
+- `features/northbound/core/inbound-translator.ts` — `translateTestCaseToTaskDefinition()` pure function, maps send/wait-condition steps to TaskDefinition.
+- `features/northbound/core/outbound-translator.ts` — `translateTaskResult()` / `translateStepResult()` pure functions, verdict mapping (passed→success, failed→fail, stopped→tbd).
+- `features/northbound/state/northbound-state.ts` — NorthboundStateContainer with bidirectional testCaseId↔instanceId Map.
+- `features/northbound/services/northbound-service.ts` — URL routing, executionPlan processing (parallel Promise.all, sequential individual await), outbound helpers (postToCustomer, reportTaskResult, handleStepResult).
+- `platform/http.ts` — HttpFacade interface + createHttpFacade factory, same level as TransportFacade.
+- `src-electron/main/http-handlers.ts` — Main process HTTP server/client IPC handlers using Node native `http`. Incoming requests forwarded to renderer via `http:incoming-request` IPC event.
+- `src-electron/preload/index.ts` — HttpBridge IPC implementation added alongside existing TransportBridge/FileBridge/StorageBridge.
+- `runtime/feature-wiring.ts` — Late-binding pattern (`stepResultHolder`) resolves task↔northbound circular dependency. Northbound wired at L5 after task, result, and platform facades.
+- 43 tests across 4 test files covering translators, state, and service.
+
+Known gaps (not blocking MVP):
+
+- ConditionTerm.frameId uses empty string placeholder (customer WaitConditionDef lacks frameId).
+- stepStartTime/stepEndTime left empty (TaskStepResult lacks timestamps).
+- Customer schema based on V1.0.1 interface doc; awaiting formal confirmation.
+
 ## 13. Result, Report, Delivery Split
 
 三者必须分开：
@@ -401,6 +421,9 @@ Reason:
 | SCOE 发帧 | `features/scoe/` 翻译命令为 TaskDefinition（triggerSource=scoe-command），交由 `features/task/` 执行；task 通过 `features/send/` 公开 service 发帧 |
 | 历史记录和 CSV | `features/storage/` |
 | 报告 JSON 生成 | `features/report/` |
+| HTTP server/client facade | `platform/http.ts` → preload HttpBridge → main `http-handlers.ts` |
+| 甲方 HTTPS 任务接入 | `features/northbound/` inbound translator + `platform/` HttpFacade |
+| 甲方结果上报 | `features/northbound/` outbound translator → `platform/` HttpFacade sendRequest |
 | FTP/HTTP 回传和完成通知 | `features/northbound/` + `platform/` |
 | 状态灯颜色映射 | `features/status/` |
 | 表格/图表/星座图展示投影 | `features/display/` |
