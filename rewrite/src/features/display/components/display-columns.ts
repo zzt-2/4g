@@ -78,6 +78,31 @@ export const recentInputColumns: QTableColumn[] = [
   },
 ];
 
+export const panelTableColumns: QTableColumn[] = [
+  {
+    name: 'fieldName',
+    label: '字段',
+    field: 'fieldName',
+    align: 'left',
+    sortable: true,
+    style: 'min-width: 80px',
+  },
+  {
+    name: 'displayValue',
+    label: '值',
+    field: 'displayValue',
+    align: 'left',
+    style: 'min-width: 80px',
+  },
+  {
+    name: 'updatedAt',
+    label: '更新时间',
+    field: 'updatedAt',
+    align: 'left',
+    style: 'min-width: 100px',
+  },
+];
+
 export const frameStatsColumns: QTableColumn[] = [
   {
     name: 'frameName',

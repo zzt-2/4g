@@ -1,229 +1,323 @@
 <script setup lang="ts">
-import { onMounted, ref, shallowRef } from 'vue';
+import { onMounted, ref, computed, onUnmounted, shallowRef } from 'vue';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { usePolling } from '@/shared/composables';
-import DataTable from '@/widgets/DataTable.vue';
 import StatusBadge from '@/widgets/StatusBadge.vue';
-import ScatterChart from '@/widgets/ScatterChart.vue';
-import WaveformChart from '@/widgets/WaveformChart.vue';
 import { useDisplayRefresh } from '@/features/display/composables';
 import { receiveLifecycleMap } from '@/features/receive/components/receiveStatusMap';
-import { fieldValueColumns, recentInputColumns, frameStatsColumns } from '@/features/display/components/display-columns';
-import type { ReceiveCounterSnapshot, ReceiveLifecycleStatus, ReceiveFieldValueSnapshot, ReceiveRecentInputSnapshot, ReceiveFrameStatisticsSnapshot } from '@/features/receive';
+import DisplayPanel from '@/features/display/components/DisplayPanel.vue';
+import ChartConfigDialog from '@/features/display/components/ChartConfigDialog.vue';
+import ScatterConfigDialog from '@/features/display/components/ScatterConfigDialog.vue';
+import type { ReceiveCounterSnapshot, ReceiveLifecycleStatus } from '@/features/receive';
+import type {
+  ChartInstancePatch,
+  DisplayMode,
+  ScatterDisplayPreference,
+} from '@/features/display';
+import type { StorageLocalRecord } from '@/features/storage-local-baseline';
 
 // ===== Service references =====
 const runtime = useRewriteRuntime();
 const receiveService = runtime.features.receiveService;
 const displayService = runtime.features.displayService;
+const storageService = runtime.features.storageService;
+
 const displayRefresh = useDisplayRefresh(displayService);
 
-// ===== Business data =====
+// ===== Receive stats =====
 const lifecycle = ref<ReceiveLifecycleStatus>('idle');
 const counters = ref<ReceiveCounterSnapshot>({
   batchCount: 0, byteCount: 0, matchedCount: 0, unmatchedCount: 0,
   configErrorCount: 0, parseErrorCount: 0, inputErrorCount: 0, staleInputCount: 0,
 });
+const matchRate = computed(() => {
+  const total = counters.value.matchedCount + counters.value.unmatchedCount;
+  return total > 0 ? `${((counters.value.matchedCount / total) * 100).toFixed(1)}%` : '--';
+});
 
-// ===== Derived data (shallowRef per P2/P4) =====
-const fieldValues = shallowRef<ReceiveFieldValueSnapshot[]>([]);
-const recentInputs = shallowRef<ReceiveRecentInputSnapshot[]>([]);
-const frameStats = shallowRef<ReceiveFrameStatisticsSnapshot[]>([]);
-
-// ===== UI state =====
-const activeTab = ref('overview');
-const matchRate = ref('--');
-
-// ===== Polling =====
-function refreshData(): void {
+function refreshStats(): void {
   const ui = receiveService.getUiSnapshot();
   lifecycle.value = ui.lifecycle;
   counters.value = ui.counters;
-  fieldValues.value = receiveService.listFieldValues();
-  recentInputs.value = receiveService.listRecentInputs({ limit: 50 });
-  frameStats.value = receiveService.listFrameStats();
-
-  const total = ui.counters.matchedCount + ui.counters.unmatchedCount;
-  matchRate.value = total > 0
-    ? `${((ui.counters.matchedCount / total) * 100).toFixed(1)}%`
-    : '--';
 }
 
-const polling = usePolling(refreshData, 500);
+const polling = usePolling(refreshStats, 500);
 
-function formatTime(iso?: string): string {
-  if (!iso) return '--';
-  try {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  } catch {
-    return iso;
+// ===== Derived display data =====
+const prefs = computed(() => displayRefresh.preferences.value);
+
+const groups = computed(() => {
+  const set = new Set<string>();
+  for (const r of displayRefresh.table1Rows.value) {
+    if (r.groupId) set.add(r.groupId);
+  }
+  for (const r of displayRefresh.table2Rows.value) {
+    if (r.groupId) set.add(r.groupId);
+  }
+  return [...set].sort();
+});
+
+const availableFields = computed(() => {
+  const map = new Map<string, { fieldId: string; fieldName: string }>();
+  for (const r of displayRefresh.table1Rows.value) {
+    const key = `${r.groupId}:${r.dataItemId}`;
+    if (!map.has(key)) map.set(key, { fieldId: key, fieldName: r.fieldName });
+  }
+  for (const r of displayRefresh.table2Rows.value) {
+    const key = `${r.groupId}:${r.dataItemId}`;
+    if (!map.has(key)) map.set(key, { fieldId: key, fieldName: r.fieldName });
+  }
+  return [...map.values()];
+});
+
+const mode1 = computed(() => prefs.value.table1.displayMode);
+const mode2 = computed(() => prefs.value.table2.displayMode);
+const chart1 = computed(() => displayRefresh.chartInstances.value[0] ?? null);
+const chart2 = computed(() => displayRefresh.chartInstances.value[1] ?? null);
+
+// ===== Constellation mutual exclusion (D5) =====
+const canPanel1UseConstellation = computed(() => mode2.value !== 'special');
+const canPanel2UseConstellation = computed(() => mode1.value !== 'special');
+
+// ===== Dialog state =====
+const chartConfigOpen = ref(false);
+const chartConfigPanel = ref<'1' | '2'>('1');
+const scatterConfigOpen = ref(false);
+
+const chartConfigPreference = computed(() => {
+  const idx = chartConfigPanel.value === '1' ? 0 : 1;
+  return prefs.value.charts[idx] ?? null;
+});
+
+const chartConfigTarget = computed(() => {
+  const idx = chartConfigPanel.value === '1' ? 0 : 1;
+  return displayRefresh.chartInstances.value[idx] ?? null;
+});
+
+const scatterPreference = computed(() => prefs.value.scatter);
+
+// ===== Mode / group change handlers =====
+function onModeChange(panel: '1' | '2', mode: DisplayMode): void {
+  const thisKey = panel === '1' ? 'table1' : 'table2';
+  const otherKey = panel === '1' ? 'table2' : 'table1';
+
+  if (mode === 'special' && prefs.value[otherKey].displayMode === 'special') {
+    displayService.updatePreferences({
+      [otherKey]: { displayMode: 'table' },
+      [thisKey]: { displayMode: mode },
+    });
+    return;
+  }
+  displayService.updatePreferences({ [thisKey]: { displayMode: mode } });
+}
+
+function onGroupChange(panel: '1' | '2', groupId: string): void {
+  const key = panel === '1' ? 'table1' : 'table2';
+  displayService.updatePreferences({ [key]: { selectedGroupId: groupId } });
+}
+
+// ===== Chart / scatter config =====
+function openChartConfig(panel: '1' | '2'): void {
+  chartConfigPanel.value = panel;
+  chartConfigOpen.value = true;
+}
+
+function saveChartConfig(patch: ChartInstancePatch): void {
+  const chartId = chartConfigPanel.value === '1' ? 'chart-1' : 'chart-2';
+  displayService.updateChartConfig(chartId, patch);
+  chartConfigOpen.value = false;
+}
+
+function saveScatterConfig(partial: Partial<ScatterDisplayPreference>): void {
+  displayService.updatePreferences({ scatter: partial });
+  scatterConfigOpen.value = false;
+}
+
+// ===== Recording (inline composable, D2) =====
+const isRecording = ref(false);
+const recordCount = ref(0);
+const recordStartTime = ref(0);
+let recordInterval: ReturnType<typeof setInterval> | null = null;
+
+const recordElapsed = computed(() => {
+  if (!isRecording.value || !recordStartTime.value) return '--';
+  const ms = Date.now() - recordStartTime.value;
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(0)}s`;
+  const m = Math.floor(ms / 60_000);
+  const s = Math.floor((ms % 60_000) / 1000);
+  return `${m}m ${s}s`;
+});
+
+function startRecording(): void {
+  isRecording.value = true;
+  recordCount.value = 0;
+  recordStartTime.value = Date.now();
+  recordInterval = setInterval(() => {
+    const rows = displayRefresh.table1Rows.value;
+    if (rows.length === 0) return;
+    const record: StorageLocalRecord = {
+      id: crypto.randomUUID(),
+      capturedAt: new Date().toISOString(),
+      source: 'local',
+      channel: 'display',
+      fields: rows.map((r) => ({
+        key: `${r.groupId}:${r.dataItemId}:${r.fieldName}`,
+        value: r.displayValue as string,
+      })),
+    };
+    storageService.appendLocalRecords([record]);
+    recordCount.value++;
+  }, 1000);
+}
+
+function stopRecording(): void {
+  isRecording.value = false;
+  if (recordInterval !== null) {
+    clearInterval(recordInterval);
+    recordInterval = null;
   }
 }
 
-function kindLabel(kind: string): string {
-  const map: Record<string, string> = {
-    matched: '匹配', unmatched: '未匹配', 'config-error': '配置错误',
-    'parse-error': '解析错误', 'input-error': '输入错误', 'stale-input': '过期',
-  };
-  return map[kind] ?? kind;
-}
-
+// ===== Lifecycle =====
 onMounted(() => {
-  refreshData();
+  refreshStats();
   polling.start();
   displayRefresh.start();
+});
+
+onUnmounted(() => {
+  stopRecording();
 });
 </script>
 
 <template>
-  <q-page class="display-page p-page min-h-full">
-    <div class="display-page__content mx-auto">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <h1 class="home-page__title m-0">实时展示</h1>
-          <StatusBadge :status="lifecycle" :status-map="receiveLifecycleMap" />
-        </div>
+  <q-page class="display-page p-page flex flex-col h-full">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-3">
+        <h1 class="display-page__title m-0">实时展示</h1>
+        <StatusBadge :status="lifecycle" :status-map="receiveLifecycleMap" />
       </div>
-
-      <!-- Stats bar -->
-      <div class="display-page__stats rw-panel-base mb-4">
-        <div class="display-page__stat-item">
-          <span class="rw-text-label">匹配率</span>
-          <strong class="rw-text-value">{{ matchRate }}</strong>
-        </div>
-        <div class="display-page__stat-item">
-          <span class="rw-text-label">总批次</span>
-          <strong class="rw-text-value">{{ counters.batchCount }}</strong>
-        </div>
-        <div class="display-page__stat-item">
-          <span class="rw-text-label">已匹配</span>
-          <strong class="rw-text-value text-positive">{{ counters.matchedCount }}</strong>
-        </div>
-        <div class="display-page__stat-item">
-          <span class="rw-text-label">未匹配</span>
-          <strong class="rw-text-value">{{ counters.unmatchedCount }}</strong>
-        </div>
-        <div class="display-page__stat-item">
-          <span class="rw-text-label">错误</span>
-          <strong class="rw-text-value text-negative">{{ counters.inputErrorCount + counters.configErrorCount + counters.parseErrorCount }}</strong>
-        </div>
-        <div class="display-page__stat-item">
-          <span class="rw-text-label">字节数</span>
-          <strong class="rw-text-value">{{ counters.byteCount }}</strong>
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <q-tabs v-model="activeTab" dense active-color="primary" indicator-color="primary" class="mb-3">
-        <q-tab name="overview" label="数据总览" no-caps />
-        <q-tab name="charts" label="可视化" no-caps />
-      </q-tabs>
-
-      <!-- Overview tab -->
-      <template v-if="activeTab === 'overview'">
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Field values -->
-          <div class="rw-panel-base rounded overflow-hidden">
-            <div class="px-4 py-2 rw-divider-b">
-              <span class="rw-text-label">字段值</span>
-            </div>
-            <DataTable
-              :columns="fieldValueColumns"
-              :rows="fieldValues"
-              row-key="fieldId"
-              container-height="360px"
-            >
-              <template #no-data>
-                <div class="text-center w-full p-4 rw-text-label">暂无字段数据</div>
-              </template>
-              <template #body-cell-updatedAt="props">
-                <q-td :props="props">
-                  <span class="rw-text-desc text-xs">{{ formatTime(props.row.updatedAt) }}</span>
-                </q-td>
-              </template>
-            </DataTable>
-          </div>
-
-          <!-- Frame stats -->
-          <div class="rw-panel-base rounded overflow-hidden">
-            <div class="px-4 py-2 rw-divider-b">
-              <span class="rw-text-label">帧匹配统计</span>
-            </div>
-            <DataTable
-              :columns="frameStatsColumns"
-              :rows="frameStats"
-              row-key="frameId"
-              container-height="360px"
-            >
-              <template #no-data>
-                <div class="text-center w-full p-4 rw-text-label">暂无帧统计</div>
-              </template>
-              <template #body-cell-lastMatchedAt="props">
-                <q-td :props="props">
-                  <span class="rw-text-desc text-xs">{{ formatTime(props.row.lastMatchedAt) }}</span>
-                </q-td>
-              </template>
-            </DataTable>
-          </div>
-        </div>
-
-        <!-- Recent inputs -->
-        <div class="rw-panel-base rounded overflow-hidden mt-4">
-          <div class="px-4 py-2 rw-divider-b">
-            <span class="rw-text-label">最近输入</span>
-          </div>
-          <DataTable
-            :columns="recentInputColumns"
-            :rows="recentInputs"
-            row-key="id"
-            container-height="280px"
-          >
-            <template #no-data>
-              <div class="text-center w-full p-4 rw-text-label">暂无输入数据</div>
-            </template>
-            <template #body-cell-kind="props">
-              <q-td :props="props">
-                <q-badge :color="props.row.kind === 'matched' ? 'positive' : props.row.kind === 'unmatched' ? 'grey' : 'negative'" outline>
-                  {{ kindLabel(props.row.kind) }}
-                </q-badge>
-              </q-td>
-            </template>
-            <template #body-cell-occurredAt="props">
-              <q-td :props="props">
-                <span class="rw-text-desc text-xs">{{ formatTime(props.row.occurredAt) }}</span>
-              </q-td>
-            </template>
-          </DataTable>
-        </div>
-      </template>
-
-      <!-- Charts tab -->
-      <template v-if="activeTab === 'charts'">
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Waveform -->
-          <div class="rw-panel-base rounded overflow-hidden">
-            <div class="px-4 py-2 rw-divider-b">
-              <span class="rw-text-label">波形图</span>
-            </div>
-            <div class="p-2">
-              <WaveformChart :series="displayRefresh.chartInstances[0]?.series ?? []" height="340px" />
-            </div>
-          </div>
-
-          <!-- Scatter -->
-          <div class="rw-panel-base rounded overflow-hidden">
-            <div class="px-4 py-2 rw-divider-b">
-              <span class="rw-text-label">星座图</span>
-            </div>
-            <div class="p-2">
-              <ScatterChart :data="displayRefresh.scatter" height="340px" />
-            </div>
-          </div>
-        </div>
-      </template>
     </div>
+
+    <!-- Stats bar -->
+    <div class="display-page__stats mb-3">
+      <div class="display-page__stat-item">
+        <span class="rw-text-label">匹配率</span>
+        <strong class="rw-text-value">{{ matchRate }}</strong>
+      </div>
+      <div class="display-page__stat-item">
+        <span class="rw-text-label">总批次</span>
+        <strong class="rw-text-value">{{ counters.batchCount }}</strong>
+      </div>
+      <div class="display-page__stat-item">
+        <span class="rw-text-label">已匹配</span>
+        <strong class="rw-text-value text-positive">{{ counters.matchedCount }}</strong>
+      </div>
+      <div class="display-page__stat-item">
+        <span class="rw-text-label">未匹配</span>
+        <strong class="rw-text-value">{{ counters.unmatchedCount }}</strong>
+      </div>
+      <div class="display-page__stat-item">
+        <span class="rw-text-label">错误</span>
+        <strong class="rw-text-value text-negative">{{ counters.inputErrorCount + counters.configErrorCount + counters.parseErrorCount }}</strong>
+      </div>
+      <div class="display-page__stat-item">
+        <span class="rw-text-label">字节数</span>
+        <strong class="rw-text-value">{{ counters.byteCount }}</strong>
+      </div>
+    </div>
+
+    <!-- Dual panel area -->
+    <div class="display-page__panels">
+      <DisplayPanel
+        panel-id="1"
+        :mode="mode1"
+        :selected-group-id="prefs.table1.selectedGroupId"
+        :groups="groups"
+        :rows="displayRefresh.table1Rows.value"
+        :chart-instance="chart1"
+        :scatter="displayRefresh.scatter.value"
+        :can-use-constellation="canPanel1UseConstellation"
+        class="flex-1 min-w-0"
+        @update:mode="onModeChange('1', $event)"
+        @update:selected-group-id="onGroupChange('1', $event)"
+        @open-chart-settings="openChartConfig('1')"
+        @open-scatter-settings="scatterConfigOpen = true"
+      />
+      <DisplayPanel
+        panel-id="2"
+        :mode="mode2"
+        :selected-group-id="prefs.table2.selectedGroupId"
+        :groups="groups"
+        :rows="displayRefresh.table2Rows.value"
+        :chart-instance="chart2"
+        :scatter="displayRefresh.scatter.value"
+        :can-use-constellation="canPanel2UseConstellation"
+        class="flex-1 min-w-0"
+        @update:mode="onModeChange('2', $event)"
+        @update:selected-group-id="onGroupChange('2', $event)"
+        @open-chart-settings="openChartConfig('2')"
+        @open-scatter-settings="scatterConfigOpen = true"
+      />
+    </div>
+
+    <!-- Bottom bar: recording controls -->
+    <div class="display-page__bottom-bar mt-3">
+      <div class="flex items-center gap-3">
+        <q-btn
+          v-if="!isRecording"
+          color="negative"
+          round
+          dense
+          icon="fiber_manual_record"
+          size="sm"
+          @click="startRecording"
+        >
+          <q-tooltip>开始录制</q-tooltip>
+        </q-btn>
+        <q-btn
+          v-else
+          color="grey"
+          round
+          dense
+          icon="stop"
+          size="sm"
+          @click="stopRecording"
+        >
+          <q-tooltip>停止录制</q-tooltip>
+        </q-btn>
+        <template v-if="isRecording">
+          <q-badge color="negative" outline class="recording-indicator">
+            REC {{ recordElapsed }}
+          </q-badge>
+          <span class="rw-text-desc">{{ recordCount }} 条记录</span>
+        </template>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span class="rw-text-desc">刷新: {{ prefs.refreshCadenceMs }}ms</span>
+        <StatusBadge
+          :status="displayRefresh.availability.value.available ? 'receiving' : 'idle'"
+          :status-map="{ idle: { label: '无数据源', color: 'grey' }, receiving: { label: '数据就绪', color: 'positive' } }"
+        />
+      </div>
+    </div>
+
+    <!-- Config dialogs -->
+    <ChartConfigDialog
+      v-model="chartConfigOpen"
+      :chart-preference="chartConfigPreference"
+      :available-fields="availableFields"
+      @save="saveChartConfig"
+    />
+    <ScatterConfigDialog
+      v-model="scatterConfigOpen"
+      :scatter-preference="scatterPreference"
+      :available-fields="availableFields"
+      @save="saveScatterConfig"
+    />
   </q-page>
 </template>
 
@@ -232,8 +326,11 @@ onMounted(() => {
   background: var(--rw-color-surface-app);
 }
 
-.display-page__content {
-  max-width: var(--rw-size-content-wide);
+.display-page__title {
+  color: var(--rw-color-text-primary);
+  font-size: var(--rw-font-size-title-lg);
+  font-weight: var(--rw-font-weight-semibold);
+  line-height: var(--rw-line-height-title-lg);
 }
 
 .display-page__stats {
@@ -267,10 +364,30 @@ onMounted(() => {
   }
 }
 
-.home-page__title {
-  color: var(--rw-color-text-primary);
-  font-size: var(--rw-font-size-title-lg);
+.display-page__panels {
+  display: flex;
+  flex: 1 1 0;
+  gap: var(--rw-space-4);
+  min-height: 0;
+}
+
+.display-page__bottom-bar {
+  border: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+  border-radius: var(--rw-radius-panel);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+}
+
+.recording-indicator {
+  font-size: var(--rw-font-size-caption);
   font-weight: var(--rw-font-weight-semibold);
-  line-height: var(--rw-line-height-title-lg);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 </style>
