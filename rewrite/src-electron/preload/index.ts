@@ -15,6 +15,8 @@ import {
   type HttpClientConfig,
   type HttpRequest,
   type HttpResponse,
+  type FtpBridge,
+  type FtpUploadConfig,
   type StorageBridge,
   type StorageActivateRequest,
   type StorageConfigUpdate,
@@ -43,6 +45,8 @@ const IPC_HTTP_STOP_SERVER = 'http:stop-server';
 const IPC_HTTP_SEND_REQUEST = 'http:send-request';
 const IPC_HTTP_RESPOND = 'http:respond';
 const IPC_HTTP_INCOMING_REQUEST = 'http:incoming-request';
+
+const IPC_FTP_UPLOAD = 'ftp:upload-file';
 
 const IPC_STORAGE_ACTIVATE = 'storage:activate';
 const IPC_STORAGE_DEACTIVATE = 'storage:deactivate';
@@ -198,6 +202,12 @@ const httpBridge: HttpBridge = {
   },
 };
 
+const ftpBridge: FtpBridge = {
+  async uploadFile(config: FtpUploadConfig): Promise<void> {
+    return ipcRenderer.invoke(IPC_FTP_UPLOAD, config);
+  },
+};
+
 const storageBridge: StorageBridge = {
   async activate(request: StorageActivateRequest) {
     return ipcRenderer.invoke(IPC_STORAGE_ACTIVATE, request);
@@ -221,6 +231,7 @@ const rewriteBridge = Object.freeze({
   transport: transportBridge,
   file: fileBridge,
   http: httpBridge,
+  ftp: ftpBridge,
   storage: storageBridge,
 });
 

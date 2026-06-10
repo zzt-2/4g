@@ -1,0 +1,121 @@
+steps:
+  - id: s1
+    title: types.ts 重写 — 信封 + 9 出站类型 + 响应改造
+    status: done
+    checks:
+      - OutboundEnvelope / InboundEnvelope / CustomerResponse / EnvelopeConfig 定义
+      - 9 个出站接口类型定义（字段与甲方 V1.0.4 文档一致）
+      - 旧类型（TestCaseResultReport/MsgReport/StepInfo/CustomerResponse）已删除
+      - export 无遗漏
+
+  - id: s2
+    title: auth.ts 新建 — JWT token 管理
+    status: done
+    checks:
+      - createAuthService(httpFacade, config) 工厂函数
+      - login(): POST 登录接口，解析 access_token + expire_in
+      - ensureToken(): 缓存未过期返回，否则重新 login
+      - logout(): 清缓存
+      - token 过期判断（提前 1 小时）
+      - 纯逻辑，无 timer
+
+  - id: s3
+    title: outbound-translator.ts 扩展 — 信封 + 7 新函数
+    status: done
+    checks:
+      - createEnvelope 辅助函数
+      - translateTaskResult 签名改版（加 taskId + envelopeConfig）
+      - translateStepResult 签名改版（加 taskId + envelopeConfig，StepInfoItem 格式）
+      - 新增 translateHeartbeat
+      - 新增 translateDeviceInfoReport
+      - 新增 translateDeviceAlarmReport
+      - 新增 translateSubSysAlarmReport
+      - 新增 translateTestDataFileComplete
+      - 新增 translateFileTranslationComplete
+      - 新增 translateSigReport
+
+  - id: s4
+    title: heartbeat-timer.ts 新建
+    status: done
+    checks:
+      - createHeartbeatTimer() 工厂
+      - start(subSysId, interval, onSend) 注册 TimerRegistry
+      - stop() 清理 TimerRegistry
+      - 默认 15 秒间隔
+      - 不直接调 httpFacade（通过 onSend 回调）
+
+  - id: s5
+    title: northbound-service.ts 重写
+    status: done
+    checks:
+      - NorthboundConfig 新增 customerBaseUrl/subSysType/subSysId/auth
+      - start(): auth.login → startServer → heartbeatTimer.start
+      - stop(): heartbeatTimer.stop → stopServer → auth.logout
+      - postToCustomer(): ensureToken + Authorization/Clientid headers
+      - handleRequest(): 提取信封字段 + 后缀匹配路由 + 信封响应
+      - 入站响应改为 { method, requestId, subSysType, subSysId, sessionId, statusCode, msg }
+      - reportTaskResult/handleStepResult 适配新 translator 签名
+      - 新增 6 个 report 方法
+      - jsonResponse 改为信封格式
+
+  - id: s6
+    title: index.ts 导出更新
+    status: done
+    checks:
+      - 新类型全部导出
+      - createAuthService / AuthService / AuthConfig 导出
+      - createHeartbeatTimer / HeartbeatTimer 导出
+      - EnvelopeConfig 导出
+
+  - id: s7
+    title: 测试更新 + 新增
+    status: done
+    checks:
+      - outbound-translator.spec.ts 适配新返回类型
+      - northbound-service.spec.ts 适配信封响应 + auth headers
+      - auth.spec.ts 新增
+      - heartbeat-timer.spec.ts 新增
+
+  - id: s8
+    title: build + lint + test 验证
+    status: done
+    checks:
+      - pnpm -C rewrite build 通过
+      - pnpm -C rewrite lint 通过（northbound 新代码 0 error）
+      - pnpm -C rewrite test 全部通过（northbound 74 tests，2 个 pre-existing failures 不相关）
+
+checks:
+  - id: c1
+    title: 信封字段完整性
+    description: 所有出站接口 JSON 包含 method/requestId/subSysType/subSysId/sessionId
+    status: pass
+
+  - id: c2
+    title: 响应信封回填
+    description: 入站响应 method 为 {请求}Response，requestId/subSysType/subSysId/sessionId 回填
+    status: pass
+
+  - id: c3
+    title: R10 合规 — northbound 只读投影
+    description: northbound 不写入 task/result/report/storage 的内部状态
+    status: pass
+
+  - id: c4
+    title: R11 合规 — result/report/delivery 分离
+    description: 出站上报失败不改写内部结果事实
+    status: pass
+
+  - id: c5
+    title: R3 合规 — core/ 纯 TS
+    description: types.ts / outbound-translator.ts / inbound-translator.ts 无 Vue/Pinia/Electron 依赖
+    status: pass
+
+  - id: c6
+    title: 不改 main/platform/其他 feature
+    description: 所有改动在 features/northbound/ 内部
+    status: pass
+
+  - id: c7
+    title: 甲方 JSON 示例 fixture
+    description: 9 个出站接口有对应的 JSON fixture 用于测试
+    status: pass

@@ -8,16 +8,12 @@ function generateInstanceId(): string {
   return `si_${Date.now()}_${nextInstanceId++}`;
 }
 
+// Module-level state: survives page navigation (component unmount/remount)
+const instances = shallowRef<SendFrameInstance[]>([]);
+const selectedInstanceId = ref<string | null>(null);
+const selectedTargetId = ref<string | null>(null);
+
 export function useSendInstances() {
-  const instances = shallowRef<SendFrameInstance[]>([]);
-  const selectedInstanceId = ref<string | null>(null);
-  const isLoaded = ref(false);
-
-  function load(): void {
-    // GS1: in-memory stub — no persistence until platform file facade is wired
-    isLoaded.value = true;
-  }
-
   function createInstance(
     frameId: string,
     frameName: string,
@@ -123,8 +119,7 @@ export function useSendInstances() {
   return {
     instances,
     selectedInstanceId,
-    isLoaded,
-    load,
+    selectedTargetId,
     createInstance,
     updateInstance,
     removeInstance,

@@ -1,6 +1,6 @@
 export const REWRITE_PLATFORM_BRIDGE_KEY = 'dongfanghongRewritePlatform';
 
-export type RewritePlatformCapability = 'transport' | 'file' | 'http' | 'storage';
+export type RewritePlatformCapability = 'transport' | 'file' | 'http' | 'ftp' | 'storage';
 
 export interface RewritePlatformBridgeInfo {
   readonly name: 'dongfanghong-rewrite-platform';
@@ -166,6 +166,21 @@ export interface HttpBridge {
   sendRequest(config: HttpClientConfig): Promise<HttpResponse>;
 }
 
+// --- FTP bridge types ---
+
+export interface FtpUploadConfig {
+  readonly host: string;
+  readonly port: number;
+  readonly username: string;
+  readonly password: string;
+  readonly remotePath: string;
+  readonly content: string;
+}
+
+export interface FtpBridge {
+  uploadFile(config: FtpUploadConfig): Promise<void>;
+}
+
 // --- Storage bridge types ---
 
 export interface StorageActivateRequest {
@@ -208,6 +223,7 @@ export interface RewritePlatformBridge {
   readonly transport: TransportBridge;
   readonly file: FileBridge;
   readonly http?: HttpBridge;
+  readonly ftp?: FtpBridge;
   readonly storage?: StorageBridge;
 }
 

@@ -62,7 +62,7 @@ function routeLabelForConfig(config: TransportConfig): string {
       return `${config.host}:${config.port}`;
     case 'udp':
       return config.remoteHost && config.remotePort
-        ? `${config.remoteHost}:${config.remotePort}`
+        ? `${config.localHost}:${config.localPort} → ${config.remoteHost}:${config.remotePort}`
         : `${config.localHost}:${config.localPort}`;
   }
 }

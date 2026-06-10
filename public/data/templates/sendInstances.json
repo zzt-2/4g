@@ -6,7 +6,7 @@
     "description": "",
     "paramCount": 3,
     "createdAt": "2025-11-05T02:59:46.460Z",
-    "updatedAt": "2026-05-27T05:46:38.756Z",
+    "updatedAt": "2026-06-01T15:11:13.894Z",
     "fields": [
       {
         "id": "CIWpK2gv1uULY0m9X04Ez",
@@ -164,1575 +164,13 @@
     "sendCount": 0
   },
   {
-    "id": "4",
-    "label": "速度模拟 #1",
-    "frameId": "S-FPGA-004",
-    "description": "",
-    "paramCount": 6,
-    "createdAt": "2025-11-05T02:59:57.092Z",
-    "updatedAt": "2026-05-27T05:46:38.756Z",
-    "fields": [
-      {
-        "id": "wgx_yyTyOc8xKF8smWXUC",
-        "label": "帧头",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1acf8004",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "1MFHFjwWXRfgeNBDAGfMl",
-        "label": "模式选择",
-        "dataType": "uint8",
-        "inputType": "radio",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "星间链路"
-          },
-          {
-            "value": "1",
-            "label": "接入链路"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "p2_Tp4UPWDutIZopqgtsA",
-        "label": "速度步进",
-        "dataType": "float",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "indirect"
-      },
-      {
-        "id": "lOsGa8u4Oe0jmYGsCYWOU",
-        "label": "速度(km/s)",
-        "dataType": "float",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "indirect",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "true",
-              "expression": "速度+速度步进"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "速度步进",
-              "sourceType": "current_field",
-              "sourceId": "p2_Tp4UPWDutIZopqgtsA",
-              "frameId": "",
-              "fieldId": ""
-            },
-            {
-              "identifier": "速度",
-              "sourceType": "current_field",
-              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      },
-      {
-        "id": "qqucn8VfXkwCuTqW1fkmQ",
-        "label": "整数分频比N",
-        "dataType": "uint32",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "速度>0",
-              "expression": "3200"
-            },
-            {
-              "condition": "速度<=0",
-              "expression": "3199"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "速度",
-              "sourceType": "current_field",
-              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      },
-      {
-        "id": "0Zs6QFZprhyzjTbASqp0N",
-        "label": "小数分频比Num",
-        "dataType": "uint32",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "速度>0",
-              "expression": "13743895344000000/299792458*速度"
-            },
-            {
-              "condition": "速度<=0",
-              "expression": "4294967295+13743895344000000/299792458*速度"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "速度",
-              "sourceType": "current_field",
-              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      },
-      {
-        "id": "90F6loNP96Z0aigVCH55I",
-        "label": "光速",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "299792458",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "indirect"
-      },
-      {
-        "id": "JjRsaCbTCZpmFG74KhWI5",
-        "label": "参考时钟频率变化量(kHz)",
-        "dataType": "float",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "indirect",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "v>0",
-              "expression": "3125*Num/4294967295/32"
-            },
-            {
-              "condition": "v<=0",
-              "expression": "3125*(Num-4294967295)/4294967295/32"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "N",
-              "sourceType": "current_field",
-              "sourceId": "qqucn8VfXkwCuTqW1fkmQ",
-              "frameId": "",
-              "fieldId": ""
-            },
-            {
-              "identifier": "Num",
-              "sourceType": "current_field",
-              "sourceId": "0Zs6QFZprhyzjTbASqp0N",
-              "frameId": "",
-              "fieldId": ""
-            },
-            {
-              "identifier": "v",
-              "sourceType": "current_field",
-              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      },
-      {
-        "id": "dzNHfNgbZlY0lF56R11es",
-        "label": "波长",
-        "dataType": "float",
-        "inputType": "radio",
-        "description": "",
-        "value": "1540.56",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [
-          {
-            "value": "1540.56",
-            "label": "1540nm"
-          },
-          {
-            "value": "1563.05",
-            "label": "1563nm"
-          }
-        ],
-        "dataParticipationType": "indirect"
-      },
-      {
-        "id": "I2sJlqufbDxBeNY1uwWMz",
-        "label": "十六进制数",
-        "dataType": "uint32",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "true",
-              "expression": "175000000-v/lamda*10000000000"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "v",
-              "sourceType": "current_field",
-              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
-              "frameId": "",
-              "fieldId": ""
-            },
-            {
-              "identifier": "lamda",
-              "sourceType": "current_field",
-              "sourceId": "dzNHfNgbZlY0lF56R11es",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      },
-      {
-        "id": "Azw4MXTCiXogCD8TAvzlR",
-        "label": "码多普勒(kHz)",
-        "dataType": "float",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "indirect",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "true",
-              "expression": "16*var1"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "var1",
-              "sourceType": "current_field",
-              "sourceId": "JjRsaCbTCZpmFG74KhWI5",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      },
-      {
-        "id": "fjBX6l0CNAQx-XcqlNnJa",
-        "label": "光多普勒(MHz)",
-        "dataType": "float",
-        "inputType": "expression",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "indirect",
-        "expressionConfig": {
-          "expressions": [
-            {
-              "condition": "true",
-              "expression": "v/lamda*1000000"
-            }
-          ],
-          "variables": [
-            {
-              "identifier": "v",
-              "sourceType": "current_field",
-              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
-              "frameId": "",
-              "fieldId": ""
-            },
-            {
-              "identifier": "lamda",
-              "sourceType": "current_field",
-              "sourceId": "dzNHfNgbZlY0lF56R11es",
-              "frameId": "",
-              "fieldId": ""
-            }
-          ]
-        }
-      }
-    ],
-    "isFavorite": false,
-    "isSCOEFrame": false,
-    "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-11-05T02:59:57.092Z"
-    },
-    "sendCount": 0
-  },
-  {
-    "id": "8",
-    "label": "调制板调制方式选择 #1",
-    "frameId": "S-JGXT-001",
-    "description": "",
-    "paramCount": 1,
-    "createdAt": "2025-11-05T03:00:27.828Z",
-    "updatedAt": "2026-05-27T05:46:38.756Z",
-    "fields": [
-      {
-        "id": "O_uzlkuDpwakZXFQjfTYM",
-        "label": "帧头",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1ACF9001",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "25qOTYT_syO0EsLy6R2Cd",
-        "label": "帧头标志",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1acffc1d",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "BOjjbS7I362v7_5qx2p1c",
-        "label": "帧长",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "8",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "IwHGRYne4ZCi_S46isy-d",
-        "label": "调制类型",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "0x10",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "6_BsdD04A2leoKiJghYTa",
-        "label": "调制方式选择",
-        "dataType": "uint8",
-        "inputType": "radio",
-        "description": "",
-        "value": "0x55",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [
-          {
-            "value": "0x55",
-            "label": "QPSK"
-          },
-          {
-            "value": "0xAA",
-            "label": "BPSK"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "KksvE5RWJsQxQ5josu4GU",
-        "label": "保留",
-        "dataType": "bytes",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 6,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "jeKhvFGilZ-8zSVb7V4fX",
-        "label": "校验和",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "1",
-          "endFieldIndex": "5",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      }
-    ],
-    "isFavorite": false,
-    "isSCOEFrame": false,
-    "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-11-05T03:00:27.828Z"
-    },
-    "sendCount": 0
-  },
-  {
-    "id": "2",
-    "label": "参数控制帧 #1",
-    "frameId": "S-FPGA-003",
-    "description": "",
-    "paramCount": 6,
-    "createdAt": "2025-11-05T02:59:51.268Z",
-    "updatedAt": "2026-05-27T05:46:38.756Z",
-    "fields": [
-      {
-        "id": "jj7xZbgczdYzliA3k4IaM",
-        "label": "帧头",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1ACF8003",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "3WhhlZFNC9DOahKCnPfrc",
-        "label": "定时同步环路带宽控制1",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "3",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "RdC7D3rjpodppNxqDxhag",
-        "label": "定时同步环路带宽控制2",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "6",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "mEo39EhEjn9HwG2G33Jpb",
-        "label": "均衡器环路带宽控制",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "3",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "MJSpiE-6x9mbMmR6lsGf9",
-        "label": "帧同步捕获阈值",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "26",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "uZocseoyEEqPv4_PhhU0R",
-        "label": "帧同步入同步阈值",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "10",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "cPCFSm1lQBrRUkRtjt-PX",
-        "label": "帧同步失同步阈值",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "10",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      }
-    ],
-    "isFavorite": false,
-    "isSCOEFrame": false,
-    "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-11-05T02:59:51.268Z"
-    },
-    "sendCount": 0
-  },
-  {
-    "id": "10",
-    "label": "激光器频偏控制 #1",
-    "frameId": "S-JGXT-003",
-    "description": "",
-    "paramCount": 2,
-    "createdAt": "2025-11-05T03:00:33.012Z",
-    "updatedAt": "2026-05-27T05:46:38.754Z",
-    "fields": [
-      {
-        "id": "za-R_HXg_BC4j4dSwwSne",
-        "label": "帧头",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1ACF9001",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "25qOTYT_syO0EsLy6R2Cd",
-        "label": "帧头标志",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1acffc1d",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "BOjjbS7I362v7_5qx2p1c",
-        "label": "帧长",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "8",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "IwHGRYne4ZCi_S46isy-d",
-        "label": "控制协议类型",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "0x03",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "0nT3k2gPzSt5dVj0NZw7e",
-        "label": "本振激光器频偏(MHz)",
-        "dataType": "int16",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 2,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "GqGIda9vvyCarCTGfL-C-",
-        "label": "信号激光器频偏(MHz)",
-        "dataType": "int16",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 2,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "KksvE5RWJsQxQ5josu4GU",
-        "label": "保留",
-        "dataType": "bytes",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 3,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "jeKhvFGilZ-8zSVb7V4fX",
-        "label": "校验和",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "1",
-          "endFieldIndex": "5",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      }
-    ],
-    "isFavorite": false,
-    "isSCOEFrame": false,
-    "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-11-05T03:00:33.012Z"
-    },
-    "sendCount": 0
-  },
-  {
-    "id": "9",
-    "label": "激光光路使能 #1",
-    "frameId": "S-JGXT-002",
-    "description": "",
-    "paramCount": 2,
-    "createdAt": "2025-11-05T03:00:30.708Z",
-    "updatedAt": "2026-05-27T05:46:38.755Z",
-    "fields": [
-      {
-        "id": "KvppwQU8BTj4bT6iSrYTu",
-        "label": "帧头",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1ACF9001",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "25qOTYT_syO0EsLy6R2Cd",
-        "label": "帧头标志",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1acffc1d",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "BOjjbS7I362v7_5qx2p1c",
-        "label": "帧长",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "8",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "IwHGRYne4ZCi_S46isy-d",
-        "label": "光路选择",
-        "dataType": "uint8",
-        "inputType": "select",
-        "description": "",
-        "value": "0x11",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [
-          {
-            "value": "0x11",
-            "label": "C18本振激光光路"
-          },
-          {
-            "value": "0x13",
-            "label": "C18信号激光多普勒光路"
-          },
-          {
-            "value": "0x15",
-            "label": "C18信号激光调制光路"
-          },
-          {
-            "value": "0x12",
-            "label": "C46本振激光光路"
-          },
-          {
-            "value": "0x14",
-            "label": "C46信号激光多普勒光路"
-          },
-          {
-            "value": "0x16",
-            "label": "C46信号激光调制光路"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "6_BsdD04A2leoKiJghYTa",
-        "label": "激光光路使能选择",
-        "dataType": "uint8",
-        "inputType": "radio",
-        "description": "",
-        "value": "0xAA",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": true,
-        "options": [
-          {
-            "value": "0xAA",
-            "label": "光路使能"
-          },
-          {
-            "value": "0x55",
-            "label": "光路关闭"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "KksvE5RWJsQxQ5josu4GU",
-        "label": "保留",
-        "dataType": "bytes",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 6,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "jeKhvFGilZ-8zSVb7V4fX",
-        "label": "校验和",
-        "dataType": "uint8",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": true,
-          "startFieldIndex": "1",
-          "endFieldIndex": "4",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": false,
-        "bigEndian": true,
-        "options": [],
-        "dataParticipationType": "direct"
-      }
-    ],
-    "isFavorite": false,
-    "isSCOEFrame": false,
-    "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2025-11-05T03:00:30.708Z"
-    },
-    "sendCount": 0
-  },
-  {
-    "id": "12",
-    "label": "激光模拟器发送帧 #1",
-    "frameId": "LS-SEND-001",
-    "description": "",
-    "paramCount": 15,
-    "createdAt": "2026-05-27T03:39:23.775Z",
-    "updatedAt": "2026-05-27T05:46:38.755Z",
-    "fields": [
-      {
-        "id": "ls-s-f001",
-        "label": "帧头",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0x1ACF0100",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": false,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f002",
-        "label": "波长状态",
-        "dataType": "uint8",
-        "inputType": "select",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "1563nm"
-          },
-          {
-            "value": "1",
-            "label": "1540nm"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f003",
-        "label": "信号功率",
-        "dataType": "uint16",
-        "inputType": "input",
-        "description": "",
-        "value": "1100",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 2,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f004",
-        "label": "频偏估计值",
-        "dataType": "int16",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 2,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f005",
-        "label": "编码方式",
-        "dataType": "uint8",
-        "inputType": "select",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "RS编码"
-          },
-          {
-            "value": "1",
-            "label": "LDPC编码"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f006",
-        "label": "发送速率",
-        "dataType": "uint8",
-        "inputType": "select",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "5G"
-          },
-          {
-            "value": "1",
-            "label": "2.5G"
-          },
-          {
-            "value": "2",
-            "label": "1.25G"
-          },
-          {
-            "value": "3",
-            "label": "625M"
-          },
-          {
-            "value": "4",
-            "label": "312.5M"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f007",
-        "label": "接收速率",
-        "dataType": "uint8",
-        "inputType": "select",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "5G"
-          },
-          {
-            "value": "1",
-            "label": "2.5G"
-          },
-          {
-            "value": "2",
-            "label": "1.25G"
-          },
-          {
-            "value": "3",
-            "label": "625M"
-          },
-          {
-            "value": "4",
-            "label": "312.5M"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f008",
-        "label": "载波同步锁定",
-        "dataType": "uint8",
-        "inputType": "radio",
-        "description": "",
-        "value": "1",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "未锁定"
-          },
-          {
-            "value": "1",
-            "label": "锁定"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f009",
-        "label": "定时同步锁定",
-        "dataType": "uint8",
-        "inputType": "radio",
-        "description": "",
-        "value": "1",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "未锁定"
-          },
-          {
-            "value": "1",
-            "label": "锁定"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f010",
-        "label": "帧同步锁定",
-        "dataType": "uint8",
-        "inputType": "radio",
-        "description": "",
-        "value": "1",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 1,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [
-          {
-            "value": "0",
-            "label": "未锁定"
-          },
-          {
-            "value": "1",
-            "label": "锁定"
-          }
-        ],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f011",
-        "label": "译码前误码率",
-        "dataType": "float",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f012",
-        "label": "译码后误码率",
-        "dataType": "float",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f013",
-        "label": "帧计数",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "625000",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f014",
-        "label": "数据帧计数",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f015",
-        "label": "误帧计数",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      },
-      {
-        "id": "ls-s-f016",
-        "label": "数据误帧计数",
-        "dataType": "uint32",
-        "inputType": "input",
-        "description": "",
-        "value": "0",
-        "validOption": {
-          "isChecksum": false,
-          "startFieldIndex": "0",
-          "endFieldIndex": "0",
-          "checksumMethod": "sum8"
-        },
-        "factor": 1,
-        "length": 4,
-        "configurable": true,
-        "bigEndian": false,
-        "options": [],
-        "dataParticipationType": "direct"
-      }
-    ],
-    "isFavorite": false,
-    "isSCOEFrame": false,
-    "strategyConfig": {
-      "type": "none",
-      "updatedAt": "2026-05-27T03:39:23.775Z"
-    },
-    "sendCount": 0
-  },
-  {
     "id": "13",
     "label": "激光模拟器发送帧 #2",
     "frameId": "LS-SEND-001",
     "description": "",
     "paramCount": 15,
     "createdAt": "2026-05-27T03:43:28.544Z",
-    "updatedAt": "2026-05-27T07:33:47.344Z",
+    "updatedAt": "2026-06-01T15:11:13.896Z",
     "fields": [
       {
         "id": "ls-s-f001",
@@ -2148,8 +586,7 @@
       "type": "none",
       "updatedAt": "2026-05-27T03:43:28.544Z"
     },
-    "sendCount": 842,
-    "lastSentAt": "2026-05-27T07:25:51.838Z"
+    "sendCount": 0
   },
   {
     "id": "6",
@@ -2158,7 +595,7 @@
     "description": "",
     "paramCount": 9,
     "createdAt": "2025-11-05T03:00:02.444Z",
-    "updatedAt": "2026-05-27T05:46:38.755Z",
+    "updatedAt": "2026-06-01T15:11:13.896Z",
     "fields": [
       {
         "id": "CkmZkov98vbh2H79XP23l",
@@ -2646,13 +1083,455 @@
     "sendCount": 0
   },
   {
+    "id": "4",
+    "label": "速度模拟 #1",
+    "frameId": "S-FPGA-004",
+    "description": "",
+    "paramCount": 6,
+    "createdAt": "2025-11-05T02:59:57.092Z",
+    "updatedAt": "2026-06-01T15:11:13.894Z",
+    "fields": [
+      {
+        "id": "wgx_yyTyOc8xKF8smWXUC",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1acf8004",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "1MFHFjwWXRfgeNBDAGfMl",
+        "label": "模式选择",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "星间链路"
+          },
+          {
+            "value": "1",
+            "label": "接入链路"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "p2_Tp4UPWDutIZopqgtsA",
+        "label": "速度步进",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect"
+      },
+      {
+        "id": "lOsGa8u4Oe0jmYGsCYWOU",
+        "label": "速度(km/s)",
+        "dataType": "float",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "速度+速度步进"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "速度步进",
+              "sourceType": "current_field",
+              "sourceId": "p2_Tp4UPWDutIZopqgtsA",
+              "frameId": "",
+              "fieldId": ""
+            },
+            {
+              "identifier": "速度",
+              "sourceType": "current_field",
+              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "qqucn8VfXkwCuTqW1fkmQ",
+        "label": "整数分频比N",
+        "dataType": "uint32",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "速度>0",
+              "expression": "3200"
+            },
+            {
+              "condition": "速度<=0",
+              "expression": "3199"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "速度",
+              "sourceType": "current_field",
+              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "0Zs6QFZprhyzjTbASqp0N",
+        "label": "小数分频比Num",
+        "dataType": "uint32",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "速度>0",
+              "expression": "13743895344000000/299792458*速度"
+            },
+            {
+              "condition": "速度<=0",
+              "expression": "4294967295+13743895344000000/299792458*速度"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "速度",
+              "sourceType": "current_field",
+              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "90F6loNP96Z0aigVCH55I",
+        "label": "光速",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "299792458",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect"
+      },
+      {
+        "id": "JjRsaCbTCZpmFG74KhWI5",
+        "label": "参考时钟频率变化量(kHz)",
+        "dataType": "float",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "v>0",
+              "expression": "3125*Num/4294967295/32"
+            },
+            {
+              "condition": "v<=0",
+              "expression": "3125*(Num-4294967295)/4294967295/32"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "N",
+              "sourceType": "current_field",
+              "sourceId": "qqucn8VfXkwCuTqW1fkmQ",
+              "frameId": "",
+              "fieldId": ""
+            },
+            {
+              "identifier": "Num",
+              "sourceType": "current_field",
+              "sourceId": "0Zs6QFZprhyzjTbASqp0N",
+              "frameId": "",
+              "fieldId": ""
+            },
+            {
+              "identifier": "v",
+              "sourceType": "current_field",
+              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "dzNHfNgbZlY0lF56R11es",
+        "label": "波长",
+        "dataType": "float",
+        "inputType": "radio",
+        "description": "",
+        "value": "1540.56",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "1540.56",
+            "label": "1540nm"
+          },
+          {
+            "value": "1563.05",
+            "label": "1563nm"
+          }
+        ],
+        "dataParticipationType": "indirect"
+      },
+      {
+        "id": "I2sJlqufbDxBeNY1uwWMz",
+        "label": "十六进制数",
+        "dataType": "uint32",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "175000000-v/lamda*10000000000"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "v",
+              "sourceType": "current_field",
+              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+              "frameId": "",
+              "fieldId": ""
+            },
+            {
+              "identifier": "lamda",
+              "sourceType": "current_field",
+              "sourceId": "dzNHfNgbZlY0lF56R11es",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "Azw4MXTCiXogCD8TAvzlR",
+        "label": "码多普勒(kHz)",
+        "dataType": "float",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "16*var1"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "var1",
+              "sourceType": "current_field",
+              "sourceId": "JjRsaCbTCZpmFG74KhWI5",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "fjBX6l0CNAQx-XcqlNnJa",
+        "label": "光多普勒(MHz)",
+        "dataType": "float",
+        "inputType": "expression",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "indirect",
+        "expressionConfig": {
+          "expressions": [
+            {
+              "condition": "true",
+              "expression": "v/lamda*1000000"
+            }
+          ],
+          "variables": [
+            {
+              "identifier": "v",
+              "sourceType": "current_field",
+              "sourceId": "lOsGa8u4Oe0jmYGsCYWOU",
+              "frameId": "",
+              "fieldId": ""
+            },
+            {
+              "identifier": "lamda",
+              "sourceType": "current_field",
+              "sourceId": "dzNHfNgbZlY0lF56R11es",
+              "frameId": "",
+              "fieldId": ""
+            }
+          ]
+        }
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-11-05T02:59:57.092Z"
+    },
+    "sendCount": 0
+  },
+  {
     "id": "3",
     "label": "复位控制帧 #1",
     "frameId": "S-FPGA-001",
     "description": "",
     "paramCount": 2,
     "createdAt": "2025-11-05T02:59:53.396Z",
-    "updatedAt": "2026-05-27T05:46:38.755Z",
+    "updatedAt": "2026-06-01T15:11:13.896Z",
     "fields": [
       {
         "id": "UGiQCczA0nZg72yrjhxL2",
@@ -2776,7 +1655,7 @@
     "description": "",
     "paramCount": 3,
     "createdAt": "2025-11-05T02:59:58.972Z",
-    "updatedAt": "2026-05-27T05:46:38.755Z",
+    "updatedAt": "2026-06-01T15:11:13.897Z",
     "fields": [
       {
         "id": "CkmZkov98vbh2H79XP23l",
@@ -3326,7 +2205,7 @@
     "description": "",
     "paramCount": 8,
     "createdAt": "2025-11-05T03:00:04.420Z",
-    "updatedAt": "2026-05-27T05:46:38.756Z",
+    "updatedAt": "2026-06-01T15:11:13.898Z",
     "fields": [
       {
         "id": "KTHBaEn4mwMBQy8U0ep9f",
@@ -3542,7 +2421,7 @@
     "description": "",
     "paramCount": 2,
     "createdAt": "2025-11-05T03:00:35.364Z",
-    "updatedAt": "2026-05-27T05:46:38.756Z",
+    "updatedAt": "2026-06-01T15:11:13.898Z",
     "fields": [
       {
         "id": "KvppwQU8BTj4bT6iSrYTu",
@@ -3709,7 +2588,7 @@
     "description": "",
     "paramCount": 4,
     "createdAt": "2026-05-27T06:16:00.359Z",
-    "updatedAt": "2026-05-27T06:16:00.359Z",
+    "updatedAt": "2026-06-01T15:11:13.898Z",
     "fields": [
       {
         "id": "CIWpK2gv1uULY0m9X04Ez",
@@ -3878,7 +2757,7 @@
     "description": "",
     "paramCount": 4,
     "createdAt": "2026-05-27T06:16:13.838Z",
-    "updatedAt": "2026-05-27T06:16:13.838Z",
+    "updatedAt": "2026-06-01T15:11:13.898Z",
     "fields": [
       {
         "id": "CIWpK2gv1uULY0m9X04Ez",
@@ -4047,7 +2926,7 @@
     "description": "",
     "paramCount": 4,
     "createdAt": "2026-05-27T08:08:54.816Z",
-    "updatedAt": "2026-05-27T08:08:54.816Z",
+    "updatedAt": "2026-06-01T15:11:13.899Z",
     "fields": [
       {
         "id": "CIWpK2gv1uULY0m9X04Ez",
@@ -4210,13 +3089,516 @@
     "sendCount": 0
   },
   {
+    "id": "2",
+    "label": "参数控制帧 #1",
+    "frameId": "S-FPGA-003",
+    "description": "",
+    "paramCount": 6,
+    "createdAt": "2025-11-05T02:59:51.268Z",
+    "updatedAt": "2026-06-01T15:11:13.895Z",
+    "fields": [
+      {
+        "id": "jj7xZbgczdYzliA3k4IaM",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF8003",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "3WhhlZFNC9DOahKCnPfrc",
+        "label": "定时同步环路带宽控制1",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "3",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "RdC7D3rjpodppNxqDxhag",
+        "label": "定时同步环路带宽控制2",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "6",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "mEo39EhEjn9HwG2G33Jpb",
+        "label": "均衡器环路带宽控制",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "3",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "MJSpiE-6x9mbMmR6lsGf9",
+        "label": "帧同步捕获阈值",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "26",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "uZocseoyEEqPv4_PhhU0R",
+        "label": "帧同步入同步阈值",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "10",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "cPCFSm1lQBrRUkRtjt-PX",
+        "label": "帧同步失同步阈值",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "10",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-11-05T02:59:51.268Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "10",
+    "label": "激光器频偏控制 #1",
+    "frameId": "S-JGXT-003",
+    "description": "",
+    "paramCount": 2,
+    "createdAt": "2025-11-05T03:00:33.012Z",
+    "updatedAt": "2026-06-01T15:11:13.895Z",
+    "fields": [
+      {
+        "id": "za-R_HXg_BC4j4dSwwSne",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF9001",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "25qOTYT_syO0EsLy6R2Cd",
+        "label": "帧头标志",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1acffc1d",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "BOjjbS7I362v7_5qx2p1c",
+        "label": "帧长",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "8",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "IwHGRYne4ZCi_S46isy-d",
+        "label": "控制协议类型",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "0x03",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "0nT3k2gPzSt5dVj0NZw7e",
+        "label": "本振激光器频偏(MHz)",
+        "dataType": "int16",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "GqGIda9vvyCarCTGfL-C-",
+        "label": "信号激光器频偏(MHz)",
+        "dataType": "int16",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "KksvE5RWJsQxQ5josu4GU",
+        "label": "保留",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 3,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "jeKhvFGilZ-8zSVb7V4fX",
+        "label": "校验和",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": true,
+          "startFieldIndex": "1",
+          "endFieldIndex": "5",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-11-05T03:00:33.012Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "8",
+    "label": "调制板调制方式选择 #1",
+    "frameId": "S-JGXT-001",
+    "description": "",
+    "paramCount": 1,
+    "createdAt": "2025-11-05T03:00:27.828Z",
+    "updatedAt": "2026-06-01T15:11:13.894Z",
+    "fields": [
+      {
+        "id": "O_uzlkuDpwakZXFQjfTYM",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF9001",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "25qOTYT_syO0EsLy6R2Cd",
+        "label": "帧头标志",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1acffc1d",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "BOjjbS7I362v7_5qx2p1c",
+        "label": "帧长",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "8",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "IwHGRYne4ZCi_S46isy-d",
+        "label": "调制类型",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "0x10",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "6_BsdD04A2leoKiJghYTa",
+        "label": "调制方式选择",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "0x55",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0x55",
+            "label": "QPSK"
+          },
+          {
+            "value": "0xAA",
+            "label": "BPSK"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "KksvE5RWJsQxQ5josu4GU",
+        "label": "保留",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 6,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "jeKhvFGilZ-8zSVb7V4fX",
+        "label": "校验和",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": true,
+          "startFieldIndex": "1",
+          "endFieldIndex": "5",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-11-05T03:00:27.828Z"
+    },
+    "sendCount": 0
+  },
+  {
     "id": "17",
     "label": "激光模拟器发送帧 #3",
     "frameId": "LS-SEND-001",
     "description": "",
     "paramCount": 16,
     "createdAt": "2026-05-27T08:08:58.454Z",
-    "updatedAt": "2026-05-27T08:09:42.876Z",
+    "updatedAt": "2026-06-01T15:11:13.899Z",
     "fields": [
       {
         "id": "ls-s-f001",
@@ -4651,6 +4033,1592 @@
     "strategyConfig": {
       "type": "none",
       "updatedAt": "2026-05-27T08:08:58.454Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "9",
+    "label": "激光光路使能 #1",
+    "frameId": "S-JGXT-002",
+    "description": "",
+    "paramCount": 2,
+    "createdAt": "2025-11-05T03:00:30.708Z",
+    "updatedAt": "2026-06-01T15:11:13.891Z",
+    "fields": [
+      {
+        "id": "KvppwQU8BTj4bT6iSrYTu",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF9001",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "25qOTYT_syO0EsLy6R2Cd",
+        "label": "帧头标志",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1acffc1d",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "BOjjbS7I362v7_5qx2p1c",
+        "label": "帧长",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "8",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "IwHGRYne4ZCi_S46isy-d",
+        "label": "光路选择",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0x11",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0x11",
+            "label": "C18本振激光光路"
+          },
+          {
+            "value": "0x13",
+            "label": "C18信号激光多普勒光路"
+          },
+          {
+            "value": "0x15",
+            "label": "C18信号激光调制光路"
+          },
+          {
+            "value": "0x12",
+            "label": "C46本振激光光路"
+          },
+          {
+            "value": "0x14",
+            "label": "C46信号激光多普勒光路"
+          },
+          {
+            "value": "0x16",
+            "label": "C46信号激光调制光路"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "6_BsdD04A2leoKiJghYTa",
+        "label": "激光光路使能选择",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "0xAA",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0xAA",
+            "label": "光路使能"
+          },
+          {
+            "value": "0x55",
+            "label": "光路关闭"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "KksvE5RWJsQxQ5josu4GU",
+        "label": "保留",
+        "dataType": "bytes",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 6,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "jeKhvFGilZ-8zSVb7V4fX",
+        "label": "校验和",
+        "dataType": "uint8",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": true,
+          "startFieldIndex": "1",
+          "endFieldIndex": "4",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2025-11-05T03:00:30.708Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "12",
+    "label": "激光模拟器发送帧 #1",
+    "frameId": "LS-SEND-001",
+    "description": "",
+    "paramCount": 15,
+    "createdAt": "2026-05-27T03:39:23.775Z",
+    "updatedAt": "2026-06-01T15:11:13.891Z",
+    "fields": [
+      {
+        "id": "ls-s-f001",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF0100",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f002",
+        "label": "波长状态",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "1563nm"
+          },
+          {
+            "value": "1",
+            "label": "1540nm"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f003",
+        "label": "信号功率",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "1100",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f004",
+        "label": "频偏估计值",
+        "dataType": "int16",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f005",
+        "label": "编码方式",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "RS编码"
+          },
+          {
+            "value": "1",
+            "label": "LDPC编码"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f006",
+        "label": "发送速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f007",
+        "label": "接收速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f008",
+        "label": "载波同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f009",
+        "label": "定时同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f010",
+        "label": "帧同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f011",
+        "label": "译码前误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f012",
+        "label": "译码后误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f013",
+        "label": "帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "625000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f014",
+        "label": "数据帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f015",
+        "label": "误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f016",
+        "label": "数据误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": false,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2026-05-27T03:39:23.775Z"
+    },
+    "sendCount": 0
+  },
+  {
+    "id": "18",
+    "label": "激光模拟器发送帧 #4",
+    "frameId": "LS-SEND-001",
+    "description": "",
+    "paramCount": 17,
+    "createdAt": "2026-06-01T15:23:13.518Z",
+    "updatedAt": "2026-06-01T15:27:51.495Z",
+    "fields": [
+      {
+        "id": "ls-s-f001",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF0100",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f002",
+        "label": "波长状态",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "1563nm"
+          },
+          {
+            "value": "1",
+            "label": "1540nm"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f003",
+        "label": "信号功率",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "1048",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f004",
+        "label": "频偏估计值",
+        "dataType": "int16",
+        "inputType": "input",
+        "description": "",
+        "value": "8",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f005",
+        "label": "编码方式",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "RS编码"
+          },
+          {
+            "value": "1",
+            "label": "LDPC编码"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f006",
+        "label": "发送速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f007",
+        "label": "接收速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f008",
+        "label": "载波同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f009",
+        "label": "定时同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f010",
+        "label": "帧同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "H91Cb9wHXjJ6I2Ok-rbfp",
+        "label": "链路状态",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未连通"
+          },
+          {
+            "value": "1",
+            "label": "连通"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f011",
+        "label": "译码前误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f012",
+        "label": "译码后误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f013",
+        "label": "秒内空口帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "625000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f014",
+        "label": "秒内空口误帧数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f015",
+        "label": "业务发送帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "59192",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f016",
+        "label": "业务接收帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "59192",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "M6vaxq2AWm9RpQ61N27SW",
+        "label": "业务接收误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2026-06-01T15:23:13.518Z"
+    },
+    "sendCount": 12,
+    "lastSentAt": "2026-06-01T15:27:11.737Z"
+  },
+  {
+    "id": "19",
+    "label": "激光模拟器发送帧 #5",
+    "frameId": "LS-SEND-001",
+    "description": "",
+    "paramCount": 18,
+    "createdAt": "2026-06-02T08:19:09.339Z",
+    "updatedAt": "2026-06-02T08:19:38.464Z",
+    "fields": [
+      {
+        "id": "ls-s-f001",
+        "label": "帧头",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0x1ACF0100",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": false,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f002",
+        "label": "波长状态",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "1563nm"
+          },
+          {
+            "value": "1",
+            "label": "1540nm"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f003",
+        "label": "信号功率",
+        "dataType": "uint16",
+        "inputType": "input",
+        "description": "",
+        "value": "1094",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f004",
+        "label": "频偏估计值",
+        "dataType": "int16",
+        "inputType": "input",
+        "description": "",
+        "value": "4",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 2,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f005",
+        "label": "编码方式",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "RS编码"
+          },
+          {
+            "value": "1",
+            "label": "LDPC编码"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f006",
+        "label": "发送速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f007",
+        "label": "接收速率",
+        "dataType": "uint8",
+        "inputType": "select",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "5G"
+          },
+          {
+            "value": "1",
+            "label": "2.5G"
+          },
+          {
+            "value": "2",
+            "label": "1.25G"
+          },
+          {
+            "value": "3",
+            "label": "625M"
+          },
+          {
+            "value": "4",
+            "label": "312.5M"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f008",
+        "label": "载波同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f009",
+        "label": "定时同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f010",
+        "label": "帧同步锁定",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未锁定"
+          },
+          {
+            "value": "1",
+            "label": "锁定"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "H91Cb9wHXjJ6I2Ok-rbfp",
+        "label": "链路状态",
+        "dataType": "uint8",
+        "inputType": "radio",
+        "description": "",
+        "value": "1",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 1,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [
+          {
+            "value": "0",
+            "label": "未连通"
+          },
+          {
+            "value": "1",
+            "label": "连通"
+          }
+        ],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f011",
+        "label": "译码前误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f012",
+        "label": "译码后误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f013",
+        "label": "秒内空口帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "625000",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f014",
+        "label": "秒内空口误帧数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "qI7_nTu2DFtGQYcJ-3ftU",
+        "label": "数据传输误码率",
+        "dataType": "float",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f015",
+        "label": "业务发送帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "59192",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "ls-s-f016",
+        "label": "业务接收帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "59192",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      },
+      {
+        "id": "M6vaxq2AWm9RpQ61N27SW",
+        "label": "业务接收误帧计数",
+        "dataType": "uint32",
+        "inputType": "input",
+        "description": "",
+        "value": "0",
+        "validOption": {
+          "isChecksum": false,
+          "startFieldIndex": "0",
+          "endFieldIndex": "0",
+          "checksumMethod": "sum8"
+        },
+        "factor": 1,
+        "length": 4,
+        "configurable": true,
+        "bigEndian": true,
+        "options": [],
+        "dataParticipationType": "direct"
+      }
+    ],
+    "isFavorite": false,
+    "isSCOEFrame": false,
+    "strategyConfig": {
+      "type": "none",
+      "updatedAt": "2026-06-02T08:19:09.340Z"
     },
     "sendCount": 0
   }

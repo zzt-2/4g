@@ -54,7 +54,7 @@ import {
   createStorageHighspeedService,
   type StorageHighspeedService,
 } from '@/features/storage-highspeed';
-import { getHttpFacade, getStorageFacade } from '@/platform';
+import { getHttpFacade, getStorageFacade, getFtpFacade } from '@/platform';
 import { ConnectionBackedSendWriter } from './bridges/connection-backed-writer';
 import { ConnectionBackedTargetResolver } from './bridges/connection-backed-target-resolver';
 import { ReceiveEventSourceBridge } from './bridges/receive-event-source-bridge';
@@ -180,10 +180,12 @@ export function wireFeatures(
 
   // L5: needs L3 + L4 + platform facades
   const httpFacade = getHttpFacade();
+  const ftpFacade = getFtpFacade();
   const northboundService = createNorthboundService({
     taskService,
     resultService,
     httpFacade: httpFacade!,
+    ftpFacade: ftpFacade ?? undefined,
     connectionSnapshot: () => connectionService.getSnapshot(),
   });
 

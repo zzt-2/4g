@@ -326,16 +326,18 @@ watch(
             />
             <q-input
               v-model="udpRemoteHost"
-              label="远程地址（可选）"
+              label="远程地址"
               dense
               outlined
+              :rules="[(v: string) => !!v || '发送数据需要远程地址']"
             />
             <q-input
               v-model.number="udpRemotePort"
-              label="远程端口（可选）"
+              label="远程端口"
               type="number"
               dense
               outlined
+              :rules="[(v: number) => (v > 0 && v <= 65535) || '端口范围 1-65535']"
             />
           </template>
 

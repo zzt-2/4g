@@ -1,6 +1,22 @@
 import type { TaskDefinition, TaskStepDefinition, ConditionTerm } from '@/features/task/core';
-import { createTaskDefinition, createSendStep, createWaitConditionStep } from '@/features/task/core';
+import { createTaskDefinition, createSendStep, createWaitConditionStep, createDelayStep } from '@/features/task/core';
 import type { TestCaseInfo, TestCaseStep } from './types';
+
+/**
+ * Mock: creates a task that auto-completes after a delay.
+ * Replace with translateTestCaseToTaskDefinition when hardware is connected.
+ */
+export function translateTestCaseToMockTaskDefinition(
+  testCase: TestCaseInfo,
+): TaskDefinition {
+  return createTaskDefinition({
+    id: `nb-${testCase.testCaseId}-${Date.now()}`,
+    name: testCase.testCaseName,
+    steps: [createDelayStep(1500, { id: 'step-mock', name: 'Mock execution' })],
+    schedule: { kind: 'immediate' },
+    errorPolicy: { onFailure: 'stop' },
+  });
+}
 
 export function translateTestCaseToTaskDefinition(
   testCase: TestCaseInfo,

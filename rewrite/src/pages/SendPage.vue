@@ -203,7 +203,7 @@ const { fullPreview } = useFramePreview(selectedFrame, selectedValues);
 const { keys: issueKeys, syncKeys: syncIssueKeys } = useStableKeys('issue');
 watch(() => fullPreview.issues, (issues) => syncIssueKeys(issues?.length ?? 0), { immediate: true });
 
-const selectedTargetId = ref<string | null>(null);
+const { selectedTargetId } = sendInstances;
 
 async function onSend(): Promise<void> {
   const inst = selectedInstance.value;

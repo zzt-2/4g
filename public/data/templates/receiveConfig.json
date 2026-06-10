@@ -743,8 +743,8 @@
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint16",
-            "value": 1132,
-            "displayValue": "1132",
+            "value": 1048,
+            "displayValue": "1048",
             "useLabel": false,
             "labelOptions": [],
             "id": 2
@@ -905,6 +905,26 @@
             "id": 9
           },
           {
+            "label": "链路状态",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint8",
+            "value": 1,
+            "displayValue": "连通",
+            "useLabel": true,
+            "labelOptions": [
+              {
+                "value": "0",
+                "label": "未连通"
+              },
+              {
+                "value": "1",
+                "label": "连通"
+              }
+            ],
+            "id": 12
+          },
+          {
             "label": "译码前误码率",
             "isVisible": true,
             "isFavorite": false,
@@ -927,18 +947,7 @@
             "id": 11
           },
           {
-            "label": "数据传输误码率",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "float",
-            "value": 0,
-            "displayValue": "0",
-            "useLabel": false,
-            "labelOptions": [],
-            "id": 16
-          },
-          {
-            "label": "帧计数",
+            "label": "秒内空口帧计数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
@@ -946,21 +955,10 @@
             "displayValue": "625000",
             "useLabel": false,
             "labelOptions": [],
-            "id": 12
-          },
-          {
-            "label": "数据帧计数",
-            "isVisible": true,
-            "isFavorite": false,
-            "dataType": "uint32",
-            "value": 59219,
-            "displayValue": "59219",
-            "useLabel": false,
-            "labelOptions": [],
             "id": 13
           },
           {
-            "label": "误帧计数",
+            "label": "秒内空口误帧数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
@@ -971,7 +969,40 @@
             "id": 14
           },
           {
-            "label": "数据误帧计数",
+            "label": "数据传输误码率",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "float",
+            "value": null,
+            "displayValue": "-",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 18
+          },
+          {
+            "label": "业务发送帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 59192,
+            "displayValue": "59192",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 15
+          },
+          {
+            "label": "业务接收帧计数",
+            "isVisible": true,
+            "isFavorite": false,
+            "dataType": "uint32",
+            "value": 59192,
+            "displayValue": "59192",
+            "useLabel": false,
+            "labelOptions": [],
+            "id": 16
+          },
+          {
+            "label": "业务接收误帧计数",
             "isVisible": true,
             "isFavorite": false,
             "dataType": "uint32",
@@ -979,7 +1010,7 @@
             "displayValue": "0",
             "useLabel": false,
             "labelOptions": [],
-            "id": 15
+            "id": 17
           }
         ]
       }
@@ -1379,42 +1410,56 @@
       },
       {
         "frameId": "LS-RECV-001",
-        "fieldId": "ls-r-f013",
-        "fieldName": "帧计数",
+        "fieldId": "5XrZpLGFBdVbZp96TOXFB",
+        "fieldName": "链路状态",
         "groupId": 7,
         "dataItemId": 12
       },
       {
         "frameId": "LS-RECV-001",
-        "fieldId": "ls-r-f014",
-        "fieldName": "数据帧计数",
+        "fieldId": "ls-r-f013",
+        "fieldName": "秒内空口帧计数",
         "groupId": 7,
         "dataItemId": 13
       },
       {
         "frameId": "LS-RECV-001",
-        "fieldId": "ls-r-f015",
-        "fieldName": "误帧计数",
+        "fieldId": "ls-r-f014",
+        "fieldName": "秒内空口误帧数",
         "groupId": 7,
         "dataItemId": 14
       },
       {
         "frameId": "LS-RECV-001",
-        "fieldId": "ls-r-f016",
-        "fieldName": "数据误帧计数",
+        "fieldId": "ls-r-f015",
+        "fieldName": "业务发送帧计数",
         "groupId": 7,
         "dataItemId": 15
       },
       {
         "frameId": "LS-RECV-001",
-        "fieldId": "BWcM4GopsRs9vf0AJpKGB",
-        "fieldName": "数据传输误码率",
+        "fieldId": "ls-r-f016",
+        "fieldName": "业务接收帧计数",
         "groupId": 7,
         "dataItemId": 16
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "v-ZR-dtowPcoRNPT4gbxC",
+        "fieldName": "业务接收误帧计数",
+        "groupId": 7,
+        "dataItemId": 17
+      },
+      {
+        "frameId": "LS-RECV-001",
+        "fieldId": "tUOFz_c-8zLtmjmXqs2WH",
+        "fieldName": "数据传输误码率",
+        "groupId": 7,
+        "dataItemId": 18
       }
     ],
     "version": "1.0.0",
-    "createdAt": "2026-05-27T08:10:26.109Z",
-    "updatedAt": "2026-05-27T08:10:26.109Z"
+    "createdAt": "2026-06-02T08:19:07.255Z",
+    "updatedAt": "2026-06-02T08:19:07.255Z"
   }
 ]

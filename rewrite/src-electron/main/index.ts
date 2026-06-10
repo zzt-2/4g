@@ -6,6 +6,7 @@ import { registerSerialHandlers, cleanupSerialHandlers } from './serial-handlers
 import { registerNetworkHandlers, cleanupNetworkHandlers } from './network-handlers';
 import { registerFileHandlers, cleanupFileHandlers } from './file-handlers';
 import { registerHttpHandlers, cleanupHttpHandlers } from './http-handlers';
+import { registerFtpHandlers, cleanupFtpHandlers } from './ftp-handlers';
 import { registerStorageHandlers, cleanupStorageHandlers } from './storage-handlers';
 import { storageFilter } from './storage-filter';
 
@@ -41,6 +42,7 @@ async function createWindow() {
   registerNetworkHandlers(mainWindow);
   registerFileHandlers();
   registerHttpHandlers();
+  registerFtpHandlers();
   registerStorageHandlers();
 
   const appUrl = process.env.APP_URL;
@@ -65,6 +67,7 @@ async function createWindow() {
     cleanupNetworkHandlers();
     cleanupFileHandlers();
     cleanupHttpHandlers();
+    cleanupFtpHandlers();
     cleanupStorageHandlers();
     storageFilter.cleanup();
     mainWindow = undefined;
