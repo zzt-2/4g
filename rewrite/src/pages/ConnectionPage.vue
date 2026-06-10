@@ -75,6 +75,8 @@ function handleRemove(summary: ConnectionSummary): void {
     if (summary.lifecycle === 'connected') {
       await handleDisconnect(summary);
     }
+    service.removeConfig(summary.connectionId);
+    void runtime.persistence.saveConnections();
     notify.info(`${summary.label} 已删除`);
     refreshSummaries();
   });
@@ -92,14 +94,15 @@ async function handleCreate(config: TransportConfig): Promise<void> {
   const result = await service.connect(config);
   if (result.ok) {
     notify.success('连接已创建');
+    void runtime.persistence.saveConnections();
   } else {
     notify.error('创建连接失败', result.error?.message);
   }
   refreshSummaries();
 }
 
-function refreshResources(): void {
-  resources.value = service.discoverResources();
+async function refreshResources(): Promise<void> {
+  resources.value = await service.discoverResources();
 }
 
 const resources = ref<readonly { kind: string; id: string; label: string }[]>([]);

@@ -203,6 +203,7 @@ function createNoOpPersistence(): FeaturePersistence {
     async saveFrames() {},
     async saveConnections() {},
     async saveSettings() {},
+    async saveSendInstances() {},
     async saveAll() {},
   };
 }

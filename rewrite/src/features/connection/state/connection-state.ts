@@ -2,6 +2,7 @@ import {
   cloneConnectionStateSnapshot,
   createEmptyConnectionSnapshot,
   reduceTransportEvent,
+  removeConnectionConfig,
   upsertConnectionConfig,
   type ConnectionStateSnapshot,
   type NormalizedTransportEventInput,
@@ -17,6 +18,7 @@ export interface ConnectionStateContainer {
   getSnapshot(): ConnectionStateSnapshot;
   replaceSnapshot(snapshot: ReadonlyConnectionStateSnapshot): ConnectionStateSnapshot;
   upsertConfig(config: TransportConfig): ConnectionStateSnapshot;
+  removeConfig(configId: string): ConnectionStateSnapshot;
   applyEvent(event: NormalizedTransportEventInput): ConnectionStateSnapshot;
   resetSnapshot(snapshot?: ReadonlyConnectionStateSnapshot): ConnectionStateSnapshot;
 }
@@ -40,6 +42,11 @@ export function createConnectionState(
 
     upsertConfig(config) {
       snapshot = upsertConnectionConfig(snapshot, config);
+      return cloneConnectionStateSnapshot(snapshot);
+    },
+
+    removeConfig(configId) {
+      snapshot = removeConnectionConfig(snapshot, configId);
       return cloneConnectionStateSnapshot(snapshot);
     },
 

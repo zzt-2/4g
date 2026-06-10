@@ -61,6 +61,8 @@ export interface ConnectionOperationOutcome {
 export interface ConnectionService extends ConnectionReader {
   connect(config: TransportConfig): Promise<ConnectionOperationOutcome>;
   disconnect(connectionId: string): Promise<ConnectionOperationOutcome>;
+  upsertConfig(config: TransportConfig): void;
+  removeConfig(configId: string): void;
   write(request: TransportWriteRequest): Promise<ConnectionOperationOutcome>;
   drainAdapterEvents(): Promise<ConnectionOperationOutcome>;
   cleanup(): Promise<ConnectionOperationOutcome>;
@@ -547,6 +549,14 @@ export function createConnectionService(
         return options.adapter.discoverResources();
       }
       return [];
+    },
+
+    removeConfig(configId: string): void {
+      state.removeConfig(configId);
+    },
+
+    upsertConfig(config: TransportConfig): void {
+      state.upsertConfig(config);
     },
 
     getReconnectStatus(connectionId) {

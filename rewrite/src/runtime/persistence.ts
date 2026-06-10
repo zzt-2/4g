@@ -1,12 +1,14 @@
 import type { FileFacade } from '@/platform';
 import type { FrameAsset } from '@/features/frame';
 import type { TransportConfig } from '@/features/connection';
+import type { SendFrameInstance } from '@/features/send';
 
 export interface PersistedFeatureState {
   readonly frames?: { readonly frames: readonly FrameAsset[]; readonly selectedFrameId?: string };
   readonly connectionConfigs?: readonly TransportConfig[];
   readonly settings?: Record<string, unknown>;
   readonly storageHighspeed?: { readonly config: unknown; readonly rule: unknown };
+  readonly sendInstances?: readonly SendFrameInstance[];
 }
 
 export interface PersistenceStateSources {
@@ -14,6 +16,7 @@ export interface PersistenceStateSources {
   getConnectionConfigs(): readonly TransportConfig[];
   getSettingsSnapshot(): Record<string, unknown>;
   getStorageHighspeedSnapshot?(): { readonly config: unknown; readonly rule: unknown };
+  getSendInstancesSnapshot(): readonly SendFrameInstance[];
 }
 
 export interface FeaturePersistence {
@@ -22,6 +25,7 @@ export interface FeaturePersistence {
   saveConnections(): Promise<void>;
   saveSettings(): Promise<void>;
   saveStorageHighspeed(): Promise<void>;
+  saveSendInstances(): Promise<void>;
   saveAll(): Promise<void>;
 }
 
@@ -57,11 +61,12 @@ export function createFeaturePersistence(
 ): FeaturePersistence {
   return {
     async load(): Promise<PersistedFeatureState> {
-      const [frameData, connData, settingsData, storageHighspeedData] = await Promise.all([
+      const [frameData, connData, settingsData, storageHighspeedData, sendInstancesData] = await Promise.all([
         safeReadJson(fileFacade, dataPath(dataDir, 'frames')),
         safeReadJson(fileFacade, dataPath(dataDir, 'connections')),
         safeReadJson(fileFacade, dataPath(dataDir, 'settings')),
         safeReadJson(fileFacade, dataPath(dataDir, 'storage-highspeed')),
+        safeReadJson(fileFacade, dataPath(dataDir, 'send-instances')),
       ]);
 
       return {
@@ -69,6 +74,7 @@ export function createFeaturePersistence(
         connectionConfigs: isConnectionData(connData) ? (connData as { configs: readonly TransportConfig[] }).configs : undefined,
         settings: isSettingsData(settingsData) ? settingsData as Record<string, unknown> : undefined,
         storageHighspeed: isStorageHighspeedData(storageHighspeedData) ? storageHighspeedData as PersistedFeatureState['storageHighspeed'] : undefined,
+        sendInstances: Array.isArray(sendInstancesData) ? sendInstancesData as readonly SendFrameInstance[] : undefined,
       };
     },
 
@@ -93,12 +99,18 @@ export function createFeaturePersistence(
       await safeWriteJson(fileFacade, dataPath(dataDir, 'storage-highspeed'), snapshot);
     },
 
+    async saveSendInstances(): Promise<void> {
+      const instances = sources.getSendInstancesSnapshot();
+      await safeWriteJson(fileFacade, dataPath(dataDir, 'send-instances'), instances);
+    },
+
     async saveAll(): Promise<void> {
       await Promise.all([
         this.saveFrames(),
         this.saveConnections(),
         this.saveSettings(),
         this.saveStorageHighspeed(),
+        this.saveSendInstances(),
       ]);
     },
   };
@@ -130,6 +142,7 @@ export function createNoOpPersistence(): FeaturePersistence {
     async saveConnections() {},
     async saveSettings() {},
     async saveStorageHighspeed() {},
+    async saveSendInstances() {},
     async saveAll() {},
   };
 }

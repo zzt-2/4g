@@ -24,6 +24,10 @@ const connectionService = runtime.features.connectionService;
 
 const sendInstances = useSendInstances();
 
+function saveSendInstances(): void {
+  void runtime.persistence.saveSendInstances();
+}
+
 // ===== Left column: frame list =====
 
 const searchText = ref('');
@@ -99,6 +103,7 @@ const { toggleFavorite } = useToggleFavorite(frameService, (msg) => notify.error
 const tableRows = shallowRef<InstanceTableRow[]>([]);
 
 watch(sendInstances.instances, (instances) => {
+  saveSendInstances();
   tableRows.value = instances.map((inst, index) => ({
     instanceId: inst.instanceId,
     name: inst.name,

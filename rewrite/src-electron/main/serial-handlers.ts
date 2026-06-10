@@ -146,15 +146,21 @@ function wirePortEvents(conn: ManagedSerialPort, win: BrowserWindow): void {
 // --- IPC Handlers ---
 
 async function handleEnumerateSerialPorts(): Promise<SerialPortCandidate[]> {
-  const ports = await SerialPort.list();
-  return ports.map((p) => ({
-    path: p.path,
-    manufacturer: p.manufacturer,
-    serialNumber: p.serialNumber,
-    pnpId: p.pnpId,
-    vendorId: p.vendorId,
-    productId: p.productId,
-  }));
+  try {
+    const ports = await SerialPort.list();
+    console.log('[serial] enumerated ports:', ports.length, ports.map((p: { path: string }) => p.path));
+    return ports.map((p) => ({
+      path: p.path,
+      manufacturer: p.manufacturer,
+      serialNumber: p.serialNumber,
+      pnpId: p.pnpId,
+      vendorId: p.vendorId,
+      productId: p.productId,
+    }));
+  } catch (err) {
+    console.error('[serial] enumerate failed:', err);
+    return [];
+  }
 }
 
 async function handleSerialConnect(

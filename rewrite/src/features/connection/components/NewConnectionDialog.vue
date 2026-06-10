@@ -56,7 +56,7 @@ const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 const serialPortOptions = computed(() =>
   props.resources
     .filter((r) => r.kind === 'serial')
-    .map((r) => ({ label: r.label, value: r.id })),
+    .map((r) => ({ label: r.label, value: r.label })),
 );
 
 const dialogTitle = computed(() => {

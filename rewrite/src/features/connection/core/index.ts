@@ -53,6 +53,7 @@ export {
   createTransportEventSnapshot,
   deriveTransportTarget,
   reduceTransportEvent,
+  removeConnectionConfig,
   upsertConnectionConfig,
 } from './lifecycle';
 export {

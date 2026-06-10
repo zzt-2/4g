@@ -272,6 +272,18 @@ export function upsertConnectionConfig(
   };
 }
 
+export function removeConnectionConfig(
+  snapshot: ReadonlyConnectionStateSnapshot,
+  configId: string,
+): ConnectionStateSnapshot {
+  const current = cloneConnectionStateSnapshot(snapshot);
+  return {
+    ...current,
+    configs: current.configs.filter((c) => c.id !== configId),
+    runtimeFacts: current.runtimeFacts.filter((f) => f.connectionId !== configId),
+  };
+}
+
 export function reduceTransportEvent(
   snapshot: ReadonlyConnectionStateSnapshot,
   input: NormalizedTransportEventInput,

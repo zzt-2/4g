@@ -13,6 +13,18 @@ const instances = shallowRef<SendFrameInstance[]>([]);
 const selectedInstanceId = ref<string | null>(null);
 const selectedTargetId = ref<string | null>(null);
 
+export function restoreSendInstances(saved: readonly SendFrameInstance[]): void {
+  instances.value = [...saved];
+  nextInstanceId = saved.reduce((max, inst) => {
+    const match = inst.instanceId.match(/si_\d+_(\d+)/);
+    return match ? Math.max(max, Number(match[1]) + 1) : max;
+  }, 0);
+}
+
+export function getSendInstancesSnapshot(): readonly SendFrameInstance[] {
+  return [...instances.value];
+}
+
 export function useSendInstances() {
   function createInstance(
     frameId: string,

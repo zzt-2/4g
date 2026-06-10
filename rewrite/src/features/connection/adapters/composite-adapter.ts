@@ -2,6 +2,7 @@ import type { TransportConfig } from '../core';
 import type {
   ConnectionAdapterCommandOutcome,
   ConnectionAdapterEvent,
+  ConnectionResourceCandidate,
   ConnectionTransportAdapter,
   TransportWriteRequest,
 } from './ports';
@@ -100,6 +101,13 @@ export function createCompositeAdapter(
         allEvents.push(...events);
       }
       return allEvents;
+    },
+
+    async discoverResources(): Promise<readonly ConnectionResourceCandidate[]> {
+      if (serialAdapter?.discoverResources) {
+        return serialAdapter.discoverResources();
+      }
+      return [];
     },
   };
 }

@@ -1,11 +1,12 @@
 import { compilePattern, validateRule } from '../core'
-import type { FrameHeaderRule, HighSpeedStorageState } from '../core'
+import type { FrameHeaderRule, HighSpeedStorageConfig, HighSpeedStorageState } from '../core'
 import type { StorageHighspeedStateContainer } from '../state/storage-highspeed-state'
 import { createStorageHighspeedState } from '../state/storage-highspeed-state'
 import type { StoragePlatformFacade } from '@/platform/storage'
 
 export interface StorageHighspeedService {
   getSnapshot(): HighSpeedStorageState
+  restoreState(config: HighSpeedStorageConfig, rule: FrameHeaderRule | null): void
   activate(): Promise<void>
   deactivate(): Promise<void>
   setRule(rule: Omit<FrameHeaderRule, 'id'>): Promise<void>
@@ -30,6 +31,11 @@ export function createStorageHighspeedService(
 
   return {
     getSnapshot: () => state.getSnapshot(),
+
+    restoreState(config: HighSpeedStorageConfig, rule: FrameHeaderRule | null): void {
+      state.setConfig(config)
+      if (rule) state.setRule(rule)
+    },
 
     async activate() {
       state.setLoading(true)
