@@ -16,3 +16,4 @@ export type {
 export { compileExpression, compileConditional, compileGroup } from './compile';
 export { evaluate, evaluateConditional, evaluateGroup } from './evaluate';
 export { defaultMathFunctions } from './functions';
+export { kahnSort } from './dependency';

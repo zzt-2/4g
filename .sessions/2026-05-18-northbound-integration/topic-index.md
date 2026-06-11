@@ -200,9 +200,14 @@
 - 与帧结构完全解耦：report-generator 只依赖输入数据结构
 - 已有 translator（translateTestDataFileComplete）和 FTP facade 可复用
 
-### S008 — 中心对接 UI 设计
+### S008 — 中心对接 UI 设计与实施
 - 现有 CommandIngressPage"中心对接"tab 是空壳（composable 全部 throw）
 - Service 层零 gap，NorthboundConfig 9 字段完全对齐两份甲方文档
-- 7 个设计决策：配置弹窗（9 字段两区）、任务列表（composable 桥接 northbound+task）、设备列表（甲方设备 mock）、上报弹窗（只读统计）、配置持久化（localStorage 不存密码）、状态面板（接真实 service）、连接流程（配置→保存并连接→断开）
-- 3 项待确认：上报弹窗详细程度、心跳状态 MVP 方案、任务列表操作列
-- 设计文档：S008-docking-ui-design.md
+- 7 个设计决策：配置弹窗、任务列表、设备列表、上报弹窗、配置持久化、状态面板、连接流程
+- 2026-06-10 完成：基础接线（composable 重写、配置弹窗、任务列表、上报弹窗、状态面板）
+- 2026-06-11 补充：设备表可编辑 CRUD + 用例目录 JSON 编辑器 + 数据喂给 northbound service（setDeviceList/setTestCatalogData）+ localStorage 三份持久化（config/devices/catalog）
+- northbound-service.ts 新增 setDeviceList/setTestCatalogData，handler 从可配置数据读取
+- 内嵌 tab 从 2 变 3：任务列表 / 设备列表（可编辑）/ 用例目录（JSON 编辑器）
+- lint 零新增 error
+- 设计+实施文档：S008-docking-ui-design.md
+- 2026-06-11 第三轮：Mock 状态审计（上报链路 real，用例/执行 mock），发现 Task step kind `o_send` vs `send` 不匹配 bug，Task UI 无法区分北向任务

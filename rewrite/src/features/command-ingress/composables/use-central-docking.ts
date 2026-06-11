@@ -3,11 +3,14 @@ import type { NorthboundService } from '@/features/northbound/services/northboun
 import type { TaskService } from '@/features/task';
 import type { ResultService } from '@/features/result';
 import type { DeviceInfoItem } from '@/features/northbound/core/types';
-import { DEFAULT_DOCKING_CONFIG, MOCK_DEVICES } from '../components/docking-labels';
+import type { UseNotifyReturn } from '@/shared/composables';
+import { DEFAULT_DOCKING_CONFIG, MOCK_DEVICES, DEFAULT_TEST_CATALOG } from '../components/docking-labels';
 
 // --- Persistence helpers ---
 
-const STORAGE_KEY = 'northbound-docking-config';
+const CONFIG_KEY = 'northbound-docking-config';
+const DEVICES_KEY = 'northbound-docking-devices';
+const TEST_CATALOG_KEY = 'northbound-docking-test-catalog';
 
 interface PersistedConfig {
   serverHost: string;
@@ -22,12 +25,12 @@ interface PersistedConfig {
   tenantId: string;
 }
 
-function loadPersistedConfig(): Partial<PersistedConfig> {
+function loadJson<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
   } catch {
-    return {};
+    return fallback;
   }
 }
 
@@ -44,7 +47,15 @@ function persistConfig(cfg: DockingConfigForm): void {
     grantType: cfg.grantType,
     tenantId: cfg.tenantId,
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(persisted));
+}
+
+function persistDevices(items: readonly DeviceInfoItem[]): void {
+  localStorage.setItem(DEVICES_KEY, JSON.stringify(items));
+}
+
+function persistTestCatalog(data: unknown): void {
+  localStorage.setItem(TEST_CATALOG_KEY, JSON.stringify(data));
 }
 
 // --- Public types ---
@@ -90,6 +101,7 @@ export function useCentralDocking(
   northboundService: NorthboundService,
   taskService: TaskService,
   resultService: ResultService,
+  notify: UseNotifyReturn,
 ) {
   const connectionState = ref<DockingConnectionState>({
     https: 'unknown',
@@ -105,12 +117,21 @@ export function useCentralDocking(
 
   const config = reactive<DockingConfigForm>({
     ...DEFAULT_DOCKING_CONFIG,
-    ...loadPersistedConfig(),
+    ...loadJson<Partial<PersistedConfig>>(CONFIG_KEY, {}),
   });
 
   const dockingTasks = shallowRef<readonly DockingTaskRow[]>([]);
   const reportRecords = shallowRef<readonly ReportRecord[]>([]);
-  const devices = shallowRef<readonly DeviceInfoItem[]>(MOCK_DEVICES);
+
+  // --- Device list (configurable, persisted) ---
+  const initialDevices = loadJson<DeviceInfoItem[]>(DEVICES_KEY, [...MOCK_DEVICES]);
+  const devices = shallowRef<readonly DeviceInfoItem[]>(initialDevices);
+  northboundService.setDeviceList(initialDevices);
+
+  // --- Test case catalog (configurable, persisted) ---
+  const initialCatalog = loadJson<Record<string, unknown>>(TEST_CATALOG_KEY, DEFAULT_TEST_CATALOG);
+  const testCatalog = shallowRef(initialCatalog);
+  northboundService.setTestCatalogData(initialCatalog);
 
   // Track which tasks we've already recorded as settled
   const reportedInstanceIds = new Set<string>();
@@ -193,6 +214,9 @@ export function useCentralDocking(
       showConfigDialog.value = false;
       persistConfig(config);
       refresh();
+      notify.success('已连接甲方');
+    } catch (e) {
+      notify.error('连接失败', e instanceof Error ? e.message : String(e));
     } finally {
       isConnecting.value = false;
     }
@@ -206,6 +230,9 @@ export function useCentralDocking(
       await northboundService.stop();
       reportedInstanceIds.clear();
       refresh();
+      notify.success('已断开连接');
+    } catch (e) {
+      notify.error('断开失败', e instanceof Error ? e.message : String(e));
     } finally {
       isDisconnecting.value = false;
     }
@@ -215,6 +242,39 @@ export function useCentralDocking(
 
   function stopTask(instanceId: string): void {
     taskService.stopTask(instanceId);
+  }
+
+  // --- Device CRUD ---
+
+  function addDevice(device: DeviceInfoItem): void {
+    const next = [...devices.value, device];
+    devices.value = next;
+    northboundService.setDeviceList(next);
+    persistDevices(next);
+  }
+
+  function updateDevice(deviceId: string, patch: Partial<DeviceInfoItem>): void {
+    const next = devices.value.map(d =>
+      d.deviceId === deviceId ? { ...d, ...patch } : d,
+    );
+    devices.value = next;
+    northboundService.setDeviceList(next);
+    persistDevices(next);
+  }
+
+  function removeDevice(deviceId: string): void {
+    const next = devices.value.filter(d => d.deviceId !== deviceId);
+    devices.value = next;
+    northboundService.setDeviceList(next);
+    persistDevices(next);
+  }
+
+  // --- Test catalog update ---
+
+  function updateTestCatalog(data: Record<string, unknown>): void {
+    testCatalog.value = data;
+    northboundService.setTestCatalogData(data);
+    persistTestCatalog(data);
   }
 
   return {
@@ -228,9 +288,14 @@ export function useCentralDocking(
     dockingTasks,
     reportRecords,
     devices,
+    testCatalog,
     refresh,
     saveConfigAndConnect,
     disconnect,
     stopTask,
+    addDevice,
+    updateDevice,
+    removeDevice,
+    updateTestCatalog,
   };
 }

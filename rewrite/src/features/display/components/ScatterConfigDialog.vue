@@ -5,6 +5,8 @@ import type { ScatterDisplayPreference, ScatterSourceBinding } from '../core';
 interface FieldOption {
   readonly fieldId: string;
   readonly fieldName: string;
+  readonly frameName: string;
+  readonly frameId: string;
 }
 
 interface Props {
@@ -44,7 +46,7 @@ watch(() => props.modelValue, (open) => {
 const fieldOptions = computed(() =>
   props.availableFields.map((f) => ({
     value: f.fieldId,
-    label: `${f.fieldName} (${f.fieldId})`,
+    label: `${f.frameName} - ${f.fieldName}`,
   })),
 );
 

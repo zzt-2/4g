@@ -38,15 +38,15 @@ function baseField(
 // --- Tests ---
 
 describe('send frame-resolver: resolveFieldValues', () => {
-  it('SC2: resolves expression field using variables', () => {
+  it('resolves expression field using provider variables', () => {
     const field = baseField({
       id: 'computed',
       configurable: false,
       expressionConfig: {
         expressions: [{ condition: 'true', expression: 'x + y' }],
         variables: [
-          { name: 'x', source: 'external' },
-          { name: 'y', source: 'external' },
+          { identifier: 'x', sourceType: 'external' },
+          { identifier: 'y', sourceType: 'external' },
         ],
       },
     });
@@ -66,7 +66,7 @@ describe('send frame-resolver: resolveFieldValues', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('SC3: expression conditional branch selects correct branch', () => {
+  it('expression conditional branch selects correct branch', () => {
     const field = baseField({
       id: 'modeVal',
       configurable: false,
@@ -76,7 +76,7 @@ describe('send frame-resolver: resolveFieldValues', () => {
           { condition: 'mode == 2', expression: '20' },
           { condition: 'true', expression: '0' },
         ],
-        variables: [{ name: 'mode', source: 'external' }],
+        variables: [{ identifier: 'mode', sourceType: 'external' }],
       },
     });
     const vars = new Map<string, number | string | boolean>([['mode', 2]]);
@@ -88,7 +88,7 @@ describe('send frame-resolver: resolveFieldValues', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('SC4: expression eval failure zero-fills with error issue, does not block other fields', () => {
+  it('expression eval failure zero-fills with error issue, does not block other fields', () => {
     const badField = baseField({
       id: 'broken',
       configurable: false,
@@ -112,17 +112,13 @@ describe('send frame-resolver: resolveFieldValues', () => {
       provider,
     );
 
-    // broken field should zero-fill
     expect(values['broken']).toBe(0);
-    // good field should resolve normally
     expect(values['good']).toBe(42);
-    // error issue for broken field
     expect(issues.some((i) => i.fieldId === 'broken' && i.severity === 'error')).toBe(true);
-    // no issue for good field
     expect(issues.some((i) => i.fieldId === 'good')).toBe(false);
   });
 
-  it('SC7: defaultValue fallback when no user input and no expression', () => {
+  it('defaultValue fallback when no user input and no expression', () => {
     const field = baseField({
       id: 'withDefault',
       configurable: false,
@@ -136,7 +132,7 @@ describe('send frame-resolver: resolveFieldValues', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('SC7: defaultValue string kept when not numeric', () => {
+  it('defaultValue string kept when not numeric', () => {
     const field = baseField({
       id: 'strDefault',
       configurable: false,
@@ -150,7 +146,7 @@ describe('send frame-resolver: resolveFieldValues', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('SC8: zero fill warning when no value source', () => {
+  it('zero fill warning when no value source', () => {
     const field = baseField({
       id: 'noVal',
       configurable: false,
@@ -166,31 +162,29 @@ describe('send frame-resolver: resolveFieldValues', () => {
     expect(issues[0]!.fieldId).toBe('noVal');
   });
 
-  it('SC14: non-configurable field ignores user input, falls through to expression', () => {
+  it('non-configurable field ignores user input, falls through to expression', () => {
     const field = baseField({
       id: 'fixed',
       configurable: false,
       expressionConfig: {
         expressions: [{ condition: 'true', expression: 'val * 2' }],
-        variables: [{ name: 'val', source: 'external' }],
+        variables: [{ identifier: 'val', sourceType: 'external' }],
       },
     });
     const vars = new Map<string, number | string | boolean>([['val', 5]]);
     const provider = createFakeVariableProvider(vars);
 
-    // User provides a value for a non-configurable field — should be ignored
     const { values, issues } = resolveFieldValues(
       [field],
       { fixed: 999 },
       provider,
     );
 
-    // Expression result, not user value
     expect(values['fixed']).toBe(10);
     expect(issues).toHaveLength(0);
   });
 
-  it('SC14: configurable field uses user value over expression', () => {
+  it('configurable field uses user value over expression', () => {
     const field = baseField({
       id: 'editable',
       configurable: true,
@@ -218,8 +212,8 @@ describe('send frame-resolver: resolveFieldValues', () => {
       expressionConfig: {
         expressions: [{ condition: 'true', expression: 'a + b' }],
         variables: [
-          { name: 'a', source: 'external' },
-          { name: 'b', source: 'external' },
+          { identifier: 'a', sourceType: 'external' },
+          { identifier: 'b', sourceType: 'external' },
         ],
       },
     });
@@ -244,7 +238,7 @@ describe('send frame-resolver: resolveFieldValues', () => {
       configurable: false,
       expressionConfig: {
         expressions: [{ condition: 'true', expression: 'x' }],
-        variables: [{ name: 'x', source: 'external' }],
+        variables: [{ identifier: 'x', sourceType: 'external' }],
       },
     });
     const providerVars = new Map<string, number | string | boolean>([['x', 10]]);
@@ -254,6 +248,94 @@ describe('send frame-resolver: resolveFieldValues', () => {
     const { values } = resolveFieldValues([field], {}, provider, callerVars);
 
     expect(values['override']).toBe(99);
+  });
+
+  it('resolves current_field variables from earlier field values', () => {
+    const sourceField = baseField({
+      id: 'src-field',
+      configurable: true,
+    });
+    const exprField = baseField({
+      id: 'computed',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'var1 + 1' }],
+        variables: [
+          { identifier: 'var1', sourceType: 'current_field', sourceId: 'src-field' },
+        ],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    const { values, issues } = resolveFieldValues(
+      [sourceField, exprField],
+      { 'src-field': 5 },
+      provider,
+    );
+
+    expect(values['computed']).toBe(6);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('resolves chained current_field expressions where later field depends on earlier expression result', () => {
+    const sourceField = baseField({
+      id: 'input',
+      configurable: true,
+    });
+    const midField = baseField({
+      id: 'mid',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'v * 2' }],
+        variables: [
+          { identifier: 'v', sourceType: 'current_field', sourceId: 'input' },
+        ],
+      },
+    });
+    const finalField = baseField({
+      id: 'final',
+      offset: 2,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'm + 10' }],
+        variables: [
+          { identifier: 'm', sourceType: 'current_field', sourceId: 'mid' },
+        ],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    const { values, issues } = resolveFieldValues(
+      [sourceField, midField, finalField],
+      { input: 3 },
+      provider,
+    );
+
+    expect(values['mid']).toBe(6);
+    expect(values['final']).toBe(16);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('warns when current_field source has no value yet', () => {
+    const exprField = baseField({
+      id: 'computed',
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'var1' }],
+        variables: [
+          { identifier: 'var1', sourceType: 'current_field', sourceId: 'missing-source' },
+        ],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    const { values, issues } = resolveFieldValues([exprField], {}, provider);
+
+    expect(values['computed']).toBe(0);
+    expect(issues.some((i) => i.code === 'send.resolve.variableSourceMissing')).toBe(true);
+    expect(issues.some((i) => i.severity === 'error' && i.code === 'send.resolve.expressionEval')).toBe(true);
   });
 });
 
@@ -274,8 +356,8 @@ describe('send frame-resolver: evaluateFieldExpressions', () => {
       expressionConfig: {
         expressions: [{ condition: 'true', expression: 'a + b' }],
         variables: [
-          { name: 'a', source: 'external' },
-          { name: 'b', source: 'external' },
+          { identifier: 'a', sourceType: 'external' },
+          { identifier: 'b', sourceType: 'external' },
         ],
       },
     });
@@ -287,6 +369,24 @@ describe('send frame-resolver: evaluateFieldExpressions', () => {
     const { value, issues } = evaluateFieldExpressions(field, vars);
 
     expect(value).toBe(7);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('resolves current_field sourceId from merged variables', () => {
+    const field = baseField({
+      id: 'expr',
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'var1 + 1' }],
+        variables: [
+          { identifier: 'var1', sourceType: 'current_field', sourceId: 'sourceField' },
+        ],
+      },
+    });
+    const vars = new Map<string, number | string | boolean>([['sourceField', 9]]);
+
+    const { value, issues } = evaluateFieldExpressions(field, vars);
+
+    expect(value).toBe(10);
     expect(issues).toHaveLength(0);
   });
 
@@ -313,7 +413,7 @@ describe('send frame-resolver: evaluateFieldExpressions', () => {
       id: 'missingVar',
       expressionConfig: {
         expressions: [{ condition: 'true', expression: 'nonexistent' }],
-        variables: [{ name: 'nonexistent', source: 'external' }],
+        variables: [{ identifier: 'nonexistent', sourceType: 'external' }],
       },
     });
     const vars = new Map<string, number | string | boolean>();
@@ -328,7 +428,7 @@ describe('send frame-resolver: evaluateFieldExpressions', () => {
 });
 
 describe('send frame-resolver: applyFactor', () => {
-  it('SC5: factor inverse — factor=0.1, user input 25.5, rawValue = 255', () => {
+  it('factor inverse — factor=0.1, user input 25.5, rawValue = 255', () => {
     const fields: readonly SendFieldEncodingDef[] = [
       baseField({ id: 'temp', dataType: 'uint16', factor: 0.1 }),
     ];
@@ -340,7 +440,7 @@ describe('send frame-resolver: applyFactor', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('SC6: factor=1 passes through unchanged', () => {
+  it('factor=1 passes through unchanged', () => {
     const fields: readonly SendFieldEncodingDef[] = [
       baseField({ id: 'raw', factor: 1 }),
     ];
@@ -386,5 +486,311 @@ describe('send frame-resolver: applyFactor', () => {
     const { values } = applyFactor(fields, fieldValues);
 
     expect(values['missing']).toBe(0);
+  });
+});
+
+describe('send frame-resolver: topological sort', () => {
+  it('evaluates expression B before A when A depends on B', () => {
+    const fieldA = baseField({
+      id: 'fieldA',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'val + 5' }],
+        variables: [
+          { identifier: 'val', sourceType: 'current_field', sourceId: 'fieldB' },
+        ],
+      },
+    });
+    const fieldB = baseField({
+      id: 'fieldB',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: '10' }],
+        variables: [],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    // Definition order: A before B, but A depends on B
+    const { values, issues } = resolveFieldValues(
+      [fieldA, fieldB],
+      {},
+      provider,
+    );
+
+    expect(values['fieldB']).toBe(10);
+    expect(values['fieldA']).toBe(15);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('evaluates multi-level chain A→B→C in correct order', () => {
+    const fieldA = baseField({
+      id: 'fieldA',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'b + 1' }],
+        variables: [
+          { identifier: 'b', sourceType: 'current_field', sourceId: 'fieldB' },
+        ],
+      },
+    });
+    const fieldB = baseField({
+      id: 'fieldB',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'c * 2' }],
+        variables: [
+          { identifier: 'c', sourceType: 'current_field', sourceId: 'fieldC' },
+        ],
+      },
+    });
+    const fieldC = baseField({
+      id: 'fieldC',
+      offset: 2,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: '5' }],
+        variables: [],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    // Definition order: A, B, C — all reversed dependency order
+    const { values, issues } = resolveFieldValues(
+      [fieldA, fieldB, fieldC],
+      {},
+      provider,
+    );
+
+    expect(values['fieldC']).toBe(5);
+    expect(values['fieldB']).toBe(10);
+    expect(values['fieldA']).toBe(11);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('preserves original order when no dependencies between expressions', () => {
+    const fieldX = baseField({
+      id: 'fieldX',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: '3' }],
+        variables: [],
+      },
+    });
+    const fieldY = baseField({
+      id: 'fieldY',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: '7' }],
+        variables: [],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    const { values, issues } = resolveFieldValues(
+      [fieldX, fieldY],
+      {},
+      provider,
+    );
+
+    expect(values['fieldX']).toBe(3);
+    expect(values['fieldY']).toBe(7);
+    expect(issues).toHaveLength(0);
+  });
+});
+
+describe('send frame-resolver: cycle detection', () => {
+  it('detects circular dependency between two expression fields', () => {
+    const fieldA = baseField({
+      id: 'fieldA',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'v' }],
+        variables: [
+          { identifier: 'v', sourceType: 'current_field', sourceId: 'fieldB' },
+        ],
+      },
+    });
+    const fieldB = baseField({
+      id: 'fieldB',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'v' }],
+        variables: [
+          { identifier: 'v', sourceType: 'current_field', sourceId: 'fieldA' },
+        ],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    const { values, issues } = resolveFieldValues(
+      [fieldA, fieldB],
+      {},
+      provider,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.code === 'send.resolve.expressionCycle' && i.severity === 'error',
+      ),
+    ).toBe(true);
+    // Cycle fields still get a value (no infinite loop)
+    expect(values['fieldA']).toBeDefined();
+    expect(values['fieldB']).toBeDefined();
+  });
+
+  it('still evaluates non-cycle expression fields normally when cycle exists', () => {
+    const fieldA = baseField({
+      id: 'fieldA',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'v' }],
+        variables: [
+          { identifier: 'v', sourceType: 'current_field', sourceId: 'fieldB' },
+        ],
+      },
+    });
+    const fieldB = baseField({
+      id: 'fieldB',
+      offset: 1,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'v' }],
+        variables: [
+          { identifier: 'v', sourceType: 'current_field', sourceId: 'fieldA' },
+        ],
+      },
+    });
+    const fieldC = baseField({
+      id: 'fieldC',
+      offset: 2,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: '42' }],
+        variables: [],
+      },
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    const { values, issues } = resolveFieldValues(
+      [fieldA, fieldB, fieldC],
+      {},
+      provider,
+    );
+
+    expect(values['fieldC']).toBe(42);
+    expect(
+      issues.some((i) => i.code === 'send.resolve.expressionCycle'),
+    ).toBe(true);
+  });
+});
+
+describe('send frame-resolver: self-referencing expression', () => {
+  it('accumulates value using previous result from userFieldValues', () => {
+    const speedField = baseField({
+      id: 'speedField',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'speed + step' }],
+        variables: [
+          { identifier: 'speed', sourceType: 'current_field', sourceId: 'speedField' },
+          { identifier: 'step', sourceType: 'current_field', sourceId: 'stepField' },
+        ],
+      },
+    });
+    const stepField = baseField({
+      id: 'stepField',
+      offset: 1,
+      configurable: true,
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    // step=1 from user input; speedField=100 from previous send (seeded via userFieldValues)
+    const { values, issues } = resolveFieldValues(
+      [speedField, stepField],
+      { stepField: 1, speedField: 100 },
+      provider,
+    );
+
+    expect(values['speedField']).toBe(101);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('seeds 0 and evaluates correctly when no previous value exists for self-referencing field', () => {
+    const speedField = baseField({
+      id: 'speedField',
+      offset: 0,
+      configurable: false,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'speed + step' }],
+        variables: [
+          { identifier: 'speed', sourceType: 'current_field', sourceId: 'speedField' },
+          { identifier: 'step', sourceType: 'current_field', sourceId: 'stepField' },
+        ],
+      },
+    });
+    const stepField = baseField({
+      id: 'stepField',
+      offset: 1,
+      configurable: true,
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    // No previous speedField value — only step=5 from user input.
+    // Self-referencing field is auto-seeded with 0, so expression: 0 + 5 = 5
+    const { values, issues } = resolveFieldValues(
+      [speedField, stepField],
+      { stepField: 5 },
+      provider,
+    );
+
+    expect(values['speedField']).toBe(5);
+    expect(issues).toHaveLength(0);
+  });
+
+  it('accumulates value for configurable self-referencing field with userFieldValues', () => {
+    // This matches the real speed simulation frame: configurable=true + self-referencing expression
+    const speedField = baseField({
+      id: 'speed',
+      offset: 0,
+      configurable: true,
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: 'speed + step' }],
+        variables: [
+          { identifier: 'speed', sourceType: 'current_field', sourceId: 'speed' },
+          { identifier: 'step', sourceType: 'current_field', sourceId: 'step' },
+        ],
+      },
+    });
+    const stepField = baseField({
+      id: 'step',
+      offset: 1,
+      configurable: true,
+    });
+    const provider = createFakeVariableProvider(new Map());
+
+    // First send: step=1, speed=0 (default). Expression: 0 + 1 = 1
+    const r1 = resolveFieldValues([speedField, stepField], { step: 1, speed: 0 }, provider);
+    expect(r1.values['speed']).toBe(1);
+    expect(r1.issues).toHaveLength(0);
+
+    // Second send: step=1, speed=1 (writeback from first). Expression: 1 + 1 = 2
+    const r2 = resolveFieldValues([speedField, stepField], { step: 1, speed: r1.values['speed']! }, provider);
+    expect(r2.values['speed']).toBe(2);
+
+    // Third send: speed=2. Expression: 2 + 1 = 3
+    const r3 = resolveFieldValues([speedField, stepField], { step: 1, speed: r2.values['speed']! }, provider);
+    expect(r3.values['speed']).toBe(3);
   });
 });

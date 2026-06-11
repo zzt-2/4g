@@ -6,6 +6,8 @@ export type {
   ChartPoint,
   ChartSeriesProjection,
   DisplayFieldMaterial,
+  DisplayGroupConfig,
+  DisplayGroupFrameEntry,
   DisplayMode,
   DisplayPreferences,
   DisplayPreferencesPatch,
@@ -14,6 +16,7 @@ export type {
   DisplaySourceMaterial,
   DisplayValidationIssue,
   DisplayValidationResult,
+  GroupOption,
   ReadonlyDisplayPreferences,
   ReadonlyDisplayProjection,
   ReadonlyDisplaySnapshot,
@@ -23,6 +26,9 @@ export type {
   ScatterSourceBinding,
   TableRowProjection,
   YAxisPreference,
+} from './core';
+export {
+  buildFrameGroupLookup,
 } from './core';
 export {
   selectAvailability,

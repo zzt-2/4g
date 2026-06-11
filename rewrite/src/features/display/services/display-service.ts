@@ -139,9 +139,15 @@ export function createDisplayService(
     updatePreferences(patch) {
       const current = state.getSnapshot();
       const result = applyDisplayPreferencesPatch(current, patch);
+      const newPrefs = result.snapshot.preferences;
+
+      if (patch.groups !== undefined) {
+        buffer.sourceFields = [];
+      }
+
       const snapshot = recomputeSnapshot(
         buffer,
-        result.snapshot.preferences,
+        newPrefs,
         current.availability,
         state,
       );

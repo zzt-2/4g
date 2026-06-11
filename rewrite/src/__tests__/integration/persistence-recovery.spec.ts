@@ -36,6 +36,8 @@ function defaultSources(overrides?: Partial<PersistenceStateSources>): Persisten
     getFrameSnapshot: () => ({ frames: [], selectedFrameId: undefined }),
     getConnectionConfigs: () => [],
     getSettingsSnapshot: () => ({}),
+    getSendInstancesSnapshot: () => [],
+    getDisplayPreferencesSnapshot: () => ({ groups: [], table1: { displayMode: 'table', selectedGroupId: '', selectedItems: [] }, table2: { displayMode: 'table', selectedGroupId: '', selectedItems: [] }, charts: [], scatter: { iSource: { groupId: '', dataItemId: '' }, qSource: { groupId: '', dataItemId: '' }, sampleCount: 256, bitWidth: 8, refreshIntervalMs: 100 }, refreshCadenceMs: 500 } as Record<string, unknown>),
     ...overrides,
   };
 }
@@ -214,7 +216,7 @@ describe('T007: Persistence startup recovery', () => {
       expect(parsed.configs).toHaveLength(1);
     });
 
-    it('saveAll writes all three files', async () => {
+    it('saveAll writes all files', async () => {
       const facade = createMockFileFacade({});
       const sources = defaultSources({
         getFrameSnapshot: () => ({ frames: [] }),
@@ -225,11 +227,12 @@ describe('T007: Persistence startup recovery', () => {
 
       await persistence.saveAll();
 
-      expect(facade.writeTextFile).toHaveBeenCalledTimes(3);
       const paths = (facade.writeTextFile as Mock).mock.calls.map((c: [string, ...unknown[]]) => c[0]);
       expect(paths).toContain('/data/state/frames.json');
       expect(paths).toContain('/data/state/connections.json');
       expect(paths).toContain('/data/state/settings.json');
+      expect(paths).toContain('/data/state/send-instances.json');
+      expect(paths).toContain('/data/state/display-preferences.json');
     });
   });
 

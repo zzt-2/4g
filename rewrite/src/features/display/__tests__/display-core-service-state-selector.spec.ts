@@ -35,7 +35,7 @@ function mutableRowForTest(value: unknown): MutableRowForTest {
 
 describe('display core projection', () => {
   it('projects table rows filtered by groupId and selectedItems', () => {
-    const rows = projectTableRows(sampleFieldMaterial, 'g1', ['f1']);
+    const rows = projectTableRows(sampleFieldMaterial, 'g1', ['frame1:voltage']);
     expect(rows).toHaveLength(1);
     expect(rows[0].fieldName).toBe('Voltage');
     expect(rows[0].value).toBe(3.3);
@@ -63,7 +63,7 @@ describe('display core projection', () => {
   });
 
   it('projects chart series with field name from matching fields', () => {
-    const series = projectChartSeries(sampleFieldMaterial, ['g1:f1']);
+    const series = projectChartSeries(sampleFieldMaterial, ['g1:frame1:voltage']);
     expect(series).toHaveLength(1);
     expect(series[0].fieldName).toBe('Voltage');
     expect(series[0].points).toEqual([]);
@@ -81,8 +81,8 @@ describe('display core projection', () => {
 
   it('projects scatter from matching I/Q numeric fields', () => {
     const result = projectScatter(sampleIqFieldMaterial, {
-      iSource: { groupId: 'iq', dataItemId: 'iData' },
-      qSource: { groupId: 'iq', dataItemId: 'qData' },
+      iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' },
+      qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' },
       sampleCount: 256, bitWidth: 8, refreshIntervalMs: 100,
     });
     expect(result.points).toHaveLength(1);
@@ -93,8 +93,8 @@ describe('display core projection', () => {
 
   it('returns empty scatter for non-numeric I/Q values', () => {
     const result = projectScatter(nonNumericFieldMaterial, {
-      iSource: { groupId: 'iq', dataItemId: 'iData' },
-      qSource: { groupId: 'iq', dataItemId: 'qData' },
+      iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' },
+      qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' },
       sampleCount: 256, bitWidth: 8, refreshIntervalMs: 100,
     });
     expect(result.points).toHaveLength(0);
@@ -161,7 +161,7 @@ describe('display core normalize', () => {
     const result = applyDisplayPreferencesPatch(defaultDisplayFixture, updateTable1Patch);
     expect(result.snapshot.preferences.table1.displayMode).toBe('chart');
     expect(result.snapshot.preferences.table1.selectedGroupId).toBe('g1');
-    expect(result.snapshot.preferences.table1.selectedItems).toEqual(['f1', 'f2']);
+    expect(result.snapshot.preferences.table1.selectedItems).toEqual(['frame1:voltage', 'frame1:current']);
     expect(result.snapshot.preferences.table2).toEqual(defaultDisplayFixture.preferences.table2);
   });
 });
@@ -293,7 +293,7 @@ describe('display service multi-chart', () => {
     const prefs = service.getPreferences();
     expect(prefs.charts).toHaveLength(1);
     expect(prefs.charts[0].id).toBe('chart-1');
-    expect(prefs.charts[0].selectedItems).toEqual(['g1:f1', 'g1:f2']);
+    expect(prefs.charts[0].selectedItems).toEqual(['g1:frame1:voltage', 'g1:frame1:current']);
   });
 
   it('updateChartCount clamps to 1-4', () => {
@@ -366,7 +366,7 @@ describe('display service multi-chart edge cases', () => {
     service.updateChartCount(3);
     const prefs = service.getPreferences();
     // chart-1 keeps its selection
-    expect(prefs.charts[0].selectedItems).toEqual(['g1:f1', 'g1:f2']);
+    expect(prefs.charts[0].selectedItems).toEqual(['g1:frame1:voltage', 'g1:frame1:current']);
     // new charts start empty
     expect(prefs.charts[1].selectedItems).toEqual([]);
     expect(prefs.charts[2].selectedItems).toEqual([]);

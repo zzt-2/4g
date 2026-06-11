@@ -179,7 +179,14 @@ export function processReceiveBatch(input: ReceiveProcessInput): ReceiveBatchOut
   const batch = cloneInputBatch(input.batch);
   const normalizedBytes = normalizeByteArray(batch.bytes, 'batch.bytes');
 
+  console.log('[RX-PROC] batch:', batch.id,
+    'bytes:', normalizedBytes.bytes.length,
+    'hex:', bytesToReadableHex(normalizedBytes.bytes),
+    'source:', batch.source?.sourceId,
+    'refFrames:', input.reference.frames.length);
+
   if (normalizedBytes.issues.length > 0) {
+    console.warn('[RX-PROC] normalize issues:', normalizedBytes.issues);
     return outcome(
       batch.id,
       'input-error',
@@ -197,6 +204,7 @@ export function processReceiveBatch(input: ReceiveProcessInput): ReceiveBatchOut
       ? 'config-error'
       : 'unmatched';
 
+    console.warn('[RX-PROC] unmatched, kind:', kind, 'issues:', match.issues.map(i => i.code));
     return outcome(
       batch.id,
       kind,
@@ -220,7 +228,13 @@ export function processReceiveBatch(input: ReceiveProcessInput): ReceiveBatchOut
     bytes: normalizedBytes.bytes,
   });
 
+  console.log('[RX-PROC] matched:', frame.id, frame.name,
+    'parsedFields:', parsed.fields.length,
+    'parseIssues:', parsed.issues.length,
+    parsed.issues.length > 0 ? parsed.issues.map(i => `${i.code}(${i.severity})`) : '');
+
   if (parsed.issues.some((issue) => issue.severity === 'error')) {
+    console.error('[RX-PROC] parse-error:', parsed.issues);
     return outcome(
       batch.id,
       'parse-error',

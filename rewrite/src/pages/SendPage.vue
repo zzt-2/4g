@@ -13,6 +13,8 @@ import { listFrameAssetSummaries } from '@/features/frame';
 import type { ReadonlyFrameAsset, FrameAssetSummary } from '@/features/frame';
 import { useToggleFavorite } from '@/features/frame/composables';
 import type { SendFieldValue, SendFrameInstance } from '@/features/send';
+import { resolveFieldValues, applyFactor, frameToBuildInput } from '@/features/send';
+import { NOOP_VARIABLE_PROVIDER } from '@/features/send/adapters';
 
 const $q = useQuasar();
 const notify = useNotify();
@@ -225,6 +227,21 @@ async function onSend(): Promise<void> {
     if (result.kind === 'sent') {
       notify.success('发送成功');
       sendInstances.incrementSendCount(inst.instanceId);
+
+      // Write back expression field values for self-referencing support
+      if (result.resolvedFieldValues && selectedFrame.value) {
+        const writeback: Record<string, SendFieldValue> = {};
+        for (const field of selectedFrame.value.fields) {
+          if (field.expressionConfig && field.id in result.resolvedFieldValues) {
+            writeback[field.id] = result.resolvedFieldValues[field.id]!;
+          }
+        }
+        if (Object.keys(writeback).length > 0) {
+          sendInstances.updateInstance(inst.instanceId, {
+            userFieldValues: { ...inst.userFieldValues, ...writeback },
+          });
+        }
+      }
     } else {
       notify.error('发送失败', result.error?.message);
       if (result.buildIssues.length > 0) {
@@ -296,6 +313,15 @@ const editFrame = computed<ReadonlyFrameAsset | null>(() => {
 });
 
 const editFrameFields = computed(() => editFrame.value?.fields ?? []);
+
+const editPreviewValues = computed(() => {
+  const frame = editFrame.value;
+  if (!frame) return {};
+  const { fields } = frameToBuildInput(frame);
+  const resolved = resolveFieldValues(fields, editValues.value, NOOP_VARIABLE_PROVIDER);
+  const factored = applyFactor(fields, resolved.values);
+  return factored.values;
+});
 </script>
 
 <template>
@@ -580,6 +606,7 @@ const editFrameFields = computed(() => editFrame.value?.fields ?? []);
                 <FieldEditWidget
                   :fields="editFrameFields"
                   :values="editValues"
+                  :preview-values="editPreviewValues"
                   direction="send"
                   @update:values="editValues = $event"
                 />

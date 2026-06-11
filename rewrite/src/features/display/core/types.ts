@@ -31,6 +31,22 @@ export interface ChartInstancePreference {
   readonly performance: ChartPerformancePreference;
 }
 
+export interface DisplayGroupFrameEntry {
+  readonly frameId: string;
+  readonly visibleFieldIds: readonly string[];
+}
+
+export interface DisplayGroupConfig {
+  readonly id: string;
+  readonly label: string;
+  readonly frames: readonly DisplayGroupFrameEntry[];
+}
+
+export interface GroupOption {
+  readonly value: string;
+  readonly label: string;
+}
+
 export interface ScatterSourceBinding {
   readonly groupId: string;
   readonly dataItemId: string;
@@ -50,6 +66,7 @@ export interface DisplayPreferences {
   readonly charts: readonly ChartInstancePreference[];
   readonly scatter: ScatterDisplayPreference;
   readonly refreshCadenceMs: number;
+  readonly groups: readonly DisplayGroupConfig[];
 }
 
 // --- Source material (display defines what it consumes) ---
@@ -142,6 +159,7 @@ export interface DisplayPreferencesPatch {
   readonly charts?: readonly ChartInstancePatch[];
   readonly scatter?: Partial<ScatterDisplayPreference>;
   readonly refreshCadenceMs?: unknown;
+  readonly groups?: readonly DisplayGroupConfig[];
 }
 
 // --- Validation ---

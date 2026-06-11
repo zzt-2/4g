@@ -91,6 +91,7 @@ function createMockDisplayService(
       projection: { tables: [], charts: [], scatter: [] },
       events: [],
     }),
+    getPreferences: () => ({ groups: [] }),
     ingestSourceMaterial:
       overrides.ingestSourceMaterial ??
       (() => ({

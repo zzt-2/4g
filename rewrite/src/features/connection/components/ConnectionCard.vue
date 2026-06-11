@@ -28,16 +28,15 @@ function formatRoute(s: ConnectionSummary): string {
         <StatusBadge :status="summary.lifecycle" :status-map="connectionStatusMap" />
         <span class="connection-card__name">{{ summary.label }}</span>
         <span class="connection-card__route">{{ formatRoute(summary) }}</span>
+      </div>
+      <div class="connection-card__actions gap-1">
         <q-toggle
           :model-value="autoConnect"
           dense
           label="自动连接"
           :disable="operating"
-          class="connection-card__auto-connect"
           @update:model-value="emit('toggle-autoconnect')"
         />
-      </div>
-      <div class="connection-card__actions gap-1">
         <q-btn
           v-if="summary.lifecycle === 'connected'"
           flat

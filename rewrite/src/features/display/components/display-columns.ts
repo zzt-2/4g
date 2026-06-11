@@ -80,6 +80,18 @@ export const recentInputColumns: QTableColumn[] = [
 
 export const panelTableColumns: QTableColumn[] = [
   {
+    name: 'frameId',
+    label: '帧',
+    field: (row: Record<string, unknown>) => {
+      const id = String(row.dataItemId ?? '');
+      const sep = id.indexOf(':');
+      return sep > 0 ? id.slice(0, sep) : id;
+    },
+    align: 'left',
+    sortable: true,
+    style: 'min-width: 80px',
+  },
+  {
     name: 'fieldName',
     label: '字段',
     field: 'fieldName',

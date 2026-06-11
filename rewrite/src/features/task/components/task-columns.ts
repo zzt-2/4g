@@ -28,6 +28,7 @@ export const taskColumns: QTableColumn[] = [
     align: 'center',
     sortable: true,
     style: 'width: 100px',
+    headerStyle: 'width: 100px',
   },
   {
     name: 'status',
@@ -36,6 +37,7 @@ export const taskColumns: QTableColumn[] = [
     align: 'center',
     sortable: true,
     style: 'width: 100px',
+    headerStyle: 'width: 100px',
   },
   {
     name: 'progress',
@@ -43,6 +45,7 @@ export const taskColumns: QTableColumn[] = [
     field: 'progressPercent',
     align: 'center',
     style: 'width: 120px',
+    headerStyle: 'width: 120px',
   },
   {
     name: '_actions',
@@ -50,5 +53,6 @@ export const taskColumns: QTableColumn[] = [
     field: '_actions',
     align: 'center',
     style: 'width: 140px',
+    headerStyle: 'width: 140px',
   },
 ];

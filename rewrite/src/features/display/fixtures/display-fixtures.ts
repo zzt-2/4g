@@ -24,6 +24,7 @@ export const defaultDisplayFixture: DisplaySnapshot = {
       refreshIntervalMs: 100,
     },
     refreshCadenceMs: 500,
+    groups: [],
   },
   projection: {
     table1Rows: [],
@@ -37,41 +38,41 @@ export const defaultDisplayFixture: DisplaySnapshot = {
 // --- Source material fixtures ---
 
 export const sampleFieldMaterial: DisplayFieldMaterial[] = [
-  { groupId: 'g1', dataItemId: 'f1', fieldName: 'Voltage', value: 3.3, displayValue: '3.3 V', updatedAt: '2026-05-06T10:00:00Z' },
-  { groupId: 'g1', dataItemId: 'f2', fieldName: 'Current', value: 1.5, displayValue: '1.5 A', updatedAt: '2026-05-06T10:00:00Z' },
-  { groupId: 'g2', dataItemId: 'f1', fieldName: 'Temperature', value: 25, displayValue: '25 °C', updatedAt: '2026-05-06T10:00:01Z' },
-  { groupId: 'g2', dataItemId: 'f2', fieldName: 'Pressure', value: 101.3, displayValue: '101.3 kPa', updatedAt: '2026-05-06T10:00:01Z' },
+  { groupId: 'g1', dataItemId: 'frame1:voltage', fieldName: 'Voltage', value: 3.3, displayValue: '3.3 V', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'g1', dataItemId: 'frame1:current', fieldName: 'Current', value: 1.5, displayValue: '1.5 A', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'g2', dataItemId: 'frame2:temperature', fieldName: 'Temperature', value: 25, displayValue: '25 °C', updatedAt: '2026-05-06T10:00:01Z' },
+  { groupId: 'g2', dataItemId: 'frame2:pressure', fieldName: 'Pressure', value: 101.3, displayValue: '101.3 kPa', updatedAt: '2026-05-06T10:00:01Z' },
 ];
 
 export const sampleIqFieldMaterial: DisplayFieldMaterial[] = [
-  { groupId: 'iq', dataItemId: 'iData', fieldName: 'I', value: 0.707, displayValue: '0.707', updatedAt: '2026-05-06T10:00:00Z' },
-  { groupId: 'iq', dataItemId: 'qData', fieldName: 'Q', value: -0.707, displayValue: '-0.707', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'iq', dataItemId: 'iqFrame:iData', fieldName: 'I', value: 0.707, displayValue: '0.707', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'iq', dataItemId: 'iqFrame:qData', fieldName: 'Q', value: -0.707, displayValue: '-0.707', updatedAt: '2026-05-06T10:00:00Z' },
 ];
 
 export const emptyFieldMaterial: DisplayFieldMaterial[] = [];
 
 export const nonNumericFieldMaterial: DisplayFieldMaterial[] = [
-  { groupId: 'iq', dataItemId: 'iData', fieldName: 'I', value: 'not-a-number', displayValue: 'N/A', updatedAt: '2026-05-06T10:00:00Z' },
-  { groupId: 'iq', dataItemId: 'qData', fieldName: 'Q', value: null, displayValue: 'N/A', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'iq', dataItemId: 'iqFrame:iData', fieldName: 'I', value: 'not-a-number', displayValue: 'N/A', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'iq', dataItemId: 'iqFrame:qData', fieldName: 'Q', value: null, displayValue: 'N/A', updatedAt: '2026-05-06T10:00:00Z' },
 ];
 
 // --- Preference patches ---
 
 export const updateTable1Patch: DisplayPreferencesPatch = {
-  table1: { displayMode: 'chart', selectedGroupId: 'g1', selectedItems: ['f1', 'f2'] },
+  table1: { displayMode: 'chart', selectedGroupId: 'g1', selectedItems: ['frame1:voltage', 'frame1:current'] },
 };
 
 /** Patches chart-0's selectedItems via positional patch array. */
 export const updateChart0Patch: DisplayPreferencesPatch = {
-  charts: [{ selectedItems: ['g1:f1', 'g1:f2'] }],
+  charts: [{ selectedItems: ['g1:frame1:voltage', 'g1:frame1:current'] }],
 };
 
 export const updateChart1Patch: ChartInstancePatch = {
-  selectedItems: ['g1:f1', 'g1:f2'],
+  selectedItems: ['g1:frame1:voltage', 'g1:frame1:current'],
 };
 
 export const updateScatterPatch: DisplayPreferencesPatch = {
-  scatter: { iSource: { groupId: 'iq', dataItemId: 'iData' }, qSource: { groupId: 'iq', dataItemId: 'qData' } },
+  scatter: { iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' }, qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' } },
 };
 
 // --- Invalid inputs ---

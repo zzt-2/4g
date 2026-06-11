@@ -13,6 +13,17 @@ const INTEGER_TYPES = new Set([
 
 const FLOAT_TYPES = new Set(['float', 'double']);
 
+const INTEGER_RANGES: Record<string, readonly [number, number]> = {
+  uint8: [0, 255],
+  int8: [-128, 127],
+  uint16: [0, 65535],
+  int16: [-32768, 32767],
+  uint32: [0, 4294967295],
+  int32: [-2147483648, 2147483647],
+  uint64: [0, Number.MAX_SAFE_INTEGER],
+  int64: [Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+};
+
 function parseNumericValue(value: SendFieldValue): number {
   if (typeof value === 'number') return value;
   if (typeof value === 'boolean') return value ? 1 : 0;
@@ -139,6 +150,21 @@ export function buildFrame(input: SendBuildInput): FrameBuildOutput {
     }
 
     const encoded = encodeFieldValue(value, field);
+
+    // Range check for integer types
+    if (INTEGER_TYPES.has(field.dataType)) {
+      const numValue = parseNumericValue(value);
+      const range = INTEGER_RANGES[field.dataType];
+      if (range && (numValue < range[0] || numValue > range[1])) {
+        issues.push({
+          severity: 'warning',
+          code: 'send.encode.valueOutOfRange',
+          fieldId: field.id,
+          message: `Value ${numValue} exceeds ${field.dataType} range [${range[0]}, ${range[1]}], will be truncated`,
+        });
+      }
+    }
+
     for (let i = 0; i < Math.min(encoded.length, field.length); i++) {
       buffer[field.offset + i] = encoded[i]!;
     }

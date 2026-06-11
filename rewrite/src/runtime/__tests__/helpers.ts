@@ -228,7 +228,7 @@ export function createMockWiredFeatures(
     receiveService: createMockReceiveService(overrides.receiveService),
     displayService: {
       getSnapshot: () => ({} as DisplayService['getSnapshot'] extends () => infer R ? R : never),
-      getPreferences: () => ({} as DisplayService['getPreferences'] extends () => infer R ? R : never),
+      getPreferences: () => ({ groups: [] } as DisplayService['getPreferences'] extends () => infer R ? R : never),
       getTable1Rows: () => [],
       getTable2Rows: () => [],
       getChartSeries: () => [],

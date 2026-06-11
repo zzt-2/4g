@@ -67,7 +67,7 @@ export interface ExpressionBranch {
 
 export interface ExpressionConfig {
   readonly expressions: readonly ExpressionBranch[];
-  readonly variables: readonly { readonly identifier: string; readonly sourceType: string }[];
+  readonly variables: readonly { readonly identifier: string; readonly sourceType: string; readonly sourceId?: string }[];
 }
 
 export interface SendFieldEncodingDef {
@@ -128,6 +128,7 @@ export interface SendResult {
   readonly timestamp: string;
   readonly error?: SendError;
   readonly buildIssues: readonly SendBuildIssue[];
+  readonly resolvedFieldValues?: Readonly<Record<string, SendFieldValue>>;
 }
 
 // --- Statistics ---

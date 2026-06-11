@@ -85,6 +85,8 @@ export interface NorthboundService {
   reportTestDataFileComplete(file: Omit<TestDataFileCompleteOutbound, keyof OutboundEnvelope>): Promise<void>;
   reportFileTranslationComplete(file: Omit<FileTranslationCompleteOutbound, keyof OutboundEnvelope>): Promise<void>;
   reportSigReport(data: readonly SigReportDevice[], taskId: string, testCaseId: string): Promise<void>;
+  setDeviceList(items: readonly DeviceInfoItem[]): void;
+  setTestCatalogData(data: Record<string, unknown>): void;
 }
 
 export function createNorthboundService(options: NorthboundServiceOptions): NorthboundService {
@@ -108,10 +110,12 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
   async function postToCustomer(path: string, body: unknown): Promise<void> {
     if (!activeConfig || !authService) return;
+    const url = `${activeConfig.customerBaseUrl}${path}`;
+    console.log(`[northbound → 甲方] POST ${url}`, body);
     try {
       const token = await authService.ensureToken();
       await options.httpFacade.sendRequest({
-        url: `${activeConfig.customerBaseUrl}${path}`,
+        url,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,8 +124,9 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
         },
         body: JSON.stringify(body),
       });
-    } catch {
-      // Outbound POST failure: log only, no retry (MVP)
+      console.log(`[northbound → 甲方] POST ${url} ✓`);
+    } catch (e) {
+      console.error(`[northbound → 甲方] POST ${url} ✗`, e);
     }
   }
 
@@ -337,19 +342,19 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     };
   }
 
-  // --- Mock data ---
+  // --- Configurable data (replaces hardcoded MOCK) ---
 
-  const MOCK_DEVICE = {
+  const DEFAULT_DEVICE: DeviceInfoItem = {
     name: '激光通信终端',
     deviceId: 'ADS_LCT_01',
     type: 'LCT',
     ip: '192.168.1.100',
     swVer: 'V1.0.0',
-    status: 'online' as const,
+    status: 'online',
     pars: [],
   };
 
-  const MOCK_TEST_CASES = {
+  const DEFAULT_TEST_CASES = {
     datas: [{
       name: '激光链路测试', id: 'ADS_MENU_01', isParent: true,
       type: '', runSubSys: '', depSubSys: '', depSubNe: '',
@@ -366,17 +371,28 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     }],
   };
 
+  let configuredDevices: readonly DeviceInfoItem[] = [DEFAULT_DEVICE];
+  let configuredTestCases: Record<string, unknown> = DEFAULT_TEST_CASES;
+
+  function setDeviceList(items: readonly DeviceInfoItem[]): void {
+    configuredDevices = items;
+  }
+
+  function setTestCatalogData(data: Record<string, unknown>): void {
+    configuredTestCases = data;
+  }
+
   // --- Stub handlers ---
 
   function handleGetDeviceList(envelope: InboundEnvelope): Record<string, unknown> {
-    return { ...buildResponse(envelope, 1, 'ok'), fileReport: false, datas: [MOCK_DEVICE] };
+    return { ...buildResponse(envelope, 1, 'ok'), fileReport: false, datas: [...configuredDevices] };
   }
 
   function handleGetDeviceInfo(body: Record<string, unknown>, envelope: InboundEnvelope): Record<string, unknown> {
     const deviceIds = body.deviceIds as readonly string[] | undefined;
     const devices = deviceIds?.length
-      ? [MOCK_DEVICE].filter(d => deviceIds.includes(d.deviceId))
-      : [MOCK_DEVICE];
+      ? configuredDevices.filter(d => deviceIds.includes(d.deviceId))
+      : [...configuredDevices];
     return { ...buildResponse(envelope, 1, 'ok'), datas: devices };
   }
 
@@ -417,7 +433,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
           username: ftpInfo.username ?? 'anonymous',
           password: ftpInfo.password ?? '',
           remotePath: `${(ftpInfo.dir ?? '/').replace(/\/$/, '')}/testcase_all.json`,
-          content: JSON.stringify(MOCK_TEST_CASES),
+          content: JSON.stringify(configuredTestCases),
         });
       } catch {
         return buildResponse(envelope, 2, 'FTP upload failed');
@@ -440,6 +456,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
     const envelope = extractEnvelope(body);
     const method = resolveMethod(req, body);
+    console.log(`[northbound ← 甲方] ${req.method} ${req.url} → ${method}`, body);
 
     let response: Record<string, unknown>;
 
@@ -624,6 +641,8 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     reportTestDataFileComplete,
     reportFileTranslationComplete,
     reportSigReport,
+    setDeviceList,
+    setTestCatalogData,
   };
 }
 

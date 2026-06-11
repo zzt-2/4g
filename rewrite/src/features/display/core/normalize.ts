@@ -3,6 +3,8 @@ import { createDefaultDisplaySnapshot, DEFAULT_CHART_INSTANCE } from './defaults
 import {
   DISPLAY_SCHEMA_VERSION,
   type ChartInstancePreference,
+  type DisplayGroupConfig,
+  type DisplayGroupFrameEntry,
   type DisplayNormalizationResult,
   type DisplayPreferences,
   type DisplayPreferencesPatch,
@@ -210,6 +212,59 @@ function normalizeScatterPreference(
   };
 }
 
+function normalizeGroupConfigs(
+  raw: unknown,
+  issues: DisplayValidationIssue[],
+): DisplayGroupConfig[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const globalFrameIds = new Set<string>();
+  const result: DisplayGroupConfig[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const id = typeof item.id === 'string' ? item.id : '';
+    const label = typeof item.label === 'string' ? item.label : '';
+    if (!id) continue;
+    if (seen.has(id)) {
+      issues.push(createDisplayIssue('display.group.duplicateId', `groups[${id}]`, `Duplicate group id "${id}" skipped.`));
+      continue;
+    }
+    seen.add(id);
+    const frames = normalizeGroupFrames(item.frames, issues, id, globalFrameIds);
+    result.push({ id, label: label || id, frames });
+  }
+  return result;
+}
+
+function normalizeGroupFrames(
+  raw: unknown,
+  issues: DisplayValidationIssue[],
+  groupId: string,
+  globalFrameIds: Set<string>,
+): DisplayGroupFrameEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const result: DisplayGroupFrameEntry[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const frameId = typeof item.frameId === 'string' ? item.frameId : '';
+    if (!frameId) continue;
+    if (seen.has(frameId)) {
+      issues.push(createDisplayIssue('display.group.duplicateFrame', `groups[${groupId}].frames[${frameId}]`, `Duplicate frame "${frameId}" in group "${groupId}" skipped.`));
+      continue;
+    }
+    seen.add(frameId);
+    if (globalFrameIds.has(frameId)) {
+      issues.push(createDisplayIssue('display.group.crossGroupDuplicateFrame', `groups[${groupId}].frames[${frameId}]`, `Frame "${frameId}" already assigned to another group; skipped.`));
+      continue;
+    }
+    globalFrameIds.add(frameId);
+    const visibleFieldIds = stringArrayValue(item.visibleFieldIds, `groups[${groupId}].frames[${frameId}].visibleFieldIds`, issues);
+    result.push({ frameId, visibleFieldIds });
+  }
+  return result;
+}
+
 export function normalizeDisplayPreferencesInput(
   value: unknown,
   fallback: DisplaySnapshot = createDefaultDisplaySnapshot(),
@@ -238,6 +293,7 @@ export function normalizeDisplayPreferencesInput(
     charts: normalizeCharts(value.charts, defaults.charts, issues),
     scatter: normalizeScatterPreference(value.scatter, defaults.scatter, issues),
     refreshCadenceMs: positiveNumberValue(value.refreshCadenceMs, defaults.refreshCadenceMs, 'refreshCadenceMs', 'display.refreshCadenceInvalid', issues),
+    groups: normalizeGroupConfigs(value.groups, issues),
   };
 
   const snapshot: DisplaySnapshot = {
@@ -293,6 +349,13 @@ export function applyDisplayPreferencesPatch(
     charts,
     scatter,
     refreshCadenceMs,
+    groups: patch.groups !== undefined
+      ? patch.groups.map((g) => ({
+          id: g.id,
+          label: g.label,
+          frames: g.frames.map((f) => ({ frameId: f.frameId, visibleFieldIds: [...f.visibleFieldIds] })),
+        }))
+      : currentPrefs.groups,
   };
 
   return normalizeDisplayPreferencesInput(merged, current);

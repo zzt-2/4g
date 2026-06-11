@@ -2,6 +2,7 @@ import type { FileFacade } from '@/platform';
 import type { FrameAsset } from '@/features/frame';
 import type { TransportConfig } from '@/features/connection';
 import type { SendFrameInstance } from '@/features/send';
+import type { DisplayPreferences } from '@/features/display';
 
 export interface PersistedFeatureState {
   readonly frames?: { readonly frames: readonly FrameAsset[]; readonly selectedFrameId?: string };
@@ -9,6 +10,7 @@ export interface PersistedFeatureState {
   readonly settings?: Record<string, unknown>;
   readonly storageHighspeed?: { readonly config: unknown; readonly rule: unknown };
   readonly sendInstances?: readonly SendFrameInstance[];
+  readonly displayPreferences?: DisplayPreferences;
 }
 
 export interface PersistenceStateSources {
@@ -17,6 +19,7 @@ export interface PersistenceStateSources {
   getSettingsSnapshot(): Record<string, unknown>;
   getStorageHighspeedSnapshot?(): { readonly config: unknown; readonly rule: unknown };
   getSendInstancesSnapshot(): readonly SendFrameInstance[];
+  getDisplayPreferencesSnapshot?(): DisplayPreferences;
 }
 
 export interface FeaturePersistence {
@@ -26,6 +29,7 @@ export interface FeaturePersistence {
   saveSettings(): Promise<void>;
   saveStorageHighspeed(): Promise<void>;
   saveSendInstances(): Promise<void>;
+  saveDisplayPreferences(): Promise<void>;
   saveAll(): Promise<void>;
 }
 
@@ -61,12 +65,13 @@ export function createFeaturePersistence(
 ): FeaturePersistence {
   return {
     async load(): Promise<PersistedFeatureState> {
-      const [frameData, connData, settingsData, storageHighspeedData, sendInstancesData] = await Promise.all([
+      const [frameData, connData, settingsData, storageHighspeedData, sendInstancesData, displayPrefsData] = await Promise.all([
         safeReadJson(fileFacade, dataPath(dataDir, 'frames')),
         safeReadJson(fileFacade, dataPath(dataDir, 'connections')),
         safeReadJson(fileFacade, dataPath(dataDir, 'settings')),
         safeReadJson(fileFacade, dataPath(dataDir, 'storage-highspeed')),
         safeReadJson(fileFacade, dataPath(dataDir, 'send-instances')),
+        safeReadJson(fileFacade, dataPath(dataDir, 'display-preferences')),
       ]);
 
       return {
@@ -75,6 +80,7 @@ export function createFeaturePersistence(
         settings: isSettingsData(settingsData) ? settingsData as Record<string, unknown> : undefined,
         storageHighspeed: isStorageHighspeedData(storageHighspeedData) ? storageHighspeedData as PersistedFeatureState['storageHighspeed'] : undefined,
         sendInstances: Array.isArray(sendInstancesData) ? sendInstancesData as readonly SendFrameInstance[] : undefined,
+        displayPreferences: isDisplayPrefsData(displayPrefsData) ? displayPrefsData as PersistedFeatureState['displayPreferences'] : undefined,
       };
     },
 
@@ -104,6 +110,12 @@ export function createFeaturePersistence(
       await safeWriteJson(fileFacade, dataPath(dataDir, 'send-instances'), instances);
     },
 
+    async saveDisplayPreferences(): Promise<void> {
+      if (!sources.getDisplayPreferencesSnapshot) return;
+      const prefs = sources.getDisplayPreferencesSnapshot();
+      await safeWriteJson(fileFacade, dataPath(dataDir, 'display-preferences'), prefs);
+    },
+
     async saveAll(): Promise<void> {
       await Promise.all([
         this.saveFrames(),
@@ -111,6 +123,7 @@ export function createFeaturePersistence(
         this.saveSettings(),
         this.saveStorageHighspeed(),
         this.saveSendInstances(),
+        this.saveDisplayPreferences(),
       ]);
     },
   };
@@ -135,6 +148,10 @@ function isStorageHighspeedData(value: unknown): value is { config: unknown; rul
   return 'config' in (value as Record<string, unknown>);
 }
 
+function isDisplayPrefsData(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function createNoOpPersistence(): FeaturePersistence {
   return {
     async load() { return {}; },
@@ -143,6 +160,7 @@ export function createNoOpPersistence(): FeaturePersistence {
     async saveSettings() {},
     async saveStorageHighspeed() {},
     async saveSendInstances() {},
+    async saveDisplayPreferences() {},
     async saveAll() {},
   };
 }

@@ -7,6 +7,7 @@ import { panelTableColumns } from './display-columns';
 import type {
   DisplayMode,
   ChartInstanceProjection,
+  GroupOption,
   ScatterProjection,
   TableRowProjection,
 } from '../core';
@@ -15,7 +16,7 @@ interface Props {
   panelId: '1' | '2';
   mode: DisplayMode;
   selectedGroupId: string;
-  groups: readonly string[];
+  groups: readonly GroupOption[];
   rows: readonly TableRowProjection[];
   chartInstance: ChartInstanceProjection | null;
   scatter: ScatterProjection;
@@ -29,11 +30,12 @@ const emit = defineEmits<{
   'update:selectedGroupId': [groupId: string];
   'openChartSettings': [];
   'openScatterSettings': [];
+  'openGroupConfig': [];
 }>();
 
 const groupOptions = computed(() => [
   { value: '', label: '全部分组' },
-  ...props.groups.map((g) => ({ value: g, label: g })),
+  ...props.groups,
 ]);
 
 const modeOptions = computed(() => [
@@ -85,6 +87,17 @@ function formatTime(iso?: string): string {
         class="panel-group-select"
         @update:model-value="emit('update:selectedGroupId', $event ?? '')"
       />
+
+      <q-btn
+        flat
+        round
+        dense
+        icon="folder_open"
+        size="sm"
+        @click="emit('openGroupConfig')"
+      >
+        <q-tooltip>分组管理</q-tooltip>
+      </q-btn>
 
       <q-btn
         v-if="mode === 'chart'"

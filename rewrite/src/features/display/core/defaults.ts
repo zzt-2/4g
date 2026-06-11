@@ -27,6 +27,7 @@ const DEFAULT_DISPLAY: DisplaySnapshot = {
       refreshIntervalMs: 100,
     },
     refreshCadenceMs: 500,
+    groups: [],
   },
   projection: {
     table1Rows: [],

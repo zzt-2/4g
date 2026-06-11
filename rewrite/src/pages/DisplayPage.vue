@@ -8,11 +8,16 @@ import { receiveLifecycleMap } from '@/features/receive/components/receiveStatus
 import DisplayPanel from '@/features/display/components/DisplayPanel.vue';
 import ChartConfigDialog from '@/features/display/components/ChartConfigDialog.vue';
 import ScatterConfigDialog from '@/features/display/components/ScatterConfigDialog.vue';
+import GroupConfigDialog from '@/features/display/components/GroupConfigDialog.vue';
 import type { ReceiveCounterSnapshot, ReceiveLifecycleStatus } from '@/features/receive';
 import type {
   ChartInstancePatch,
+  DisplayGroupConfig,
   DisplayMode,
+  GroupOption,
   ScatterDisplayPreference,
+  TableDisplayPreference,
+  TableRowProjection,
 } from '@/features/display';
 import type { StorageLocalRecord } from '@/features/storage-local-baseline';
 
@@ -21,6 +26,8 @@ const runtime = useRewriteRuntime();
 const receiveService = runtime.features.receiveService;
 const displayService = runtime.features.displayService;
 const storageService = runtime.features.storageService;
+const frameService = runtime.features.frameService;
+const frameReader = runtime.features.frameReader;
 
 const displayRefresh = useDisplayRefresh(displayService);
 
@@ -46,34 +53,139 @@ const polling = usePolling(refreshStats, 500);
 // ===== Derived display data =====
 const prefs = computed(() => displayRefresh.preferences.value);
 
-const groups = computed(() => {
-  const set = new Set<string>();
+const configuredGroups = computed(() => prefs.value.groups);
+
+const groups = computed((): GroupOption[] => {
+  const configured = configuredGroups.value;
+  const configuredIds = new Set(configured.map((g) => g.id));
+  const emergent = new Set<string>();
   for (const r of displayRefresh.table1Rows.value) {
-    if (r.groupId) set.add(r.groupId);
+    if (r.groupId && !configuredIds.has(r.groupId)) emergent.add(r.groupId);
   }
   for (const r of displayRefresh.table2Rows.value) {
-    if (r.groupId) set.add(r.groupId);
+    if (r.groupId && !configuredIds.has(r.groupId)) emergent.add(r.groupId);
   }
-  return [...set].sort();
+  const options: GroupOption[] = configured.map((g) => ({ value: g.id, label: g.label }));
+  for (const id of [...emergent].sort()) {
+    options.push({ value: id, label: id });
+  }
+  return options;
 });
 
+const receiveFrames = computed(() => frameService.listFrames({ direction: 'receive' }));
+const allFrames = computed(() => frameService.listFrames());
+
 const availableFields = computed(() => {
-  const map = new Map<string, { fieldId: string; fieldName: string }>();
-  for (const r of displayRefresh.table1Rows.value) {
-    const key = `${r.groupId}:${r.dataItemId}`;
-    if (!map.has(key)) map.set(key, { fieldId: key, fieldName: r.fieldName });
+  const map = new Map<string, { fieldId: string; fieldName: string; frameName: string; frameId: string }>();
+  const groups = configuredGroups.value;
+  const coveredFrameIds = new Set<string>();
+
+  for (const group of groups) {
+    for (const entry of group.frames) {
+      coveredFrameIds.add(entry.frameId);
+      const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+      for (const f of fields) {
+        const dataItemId = `${f.frameId}:${f.fieldId}`;
+        const key = `${group.id}:${dataItemId}`;
+        if (!map.has(key)) map.set(key, { fieldId: key, fieldName: f.fieldName, frameName: f.frameName, frameId: f.frameId });
+      }
+    }
   }
-  for (const r of displayRefresh.table2Rows.value) {
-    const key = `${r.groupId}:${r.dataItemId}`;
-    if (!map.has(key)) map.set(key, { fieldId: key, fieldName: r.fieldName });
+
+  for (const frame of allFrames.value) {
+    if (coveredFrameIds.has(frame.id)) continue;
+    const fields = frameReader.listFieldReferences({ frameId: frame.id });
+    for (const f of fields) {
+      const dataItemId = `${f.frameId}:${f.fieldId}`;
+      const key = `${frame.id}:${dataItemId}`;
+      if (!map.has(key)) map.set(key, { fieldId: key, fieldName: f.fieldName, frameName: f.frameName, frameId: f.frameId });
+    }
   }
+
   return [...map.values()];
+});
+
+const chartAvailableFields = computed(() => {
+  const panelKey = chartConfigPanel.value === '1' ? 'table1' : 'table2';
+  const selectedGroupId = prefs.value[panelKey].selectedGroupId;
+  if (!selectedGroupId) return availableFields.value;
+
+  const group = configuredGroups.value.find((g) => g.id === selectedGroupId);
+  if (!group) return availableFields.value;
+
+  const result: { fieldId: string; fieldName: string; frameName: string; frameId: string }[] = [];
+  for (const entry of group.frames) {
+    const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+    for (const f of fields) {
+      if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
+      const dataItemId = `${f.frameId}:${f.fieldId}`;
+      result.push({
+        fieldId: `${group.id}:${dataItemId}`,
+        fieldName: f.fieldName,
+        frameName: f.frameName,
+        frameId: f.frameId,
+      });
+    }
+  }
+  return result;
 });
 
 const mode1 = computed(() => prefs.value.table1.displayMode);
 const mode2 = computed(() => prefs.value.table2.displayMode);
 const chart1 = computed(() => displayRefresh.chartInstances.value[0] ?? null);
 const chart2 = computed(() => displayRefresh.chartInstances.value[1] ?? null);
+
+function buildPlaceholderRows(selectedGroupId: string): TableRowProjection[] {
+  if (selectedGroupId) {
+    const group = configuredGroups.value.find((g) => g.id === selectedGroupId);
+    if (!group) return [];
+    const rows: TableRowProjection[] = [];
+    for (const entry of group.frames) {
+      const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+      for (const f of fields) {
+        if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
+        rows.push({
+          groupId: selectedGroupId,
+          dataItemId: `${f.frameId}:${f.fieldId}`,
+          fieldName: f.fieldName,
+          value: null,
+          displayValue: '-',
+        });
+      }
+    }
+    return rows;
+  }
+  const rows: TableRowProjection[] = [];
+  for (const frame of allFrames.value) {
+    const fields = frameReader.listFieldReferences({ frameId: frame.id });
+    for (const f of fields) {
+      rows.push({
+        groupId: frame.id,
+        dataItemId: `${f.frameId}:${f.fieldId}`,
+        fieldName: f.fieldName,
+        value: null,
+        displayValue: '-',
+      });
+    }
+  }
+  return rows;
+}
+
+const panel1Rows = computed(() => {
+  const live = displayRefresh.table1Rows.value;
+  const placeholders = buildPlaceholderRows(prefs.value.table1.selectedGroupId);
+  if (placeholders.length === 0) return live;
+  const liveIds = new Set(live.map((r) => r.dataItemId));
+  return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
+});
+
+const panel2Rows = computed(() => {
+  const live = displayRefresh.table2Rows.value;
+  const placeholders = buildPlaceholderRows(prefs.value.table2.selectedGroupId);
+  if (placeholders.length === 0) return live;
+  const liveIds = new Set(live.map((r) => r.dataItemId));
+  return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
+});
 
 // ===== Constellation mutual exclusion (D5) =====
 const canPanel1UseConstellation = computed(() => mode2.value !== 'special');
@@ -83,6 +195,7 @@ const canPanel2UseConstellation = computed(() => mode1.value !== 'special');
 const chartConfigOpen = ref(false);
 const chartConfigPanel = ref<'1' | '2'>('1');
 const scatterConfigOpen = ref(false);
+const groupConfigOpen = ref(false);
 
 const chartConfigPreference = computed(() => {
   const idx = chartConfigPanel.value === '1' ? 0 : 1;
@@ -97,6 +210,10 @@ const chartConfigTarget = computed(() => {
 const scatterPreference = computed(() => prefs.value.scatter);
 
 // ===== Mode / group change handlers =====
+function persistDisplay(): void {
+  void runtime.persistence.saveDisplayPreferences();
+}
+
 function onModeChange(panel: '1' | '2', mode: DisplayMode): void {
   const thisKey = panel === '1' ? 'table1' : 'table2';
   const otherKey = panel === '1' ? 'table2' : 'table1';
@@ -106,14 +223,16 @@ function onModeChange(panel: '1' | '2', mode: DisplayMode): void {
       [otherKey]: { displayMode: 'table' },
       [thisKey]: { displayMode: mode },
     });
-    return;
+  } else {
+    displayService.updatePreferences({ [thisKey]: { displayMode: mode } });
   }
-  displayService.updatePreferences({ [thisKey]: { displayMode: mode } });
+  persistDisplay();
 }
 
 function onGroupChange(panel: '1' | '2', groupId: string): void {
   const key = panel === '1' ? 'table1' : 'table2';
   displayService.updatePreferences({ [key]: { selectedGroupId: groupId } });
+  persistDisplay();
 }
 
 // ===== Chart / scatter config =====
@@ -125,12 +244,30 @@ function openChartConfig(panel: '1' | '2'): void {
 function saveChartConfig(patch: ChartInstancePatch): void {
   const chartId = chartConfigPanel.value === '1' ? 'chart-1' : 'chart-2';
   displayService.updateChartConfig(chartId, patch);
+  persistDisplay();
   chartConfigOpen.value = false;
 }
 
 function saveScatterConfig(partial: Partial<ScatterDisplayPreference>): void {
   displayService.updatePreferences({ scatter: partial });
+  persistDisplay();
   scatterConfigOpen.value = false;
+}
+
+function saveGroupConfig(groups: readonly DisplayGroupConfig[]): void {
+  displayService.updatePreferences({ groups });
+
+  const validIds = new Set(groups.map((g) => g.id));
+  const t1 = prefs.value.table1.selectedGroupId;
+  const t2 = prefs.value.table2.selectedGroupId;
+  const resetPatch: Record<string, { selectedGroupId: string }> = {};
+  if (t1 && !validIds.has(t1)) resetPatch.table1 = { selectedGroupId: '' };
+  if (t2 && !validIds.has(t2)) resetPatch.table2 = { selectedGroupId: '' };
+  if (Object.keys(resetPatch).length > 0) {
+    displayService.updatePreferences(resetPatch as Record<string, Partial<TableDisplayPreference>>);
+  }
+  persistDisplay();
+  groupConfigOpen.value = false;
 }
 
 // ===== Recording (inline composable, D2) =====
@@ -236,7 +373,7 @@ onUnmounted(() => {
         :mode="mode1"
         :selected-group-id="prefs.table1.selectedGroupId"
         :groups="groups"
-        :rows="displayRefresh.table1Rows.value"
+        :rows="panel1Rows"
         :chart-instance="chart1"
         :scatter="displayRefresh.scatter.value"
         :can-use-constellation="canPanel1UseConstellation"
@@ -245,13 +382,14 @@ onUnmounted(() => {
         @update:selected-group-id="onGroupChange('1', $event)"
         @open-chart-settings="openChartConfig('1')"
         @open-scatter-settings="scatterConfigOpen = true"
+        @open-group-config="groupConfigOpen = true"
       />
       <DisplayPanel
         panel-id="2"
         :mode="mode2"
         :selected-group-id="prefs.table2.selectedGroupId"
         :groups="groups"
-        :rows="displayRefresh.table2Rows.value"
+        :rows="panel2Rows"
         :chart-instance="chart2"
         :scatter="displayRefresh.scatter.value"
         :can-use-constellation="canPanel2UseConstellation"
@@ -260,6 +398,7 @@ onUnmounted(() => {
         @update:selected-group-id="onGroupChange('2', $event)"
         @open-chart-settings="openChartConfig('2')"
         @open-scatter-settings="scatterConfigOpen = true"
+        @open-group-config="groupConfigOpen = true"
       />
     </div>
 
@@ -309,7 +448,7 @@ onUnmounted(() => {
     <ChartConfigDialog
       v-model="chartConfigOpen"
       :chart-preference="chartConfigPreference"
-      :available-fields="availableFields"
+      :available-fields="chartAvailableFields"
       @save="saveChartConfig"
     />
     <ScatterConfigDialog
@@ -317,6 +456,13 @@ onUnmounted(() => {
       :scatter-preference="scatterPreference"
       :available-fields="availableFields"
       @save="saveScatterConfig"
+    />
+    <GroupConfigDialog
+      v-model="groupConfigOpen"
+      :groups="configuredGroups"
+      :receive-frames="receiveFrames"
+      :frame-reader="frameReader"
+      @save="saveGroupConfig"
     />
   </q-page>
 </template>

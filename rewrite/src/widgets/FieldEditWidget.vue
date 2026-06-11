@@ -18,6 +18,7 @@ const props = defineProps<{
   readonly fields: readonly FrameFieldDefinition[];
   readonly values: Record<string, SendFieldValue>;
   readonly direction: 'send' | 'receive';
+  readonly previewValues?: Readonly<Record<string, SendFieldValue>>;
 }>();
 
 const emit = defineEmits<{
@@ -75,8 +76,13 @@ function hasNonTrivialFactor(field: FrameFieldDefinition): boolean {
 }
 
 function getDisplayValue(field: FrameFieldDefinition): string {
-  const val = props.values[field.id];
-  if (val !== undefined && val !== null) return String(val);
+  if (field.configurable) {
+    const val = props.values[field.id];
+    if (val !== undefined && val !== null) return String(val);
+  }
+  const preview = props.previewValues?.[field.id];
+  if (preview !== undefined && preview !== null) return String(preview);
+  if (field.defaultValue !== undefined) return String(field.defaultValue);
   return '--';
 }
 

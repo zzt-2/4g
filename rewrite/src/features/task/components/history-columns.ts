@@ -27,6 +27,7 @@ export const historyColumns: QTableColumn[] = [
     align: 'center',
     sortable: true,
     style: 'width: 100px',
+    headerStyle: 'width: 100px',
   },
   {
     name: 'result',
@@ -34,6 +35,7 @@ export const historyColumns: QTableColumn[] = [
     field: 'lifecycle',
     align: 'center',
     style: 'width: 80px',
+    headerStyle: 'width: 80px',
   },
   {
     name: 'elapsed',
@@ -41,6 +43,7 @@ export const historyColumns: QTableColumn[] = [
     field: 'elapsedMs',
     align: 'center',
     style: 'width: 100px',
+    headerStyle: 'width: 100px',
   },
   {
     name: 'finishedAt',
@@ -49,6 +52,7 @@ export const historyColumns: QTableColumn[] = [
     align: 'center',
     sortable: true,
     style: 'width: 140px',
+    headerStyle: 'width: 140px',
   },
   {
     name: '_actions',
@@ -56,5 +60,6 @@ export const historyColumns: QTableColumn[] = [
     field: '_actions',
     align: 'center',
     style: 'width: 120px',
+    headerStyle: 'width: 120px',
   },
 ];

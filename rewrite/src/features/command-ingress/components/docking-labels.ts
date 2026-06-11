@@ -47,8 +47,8 @@ export const DEFAULT_DOCKING_CONFIG = {
   subSysType: 'LAS',
   subSysId: 'LAS_001',
   loginUrl: '',
-  clientId: '',
-  username: '',
+  clientId: '6af72c14148848b9b1c08220a6d8ee54',
+  username: 'subsys',
   password: '',
   grantType: 'partner',
   tenantId: '000000',
@@ -67,3 +67,22 @@ export const MOCK_DEVICES: readonly DeviceInfoItem[] = [
     pars: [],
   },
 ];
+
+// --- Default test case catalog (V1.0.4 getTestCaseAll format) ---
+
+export const DEFAULT_TEST_CATALOG: Record<string, unknown> = {
+  datas: [{
+    name: '激光链路测试', id: 'LAS_MENU_01', isParent: true,
+    type: '', runSubSys: '', depSubSys: '', depSubNe: '',
+    durate: 0, execSteps: '', remark: '',
+    inputPars: [], preHandle: [], afterHandle: [],
+    children: [{
+      name: '激光通信测试', id: 'LAS_TC_001', isParent: false,
+      type: 'land', runSubSys: 'LAS', depSubSys: '', depSubNe: '',
+      durate: 60, execSteps: '1.发送帧;2.接收帧;3.校验结果',
+      remark: 'Mock 测试用例',
+      inputPars: [], preHandle: [], afterHandle: [],
+      children: [],
+    }],
+  }],
+};

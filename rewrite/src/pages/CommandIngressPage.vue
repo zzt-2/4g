@@ -26,6 +26,7 @@ import {
 import { TASK_STATUS_MAP } from '@/features/task/components/taskStatusMap';
 import { statsRow1, statsRow2 } from '@/features/command-ingress/components/ci-labels';
 import type { SatelliteConfig, ScoeCommandConfig, HighlightRuleConfig } from '@/features/command-ingress/core';
+import type { DeviceInfoItem } from '@/features/northbound/core/types';
 import type { QTableColumn } from 'quasar';
 
 const DEVICE_COLUMNS: QTableColumn[] = [
@@ -34,6 +35,7 @@ const DEVICE_COLUMNS: QTableColumn[] = [
   { name: 'type', label: '类型', field: 'type', align: 'center', sortable: true, style: 'width: 80px', headerStyle: 'width: 80px' },
   { name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true },
   { name: 'status', label: '状态', field: 'status', align: 'center', sortable: true, style: 'width: 100px', headerStyle: 'width: 100px' },
+  { name: 'actions', label: '操作', field: 'actions', align: 'center', sortable: false, style: 'width: 80px', headerStyle: 'width: 80px' },
 ];
 
 const $q = useQuasar();
@@ -51,7 +53,7 @@ const activeTab = ref('monitor');
 const scoeConfig = useScoeConfig();
 const monitor = useScoeMonitor(service);
 const testTool = useTestTool(service, () => '');
-const docking = useCentralDocking(northboundService, taskService, resultService);
+const docking = useCentralDocking(northboundService, taskService, resultService, notify);
 
 // ===== Actions =====
 const { execute, isOperating } = useAsyncAction();
@@ -196,6 +198,76 @@ function handleStopDockingTask(instanceId: string): void {
   }).onOk(() => {
     docking.stopTask(instanceId);
   });
+}
+
+// ===== Device CRUD =====
+const showDeviceEditDialog = ref(false);
+const deviceEditForm = ref<Record<string, string>>({});
+const deviceEditIsNew = ref(true);
+
+function handleAddDevice(): void {
+  deviceEditIsNew.value = true;
+  deviceEditForm.value = {
+    name: '', deviceId: `DEV_${Date.now()}`, type: '',
+    ip: '', swVer: 'V1.0.0', status: 'online',
+  };
+  showDeviceEditDialog.value = true;
+}
+
+function openDeviceEditDialog(row: Record<string, unknown>): void {
+  deviceEditIsNew.value = false;
+  deviceEditForm.value = {
+    name: String(row.name ?? ''),
+    deviceId: String(row.deviceId ?? ''),
+    type: String(row.type ?? ''),
+    ip: String(row.ip ?? ''),
+    swVer: String(row.swVer ?? ''),
+    status: String(row.status ?? 'online'),
+  };
+  showDeviceEditDialog.value = true;
+}
+
+function handleSaveDevice(): void {
+  const form = deviceEditForm.value;
+  const device = {
+    name: form.name,
+    deviceId: form.deviceId,
+    type: form.type,
+    ip: form.ip,
+    swVer: form.swVer,
+    status: form.status as DeviceInfoItem['status'],
+    pars: [],
+  };
+  if (deviceEditIsNew.value) {
+    docking.addDevice(device);
+  } else {
+    docking.updateDevice(form.deviceId, device);
+  }
+  showDeviceEditDialog.value = false;
+}
+
+function handleDeleteDevice(deviceId: string): void {
+  $q.dialog({
+    title: '确认删除',
+    message: `确定要删除设备「${deviceId}」吗？`,
+    cancel: true,
+    persistent: false,
+  }).onOk(() => {
+    docking.removeDevice(deviceId);
+  });
+}
+
+// ===== Test catalog JSON editor =====
+const testCatalogJson = ref(JSON.stringify(docking.testCatalog.value, null, 2));
+
+function handleSaveTestCatalog(): void {
+  try {
+    const parsed = JSON.parse(testCatalogJson.value);
+    docking.updateTestCatalog(parsed);
+    notify.success('用例目录已保存');
+  } catch {
+    notify.error('JSON 格式错误，请检查');
+  }
 }
 
 function addHighlightRule(): void {
@@ -765,6 +837,7 @@ onBeforeUnmount(() => {
         <q-tabs v-model="dockingInnerTab" dense inline-label class="text-primary mb-4">
           <q-tab name="tasks" label="任务列表" no-caps />
           <q-tab name="devices" label="设备列表" no-caps />
+          <q-tab name="catalog" label="用例目录" no-caps />
         </q-tabs>
 
         <!-- Task list tab -->
@@ -805,8 +878,14 @@ onBeforeUnmount(() => {
           </DataTable>
         </div>
 
-        <!-- Device list tab -->
-        <div v-else>
+        <!-- Device list tab (editable) -->
+        <div v-else-if="dockingInnerTab === 'devices'">
+          <div class="flex items-center justify-between mb-2">
+            <span class="rw-text-label text-sm">设备信息（甲方调 getDeviceList 时返回此表数据）</span>
+            <q-btn flat dense icon="o_add" color="primary" size="sm" @click="handleAddDevice">
+              <q-tooltip>添加设备</q-tooltip>
+            </q-btn>
+          </div>
           <DataTable
             :columns="DEVICE_COLUMNS"
             :rows="docking.devices.value"
@@ -817,10 +896,48 @@ onBeforeUnmount(() => {
                 <StatusBadge :status="props.value" :status-map="DOCKING_DEVICE_STATUS_MAP" />
               </q-td>
             </template>
+            <template #body-cell-actions="props">
+              <q-td :props="props">
+                <q-btn
+                  flat dense icon="o_edit" color="grey" size="xs"
+                  @click="openDeviceEditDialog(props.row)"
+                >
+                  <q-tooltip>编辑</q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat dense icon="o_delete" color="grey" size="xs"
+                  @click="handleDeleteDevice(props.row.deviceId)"
+                >
+                  <q-tooltip>删除</q-tooltip>
+                </q-btn>
+              </q-td>
+            </template>
             <template #no-data>
-              <div class="text-center p-4 rw-text-desc">暂无设备</div>
+              <div class="text-center p-4 rw-text-desc">暂无设备，点击右上角添加</div>
             </template>
           </DataTable>
+        </div>
+
+        <!-- Test case catalog tab (JSON editor) -->
+        <div v-else>
+          <div class="flex items-center justify-between mb-2">
+            <span class="rw-text-label text-sm">用例目录（甲方调 getTestCaseAll 时返回此数据）</span>
+            <q-btn
+              flat dense icon="o_save" color="primary" size="sm"
+              :loading="isOperating('save-catalog')"
+              @click="handleSaveTestCatalog"
+            >
+              <q-tooltip>保存</q-tooltip>
+            </q-btn>
+          </div>
+          <q-input
+            v-model="testCatalogJson"
+            type="textarea"
+            dense
+            rows="15"
+            class="font-mono"
+            placeholder="JSON 格式"
+          />
         </div>
 
         <!-- Docking config dialog -->
@@ -941,6 +1058,34 @@ onBeforeUnmount(() => {
                 :loading="docking.isConnecting.value"
                 @click="docking.saveConfigAndConnect()"
               />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Device edit dialog -->
+        <q-dialog v-model="showDeviceEditDialog">
+          <q-card class="rw-dialog-md">
+            <q-card-section>
+              <div class="text-h6">{{ deviceEditIsNew ? '添加设备' : '编辑设备' }}</div>
+            </q-card-section>
+            <q-card-section>
+              <div class="flex flex-col gap-3">
+                <q-input v-model="deviceEditForm.name" dense outlined label="设备名称" :rules="[val => !!val || '必填']" />
+                <q-input v-model="deviceEditForm.deviceId" dense outlined label="设备ID" :disable="!deviceEditIsNew" :rules="[val => !!val || '必填']" />
+                <q-input v-model="deviceEditForm.type" dense outlined label="设备类型" />
+                <q-input v-model="deviceEditForm.ip" dense outlined label="IP 地址" />
+                <q-input v-model="deviceEditForm.swVer" dense outlined label="软件版本" />
+                <q-select
+                  v-model="deviceEditForm.status"
+                  :options="['online', 'offline', 'alarm', 'error', 'busying', 'available']"
+                  dense outlined
+                  label="状态"
+                />
+              </div>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="取消" @click="showDeviceEditDialog = false" />
+              <q-btn unelevated color="primary" label="保存" @click="handleSaveDevice" />
             </q-card-actions>
           </q-card>
         </q-dialog>

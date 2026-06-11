@@ -229,9 +229,16 @@ export function createReceiveService(
 
     async drainInputSource(source) {
       const outcomes: ReceiveBatchOutcome[] = [];
-      for (const event of await source.drainEvents()) {
+      const events = await source.drainEvents();
+      console.log('[RX-SVC] drainInputSource: events:', events.length,
+        events.map(e => e.kind === 'batch' ? `batch(${e.batch.bytes.length}B)` : `error(${e.error.kind})`));
+      for (const event of events) {
         const serviceCall = event.kind === 'batch' ? ingest(event.batch) : recordInputError(event.error);
         outcomes.push(...serviceCall.outcomes);
+      }
+      const errorKinds = outcomes.filter(o => o.kind !== 'matched' && o.kind !== 'unmatched');
+      if (errorKinds.length > 0) {
+        console.warn('[RX-SVC] error outcomes:', errorKinds.map(o => `${o.kind}(${o.issues.map(i => i.code)})`));
       }
 
       return serviceOutcome(state.getSnapshot(), outcomes);

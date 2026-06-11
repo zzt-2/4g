@@ -32,6 +32,7 @@ export function createAuthService(httpFacade: HttpFacade, config: AuthConfig): A
   }
 
   async function login(): Promise<string> {
+    console.log(`[northbound auth] 登录 ${config.loginUrl}`);
     const resp = await httpFacade.sendRequest({
       url: config.loginUrl,
       method: 'POST',
@@ -52,6 +53,7 @@ export function createAuthService(httpFacade: HttpFacade, config: AuthConfig): A
 
     cachedToken = token;
     expiresAt = Date.now() + expireIn * 1000 - EXPIRY_BUFFER_MS;
+    console.log(`[northbound auth] 登录成功，token 有效期 ${expireIn}s`);
     return token;
   }
 

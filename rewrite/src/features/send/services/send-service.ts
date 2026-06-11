@@ -76,6 +76,7 @@ function makeResult(
   bytesSent: number,
   error?: SendError,
   buildIssues: readonly SendBuildIssue[] = [],
+  resolvedFieldValues?: Readonly<Record<string, SendFieldValue>>,
 ): SendResult {
   return {
     kind,
@@ -85,6 +86,7 @@ function makeResult(
     timestamp,
     ...(error ? { error } : {}),
     buildIssues,
+    ...(resolvedFieldValues ? { resolvedFieldValues } : {}),
   };
 }
 
@@ -161,6 +163,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
       const resolved = resolveFieldValues(fields, userValues, variableProvider);
       const factored = applyFactor(fields, resolved.values);
       const allIssues = [...resolved.issues, ...factored.issues];
+      const resolvedValues = resolved.values;
 
       // 5. Build frame bytes
       const buildOutput = buildFrame({
@@ -172,7 +175,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
 
       const buildErrors = allIssues.filter((i) => i.severity === 'error');
       if (buildErrors.length > 0) {
-        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, allIssues);
+        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, allIssues, resolvedValues);
         state.addResult(result);
         options.resultEmitter?.emit(result);
         return result;
@@ -192,7 +195,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
 
       const patchErrors = allIssues.filter((i) => i.severity === 'error');
       if (patchErrors.length > 0) {
-        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, allIssues);
+        const result = makeResult('build-error', requestRef, timestamp, 0, 0, undefined, allIssues, resolvedValues);
         state.addResult(result);
         options.resultEmitter?.emit(result);
         return result;
@@ -207,6 +210,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
         const result = makeResult(
           'target-unavailable', requestRef, timestamp, bytesArr.length, 0,
           { kind: 'target-not-found', message: `Target not found: ${request.targetId}` },
+          [], resolvedValues,
         );
         state.addResult(result);
         options.resultEmitter?.emit(result);
@@ -217,6 +221,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
         const result = makeResult(
           'target-unavailable', requestRef, timestamp, bytesArr.length, 0,
           { kind: 'target-not-available', message: `Target not available: ${request.targetId}` },
+          [], resolvedValues,
         );
         state.addResult(result);
         options.resultEmitter?.emit(result);
@@ -231,7 +236,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
         const result = makeResult(
           'transport-error', requestRef, timestamp, bytesArr.length, 0,
           { kind: 'write-exception', message: err instanceof Error ? err.message : 'Unknown write error' },
-          allIssues,
+          allIssues, resolvedValues,
         );
         state.addResult(result);
         options.resultEmitter?.emit(result);
@@ -246,7 +251,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
           bytesArr.length,
           writeOutcome.bytesWritten,
           writeOutcome.error,
-          allIssues,
+          allIssues, resolvedValues,
         );
         state.addResult(result);
         options.resultEmitter?.emit(result);
@@ -261,7 +266,7 @@ export function createSendService(options: CreateSendServiceOptions): SendServic
         bytesArr.length,
         writeOutcome.bytesWritten,
         undefined,
-        allIssues,
+        allIssues, resolvedValues,
       );
       state.addResult(result);
       options.resultEmitter?.emit(result);

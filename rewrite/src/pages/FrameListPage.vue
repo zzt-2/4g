@@ -32,6 +32,11 @@ function refreshList(): void {
   refreshKey.value++;
 }
 
+function onFrameMutation(): void {
+  runtime.features.receiveService.refreshFrameReferences();
+  void runtime.persistence.saveFrames();
+}
+
 // Query state
 const searchText = ref('');
 const directionFilter = ref<FrameDirection | ''>('');
@@ -93,7 +98,7 @@ function onSelectionChange(selected: TableRow[]): void {
 
 const { toggleFavorite } = useToggleFavorite(frameService, (msg) => notify.error(msg), () => {
   refreshList();
-  void runtime.persistence.saveFrames();
+  onFrameMutation();
 });
 
 function cloneFrame(frame: FrameAssetSummary): void {
@@ -105,7 +110,7 @@ function cloneFrame(frame: FrameAssetSummary): void {
   const result = frameService.upsertFrame(cloned);
   if (result.ok) {
     refreshList();
-    void runtime.persistence.saveFrames();
+    onFrameMutation();
     notify.success('已复制');
   } else {
     notify.error('复制失败');
@@ -123,7 +128,7 @@ function removeFrame(frameId: string): void {
     if (result.ok) {
       selectedFrameIds.value = selectedFrameIds.value.filter((id) => id !== frameId);
       refreshList();
-      void runtime.persistence.saveFrames();
+      onFrameMutation();
       notify.success('已删除');
     }
   });
@@ -133,7 +138,7 @@ function onImportConfirm(frames: FrameAsset[]): void {
   const result = frameService.replaceFrames(frames);
   if (result.ok) {
     refreshList();
-    void runtime.persistence.saveFrames();
+    onFrameMutation();
     notify.success(`成功导入 ${frames.length} 个帧定义`);
   } else {
     notify.error('导入失败');

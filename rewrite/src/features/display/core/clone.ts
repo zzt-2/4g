@@ -3,6 +3,8 @@ import type {
   ChartInstanceProjection,
   ChartPoint,
   ChartSeriesProjection,
+  DisplayGroupConfig,
+  DisplayGroupFrameEntry,
   DisplayPreferences,
   DisplayProjection,
   DisplaySnapshot,
@@ -36,6 +38,21 @@ export function cloneScatterSourceBinding(binding: ScatterSourceBinding): Scatte
   return { ...binding };
 }
 
+export function cloneDisplayGroupFrameEntry(entry: DisplayGroupFrameEntry): DisplayGroupFrameEntry {
+  return {
+    frameId: entry.frameId,
+    visibleFieldIds: [...entry.visibleFieldIds],
+  };
+}
+
+export function cloneDisplayGroupConfig(config: DisplayGroupConfig): DisplayGroupConfig {
+  return {
+    id: config.id,
+    label: config.label,
+    frames: config.frames.map(cloneDisplayGroupFrameEntry),
+  };
+}
+
 export function cloneScatterDisplayPreference(
   pref: ScatterDisplayPreference,
 ): ScatterDisplayPreference {
@@ -55,6 +72,7 @@ export function cloneDisplayPreferences(pref: DisplayPreferences): DisplayPrefer
     charts: pref.charts.map(cloneChartInstancePreference),
     scatter: cloneScatterDisplayPreference(pref.scatter),
     refreshCadenceMs: pref.refreshCadenceMs,
+    groups: pref.groups.map(cloneDisplayGroupConfig),
   };
 }
 

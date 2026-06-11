@@ -30,9 +30,20 @@ export async function routingTick(
     (event) => event.kind === 'data' && event.bytes !== undefined,
   );
 
+  const nonDataEvents = drainOutcome.events.filter(
+    (event) => event.kind !== 'data',
+  );
+  if (nonDataEvents.length > 0) {
+    console.warn('[ROUTE-TICK] non-data events:', nonDataEvents.length,
+      nonDataEvents.map(e => `${e.kind}(${e.id})`));
+  }
+
   if (dataEvents.length === 0) {
     return { ok: true, eventsRouted: 0, matchesEmitted: 0 };
   }
+
+  console.log('[ROUTE-TICK] data events:', dataEvents.length,
+    dataEvents.map(e => `${e.kind}(${e.bytes?.length}B from ${e.connectionId})`));
 
   const source = new ConnectionToReceiveInputSource(dataEvents);
   const receiveOutcome =

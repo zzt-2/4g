@@ -40,3 +40,10 @@ sessions:
     created: 2026-06-10
     last_updated: 2026-06-10
     description: 发送帧页面状态丢失、UDP 发送失败、IP 显示错误等多功能交叉 bug 的根因分析和修复。
+
+  - slug: 2026-06-11-display-group-management
+    title: 接收帧分组管理 Feature 实施与修复
+    status: active
+    created: 2026-06-11
+    last_updated: 2026-06-11
+    description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。

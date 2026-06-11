@@ -3,6 +3,7 @@ import { createRewriteRuntime, type RewriteRuntime } from '@/runtime';
 import { getTransportFacade, getFileFacade, type FileFacade } from '@/platform';
 import { createRealSerialAdapter, createRealNetworkAdapter, createCompositeAdapter, type TransportConfig } from '@/features/connection';
 import type { FrameAsset } from '@/features/frame';
+import type { DisplayPreferences, DisplayPreferencesPatch } from '@/features/display';
 import type { HighSpeedStorageConfig, FrameHeaderRule } from '@/features/storage-highspeed';
 import type { SendFrameInstance } from '@/features/send';
 import { restoreSendInstances, getSendInstancesSnapshot } from '@/features/send/composables/use-send-instances';
@@ -24,6 +25,7 @@ export class LazyPersistence implements FeaturePersistence {
     async saveSettings() {},
     async saveStorageHighspeed() {},
     async saveSendInstances() {},
+    async saveDisplayPreferences() {},
     async saveAll() {},
   };
 
@@ -37,6 +39,7 @@ export class LazyPersistence implements FeaturePersistence {
   saveSettings() { return this.delegate.saveSettings(); }
   saveStorageHighspeed() { return this.delegate.saveStorageHighspeed(); }
   saveSendInstances() { return this.delegate.saveSendInstances(); }
+  saveDisplayPreferences() { return this.delegate.saveDisplayPreferences(); }
   saveAll() { return this.delegate.saveAll(); }
 }
 
@@ -79,6 +82,7 @@ async function initPersistenceAsync(
       getSettingsSnapshot: () => runtime.features.settingsService.getSnapshot() as unknown as Record<string, unknown>,
       getStorageHighspeedSnapshot: () => runtime.features.highSpeedStorageService.getSnapshot(),
       getSendInstancesSnapshot: () => getSendInstancesSnapshot(),
+      getDisplayPreferencesSnapshot: () => runtime.features.displayService.getPreferences() as DisplayPreferences,
     });
 
     lazyPersistence.setDelegate(persistence);
@@ -87,6 +91,7 @@ async function initPersistenceAsync(
     if (isObjectWithArray(framesData, 'frames')) {
       const data = framesData as { frames: unknown[]; selectedFrameId?: string };
       runtime.features.frameService.replaceFrames(data.frames as FrameAsset[], data.selectedFrameId);
+      runtime.features.receiveService.refreshFrameReferences();
     }
 
     const connData = await safeReadJson(fileFacade, `${dataDir}/state/connections.json`);
@@ -117,6 +122,11 @@ async function initPersistenceAsync(
     const siData = await safeReadJson(fileFacade, `${dataDir}/state/send-instances.json`);
     if (Array.isArray(siData)) {
       restoreSendInstances(siData as SendFrameInstance[]);
+    }
+
+    const dpData = await safeReadJson(fileFacade, `${dataDir}/state/display-preferences.json`);
+    if (dpData && typeof dpData === 'object' && !Array.isArray(dpData)) {
+      runtime.features.displayService.updatePreferences(dpData as Partial<DisplayPreferencesPatch>);
     }
   } catch (err: unknown) {
     console.error('[bootstrap] Persistence initialization failed:', err instanceof Error ? err.message : err);

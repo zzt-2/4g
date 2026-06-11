@@ -1,6 +1,7 @@
-# [S008] 中心对接 UI 设计
+# [S008] 中心对接 UI 设计与实施
 
-> 2026-06-10 | 设计 | 状态: 待确认
+> 2026-06-10 | 设计+实施 | 状态: 实施完成
+> 2026-06-11 续接 — 补充可配置设备表+用例目录表+数据喂给 northbound service
 
 ## 目标
 
@@ -244,3 +245,101 @@ interface UseCentralDockingReturn {
 ## 后续
 
 - 进入 Lane B 实施
+
+---
+
+## 实施记录
+
+### 2026-06-10 第一轮
+
+完成基础接线：
+- 重写 `use-central-docking.ts`：service 注入（northboundService + taskService + resultService），polling 驱动 refresh，connect/disconnect，stopTask，上报记录追踪
+- 更新 `docking-task-columns.ts`：对齐 DockingTaskRow（testCaseId/name/lifecycle/progress/startedAt/actions）
+- 新增 `docking-labels.ts`：status maps + 子系统类型选项 + 默认配置 + mock 设备
+- 新增 `report-record-columns.ts`：上报记录表格列
+- 更新 `CommandIngressPage.vue`：配置弹窗（9 字段两区 + 认证可折叠）、连接/断开、任务列表含停止按钮、设备列表、上报记录弹窗
+- lint 零新增 error
+
+### 2026-06-11 第二轮 — 可配置数据表
+
+用户纠正理解：设备表和用例目录表不是只展示 mock，而是**可配置**，配置后的数据喂给 northbound service 的 getDeviceList/getTestCaseAll handler。
+
+改动：
+- `northbound-service.ts`：新增 `setDeviceList()` 和 `setTestCatalogData()` 方法，handler 从可配置数据读取而非硬编码 MOCK
+- `use-central-docking.ts`：
+  - 设备 CRUD（addDevice/updateDevice/removeDevice）+ localStorage 持久化（`northbound-docking-devices`）
+  - 用例目录更新（updateTestCatalog）+ localStorage 持久化（`northbound-docking-test-catalog`）
+  - 初始化时加载 localStorage 数据并同步到 service
+- `docking-labels.ts`：新增 `DEFAULT_TEST_CATALOG`（V1.0.4 getTestCaseAll 格式）
+- `CommandIngressPage.vue`：
+  - 内嵌 tab 从 2 个变 3 个：任务列表 / 设备列表 / 用例目录
+  - 设备列表变为可编辑表格（添加/编辑/删除），附设备编辑弹窗
+  - 用例目录为 JSON 编辑器（textarea），可保存
+- lint 零新增 error（6 个预先存在的 error 不属于本次改动）
+
+### 改动文件汇总
+
+| 文件 | 操作 |
+|------|------|
+| `rewrite/src/features/northbound/services/northbound-service.ts` | 修改：新增 setDeviceList/setTestCatalogData，handler 读可配置数据 |
+| `rewrite/src/features/command-ingress/composables/use-central-docking.ts` | 重写：全功能 composable |
+| `rewrite/src/features/command-ingress/components/docking-task-columns.ts` | 重写：对齐新类型 |
+| `rewrite/src/features/command-ingress/components/docking-labels.ts` | 新增 |
+| `rewrite/src/features/command-ingress/components/report-record-columns.ts` | 新增 |
+| `rewrite/src/pages/CommandIngressPage.vue` | 大幅修改：Tab 3 全功能 |
+| `.sessions/.../S008-docking-ui-design.md` | 本文件 |
+
+### 验证证据
+
+- lint：6 个 error 全部预先存在，零新增
+- build：预先存在的 rollup source phase import 问题，与本次无关
+
+### 未决
+
+- 用例目录当前为 JSON 编辑器，后续需接任务系统自动生成（用户确认"暂时表格+mock，后续接到任务那边"）
+- 设备表手动配置，后续可接 connectionService 自动映射
+- DevTools 看不到 HTTP 请求（走 main process IPC），已加 console.log 日志：`[northbound auth]`/`[northbound ← 甲方]`/`[northbound → 甲方]`
+- 默认参数已填：clientId/username/grantType/tenantId，用户只需填 customerBaseUrl + password
+- 连接失败有 notify 错误提示
+
+### 2026-06-11 第三轮 — Mock 状态审计 + Task 集成问题
+
+#### Mock vs Real 现状
+
+| 环节 | mock / real | 说明 |
+|------|------------|------|
+| 用例目录上报（getTestCaseAll） | mock | 硬编码 MOCK_TEST_CASES，UI 可配置 |
+| 甲方下发任务执行（setTestTask） | mock | translateTestCaseToMockTaskDefinition，1.5s delay step |
+| 真实翻译函数 | 已写好未启用 | translateTestCaseToTaskDefinition（send + wait-condition step） |
+| 步骤实时上报（msgReport） | real | onStepResult callback → 翻译 → POST |
+| 任务结果上报（testCaseResultReport） | real | onSettled → collectResult → verdict → POST |
+| TestReport.json FTP | mock 数据占位 | 结构正确，内容为 mock checkPoints/processAndDatas |
+| 设备列表（getDeviceList） | mock 可配置 | UI CRUD + localStorage → setDeviceList |
+| Auth / heartbeat | real | JWT + 15s 定时器 |
+| 12 入站 handler / 9 出站 translator | real | 全部实现，113 tests |
+
+#### 发现的问题
+
+**BUG: Task step kind `o_send` vs `send` 不匹配**
+- 核心 types.ts 定义 step kind = `'send'`
+- TaskManagePage.vue / TaskExecutionDetail.vue 里用 `'o_send'` 判断
+- 影响：UI 里发送帧步骤的渲染/编辑对不上
+
+**Task UI 集成问题**
+- 北向任务和用户手动创建的任务混在同一个列表，无法区分
+- 无 testCaseId → instanceId 的可视化关联
+- 导入/导出为空壳函数
+- 变量参数、退出条件等 UI 未实现
+
+#### 用户确认的理解
+
+- Task 是和 send 配合的功能（task 包含 send step + wait-condition step）
+- 甲方的"任务列表"是用例目录（getTestCaseAll），上报给甲方
+- 每个用例关联到发送侧的帧定义（frameId）和目标（targetId）
+- 因时间紧迫，目前甲方侧用例目录和任务执行都是 mock
+- 上报链路（msgReport + testCaseResultReport + TestReport）已通
+
+#### 待讨论
+
+- 当前 mock 能否正常工作（端到端验证）
+- Task UI 如何展示北向任务（区分、关联）

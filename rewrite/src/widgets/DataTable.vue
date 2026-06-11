@@ -68,5 +68,22 @@ const showSelection = computed(() => props.selection !== 'none');
 <style scoped lang="scss">
 .data-table {
   border-radius: var(--rw-radius-panel);
+
+  :deep(table) {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  :deep(td) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :deep(th.q-table--col-auto-width),
+  :deep(td.q-table--col-auto-width) {
+    width: 48px;
+    min-width: 48px;
+  }
 }
 </style>

@@ -221,3 +221,113 @@ describe('send core: checksum', () => {
     expect(checksumSum8([0xff, 0x02])).toBe(0x01);
   });
 });
+
+describe('send core: integer range validation', () => {
+  function singleField(dataType: string, length: number): Record<string, unknown>[] {
+    return [{ id: 'val', dataType, length, bigEndian: true, isASCII: false, offset: 0 }];
+  }
+
+  it('warns when uint8 value exceeds range', () => {
+    const output = buildFrame({
+      fields: singleField('uint8', 1),
+      totalByteLength: 1,
+      fieldValues: { val: 300 },
+    });
+    expect(output.issues.length).toBeGreaterThanOrEqual(1);
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+    expect(warning!.severity).toBe('warning');
+    expect(warning!.fieldId).toBe('val');
+    expect(warning!.message).toContain('300');
+    expect(warning!.message).toContain('uint8');
+  });
+
+  it('warns when int8 value below minimum', () => {
+    const output = buildFrame({
+      fields: singleField('int8', 1),
+      totalByteLength: 1,
+      fieldValues: { val: -200 },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('warns when int8 value above maximum', () => {
+    const output = buildFrame({
+      fields: singleField('int8', 1),
+      totalByteLength: 1,
+      fieldValues: { val: 200 },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('no warning for in-range uint8 value', () => {
+    const output = buildFrame({
+      fields: singleField('uint8', 1),
+      totalByteLength: 1,
+      fieldValues: { val: 200 },
+    });
+    const outOfRange = output.issues.some((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(outOfRange).toBe(false);
+  });
+
+  it('warns when uint16 value exceeds range', () => {
+    const output = buildFrame({
+      fields: singleField('uint16', 2),
+      totalByteLength: 2,
+      fieldValues: { val: 70000 },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('warns when int16 value out of range', () => {
+    const output = buildFrame({
+      fields: singleField('int16', 2),
+      totalByteLength: 2,
+      fieldValues: { val: 40000 },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('warns when uint32 value exceeds range', () => {
+    const output = buildFrame({
+      fields: singleField('uint32', 4),
+      totalByteLength: 4,
+      fieldValues: { val: 5000000000 },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('warns when int32 value out of range', () => {
+    const output = buildFrame({
+      fields: singleField('int32', 4),
+      totalByteLength: 4,
+      fieldValues: { val: 3000000000 },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('no warning for float value', () => {
+    const output = buildFrame({
+      fields: singleField('float', 4),
+      totalByteLength: 4,
+      fieldValues: { val: 999999 },
+    });
+    const outOfRange = output.issues.some((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(outOfRange).toBe(false);
+  });
+
+  it('truncated value still encodes without blocking', () => {
+    const output = buildFrame({
+      fields: singleField('uint8', 1),
+      totalByteLength: 1,
+      fieldValues: { val: 300 },
+    });
+    expect(output.bytes.length).toBe(1);
+  });
+});

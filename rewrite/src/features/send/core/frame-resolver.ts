@@ -1,5 +1,5 @@
 import type { ReadonlyFrameAsset } from '@/features/frame';
-import { compileConditional, evaluateConditional } from '@/shared/expression';
+import { compileConditional, evaluateConditional, kahnSort } from '@/shared/expression';
 import type { VariableMap } from '@/shared/expression/types';
 import type {
   SendFieldEncodingDef,
@@ -53,28 +53,32 @@ export function resolveFieldValues(
     }
   }
 
+  // Separate expression fields from non-expression fields
+  const expressionFields: SendFieldEncodingDef[] = [];
   for (const field of fields) {
-    // Priority 1: configurable field with user value
-    if (field.configurable && field.id in userFieldValues) {
+    // Configurable fields with user values are resolved directly (Priority 1),
+    // UNLESS they are self-referencing expressions (e.g. speed = speed + step)
+    // which need to go through expression evaluation with the user value as seed.
+    const hasUserValue = field.configurable && field.id in userFieldValues;
+    if (hasUserValue && !isSelfReferencing(field)) continue;
+    if (field.expressionConfig) {
+      expressionFields.push(field);
+    }
+  }
+
+  // Phase 1: Resolve non-expression fields (configurable with user value, default, zero-fill)
+  for (const field of fields) {
+    // Self-referencing configurable fields are handled in Phase 2/4
+    const hasUserValue = field.configurable && field.id in userFieldValues;
+    if (hasUserValue && !isSelfReferencing(field)) {
       values[field.id] = userFieldValues[field.id]!;
       mergedVars.set(field.id, userFieldValues[field.id]! as number | string | boolean);
       continue;
     }
 
-    // Priority 2: expression config
-    if (field.expressionConfig) {
-      const result = evaluateFieldExpressions(field, mergedVars);
-      if (result.value !== null) {
-        values[field.id] = result.value;
-        mergedVars.set(field.id, result.value as number | string | boolean);
-      } else {
-        values[field.id] = 0;
-      }
-      issues.push(...result.issues);
-      continue;
-    }
+    // Skip expression fields (handled in Phase 4)
+    if (field.expressionConfig) continue;
 
-    // Priority 3: default value
     if (field.defaultValue !== undefined) {
       const parsed = parseDefaultValue(field.defaultValue);
       values[field.id] = parsed;
@@ -82,7 +86,6 @@ export function resolveFieldValues(
       continue;
     }
 
-    // Priority 4: zero fill with warning
     values[field.id] = 0;
     issues.push({
       severity: 'warning',
@@ -92,7 +95,116 @@ export function resolveFieldValues(
     });
   }
 
+  // Phase 2: Seed initial values for self-referencing expression fields
+  for (const field of expressionFields) {
+    if (field.id in userFieldValues) {
+      // Has previous value from writeback
+      const userVal = userFieldValues[field.id]!;
+      values[field.id] = userVal;
+      mergedVars.set(field.id, userVal as number | string | boolean);
+    } else if (isSelfReferencing(field)) {
+      // Self-referencing field without previous value — seed with default/0
+      const seedValue = field.defaultValue !== undefined
+        ? parseDefaultValue(field.defaultValue)
+        : 0;
+      values[field.id] = seedValue;
+      mergedVars.set(field.id, seedValue as number | string | boolean);
+    }
+  }
+
+  // Phase 3: Topological sort expression fields by dependencies
+  const sortedExpressionFields = topologicalSortExpressions(expressionFields, issues);
+
+  // Phase 4: Resolve expression fields in topological order
+  for (const field of sortedExpressionFields) {
+    const result = evaluateFieldExpressions(field, mergedVars);
+    if (result.value !== null) {
+      values[field.id] = result.value;
+      mergedVars.set(field.id, result.value as number | string | boolean);
+    } else {
+      if (!(field.id in values)) {
+        values[field.id] = 0;
+      }
+    }
+    issues.push(...result.issues);
+  }
+
   return { values, issues };
+}
+
+function isSelfReferencing(field: SendFieldEncodingDef): boolean {
+  if (!field.expressionConfig) return false;
+  return field.expressionConfig.variables.some(
+    v => v.sourceType === 'current_field' && v.sourceId === field.id,
+  );
+}
+
+function topologicalSortExpressions(
+  fields: readonly SendFieldEncodingDef[],
+  issues: SendBuildIssue[],
+): SendFieldEncodingDef[] {
+  if (fields.length <= 1) return [...fields];
+
+  const fieldMap = new Map(fields.map(f => [f.id, f]));
+
+  // Build dependency map: fieldId → Set of depended-upon expression fieldIds
+  const depsMap = new Map<string, Set<string>>();
+  for (const field of fields) {
+    const deps = new Set<string>();
+    if (field.expressionConfig) {
+      for (const v of field.expressionConfig.variables) {
+        if (v.sourceType === 'current_field' && v.sourceId && v.sourceId !== field.id) {
+          if (fieldMap.has(v.sourceId)) {
+            deps.add(v.sourceId);
+          }
+        }
+      }
+    }
+    depsMap.set(field.id, deps);
+  }
+
+  const result = kahnSort(depsMap);
+
+  if ('cycle' in result) {
+    issues.push({
+      severity: 'error',
+      code: 'send.resolve.expressionCycle',
+      message: `Circular dependency detected among expression fields: ${result.cycle.join(', ')}`,
+    });
+    // Return non-cycle fields first, then cycle fields (best-effort)
+    const nonCycleIds = new Set(fields.map(f => f.id).filter(id => !result.cycle.includes(id)));
+    const sorted = fields.filter(f => nonCycleIds.has(f.id));
+    sorted.push(...fields.filter(f => !nonCycleIds.has(f.id)));
+    return sorted;
+  }
+
+  return result.order.map(id => fieldMap.get(id)!);
+}
+
+function resolveExpressionVariables(
+  expressionConfig: NonNullable<SendFieldEncodingDef['expressionConfig']>,
+  fieldValues: VariableMap,
+): { variables: VariableMap; issues: SendBuildIssue[] } {
+  const issues: SendBuildIssue[] = [];
+  const resolved = new Map(fieldValues);
+
+  for (const v of expressionConfig.variables) {
+    if (v.sourceType === 'current_field' && v.sourceId) {
+      const value = fieldValues.get(v.sourceId);
+      if (value !== undefined) {
+        resolved.set(v.identifier, value);
+      } else {
+        issues.push({
+          severity: 'warning',
+          code: 'send.resolve.variableSourceMissing',
+          message: `Expression variable "${v.identifier}" source field "${v.sourceId}" has no value yet`,
+        });
+      }
+    }
+    // frame_field / global_stat: resolved by external provider or caller variables
+  }
+
+  return { variables: resolved, issues };
 }
 
 export function evaluateFieldExpressions(
@@ -104,6 +216,12 @@ export function evaluateFieldExpressions(
   if (!field.expressionConfig) {
     return { value: null, issues };
   }
+
+  const { variables: evalVars, issues: resolveIssues } = resolveExpressionVariables(
+    field.expressionConfig,
+    mergedVariables,
+  );
+  issues.push(...resolveIssues);
 
   const branches = field.expressionConfig.expressions;
   const compileResult = compileConditional(branches);
@@ -117,7 +235,7 @@ export function evaluateFieldExpressions(
     return { value: null, issues };
   }
 
-  const evalResult = evaluateConditional(compileResult.compiled, mergedVariables);
+  const evalResult = evaluateConditional(compileResult.compiled, evalVars);
   if (!evalResult.success) {
     issues.push({
       severity: 'error',
