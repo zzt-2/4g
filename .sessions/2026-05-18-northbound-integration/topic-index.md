@@ -199,3 +199,10 @@
 - 核心模块：report-generator.ts（纯函数，输入 mock 数据，输出报告 JSON）
 - 与帧结构完全解耦：report-generator 只依赖输入数据结构
 - 已有 translator（translateTestDataFileComplete）和 FTP facade 可复用
+
+### S008 — 中心对接 UI 设计
+- 现有 CommandIngressPage"中心对接"tab 是空壳（composable 全部 throw）
+- Service 层零 gap，NorthboundConfig 9 字段完全对齐两份甲方文档
+- 7 个设计决策：配置弹窗（9 字段两区）、任务列表（composable 桥接 northbound+task）、设备列表（甲方设备 mock）、上报弹窗（只读统计）、配置持久化（localStorage 不存密码）、状态面板（接真实 service）、连接流程（配置→保存并连接→断开）
+- 3 项待确认：上报弹窗详细程度、心跳状态 MVP 方案、任务列表操作列
+- 设计文档：S008-docking-ui-design.md

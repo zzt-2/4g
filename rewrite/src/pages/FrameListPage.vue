@@ -91,7 +91,10 @@ function onSelectionChange(selected: TableRow[]): void {
   selectedFrameIds.value = selected.map((r) => r.id);
 }
 
-const { toggleFavorite } = useToggleFavorite(frameService, (msg) => notify.error(msg), refreshList);
+const { toggleFavorite } = useToggleFavorite(frameService, (msg) => notify.error(msg), () => {
+  refreshList();
+  void runtime.persistence.saveFrames();
+});
 
 function cloneFrame(frame: FrameAssetSummary): void {
   const full = frameService.getFrame(frame.id);
@@ -102,6 +105,7 @@ function cloneFrame(frame: FrameAssetSummary): void {
   const result = frameService.upsertFrame(cloned);
   if (result.ok) {
     refreshList();
+    void runtime.persistence.saveFrames();
     notify.success('已复制');
   } else {
     notify.error('复制失败');
@@ -119,6 +123,7 @@ function removeFrame(frameId: string): void {
     if (result.ok) {
       selectedFrameIds.value = selectedFrameIds.value.filter((id) => id !== frameId);
       refreshList();
+      void runtime.persistence.saveFrames();
       notify.success('已删除');
     }
   });
@@ -128,6 +133,7 @@ function onImportConfirm(frames: FrameAsset[]): void {
   const result = frameService.replaceFrames(frames);
   if (result.ok) {
     refreshList();
+    void runtime.persistence.saveFrames();
     notify.success(`成功导入 ${frames.length} 个帧定义`);
   } else {
     notify.error('导入失败');

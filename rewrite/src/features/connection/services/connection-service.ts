@@ -251,6 +251,9 @@ export function createConnectionService(
 
   function applyEvents(events: readonly ConnectionAdapterEvent[]): void {
     for (const event of events) {
+      if (event.kind === 'disconnected' || event.kind === 'error' || event.kind === 'cleanup') {
+        console.warn('[connection] adapter event:', event.kind, event.connectionId);
+      }
       state.applyEvent(adapterEventToNormalized(event, now));
     }
   }

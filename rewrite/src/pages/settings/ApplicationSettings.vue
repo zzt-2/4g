@@ -96,6 +96,7 @@ function handleResetRecording(): void {
   }).onOk(() => {
     settingsService.reset('recording');
     loadFromService();
+    void runtime.persistence.saveSettings();
     notify.success('录制设置已重置');
   });
 }
@@ -109,6 +110,7 @@ function handleResetStorage(): void {
   }).onOk(() => {
     settingsService.reset('storage');
     loadFromService();
+    void runtime.persistence.saveSettings();
     notify.success('存储设置已重置');
   });
 }
@@ -122,6 +124,7 @@ function handleResetAll(): void {
   }).onOk(() => {
     settingsService.reset('all');
     loadFromService();
+    void runtime.persistence.saveSettings();
     notify.success('全部设置已重置');
   });
 }

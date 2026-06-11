@@ -7,7 +7,6 @@ import {
   duplicateFieldNameFrameAsset,
   expressionFrameAsset,
   frameAssetWithIdentifierRules,
-  legacyFrameConfigWithoutDataParticipationTypeSample,
   minimalFrameAsset,
 } from '../fixtures/frame-fixtures';
 
@@ -88,23 +87,6 @@ describe('frame asset service pilot', () => {
     expect(result.validation.issues.map((issue) => issue.code)).toContain('frame.fieldNameDuplicate');
     expect(service.getSnapshot().frames.map((frame) => frame.id)).toEqual([minimalFrameAsset.id]);
     expect(service.getSelectedFrame()?.id).toBe(minimalFrameAsset.id);
-  });
-
-  it('loads warning-only legacy migration results into frame state', () => {
-    const service = createFrameAssetService();
-
-    const result = service.loadLegacyFrameConfig(legacyFrameConfigWithoutDataParticipationTypeSample, '123');
-
-    expect(result.ok).toBe(true);
-    expect(result.migration.issues.map((issue) => issue.code)).toEqual([
-      'legacy.dataParticipationDefaulted',
-      'legacy.dataParticipationDefaulted',
-    ]);
-    expect(service.getSelectedFrame()?.id).toBe('123');
-    expect(service.listFieldReferences({ frameId: '123' }).map((field) => field.fieldName)).toEqual([
-      '111',
-      '222',
-    ]);
   });
 
   it('does not select a missing frame id', () => {

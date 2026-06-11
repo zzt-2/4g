@@ -1,8 +1,6 @@
 import {
-  migrateLegacyFrameConfig,
   validateFrameAssetCollection,
   type FrameAsset,
-  type LegacyFrameMigrationResult,
   type ReadonlyFrameAsset,
   type ValidationIssue,
   type ValidationResult,
@@ -39,13 +37,8 @@ export interface FrameAssetOperationResult {
   readonly snapshot: FrameStateSnapshot;
 }
 
-export interface FrameLegacyLoadResult extends FrameAssetOperationResult {
-  readonly migration: LegacyFrameMigrationResult;
-}
-
 export interface FrameAssetService extends FrameAssetReader {
   replaceFrames(frames: readonly FrameAsset[], selectedFrameId?: string): FrameAssetOperationResult;
-  loadLegacyFrameConfig(value: unknown, selectedFrameId?: string): FrameLegacyLoadResult;
   selectFrame(frameId: string | undefined): FrameAssetOperationResult;
   upsertFrame(frame: FrameAsset): FrameAssetOperationResult;
   removeFrame(frameId: string): FrameAssetOperationResult;
@@ -139,31 +132,6 @@ export function createFrameAssetService(
       };
     },
 
-    loadLegacyFrameConfig(value, selectedFrameId) {
-      const migration = migrateLegacyFrameConfig(value);
-      if (!migration.recognized || hasError(migration.issues)) {
-        return {
-          ok: false,
-          validation: {
-            valid: !hasError(migration.issues),
-            issues: migration.issues,
-          },
-          migration,
-          snapshot: state.getSnapshot(),
-        };
-      }
-
-      return {
-        ok: true,
-        validation: {
-          valid: true,
-          issues: migration.issues,
-        },
-        migration,
-        snapshot: state.replaceFrames(migration.frames, selectedFrameId),
-      };
-    },
-
     selectFrame(frameId) {
       if (frameId === undefined) {
         return {
@@ -238,8 +206,11 @@ export function deserializeFrames(text: string): FrameDeserializeResult {
   try {
     parsed = JSON.parse(text);
   } catch {
-    // Try legacy path: the text might be a raw legacy array
-    return tryLegacyDeserialize();
+    return {
+      ok: false,
+      frames: [],
+      issues: [issue('deserialize.parseError', 'input', 'JSON 格式错误，无法解析')],
+    };
   }
 
   if (isFrameAssetFile(parsed)) {
@@ -251,12 +222,10 @@ export function deserializeFrames(text: string): FrameDeserializeResult {
     };
   }
 
-  // No schemaVersion → legacy array or object
-  const legacy = migrateLegacyFrameConfig(parsed);
   return {
-    ok: legacy.recognized && !hasError(legacy.issues),
-    frames: legacy.frames,
-    issues: legacy.issues,
+    ok: false,
+    frames: [],
+    issues: [issue('deserialize.unsupportedFormat', 'input', '不支持的帧文件格式，需要 schemaVersion: 1')],
   };
 }
 
@@ -269,12 +238,4 @@ function isFrameAssetFile(value: unknown): value is FrameAssetFile {
     'frames' in value &&
     Array.isArray((value as FrameAssetFile).frames)
   );
-}
-
-function tryLegacyDeserialize(): FrameDeserializeResult {
-  return {
-    ok: false,
-    frames: [],
-    issues: [issue('deserialize.parseError', 'input', 'JSON 格式错误，无法解析')],
-  };
 }

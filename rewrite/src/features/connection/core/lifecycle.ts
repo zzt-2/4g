@@ -204,7 +204,8 @@ function applyEventToFact(
     event.kind !== 'disconnected' &&
     event.kind !== 'cleanup' &&
     event.kind !== 'error';
-  const target = event.target ?? deriveTransportTarget(fact.config, available);
+  const target = event.target
+    ?? { ...fact.target, available };
   const counters = updateCountersForEvent(fact.counters, event);
 
   const reconnectUpdate =

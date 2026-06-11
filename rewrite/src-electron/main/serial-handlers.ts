@@ -119,10 +119,9 @@ function wirePortEvents(conn: ManagedSerialPort, win: BrowserWindow): void {
   });
 
   port.on('close', () => {
+    console.warn('[serial] port closed unexpectedly:', config.id, config.portPath);
     cleanupConnection(conn);
     connections.delete(config.id);
-    // Only push disconnected event for unexpected closes (device unplug, etc.)
-    // User-initiated disconnect returns the event directly from the handler
     if (!intentionalDisconnect.has(config.id)) {
       emitToRenderer(win, {
         kind: 'disconnected',
@@ -134,6 +133,7 @@ function wirePortEvents(conn: ManagedSerialPort, win: BrowserWindow): void {
   });
 
   port.on('error', (err: Error) => {
+    console.error('[serial] port error:', config.id, config.portPath, err.message);
     emitToRenderer(win, {
       kind: 'error',
       connectionId: config.id,
@@ -209,7 +209,6 @@ async function handleSerialConnect(
           routeLabel: `${config.portPath}@${config.baudRate}`,
         },
       };
-      emitToRenderer(win, connectedEvent);
       resolve({ ok: true, events: [connectedEvent] });
     });
 

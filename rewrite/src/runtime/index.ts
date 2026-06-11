@@ -14,7 +14,7 @@ import {
 } from '@/features/connection';
 import { wireFeatures, type RewriteWiredFeatures } from './feature-wiring';
 import { routingTick, type RoutingTickResult } from './routing-tick';
-import type { FeaturePersistence } from './persistence';
+import { createNoOpPersistence, type FeaturePersistence } from './persistence';
 
 export type { RoutingTickResult } from './routing-tick';
 export type { RewriteWiredFeatures } from './feature-wiring';
@@ -190,6 +190,8 @@ export function createRewriteRuntime(
       if (destroyed) return;
       destroyed = true;
       stopTick();
+      void wiredFeatures.northboundService.stop();
+      void wiredFeatures.highSpeedStorageService.deactivate();
       wiredFeatures.commandIngressService.dispose();
       wiredFeatures.connectionService.cleanup();
       wiredFeatures.receiveEventSourceBridge.clear();
@@ -197,13 +199,3 @@ export function createRewriteRuntime(
   };
 }
 
-function createNoOpPersistence(): FeaturePersistence {
-  return {
-    async load() { return {}; },
-    async saveFrames() {},
-    async saveConnections() {},
-    async saveSettings() {},
-    async saveSendInstances() {},
-    async saveAll() {},
-  };
-}

@@ -1,4 +1,5 @@
 import { compileExpression } from '@/shared/expression';
+import { tokenize } from '@/shared/expression/tokenizer';
 import {
   EXPRESSION_SOURCE_TYPES,
   type ConditionalExpressionDefinition,
@@ -64,8 +65,14 @@ function validateExpressionSyntax(value: string, path: string): ValidationIssue[
 }
 
 function extractExpressionIdentifiers(value: string): string[] {
-  const matches = value.match(/\b[A-Za-z_][A-Za-z0-9_]*\b/g) ?? [];
-  return Array.from(new Set(matches.filter((match) => !EXPRESSION_KEYWORDS.has(match))));
+  const result = tokenize(value);
+  if (!result.success) return [];
+  return Array.from(new Set(
+    result.tokens
+      .filter((t: { type: string }) => t.type === 'IDENTIFIER')
+      .map((t: { value: string }) => t.value)
+      .filter((name: string) => !EXPRESSION_KEYWORDS.has(name)),
+  ));
 }
 
 function validateVariable(
@@ -75,7 +82,7 @@ function validateVariable(
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variable.identifier)) {
+  if (!/^[\p{L}_][\p{L}\p{N}_]*$/u.test(variable.identifier)) {
     issues.push(createIssue('expression.variableIdentifier', path, '变量标识符必须是合法标识符'));
   }
 

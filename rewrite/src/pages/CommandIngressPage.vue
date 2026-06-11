@@ -14,32 +14,35 @@ import { useCentralDocking } from '@/features/command-ingress/composables/use-ce
 import { commandLogColumns } from '@/features/command-ingress/components/command-log-columns';
 import { satelliteColumns, type SatelliteRow } from '@/features/command-ingress/components/satellite-columns';
 import { dockingTaskColumns } from '@/features/command-ingress/components/docking-task-columns';
+import { reportRecordColumns } from '@/features/command-ingress/components/report-record-columns';
 import { healthStatusMap, linkTestStatusMap, commandResultMap } from '@/features/command-ingress/components/scoeStatusMap';
+import {
+  DOCKING_HTTPS_STATUS_MAP,
+  DOCKING_HEARTBEAT_STATUS_MAP,
+  DOCKING_DEVICE_STATUS_MAP,
+  VERDICT_STATUS_MAP,
+  SUB_SYS_TYPE_OPTIONS,
+} from '@/features/command-ingress/components/docking-labels';
+import { TASK_STATUS_MAP } from '@/features/task/components/taskStatusMap';
 import { statsRow1, statsRow2 } from '@/features/command-ingress/components/ci-labels';
 import type { SatelliteConfig, ScoeCommandConfig, HighlightRuleConfig } from '@/features/command-ingress/core';
+import type { QTableColumn } from 'quasar';
 
-// P3-7: Extracted docking status maps
-const DOCKING_HTTPS_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  unknown: { label: '未连接', color: 'grey' },
-  connected: { label: '已连接', color: 'positive' },
-  disconnected: { label: '已断开', color: 'warning' },
-  error: { label: '错误', color: 'negative' },
-};
-const DOCKING_HEARTBEAT_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  unknown: { label: '未知', color: 'grey' },
-  active: { label: '活跃', color: 'positive' },
-  inactive: { label: '静止', color: 'warning' },
-};
-const DOCKING_DEVICE_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  unknown: { label: '离线', color: 'grey' },
-  online: { label: '在线', color: 'positive' },
-  offline: { label: '离线', color: 'negative' },
-};
+const DEVICE_COLUMNS: QTableColumn[] = [
+  { name: 'name', label: '设备名称', field: 'name', align: 'left', sortable: true },
+  { name: 'deviceId', label: '设备ID', field: 'deviceId', align: 'left', sortable: true },
+  { name: 'type', label: '类型', field: 'type', align: 'center', sortable: true, style: 'width: 80px', headerStyle: 'width: 80px' },
+  { name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true },
+  { name: 'status', label: '状态', field: 'status', align: 'center', sortable: true, style: 'width: 100px', headerStyle: 'width: 100px' },
+];
 
 const $q = useQuasar();
 const notify = useNotify();
 const runtime = useRewriteRuntime();
 const service = runtime.features.commandIngressService;
+const northboundService = runtime.features.northboundService;
+const taskService = runtime.features.taskService;
+const resultService = runtime.features.resultService;
 
 // ===== Tab state =====
 const activeTab = ref('monitor');
@@ -48,7 +51,7 @@ const activeTab = ref('monitor');
 const scoeConfig = useScoeConfig();
 const monitor = useScoeMonitor(service);
 const testTool = useTestTool(service, () => '');
-const docking = useCentralDocking();
+const docking = useCentralDocking(northboundService, taskService, resultService);
 
 // ===== Actions =====
 const { execute, isOperating } = useAsyncAction();
@@ -56,6 +59,7 @@ const { execute, isOperating } = useAsyncAction();
 // ===== Polling =====
 function refreshAll(): void {
   monitor.refresh();
+  docking.refresh();
   if (isTestRecording.value) {
     testTool.refreshRecords();
   }
@@ -182,6 +186,18 @@ function openHighlightDialog(): void {
   testTool.showHighlightDialog.value = true;
 }
 
+// ===== Docking handlers =====
+function handleStopDockingTask(instanceId: string): void {
+  $q.dialog({
+    title: '确认停止',
+    message: '确定要停止该任务吗？',
+    cancel: true,
+    persistent: false,
+  }).onOk(() => {
+    docking.stopTask(instanceId);
+  });
+}
+
 function addHighlightRule(): void {
   editingHighlightRules.value = [
     ...editingHighlightRules.value,
@@ -227,8 +243,6 @@ const isTestRecording = ref(true);
 
 // ===== Docking inner tabs =====
 const dockingInnerTab = ref('tasks');
-const showDockingConfigDialog = ref(false);
-const showTaskReportDialog = ref(false);
 
 // ===== SCOE Config edit form =====
 const editForm = ref({
@@ -704,6 +718,7 @@ onBeforeUnmount(() => {
 
       <!-- Tab 3: Central Docking -->
       <q-tab-panel name="docking" class="p-0 pt-4">
+        <!-- Status bar -->
         <div class="flex gap-4 mb-4">
           <div class="flex items-center gap-2">
             <span class="rw-text-label text-sm">HTTPS:</span>
@@ -718,8 +733,30 @@ onBeforeUnmount(() => {
             <StatusBadge :status="docking.connectionState.value.device" :status-map="DOCKING_DEVICE_STATUS_MAP" />
           </div>
           <div class="flex-1" />
-          <q-btn unelevated color="primary" label="对接配置" @click="showDockingConfigDialog = true" />
-          <q-btn unelevated color="primary" label="任务上报" @click="showTaskReportDialog = true" />
+          <template v-if="docking.isActive.value">
+            <q-btn
+              unelevated
+              color="negative"
+              label="断开"
+              :loading="docking.isDisconnecting.value"
+              @click="docking.disconnect()"
+            />
+          </template>
+          <template v-else>
+            <q-btn
+              unelevated
+              color="primary"
+              label="对接配置"
+              @click="docking.showConfigDialog.value = true"
+            />
+          </template>
+          <q-btn
+            unelevated
+            color="primary"
+            label="上报记录"
+            :disable="docking.reportRecords.value.length === 0"
+            @click="docking.showReportDialog.value = true"
+          />
         </div>
 
         <q-separator class="mb-4" />
@@ -734,47 +771,227 @@ onBeforeUnmount(() => {
         <div v-if="dockingInnerTab === 'tasks'">
           <DataTable
             :columns="dockingTaskColumns"
-            :rows="docking.tasks.value"
-            row-key="taskId"
+            :rows="docking.dockingTasks.value"
+            row-key="instanceId"
           >
+            <template #body-cell-lifecycle="props">
+              <q-td :props="props">
+                <StatusBadge :status="props.value" :status-map="TASK_STATUS_MAP" />
+              </q-td>
+            </template>
+            <template #body-cell-startedAt="props">
+              <q-td :props="props">
+                <span class="rw-text-value">{{ props.value ? formatDateTime(props.value) : '—' }}</span>
+              </q-td>
+            </template>
+            <template #body-cell-actions="props">
+              <q-td :props="props">
+                <q-btn
+                  flat
+                  dense
+                  icon="o_stop"
+                  color="negative"
+                  size="xs"
+                  :disable="!['running', 'created', 'paused'].includes(props.row.lifecycle)"
+                  @click="handleStopDockingTask(props.row.instanceId)"
+                >
+                  <q-tooltip>停止任务</q-tooltip>
+                </q-btn>
+              </q-td>
+            </template>
             <template #no-data>
-              <div class="text-center p-4 rw-text-desc">功能开发中</div>
+              <div class="text-center p-4 rw-text-desc">暂无活跃任务</div>
             </template>
           </DataTable>
         </div>
 
-        <!-- Device list tab (stub) -->
-        <div v-else class="text-center p-8 rw-text-desc">
-          <q-icon name="o_developer_board" size="48px" color="grey" class="mb-2" />
-          <p>功能开发中</p>
+        <!-- Device list tab -->
+        <div v-else>
+          <DataTable
+            :columns="DEVICE_COLUMNS"
+            :rows="docking.devices.value"
+            row-key="deviceId"
+          >
+            <template #body-cell-status="props">
+              <q-td :props="props">
+                <StatusBadge :status="props.value" :status-map="DOCKING_DEVICE_STATUS_MAP" />
+              </q-td>
+            </template>
+            <template #no-data>
+              <div class="text-center p-4 rw-text-desc">暂无设备</div>
+            </template>
+          </DataTable>
         </div>
 
-        <!-- Docking config dialog (stub) -->
-        <q-dialog v-model="showDockingConfigDialog">
-          <q-card class="rw-dialog-md">
+        <!-- Docking config dialog -->
+        <q-dialog v-model="docking.showConfigDialog.value">
+          <q-card class="rw-dialog-lg">
             <q-card-section>
               <div class="text-h6">对接配置</div>
             </q-card-section>
-            <q-card-section>
-              <div class="rw-text-desc">功能开发中，甲方 schema 未确认</div>
+            <q-card-section class="rw-dialog-scroll-body">
+              <q-form @submit.prevent="docking.saveConfigAndConnect()">
+                <!-- Server config -->
+                <div class="rw-text-label text-sm mb-2">服务器配置</div>
+                <div class="flex gap-3 mb-2">
+                  <q-input
+                    v-model="docking.config.serverHost"
+                    dense outlined
+                    label="监听地址"
+                    class="flex-1"
+                    :rules="[val => !!val || '请输入监听地址']"
+                  />
+                  <q-input
+                    v-model.number="docking.config.serverPort"
+                    dense outlined
+                    label="监听端口"
+                    type="number"
+                    class="w-32"
+                    :rules="[val => !!val || '请输入端口']"
+                  />
+                </div>
+                <q-input
+                  v-model="docking.config.customerBaseUrl"
+                  dense outlined
+                  label="甲方地址"
+                  placeholder="http://ip/partner-api/"
+                  class="mb-2"
+                  :rules="[val => !!val || '请输入甲方地址']"
+                />
+                <div class="flex gap-3 mb-2">
+                  <q-select
+                    v-model="docking.config.subSysType"
+                    :options="SUB_SYS_TYPE_OPTIONS"
+                    dense outlined
+                    label="子系统类型"
+                    emit-value
+                    map-options
+                    class="flex-1"
+                  />
+                  <q-input
+                    v-model="docking.config.subSysId"
+                    dense outlined
+                    label="子系统ID"
+                    placeholder="LAS_001"
+                    class="flex-1"
+                    :rules="[val => !!val || '请输入子系统ID']"
+                  />
+                </div>
+
+                <q-separator class="my-4" />
+
+                <!-- Auth config -->
+                <q-expansion-item
+                  dense
+                  switch-toggle-side
+                  label="认证配置"
+                  caption="OAuth/JWT"
+                  header-class="rw-text-label text-sm"
+                  class="mb-2"
+                >
+                  <div class="flex flex-col gap-2 pt-2">
+                    <q-input
+                      v-model="docking.config.loginUrl"
+                      dense outlined
+                      label="认证地址"
+                      :placeholder="`${docking.config.customerBaseUrl}auth/partner/login`"
+                    />
+                    <q-input
+                      v-model="docking.config.clientId"
+                      dense outlined
+                      label="Client ID"
+                    />
+                    <q-input
+                      v-model="docking.config.username"
+                      dense outlined
+                      label="用户名"
+                    />
+                    <q-input
+                      v-model="docking.config.password"
+                      dense outlined
+                      label="密码"
+                      type="password"
+                    />
+                    <div class="flex gap-3">
+                      <q-input
+                        v-model="docking.config.grantType"
+                        dense outlined
+                        label="Grant Type"
+                        readonly
+                        class="flex-1"
+                      />
+                      <q-input
+                        v-model="docking.config.tenantId"
+                        dense outlined
+                        label="Tenant ID"
+                        readonly
+                        class="flex-1"
+                      />
+                    </div>
+                  </div>
+                </q-expansion-item>
+              </q-form>
             </q-card-section>
             <q-card-actions align="right">
-              <q-btn flat label="关闭" @click="showDockingConfigDialog = false" />
+              <q-btn flat label="取消" @click="docking.showConfigDialog.value = false" />
+              <q-btn
+                unelevated
+                color="primary"
+                label="保存并连接"
+                :loading="docking.isConnecting.value"
+                @click="docking.saveConfigAndConnect()"
+              />
             </q-card-actions>
           </q-card>
         </q-dialog>
 
-        <!-- Task report dialog (stub) -->
-        <q-dialog v-model="showTaskReportDialog">
+        <!-- Report dialog -->
+        <q-dialog v-model="docking.showReportDialog.value">
           <q-card class="rw-dialog-lg">
             <q-card-section>
-              <div class="text-h6">任务上报</div>
+              <div class="text-h6">上报记录</div>
             </q-card-section>
-            <q-card-section>
-              <div class="rw-text-desc">功能开发中，甲方上报协议未确认</div>
+            <q-card-section class="rw-dialog-scroll-body">
+              <div class="flex gap-4 mb-4">
+                <div class="rw-panel-base rounded p-3 flex-1 text-center">
+                  <div class="rw-text-label text-xs mb-1">已上报</div>
+                  <div class="rw-text-value text-lg">{{ docking.reportRecords.value.length }}</div>
+                </div>
+                <div class="rw-panel-base rounded p-3 flex-1 text-center">
+                  <div class="rw-text-label text-xs mb-1">通过</div>
+                  <div class="rw-text-value text-lg text-positive">
+                    {{ docking.reportRecords.value.filter(r => r.verdict === 'passed').length }}
+                  </div>
+                </div>
+                <div class="rw-panel-base rounded p-3 flex-1 text-center">
+                  <div class="rw-text-label text-xs mb-1">失败</div>
+                  <div class="rw-text-value text-lg text-negative">
+                    {{ docking.reportRecords.value.filter(r => r.verdict === 'failed').length }}
+                  </div>
+                </div>
+              </div>
+              <DataTable
+                :columns="reportRecordColumns"
+                :rows="docking.reportRecords.value"
+                row-key="reportedAt"
+              >
+                <template #body-cell-verdict="props">
+                  <q-td :props="props">
+                    <StatusBadge :status="props.value" :status-map="VERDICT_STATUS_MAP" />
+                  </q-td>
+                </template>
+                <template #body-cell-reportedAt="props">
+                  <q-td :props="props">
+                    <span class="rw-text-value">{{ formatDateTime(props.value) }}</span>
+                  </q-td>
+                </template>
+                <template #no-data>
+                  <div class="text-center p-4 rw-text-desc">暂无上报记录</div>
+                </template>
+              </DataTable>
             </q-card-section>
             <q-card-actions align="right">
-              <q-btn flat label="关闭" @click="showTaskReportDialog = false" />
+              <q-btn flat label="关闭" @click="docking.showReportDialog.value = false" />
             </q-card-actions>
           </q-card>
         </q-dialog>

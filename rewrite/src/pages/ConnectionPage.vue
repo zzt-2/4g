@@ -84,10 +84,11 @@ function handleRemove(summary: ConnectionSummary): void {
 
 function handleToggleAutoConnect(summary: ConnectionSummary): void {
   const fact = service.getConnectionFact(summary.connectionId);
-  if (fact?.config) {
-    fact.config.autoConnect = !fact.config.autoConnect;
-    notify.info(`${summary.label} 自动连接已${fact.config.autoConnect ? '开启' : '关闭'}`);
-  }
+  if (!fact?.config) return;
+  const updated = { ...fact.config, autoConnect: !fact.config.autoConnect };
+  service.upsertConfig(updated);
+  void runtime.persistence.saveConnections();
+  notify.info(`${summary.label} 自动连接已${updated.autoConnect ? '开启' : '关闭'}`);
 }
 
 async function handleCreate(config: TransportConfig): Promise<void> {

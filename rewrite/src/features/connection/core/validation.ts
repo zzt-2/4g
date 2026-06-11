@@ -12,6 +12,7 @@ type UnknownRecord = Record<string, unknown>;
 const COMMON_CONFIG_KEYS = new Set(['id', 'kind', 'label']);
 const CONFIG_KEYS = new Set([
   ...COMMON_CONFIG_KEYS,
+  'autoConnect',
   'portPath',
   'baudRate',
   'dataBits',
@@ -254,9 +255,11 @@ export function normalizeTransportConfig(value: unknown): ConnectionConfigNormal
   }
 
   const label = optionalString(value.label, 'label', issues);
+  const autoConnect = typeof value.autoConnect === 'boolean' ? value.autoConnect : undefined;
   const common = {
     id: nonEmptyString(value.id, `${value.kind}-connection`, 'id', issues),
     ...(label ? { label } : {}),
+    ...(autoConnect !== undefined ? { autoConnect } : {}),
   };
 
   let config: TransportConfig;

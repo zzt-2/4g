@@ -74,12 +74,27 @@ async function createWindow() {
   });
 }
 
+function cleanupAllPlatformResources(): void {
+  cleanupSerialHandlers();
+  cleanupNetworkHandlers();
+  cleanupFileHandlers();
+  cleanupHttpHandlers();
+  cleanupFtpHandlers();
+  cleanupStorageHandlers();
+  storageFilter.cleanup();
+}
+
 void app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
+  cleanupAllPlatformResources();
   if (platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  cleanupAllPlatformResources();
 });
 
 app.on('activate', () => {

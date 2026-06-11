@@ -84,6 +84,7 @@ export function useFrameEditor(
     if (result.ok) {
       notify.success(isNew ? '帧已创建' : '帧已保存');
       originalSnapshot.value = JSON.stringify(frame);
+      void runtime.persistence.saveFrames();
       router.push('/frames');
       return true;
     }

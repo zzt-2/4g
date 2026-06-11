@@ -120,12 +120,6 @@ export interface ValidationResult {
   issues: ValidationIssue[];
 }
 
-export interface LegacyFrameMigrationResult {
-  recognized: boolean;
-  frames: FrameAsset[];
-  issues: ValidationIssue[];
-}
-
 export type { ReadonlyDeep } from '@/shared/types/readonly-deep';
 
 export type ReadonlyFrameFieldDefinition = ReadonlyDeep<FrameFieldDefinition>;

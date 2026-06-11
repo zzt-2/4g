@@ -1,5 +1,5 @@
-import type { TaskService, TaskStepResult } from '@/features/task';
-import type { ResultService } from '@/features/result';
+import type { TaskService, TaskStepResult, TaskInstanceState } from '@/features/task';
+import type { ResultService, CaseVerdict } from '@/features/result';
 import type { HttpFacade, HttpRequest, HttpResponse } from '@/platform';
 import type { NorthboundSessionSnapshot } from '../state/northbound-state';
 import { createNorthboundState } from '../state/northbound-state';
@@ -32,6 +32,7 @@ import type {
   SigReportDevice,
   GetTestCaseAllRequest,
 } from '../core/types';
+import { generateTestReport } from '../core/test-report-generator';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
 import { createHeartbeatTimer, type HeartbeatTimer } from './heartbeat-timer';
 
@@ -42,6 +43,13 @@ export interface NorthboundConfig {
   readonly subSysType: string;
   readonly subSysId: string;
   readonly auth: AuthConfig;
+  readonly ftp?: {
+    readonly host: string;
+    readonly port: number;
+    readonly username: string;
+    readonly password: string;
+    readonly basePath: string;
+  };
 }
 
 export interface FtpUploadConfig {
@@ -127,7 +135,55 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const taskId = instanceId;
     const report = translateTaskResult(instance, verdict, testCaseId, taskId, envelopeConfig());
     await postToCustomer('/report/testCaseResultReport', report);
+
+    // Generate TestReport, upload FTP, notify customer (R11: failure doesn't affect verdict)
+    await uploadTestReportAndNotify(instance, verdict, testCaseId, taskId);
+
     state.removeMapping(testCaseId);
+  }
+
+  async function uploadTestReportAndNotify(
+    instance: TaskInstanceState,
+    verdict: CaseVerdict,
+    testCaseId: string,
+    taskId: string,
+  ): Promise<void> {
+    const config = activeConfig;
+    const ftp = options.ftpFacade;
+    if (!config?.ftp || !ftp) return;
+
+    const reportJson = generateTestReport({
+      instance,
+      verdict,
+      testCaseId,
+      taskId,
+      config: envelopeConfig(),
+    });
+
+    const remotePath = `${config.ftp.basePath.replace(/\/$/, '')}/TestReport_${taskId}.json`;
+
+    try {
+      await ftp.uploadFile({
+        host: config.ftp.host,
+        port: config.ftp.port,
+        username: config.ftp.username,
+        password: config.ftp.password,
+        remotePath,
+        content: reportJson,
+      });
+
+      await reportTestDataFileComplete({
+        taskId,
+        result: 'success',
+        msg: '',
+        testCaseId: [testCaseId],
+        ftpServerIP: config.ftp.host,
+        fileType: 'TestReport',
+        filePath: remotePath,
+      });
+    } catch {
+      // R11: delivery failure does not rewrite internal result
+    }
   }
 
   // --- Step event handler ---

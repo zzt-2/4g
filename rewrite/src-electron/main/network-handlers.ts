@@ -200,7 +200,6 @@ async function handleTcpClientConnect(
           routeLabel: `TCP→${config.host}:${config.port}`,
         },
       };
-      emitToRenderer(win, connectedEvent);
       resolve({ ok: true, events: [connectedEvent] });
     });
 
@@ -382,7 +381,6 @@ async function handleTcpServerConnect(
           routeLabel: `TCP Server ${config.host}:${config.port}`,
         },
       };
-      emitToRenderer(win, connectedEvent);
       resolve({ ok: true, events: [connectedEvent] });
     });
   });
@@ -465,7 +463,6 @@ async function handleUdpConnect(
           routeLabel: `UDP ${config.localHost}:${config.localPort}`,
         },
       };
-      emitToRenderer(win, connectedEvent);
       resolve({ ok: true, events: [connectedEvent] });
     });
   });

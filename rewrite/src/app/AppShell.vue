@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { bootstrapRewriteRuntime, provideRewriteRuntime } from '@/app/rewriteRuntime';
 import AppNavigation from '@/widgets/AppNavigation.vue';
 
-const { runtime } = bootstrapRewriteRuntime();
+const { runtime, ready } = bootstrapRewriteRuntime();
 provideRewriteRuntime(runtime);
-runtime.startTickDriver();
+
+onMounted(async () => {
+  await ready;
+  runtime.startTickDriver();
+});
 
 onUnmounted(() => {
   runtime.destroy();
+});
+
+window.addEventListener('beforeunload', () => {
+  void runtime.persistence.saveAll();
 });
 
 const route = useRoute();

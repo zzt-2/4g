@@ -6,7 +6,6 @@ import type { FrameAsset } from '@/features/frame';
 import type { HighSpeedStorageConfig, FrameHeaderRule } from '@/features/storage-highspeed';
 import type { SendFrameInstance } from '@/features/send';
 import { restoreSendInstances, getSendInstancesSnapshot } from '@/features/send/composables/use-send-instances';
-import type { PersistedFeatureState } from '@/runtime/persistence';
 import { createFeaturePersistence, type FeaturePersistence } from '@/runtime/persistence';
 
 const rewriteRuntimeKey: InjectionKey<RewriteRuntime> = Symbol('rewrite-runtime');
@@ -14,6 +13,7 @@ const rewriteRuntimeKey: InjectionKey<RewriteRuntime> = Symbol('rewrite-runtime'
 export interface BootstrapResult {
   readonly runtime: RewriteRuntime;
   readonly mode: 'real' | 'noOp';
+  readonly ready: Promise<void>;
 }
 
 export class LazyPersistence implements FeaturePersistence {
@@ -22,6 +22,7 @@ export class LazyPersistence implements FeaturePersistence {
     async saveFrames() {},
     async saveConnections() {},
     async saveSettings() {},
+    async saveStorageHighspeed() {},
     async saveSendInstances() {},
     async saveAll() {},
   };
@@ -34,6 +35,7 @@ export class LazyPersistence implements FeaturePersistence {
   saveFrames() { return this.delegate.saveFrames(); }
   saveConnections() { return this.delegate.saveConnections(); }
   saveSettings() { return this.delegate.saveSettings(); }
+  saveStorageHighspeed() { return this.delegate.saveStorageHighspeed(); }
   saveSendInstances() { return this.delegate.saveSendInstances(); }
   saveAll() { return this.delegate.saveAll(); }
 }
@@ -54,11 +56,14 @@ export function bootstrapRewriteRuntime(): BootstrapResult {
   const lazyPersistence = new LazyPersistence();
   const runtime = createRewriteRuntime({ connectionAdapter }, lazyPersistence);
 
+  let ready: Promise<void>;
   if (fileFacade) {
-    initPersistenceAsync(runtime, fileFacade, lazyPersistence);
+    ready = initPersistenceAsync(runtime, fileFacade, lazyPersistence);
+  } else {
+    ready = Promise.resolve();
   }
 
-  return { runtime, mode };
+  return { runtime, mode, ready };
 }
 
 async function initPersistenceAsync(
@@ -72,6 +77,7 @@ async function initPersistenceAsync(
       getFrameSnapshot: () => runtime.features.frameService.getSnapshot(),
       getConnectionConfigs: () => runtime.features.connectionService.getSnapshot().configs as readonly TransportConfig[],
       getSettingsSnapshot: () => runtime.features.settingsService.getSnapshot() as unknown as Record<string, unknown>,
+      getStorageHighspeedSnapshot: () => runtime.features.highSpeedStorageService.getSnapshot(),
       getSendInstancesSnapshot: () => getSendInstancesSnapshot(),
     });
 
@@ -88,6 +94,11 @@ async function initPersistenceAsync(
       const configs = (connData as { configs: unknown[] }).configs as TransportConfig[];
       for (const config of configs) {
         runtime.features.connectionService.upsertConfig(config);
+        if (config.autoConnect) {
+          await runtime.features.connectionService.connect(config).catch((err: unknown) => {
+            console.error(`[bootstrap] Auto-connect failed for ${config.id}:`, err instanceof Error ? err.message : err);
+          });
+        }
       }
     }
 
