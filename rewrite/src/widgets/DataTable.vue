@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   loading: false,
   selection: 'none',
   selected: () => [],
-  virtualScrollItemSize: 48,
+  virtualScrollItemSize: 36,
   containerHeight: 'calc(100vh - 200px)',
 });
 

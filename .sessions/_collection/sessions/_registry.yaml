@@ -1,0 +1,49 @@
+sessions:
+  - slug: 2026-04-23-rewrite-main-thread
+    title: 重写主线全程记录
+    status: active
+    created: 2026-04-23
+    last_updated: 2026-05-19
+    description: 东方红上位机重写项目从架构设计到 UI 实现的完整推进记录，覆盖 10 个阶段
+
+  - slug: 2026-05-07-runtime-global-planning
+    title: 重写运行时全局规划
+    status: dormant
+    created: 2026-05-07
+    last_updated: 2026-05-15
+    description: 运行时各模块实现进度、技术债、页面状态追踪
+
+  - slug: 2026-05-18-northbound-integration
+    title: 甲方对接闭环分析
+    status: active
+    created: 2026-05-18
+    last_updated: 2026-06-10
+    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项。S005 完成 connectivity 实施（74 tests，checklist 全 pass）。
+
+  - slug: 2026-05-19-integration-testing
+    title: 集成测试体系建立
+    status: dormant
+    created: 2026-05-19
+    last_updated: 2026-05-20
+    description: 从设计文档、旧系统行为、新系统代码中提取集测范围，建立端到端集成测试体系。36 条集测项全部完成（343 tests passing）。后续追加见 S006 §十。
+
+  - slug: 2026-05-21-missing-pages
+    title: 缺失页面规划与实施
+    status: active
+    created: 2026-05-21
+    last_updated: 2026-05-26
+    description: 存储管理/历史分析/系统设置三个缺失页面的调研、feature 扩展、UI 设计和实施。每页先扩 feature API 再做 UI，按 feature 归口推进。
+
+  - slug: 2026-06-10-ui-feature-bugs
+    title: UI 与 Feature Bug 集中修复
+    status: active
+    created: 2026-06-10
+    last_updated: 2026-06-10
+    description: 发送帧页面状态丢失、UDP 发送失败、IP 显示错误等多功能交叉 bug 的根因分析和修复。
+
+  - slug: 2026-06-11-display-group-management
+    title: 接收帧分组管理 Feature 实施与修复
+    status: active
+    created: 2026-06-11
+    last_updated: 2026-06-11
+    description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。

@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature 实施与修复
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-11 S004 持久化+UI重构+图表弹窗
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-12 S005 图表+UI全面诊断
 
 ## 进展线索
 
@@ -8,6 +8,7 @@
 - **S002** 代码质量修复 (06-11)：审查发现 7 严重 + 4 中等问题，按 S5→S4+S6→S7+M2→S2+S3→M1+M3+M4→B1-B4→S1 顺序修复
 - **S003** 运行时问题修复 (06-11)：用户反馈选分组后表格为空、折线图字段选择始终为空。根因：availableFields 仅取 receive 方向帧 + 无数据时无占位行
 - **S004** 持久化 + UI 重构 (06-11)：修复持久化缺失 bug、chart 字段列表不响应 bug、图表配置弹窗改为 tab + chip 卡片
+- **S005** 图表+UI全面诊断 (06-12)：持久化已修复。全面排查发现 8 项问题
 
 ## 已确认结论
 
@@ -68,11 +69,32 @@
 - test: 1394 pass, 2 fail（全部已有：connection pilot + frame serialization pilot）
 - 新增测试: 14 cases（group-resolution 7 + bridge 7）
 
+### S005 诊断清单 (06-12)
+
+| # | 问题 | 严重度 | 根因 | 位置 |
+|---|------|--------|------|------|
+| 1 | 图表永远无数据 | 致命 | `projectChartSeries()` 永远返回 `points: []`，系统无时序累积 | `projection.ts:82` |
+| 2 | 图例显示原始 ID | 高 | buffer 无匹配 field 时回退到 fieldId | `projection.ts:79` |
+| 3 | 全部分组含发送帧 | 中 | `availableFields` 用 `allFrames` 不限方向 | `DisplayPage.vue:95` |
+| 4 | 排序/列设置按钮非表格模式仍出现 | 高 | 缺 `v-if="mode === 'table'"` | `DisplayPanel.vue:148,160` |
+| 5 | 排序箭头不工作 | 高 | `sortable: true` 但无 sort 事件处理 | `display-columns.ts:87` |
+| 6 | 排序箭头空占位 | 中 | Quasar sortable 始终预留空间 | Quasar 行为 |
+| 7 | _reorder 列始终占 72px | 中 | 列定义固定 width，非排序模式也占 | `display-columns.ts:108` |
+| 8 | 表格行高偏大 | 低 | `virtualScrollItemSize: 48` | `DataTable.vue:20` |
+
+### Buffer 垃圾分析
+
+- `ingestSourceMaterial` 每次**整体替换** buffer，不是追加 → 无跨 batch 累积
+- 单 batch 内全分组字段都存 → 浪费但不影响正确性
+- 切换 `selectedGroupId` 不清 buffer → 只有改 groups 配置才清
+- 结论：**不是泄漏，是浪费**，优先级低
+
 ## 未决项
 
-- **持久化未生效**：代码已加 `persistDisplay()` 调用，与其他页面模式一致。但用户反馈分组仍不持久化。可能原因：(1) Electron dev 模式热重载时序问题 (2) LazyPersistence delegate 未设置 (3) 文件写入静默失败。需用户确认 Electron DevTools 控制台是否有 `[persistence]` 或 `[bootstrap]` 错误。
-- 前端规范合规检查：UI 改动需对照 rewrite-frontend-conventions / checklist / quickref（这些文件可能尚未创建）
+- **图表时序累积**（#1 致命）——需设计最小代码量方案，用户强调代码质量
+- **图例原始 ID**（#2）——与 #1 关联
+- 前端规范合规检查
 
 ## 当前位置
 
-S004 持久化 + UI 重构完成（lint+test 通过）。用户反馈持久化仍未生效，待下轮压缩上下文后继续排查。需用户提供 Electron DevTools 控制台日志。
+S005 诊断完成，即将开始 UI 修复（#3-#8）。图表累积待设计讨论。

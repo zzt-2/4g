@@ -1,69 +1,33 @@
-import type { TaskDefinition, TaskStepDefinition, ConditionTerm } from '@/features/task/core';
-import { createTaskDefinition, createSendStep, createWaitConditionStep, createDelayStep } from '@/features/task/core';
-import type { TestCaseInfo, TestCaseStep } from './types';
+import type { TaskDefinition } from '@/features/task/core';
+import { createTaskDefinition, createDelayStep } from '@/features/task/core';
+import type { TestCaseInfo } from './types';
 
 /**
  * Mock: creates a task that auto-completes after a delay.
  * Replace with translateTestCaseToTaskDefinition when hardware is connected.
+ *
+ * MVP strategy (S008 round 3): always emit a single 1.5s delay step regardless of
+ * inputPars content. Real translation depends on frame feature (frameId resolution
+ * for each parId) and condition feature, which is out of scope for this round.
  */
-export function translateTestCaseToMockTaskDefinition(
-  testCase: TestCaseInfo,
-): TaskDefinition {
+export function translateTestCaseToMockTaskDefinition(tc: TestCaseInfo): TaskDefinition {
   return createTaskDefinition({
-    id: `nb-${testCase.testCaseId}-${Date.now()}`,
-    name: testCase.testCaseName,
-    steps: [createDelayStep(1500, { id: 'step-mock', name: 'Mock execution' })],
+    id: `nb-${tc.testCaseId}-${Date.now()}`,
+    name: tc.testCaseId,
+    steps: [
+      createDelayStep(1500, { id: 'step-mock', name: 'Mock execution' }),
+    ],
     schedule: { kind: 'immediate' },
     errorPolicy: { onFailure: 'stop' },
   });
 }
 
-export function translateTestCaseToTaskDefinition(
-  testCase: TestCaseInfo,
-): TaskDefinition {
-  const steps: TaskStepDefinition[] = [];
-
-  for (let i = 0; i < testCase.steps.length; i++) {
-    const step = testCase.steps[i]!;
-    steps.push(translateStep(step, i));
-  }
-
-  return createTaskDefinition({
-    id: `nb-${testCase.testCaseId}-${Date.now()}`,
-    name: testCase.testCaseName,
-    steps,
-    schedule: { kind: 'immediate' },
-    errorPolicy: { onFailure: 'stop' },
-  });
-}
-
-function translateStep(step: TestCaseStep, index: number): TaskStepDefinition {
-  switch (step.kind) {
-    case 'send':
-      return createSendStep(
-        {
-          frameId: step.frameId,
-          targetId: step.targetId,
-          userFieldValues: step.fieldValues as Record<string, string | number | boolean> | undefined,
-        },
-        { id: `step-${index}`, name: `Send ${step.frameId}` },
-      );
-
-    case 'wait-condition': {
-      const conditions: ConditionTerm[] = step.conditions.map((c, ci) => ({
-        frameId: '',
-        fieldId: c.fieldId,
-        operator: c.operator as ConditionTerm['operator'],
-        threshold: c.value as string | number,
-      }));
-      return createWaitConditionStep(
-        {
-          conditions,
-          timeoutMs: step.timeoutMs ?? 5000,
-          onTimeout: 'fail',
-        },
-        { id: `step-${index}`, name: `Wait condition ${index}` },
-      );
-    }
-  }
+/**
+ * TODO: real translation. Until frame feature (parId → frameId/fieldId mapping)
+ * and condition feature are wired up, fall back to the same mock delay step.
+ * Real translation will turn each InputPar into send/wait steps based on a
+ * frame registry lookup; that mapping table does not exist yet.
+ */
+export function translateTestCaseToTaskDefinition(tc: TestCaseInfo): TaskDefinition {
+  return translateTestCaseToMockTaskDefinition(tc);
 }

@@ -80,23 +80,10 @@ export const recentInputColumns: QTableColumn[] = [
 
 export const panelTableColumns: QTableColumn[] = [
   {
-    name: 'frameId',
-    label: '帧',
-    field: (row: Record<string, unknown>) => {
-      const id = String(row.dataItemId ?? '');
-      const sep = id.indexOf(':');
-      return sep > 0 ? id.slice(0, sep) : id;
-    },
-    align: 'left',
-    sortable: true,
-    style: 'min-width: 80px',
-  },
-  {
     name: 'fieldName',
     label: '字段',
     field: 'fieldName',
     align: 'left',
-    sortable: true,
     style: 'min-width: 80px',
   },
   {
@@ -107,11 +94,17 @@ export const panelTableColumns: QTableColumn[] = [
     style: 'min-width: 80px',
   },
   {
-    name: 'updatedAt',
-    label: '更新时间',
-    field: 'updatedAt',
+    name: 'rawHex',
+    label: '原始Hex',
+    field: 'rawHex',
     align: 'left',
-    style: 'min-width: 100px',
+    style: 'min-width: 80px',
+  },
+  {
+    name: '_reorder',
+    label: '',
+    align: 'center',
+    style: 'width: 72px',
   },
 ];
 

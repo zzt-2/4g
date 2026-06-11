@@ -53,8 +53,8 @@ const stepStatuses = computed(() => {
 function formatStepResult(step: TaskStepDefinition, result: TaskStepResult | undefined): string {
   if (!result) return '';
   switch (step.kind) {
-    case 'o_send':
-      return result.kind === 'o_send'
+    case 'send':
+      return result.kind === 'send'
         ? result.sendResult.kind === 'sent' ? '发送成功' : '发送失败'
         : '';
     case 'wait-condition':
@@ -148,7 +148,7 @@ const progressPct = computed(() => {
         label="暂停"
         color="warning"
         size="sm"
-        @click="emit('o_pause')"
+        @click="emit('pause')"
       />
       <q-btn
         v-if="isPaused"
@@ -170,7 +170,7 @@ const progressPct = computed(() => {
         label="停止"
         color="negative"
         size="sm"
-        @click="emit('o_stop')"
+        @click="emit('stop')"
       />
     </div>
   </div>

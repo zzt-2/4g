@@ -1,0 +1,257 @@
+---
+feature: rewrite-send
+doc_type: feature-checklist
+status: draft
+date: 2026-05-06
+design: codestable/features/rewrite-send/rewrite-send-design.md
+
+steps:
+  - id: s1-send-core-types
+    title: "Define send core types in core/"
+    description: |
+      Create pure TypeScript type definitions in features/send/core/:
+      - SendRequest, SendRequestRef, SendContext
+      - FrameBuildInput, FrameBuildOutput, SendBuildIssue
+      - SendResult, SendResultKind, SendError
+      - TargetResolution, TargetResolutionError
+      - SendFieldValue, SendOptions, ChecksumKind
+      - SendStatisticsSnapshot, SendStatsDelta
+      Must not depend on Vue, Pinia, Electron, platform, Node, frame store, connection store.
+    exit_signal: "All types exported from core/; no Vue/Pinia/Electron/platform/Node import; pnpm -C rewrite test passes"
+    validation:
+      - static-scan
+      - vitest-unit
+
+  - id: s2-frame-encoding
+    title: "Implement frame encoding in core/"
+    description: |
+      Implement pure TypeScript frame encoding logic in features/send/core/:
+      - Field value to bytes conversion per data type (uint8/16/32/64, int8/16/32/64, float/double, bool, hex, string, bytes)
+      - Big endian / little endian handling
+      - Offset and length based field placement
+      - Factor multiplication for display values
+      - Byte array assembly from encoded fields
+      - Overflow and truncation detection
+      Must accept ReadonlyFrameAsset + field values as input, output FrameBuildOutput.
+    exit_signal: "Frame encoding tests pass with fixture data covering all data types, endianness, offset/length, factor, overflow"
+    validation:
+      - vitest-unit
+      - fixture-test
+      - oracle-comparison
+
+  - id: s3-checksum-calculation
+    title: "Implement checksum calculation in core/"
+    description: |
+      Implement pure TypeScript checksum calculation:
+      - Sum checksum (sum of bytes mod 256)
+      - XOR checksum
+      - CRC variants as identified from legacy
+      - Extensible checksum interface for future strategies
+      Accept bytes + checksum kind, return checksum value.
+    exit_signal: "Checksum tests pass against legacy oracle data"
+    validation:
+      - vitest-unit
+      - fixture-test
+      - oracle-comparison
+
+  - id: s4-request-validation
+    title: "Implement send request validation in core/"
+    description: |
+      Implement pure TypeScript request validation:
+      - Required fields present (frameId, targetId)
+      - Field values complete for required fields
+      - Field value type compatibility with field definition data type
+      - Options within valid ranges
+      Return validation issues without side effects.
+    exit_signal: "Validation tests pass for valid, missing-field, wrong-type, extra-field cases"
+    validation:
+      - vitest-unit
+
+  - id: s5-send-service
+    title: "Implement send service"
+    description: |
+      Create features/send/services/ with send service:
+      - Accept SendRequest
+      - Validate request
+      - Resolve frame snapshot via injected FrameAssetReader
+      - Build frame via core encoding
+      - Resolve target via injected ConnectionReader/ConnectionService
+      - Execute transport write via injected ConnectionService
+      - Return SendResult
+      - Emit SendResult event for consumers
+      - Update statistics read model
+      Dependencies injected via constructor/factory: FrameAssetReader, ConnectionService, ConnectionReader.
+    exit_signal: "Service tests pass using fake frame provider and fake connection writer; full lifecycle covered"
+    validation:
+      - vitest-unit
+      - fake-adapter-test
+
+  - id: s6-send-state-and-selectors
+    title: "Implement send state and selectors"
+    description: |
+      Create features/send/state/ and features/send/selectors/:
+      - Send runtime facts (idle/sending/error status)
+      - Send statistics read model (counters by frame/target/result-kind)
+      - Recent send results (bounded window)
+      - Selectors: selectSendStatistics, selectSendResults, selectSendSnapshot, selectSendStatus
+      State must not store frame/connection/task/SCOE internal state.
+      Selectors must return immutable snapshots only.
+    exit_signal: "State and selector tests pass; snapshot immutability verified; no cross-feature state"
+    validation:
+      - vitest-unit
+
+  - id: s7-send-public-api
+    title: "Assemble send public API at feature root index.ts"
+    description: |
+      Export from features/send/index.ts:
+      - Core types (SendRequest, SendResult, SendStatisticsSnapshot, etc.)
+      - Send service factory and interface
+      - Selectors
+      Must not export mutable state, internal service instances, fake adapter defaults, or internal state creators.
+    exit_signal: "Boundary rg check passes; no internal state/mutable export; consumers can import from index.ts"
+    validation:
+      - static-scan
+
+  - id: s8-fixtures-and-oracle
+    title: "Create send fixtures and legacy oracle"
+    description: |
+      Create in features/send/fixtures/:
+      - frame-snapshots/: preset ReadonlyFrameAsset fixtures for send-direction frames
+      - build-cases/: frame + field values → expected bytes pairs
+      - checksum-cases/: bytes + checksum kind → expected checksum pairs
+      - legacy-oracle/: old frameInstancesUtils output as golden comparison
+      - target-cases/: target resolution input/output pairs
+    exit_signal: "Fixture files created; build/checksum cases cover all data types and strategies; legacy oracle loadable"
+    validation:
+      - fixture-test
+      - oracle-comparison
+
+  - id: s9-fake-adapters
+    title: "Create fake frame provider and fake connection writer"
+    description: |
+      Create test adapters:
+      - FakeFrameSnapshotProvider: returns preset frame assets, empty, invalid references
+      - FakeConnectionWriter: accepts write requests, returns preset success/failure/timeout/unavailable, records all calls
+    exit_signal: "Fake adapters usable in service tests; no real platform/Electron dependency"
+    validation:
+      - vitest-unit
+      - fake-adapter-test
+
+  - id: s10-integration-with-frame-connection
+    title: "Verify send integration with frame and connection public APIs"
+    description: |
+      Integration verification:
+      - send consumes frame FrameAssetReader correctly
+      - send consumes connection ConnectionService/ConnectionReader correctly
+      - No import of frame/connection internal subpaths
+      - No circular dependency
+      This step uses the actual frame and connection public APIs, not fakes.
+    exit_signal: "Integration test passes with real frame reader and connection service (or their accepted public interfaces)"
+    validation:
+      - vitest-unit
+      - static-scan
+
+checks:
+  - id: c1-no-vue-pinia-electron-in-core
+    title: "core/ has no Vue/Pinia/Electron/platform/Node dependency"
+    validation:
+      - static-scan
+    severity: critical
+
+  - id: c2-no-cross-feature-internal-import
+    title: "send does not import frame/connection/task/SCOE/status/result/report internal subpaths"
+    validation:
+      - static-scan
+    severity: critical
+
+  - id: c3-no-scoe-hardcode
+    title: "send does not hardcode SCOE target, northbound, or report semantics"
+    validation:
+      - static-scan
+    severity: critical
+
+  - id: c4-stats-not-in-frame
+    title: "send statistics read model does not write back to frame definition or field definition"
+    validation:
+      - static-scan
+      - vitest-unit
+    severity: high
+
+  - id: c5-public-api-no-mutable
+    title: "feature root index.ts does not export mutable state, internal instances, or fake defaults"
+    validation:
+      - static-scan
+    severity: high
+
+  - id: c6-send-result-not-task-result
+    title: "SendResult is transport-level, not task result or report"
+    validation:
+      - code-review
+    severity: high
+
+  - id: c7-task-does-not-appear-in-send-core
+    title: "send/core/ and send/services/ do not reference task types or task state"
+    validation:
+      - static-scan
+    severity: high
+
+  - id: c8-encoding-coverage
+    title: "Frame encoding covers all data types from frame design: uint/int/float/bool/hex/string/bytes with endianness"
+    validation:
+      - vitest-unit
+      - fixture-test
+    severity: medium
+
+  - id: c9-checksum-coverage
+    title: "Checksum covers all strategies identified from legacy"
+    validation:
+      - vitest-unit
+      - oracle-comparison
+    severity: medium
+
+  - id: c10-fake-adapter-no-real-platform
+    title: "Fake adapters do not depend on real platform, Electron, serialport, or socket"
+    validation:
+      - static-scan
+    severity: medium
+
+  - id: c11-selector-immutability
+    title: "Selectors return immutable snapshots, not mutable references"
+    validation:
+      - vitest-unit
+    severity: medium
+
+  - id: c12-manual-page-entry
+    title: "/frames/send page entry and sidebar navigation reachable"
+    validation:
+      - manual-checklist
+    severity: medium
+    deferred: true
+
+  - id: c13-manual-send-ui
+    title: "Send frame selection, field input, target selection, send button and result display work"
+    validation:
+      - manual-checklist
+    severity: medium
+    deferred: true
+
+  - id: c14-hardware-send
+    title: "Real target send: build → connection write → transport success verified on hardware"
+    validation:
+      - hardware-validation
+    severity: high
+    deferred: true
+
+  - id: c15-hardware-send-failure
+    title: "Send failure scenarios verified on hardware: disconnect, target unavailable, transport error"
+    validation:
+      - hardware-validation
+    severity: medium
+    deferred: true
+
+  - id: c16-runtime-send-queue
+    title: "Write queue behavior under rapid fire verified with runtime evidence"
+    validation:
+      - runtime-validation
+    severity: medium
+    deferred: true

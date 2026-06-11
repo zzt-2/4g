@@ -1,8 +1,6 @@
 import type {
-  ChartInstancePreference,
-  ChartInstanceProjection,
-  ChartSeriesProjection,
   DisplayFieldMaterial,
+  DisplayGroupConfig,
   DisplayPreferences,
   DisplayProjection,
   ScatterDisplayPreference,
@@ -15,72 +13,48 @@ export function projectTableRows(
   fields: readonly DisplayFieldMaterial[],
   selectedGroupId: string,
   selectedItems: readonly string[],
+  fieldOrder?: readonly string[],
 ): TableRowProjection[] {
   const filtered = selectedGroupId
     ? fields.filter((f) => f.groupId === selectedGroupId)
     : fields;
 
-  if (selectedItems.length === 0) {
-    return filtered.map(toRow);
+  const rows = selectedItems.length === 0
+    ? filtered.map(toRow)
+    : (() => {
+        const itemSet = new Set(selectedItems);
+        return filtered.filter((f) => itemSet.has(f.dataItemId)).map(toRow);
+      })();
+
+  if (fieldOrder && fieldOrder.length > 0) {
+    const orderMap = new Map(fieldOrder.map((id, i) => [id, i]));
+    rows.sort((a, b) => {
+      const ai = orderMap.get(a.dataItemId) ?? Infinity;
+      const bi = orderMap.get(b.dataItemId) ?? Infinity;
+      return ai - bi;
+    });
   }
 
-  const itemSet = new Set(selectedItems);
-  return filtered.filter((f) => itemSet.has(f.dataItemId)).map(toRow);
+  return rows;
 }
 
 function toRow(f: DisplayFieldMaterial): TableRowProjection {
+  // R19: fieldName is NOT projected from material — UI must resolve from frameReader.
+  // TableRowProjection.fieldName is optional; consumers enrich via frameReader lookup.
   return {
     groupId: f.groupId,
     dataItemId: f.dataItemId,
-    fieldName: f.fieldName,
     value: f.value,
     displayValue: f.displayValue,
+    ...(f.rawHex != null ? { rawHex: f.rawHex } : {}),
     ...(f.updatedAt ? { updatedAt: f.updatedAt } : {}),
   };
 }
 
 /**
  * Project chart series from selected items.
- * selectedItems use composite key format "groupId:dataItemId".
- * Points are always empty — display does not accumulate time-series history.
+ * Chart time-series accumulation lives in useDisplayRefresh composable.
  */
-export function projectChartSeries(
-  fields: readonly DisplayFieldMaterial[],
-  selectedItems: readonly string[],
-): ChartSeriesProjection[] {
-  if (selectedItems.length === 0) {
-    return [];
-  }
-
-  const fieldMap = new Map<string, DisplayFieldMaterial>();
-  for (const f of fields) {
-    fieldMap.set(`${f.groupId}:${f.dataItemId}`, f);
-  }
-
-  const result: ChartSeriesProjection[] = [];
-
-  for (const fieldId of selectedItems) {
-    const field = fieldMap.get(fieldId);
-    result.push({
-      fieldId,
-      fieldName: field?.fieldName ?? fieldId,
-      points: [],
-    });
-  }
-
-  return result;
-}
-
-export function projectChartInstances(
-  fields: readonly DisplayFieldMaterial[],
-  charts: readonly ChartInstancePreference[],
-): ChartInstanceProjection[] {
-  return charts.map((chart) => ({
-    id: chart.id,
-    series: projectChartSeries(fields, chart.selectedItems),
-  }));
-}
-
 export function projectScatter(
   fields: readonly DisplayFieldMaterial[],
   preference: ScatterDisplayPreference,
@@ -117,14 +91,33 @@ function findFieldByBinding(
   );
 }
 
+function resolveFieldOrder(
+  groups: readonly DisplayGroupConfig[],
+  selectedGroupId: string,
+): readonly string[] | undefined {
+  if (!selectedGroupId) return undefined;
+  const group = groups.find((g) => g.id === selectedGroupId);
+  if (!group) return undefined;
+  const orders = group.frames
+    .filter((f) => f.fieldOrder && f.fieldOrder.length > 0)
+    .flatMap((f) => f.fieldOrder!);
+  return orders.length > 0 ? orders : undefined;
+}
+
 export function computeDisplayProjection(
   fields: readonly DisplayFieldMaterial[],
   preferences: DisplayPreferences,
 ): DisplayProjection {
+  const groups = preferences.groups ?? [];
   return {
-    table1Rows: projectTableRows(fields, preferences.table1.selectedGroupId, preferences.table1.selectedItems),
-    table2Rows: projectTableRows(fields, preferences.table2.selectedGroupId, preferences.table2.selectedItems),
-    charts: projectChartInstances(fields, preferences.charts),
+    table1Rows: projectTableRows(
+      fields, preferences.table1.selectedGroupId, preferences.table1.selectedItems,
+      resolveFieldOrder(groups, preferences.table1.selectedGroupId),
+    ),
+    table2Rows: projectTableRows(
+      fields, preferences.table2.selectedGroupId, preferences.table2.selectedItems,
+      resolveFieldOrder(groups, preferences.table2.selectedGroupId),
+    ),
     scatter: projectScatter(fields, preferences.scatter),
   };
 }

@@ -3,8 +3,12 @@ import type {
   TaskDefinition,
   TaskInstanceState,
   TaskStepResult,
+  TaskTemplate,
+  TaskEventHandlers,
+  TaskLifecycleStatus,
+  Unsubscribe,
 } from '../core';
-import { isStepResultFailed } from '../core';
+import { isStepResultFailed, isTerminal } from '../core';
 import { deepClone } from '@/shared/utils/deep-clone';
 
 const MAX_HISTORY = 50;
@@ -39,7 +43,11 @@ export type ReadonlyTaskStateSnapshot = ReadonlyDeep<TaskStateSnapshot>;
 
 export interface TaskStateContainer {
   getSnapshot(): TaskStateSnapshot;
-  createInstance(instanceId: string, definition: TaskDefinition): TaskInstanceState;
+  createInstance(
+    instanceId: string,
+    definition: TaskDefinition,
+    templateId?: string,
+  ): TaskInstanceState;
   updateInstance(
     instanceId: string,
     updates: Partial<Omit<TaskInstanceState, 'instanceId'>>,
@@ -49,6 +57,11 @@ export interface TaskStateContainer {
   getInstance(instanceId: string): TaskInstanceState | undefined;
   moveToHistory(instanceId: string): TaskInstanceState | undefined;
   resetStats(): TaskStateSnapshot;
+  listTemplates(): readonly TaskTemplate[];
+  getTemplate(templateId: string): TaskTemplate | undefined;
+  upsertTemplate(template: TaskTemplate): TaskTemplate;
+  removeTemplate(templateId: string): boolean;
+  subscribe(handlers: TaskEventHandlers): Unsubscribe;
 }
 
 function emptyStatistics(): TaskStatisticsSnapshot {
@@ -70,6 +83,8 @@ export function createTaskState(
   initialValue?: { readonly snapshot?: ReadonlyTaskStateSnapshot },
 ): TaskStateContainer {
   const instances = new Map<string, TaskInstanceState>();
+  const templates = new Map<string, TaskTemplate>();
+  const subscribers = new Set<TaskEventHandlers>();
   let history: TaskInstanceState[] = [];
   let statistics = emptyStatistics();
 
@@ -79,6 +94,42 @@ export function createTaskState(
     }
     history = initialValue.snapshot.history.map(deepClone);
     statistics = { ...initialValue.snapshot.statistics };
+  }
+
+  // --- Event dispatch (错误隔离：单个 subscriber 失败不影响其他) ---
+
+  function emitStepResult(instanceId: string, result: TaskStepResult): void {
+    for (const handlers of subscribers) {
+      try {
+        handlers.onStepResult?.(instanceId, result);
+      } catch (err) {
+        console.error('[task] onStepResult subscriber error', err);
+      }
+    }
+  }
+
+  function emitTaskLifecycleChange(
+    instanceId: string,
+    from: TaskLifecycleStatus,
+    to: TaskLifecycleStatus,
+  ): void {
+    for (const handlers of subscribers) {
+      try {
+        handlers.onTaskLifecycleChange?.(instanceId, from, to);
+      } catch (err) {
+        console.error('[task] onTaskLifecycleChange subscriber error', err);
+      }
+    }
+  }
+
+  function emitTaskSettled(instanceId: string, lifecycle: TaskLifecycleStatus): void {
+    for (const handlers of subscribers) {
+      try {
+        handlers.onTaskSettled?.(instanceId, lifecycle);
+      } catch (err) {
+        console.error('[task] onTaskSettled subscriber error', err);
+      }
+    }
   }
 
   function getSnapshot(): TaskStateSnapshot {
@@ -92,7 +143,7 @@ export function createTaskState(
   return {
     getSnapshot,
 
-    createInstance(instanceId, definition) {
+    createInstance(instanceId, definition, templateId) {
       const instance: TaskInstanceState = {
         instanceId,
         definitionRef: definition,
@@ -100,6 +151,7 @@ export function createTaskState(
         currentStepIndex: 0,
         currentIteration: 0,
         stepResults: [],
+        ...(templateId ? { templateId } : {}),
       };
       instances.set(instanceId, instance);
       statistics = { ...statistics, totalCreated: statistics.totalCreated + 1 };
@@ -122,6 +174,17 @@ export function createTaskState(
         statistics = { ...statistics, totalStopped: statistics.totalStopped + 1 };
       } else if (updates.lifecycle === 'failed') {
         statistics = { ...statistics, totalFailed: statistics.totalFailed + 1 };
+      }
+
+      // 事件分发：lifecycle 变化触发 onTaskLifecycleChange + 终态 onTaskSettled
+      if (
+        updates.lifecycle !== undefined &&
+        updates.lifecycle !== existing.lifecycle
+      ) {
+        emitTaskLifecycleChange(instanceId, existing.lifecycle, updated.lifecycle);
+        if (isTerminal(updated.lifecycle)) {
+          emitTaskSettled(instanceId, updated.lifecycle);
+        }
       }
 
       return deepClone(updated);
@@ -161,7 +224,9 @@ export function createTaskState(
         totalStepsSkipped: statistics.totalStepsSkipped + (isSkipped ? 1 : 0),
       };
 
-      return deepClone(updated);
+      const snapshot = deepClone(updated);
+      emitStepResult(instanceId, deepClone(result));
+      return snapshot;
     },
 
     getInstance(instanceId) {
@@ -180,6 +245,31 @@ export function createTaskState(
     resetStats() {
       statistics = emptyStatistics();
       return getSnapshot();
+    },
+
+    listTemplates() {
+      return [...templates.values()].map(deepClone);
+    },
+
+    getTemplate(templateId) {
+      const existing = templates.get(templateId);
+      return existing ? deepClone(existing) : undefined;
+    },
+
+    upsertTemplate(template) {
+      templates.set(template.templateId, deepClone(template));
+      return deepClone(template);
+    },
+
+    removeTemplate(templateId) {
+      return templates.delete(templateId);
+    },
+
+    subscribe(handlers) {
+      subscribers.add(handlers);
+      return () => {
+        subscribers.delete(handlers);
+      };
     },
   };
 }

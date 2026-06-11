@@ -1,0 +1,96 @@
+feature: 2026-06-11-display-group-management
+created: 2026-06-11
+
+steps:
+  - action: "名词层：新增 DisplayGroupConfig / DisplayGroupFrameEntry / GroupOption 类型 + defaults + normalization + normalize patch-apply 传播"
+    exit_signal: "pnpm build 通过，已有 display 测试不受影响"
+    status: done
+
+  - action: "编排骨架：实现 buildFrameGroupLookup 纯函数 + bridge 改造"
+    exit_signal: "新纯函数测试 + bridge 测试通过（空 groups / 有映射 / 无映射 / 部分可见 / 全部不可见）"
+    status: done
+
+  - action: "持久化：display preferences 持久化接入 runtime/persistence.ts"
+    exit_signal: "save + load round-trip 测试通过"
+    status: done
+
+  - action: "静态结构：GroupConfigDialog 组件骨架 + DisplayPanel 设置按钮 + GroupOption props"
+    exit_signal: "点击设置按钮弹出空弹窗，分组下拉显示 label"
+    status: done
+
+  - action: "交互逻辑：分组 CRUD + 接收帧分配 + 字段勾选"
+    exit_signal: "创建分组 → 添加接收帧 → 勾选字段 → 保存 → 展示区域按分组过滤"
+    status: done
+
+  - action: "联调收尾：DisplayPage 接线 + index.ts 导出 + build + lint + 全部测试"
+    exit_signal: "pnpm build && pnpm lint && pnpm test 全通过"
+    status: done
+
+checks:
+  - item: "DisplayGroupConfig 含 id / label / frames，DisplayGroupFrameEntry 含 frameId / visibleFieldIds"
+    source: 名词契约
+    status: pass
+
+  - item: "buildFrameGroupLookup 返回 Map<frameId, {groupId, visibleFieldIds}>，空输入返回空 Map"
+    source: 名词契约
+    status: pass
+
+  - item: "bridge 未映射帧保持 groupId=frameId，映射帧按 visibleFieldIds 过滤并 remap groupId"
+    source: 编排骨架
+    status: pass
+
+  - item: "applyDisplayPreferencesPatch 正确传播 groups 字段（patch.groups ?? current.groups）"
+    source: 编排骨架
+    status: pass
+
+  - item: "GroupConfigDialog 只消费 direction='receive' 的帧"
+    source: 挂载点
+    status: pass
+
+  - item: "DisplayPanel 新增 openGroupConfig emit 和设置按钮"
+    source: 挂载点
+    status: pass
+
+  - item: "display preferences 持久化读写正常，重启后分组配置恢复"
+    source: 挂载点
+    status: pass
+
+  - item: "代码中不出现 send 帧分组引用"
+    source: 范围守护
+    status: pass
+
+  - item: "不新建独立 group service 或 group state container"
+    source: 范围守护
+    status: pass
+
+  - item: "不引入旧系统 DataGroup / DataItem / FrameFieldMapping 类型"
+    source: 范围守护
+    status: pass
+
+  - item: "projection 层函数签名和逻辑无变化"
+    source: 范围守护
+    status: pass
+
+  - item: "创建分组 → 分组出现在列表，DisplayPreferences.groups 含新条目"
+    source: 验收场景
+    status: pass
+
+  - item: "删除有帧分组 → 二次确认 → 分组和映射移除"
+    source: 验收场景
+    status: pass
+
+  - item: "勾选可见字段 → bridge 输出只含勾选字段，未勾选字段不输出"
+    source: 验收场景
+    status: pass
+
+  - item: "未分组帧 → 所有字段 groupId=frameId（当前行为不变）"
+    source: 验收场景
+    status: pass
+
+  - item: "展示下拉选择分组 → 只显示该分组可见字段的数据行"
+    source: 验收场景
+    status: pass
+
+  - item: "帧定义改字段后 → 分组可选字段列表自动更新（热更新）"
+    source: 验收场景
+    status: pass

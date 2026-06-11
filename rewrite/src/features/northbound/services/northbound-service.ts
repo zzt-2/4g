@@ -18,8 +18,11 @@ import {
 import type {
   SetTestTaskRequest,
   ControlTestTaskRequest,
+  ControlTestTaskResponse,
   CustomerResponse,
   ExecutionPlanLayer,
+  ExecutionPlanNode,
+  CaseSet,
   TestCaseInfo,
   InboundEnvelope,
   EnvelopeConfig,
@@ -31,6 +34,7 @@ import type {
   OutboundEnvelope,
   SigReportDevice,
   GetTestCaseAllRequest,
+  SetParsRequest,
 } from '../core/types';
 import { generateTestReport } from '../core/test-report-generator';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
@@ -79,6 +83,7 @@ export interface NorthboundService {
   isActive(): boolean;
   getSessionStatus(): NorthboundSessionSnapshot;
   handleStepResult(instanceId: string, result: TaskStepResult): void;
+  handleTaskSettled(instanceId: string): void;
   reportDeviceInfo(items: readonly DeviceInfoItem[]): Promise<void>;
   reportDeviceAlarm(items: readonly DeviceAlarmItem[]): Promise<void>;
   reportSubSysAlarm(items: readonly SubSysAlarmItem[]): Promise<void>;
@@ -93,6 +98,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
   const state: NorthboundStateContainer = createNorthboundState();
   let serverId: string | null = null;
   let requestUnsub: (() => void) | null = null;
+  let taskEventUnsub: (() => void) | null = null;
   let activeConfig: NorthboundConfig | null = null;
   let authService: AuthService | null = null;
   let heartbeatTimer: HeartbeatTimer = createHeartbeatTimer();
@@ -110,7 +116,8 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
   async function postToCustomer(path: string, body: unknown): Promise<void> {
     if (!activeConfig || !authService) return;
-    const url = `${activeConfig.customerBaseUrl}${path}`;
+    const base = activeConfig.customerBaseUrl.replace(/\/+$/, '');
+    const url = `${base}${path}`;
     console.log(`[northbound → 甲方] POST ${url}`, body);
     try {
       const token = await authService.ensureToken();
@@ -137,14 +144,16 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     if (!testCaseId) return;
 
     const verdict = options.resultService.collectResult(instance);
-    const taskId = instanceId;
-    const report = translateTaskResult(instance, verdict, testCaseId, taskId, envelopeConfig());
-    await postToCustomer('/report/testCaseResultReport', report);
+    // P2.1: echo customer-issued taskId (T_xxx), not local instanceId.
+    const customerTaskId = state.getCustomerTaskId(instanceId) ?? instanceId;
+    const report = translateTaskResult(instance, verdict, testCaseId, customerTaskId, envelopeConfig());
+    await postToCustomer('/admin/report/testCaseResultReport', report);
 
     // Generate TestReport, upload FTP, notify customer (R11: failure doesn't affect verdict)
-    await uploadTestReportAndNotify(instance, verdict, testCaseId, taskId);
+    await uploadTestReportAndNotify(instance, verdict, testCaseId, customerTaskId);
 
     state.removeMapping(testCaseId);
+    state.removeTaskIdMapping(instanceId);
   }
 
   async function uploadTestReportAndNotify(
@@ -200,7 +209,17 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     if (!testCaseId) return;
 
     const report = translateStepResult(instance, result, testCaseId, instanceId, envelopeConfig());
-    postToCustomer('/report/msgReport', report);
+    postToCustomer('/admin/report/msgReport', report);
+  }
+
+  // --- Task settled event handler (事件驱动替代 await onSettled) ---
+
+  function handleTaskSettled(instanceId: string): void {
+    // fire-and-forget；reportTaskResult 内部已处理 HTTP 失败重试
+    // 但同步阶段（translator/getInstance/collectResult）抛错会冒成 unhandled rejection，这里兜底
+    void reportTaskResult(instanceId).catch((err) => {
+      console.error('[northbound] reportTaskResult failed', err);
+    });
   }
 
   // --- Inbound helpers ---
@@ -258,75 +277,115 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       return buildResponse(envelope, 2, 'Missing executionPlan.layers');
     }
 
-    const sortedLayers = [...layers].sort((a, b) => a.layerNo - b.layerNo);
-    processLayers(sortedLayers).catch(() => {});
+    const customerTaskId = parsed.taskId ?? '';
+    const sortedLayers = [...layers].sort((a, b) => a.layer - b.layer);
+    processLayers(sortedLayers, parsed, customerTaskId).catch(() => {});
 
     return buildResponse(envelope, 1, 'ok');
   }
 
-  async function processLayers(layers: ExecutionPlanLayer[]): Promise<void> {
+  async function processLayers(
+    layers: readonly ExecutionPlanLayer[],
+    request: SetTestTaskRequest,
+    customerTaskId: string,
+  ): Promise<void> {
+    // HAR-aligned: testCaseInfo lives at the request top level (not inside layers).
+    // Build an id index once per setTestTask so node lookups stay O(1).
+    const tcById = new Map<string, TestCaseInfo>();
+    for (const tc of request.testCaseInfo ?? []) {
+      tcById.set(tc.testCaseId, tc);
+    }
+    const caseSetById = new Map<string, CaseSet>();
+    for (const cs of request.executionPlan?.caseSets ?? []) {
+      caseSetById.set(cs.id, cs);
+    }
+
+    // Expand a layer node into the concrete TestCaseInfo list it resolves to.
+    // type='case'    → look up the testCase directly.
+    // type='caseSet' → look up the caseSet, then each member case in testCaseInfo.
+    const resolveNode = (node: ExecutionPlanNode): TestCaseInfo[] => {
+      if (node.type === 'case') {
+        const tc = tcById.get(node.id);
+        return tc ? [tc] : [];
+      }
+      const cs = caseSetById.get(node.id);
+      if (!cs) return [];
+      const resolved: TestCaseInfo[] = [];
+      for (const member of cs.cases) {
+        const tc = tcById.get(member.id);
+        if (tc) resolved.push(tc);
+      }
+      return resolved;
+    };
+
     for (const layer of layers) {
       if (layer.parallel) {
-        const tasks = layer.testCaseInfoList
-          .filter(tc => !state.hasTestCase(tc.testCaseId))
-          .map(tc => createAndStartTask(tc));
-
-        await Promise.all(tasks.map(t => t.then(async ({ instanceId }) => {
-          await options.taskService.onSettled(instanceId);
-          await reportTaskResult(instanceId);
-        })));
+        // 并发启动；reportTaskResult 由 onTaskSettled 事件触发
+        const tasks: Promise<{ readonly instanceId: string }>[] = [];
+        for (const node of layer.nodes) {
+          for (const tc of resolveNode(node)) {
+            if (state.hasTestCase(tc.testCaseId)) continue;
+            tasks.push(createAndStartTask(tc, customerTaskId));
+          }
+        }
+        await Promise.all(tasks);
       } else {
-        for (const tc of layer.testCaseInfoList) {
-          if (state.hasTestCase(tc.testCaseId)) continue;
+        // 顺序：等前一个终态才启动下一个；reportTaskResult 由 onTaskSettled 事件触发
+        for (const node of layer.nodes) {
+          for (const tc of resolveNode(node)) {
+            if (state.hasTestCase(tc.testCaseId)) continue;
 
-          const { instanceId } = await createAndStartTask(tc);
-          await options.taskService.onSettled(instanceId);
-          await reportTaskResult(instanceId);
+            const { instanceId } = await createAndStartTask(tc, customerTaskId);
+            await options.taskService.onSettled(instanceId);
+          }
         }
       }
     }
   }
 
-  async function createAndStartTask(tc: TestCaseInfo): Promise<{ readonly instanceId: string }> {
+  async function createAndStartTask(
+    tc: TestCaseInfo,
+    customerTaskId: string,
+  ): Promise<{ readonly instanceId: string }> {
     const def = translateTestCaseToMockTaskDefinition(tc);
     const instance = options.taskService.createTask(def);
     state.mapTestCase(tc.testCaseId, instance.instanceId);
+    if (customerTaskId) {
+      // P2.1: remember the customer-issued taskId so testCaseResultReport can echo it.
+      state.mapTaskId(instance.instanceId, customerTaskId);
+    }
     options.taskService.startTask(instance.instanceId);
     return { instanceId: instance.instanceId };
   }
 
-  async function handleControlTestTask(body: unknown, envelope: InboundEnvelope): Promise<CustomerResponse> {
-    let parsed: ControlTestTaskRequest;
-    try {
-      parsed = body as ControlTestTaskRequest;
-    } catch {
-      return buildResponse(envelope, 2, 'Invalid request body');
+  async function handleControlTestTask(body: unknown, envelope: InboundEnvelope): Promise<ControlTestTaskResponse> {
+    const parsed = body as ControlTestTaskRequest;
+    const taskId = parsed.taskId;
+    if (!taskId) {
+      // buildResponse emits method=`${envelope.method}Response` per V1.0.4 envelope convention.
+      return { ...buildResponse(envelope, 2, 'Missing taskId'), taskId: '', handleCode: 2 } as ControlTestTaskResponse;
     }
 
-    const { testCaseIdList, controlType } = parsed;
-    if (!Array.isArray(testCaseIdList) || testCaseIdList.length === 0) {
-      return buildResponse(envelope, 2, 'Missing testCaseIdList');
+    // P2.1: resolve instanceId via the customer-issued taskId (T_xxx), not testCaseId.
+    const instanceId = state.getInstanceIdByCustomerTaskId(taskId);
+    if (!instanceId) {
+      return { ...buildResponse(envelope, 1, 'ok'), taskId, handleCode: 1 } as ControlTestTaskResponse;
     }
 
-    for (const testCaseId of testCaseIdList) {
-      const instanceId = state.getInstanceId(testCaseId);
-      if (!instanceId) continue;
-
-      switch (controlType) {
-        case 'abort':
-        case 'stop':
-          options.taskService.stopTask(instanceId);
-          break;
-        case 'pause':
-          options.taskService.pauseTask(instanceId);
-          break;
-        case 'continue':
-          options.taskService.resumeTask(instanceId);
-          break;
-      }
+    switch (parsed.action) {
+      case 'stop':
+      case 'abort':
+        options.taskService.stopTask(instanceId);
+        break;
+      case 'pause':
+        options.taskService.pauseTask(instanceId);
+        break;
+      case 'continue':
+        options.taskService.resumeTask(instanceId);
+        break;
     }
 
-    return buildResponse(envelope, 1, 'ok');
+    return { ...buildResponse(envelope, 1, 'ok'), taskId, handleCode: 0 } as ControlTestTaskResponse;
   }
 
   function handleHeartbeatInbound(envelope: InboundEnvelope): CustomerResponse {
@@ -409,7 +468,23 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     };
   }
 
-  function handleSetPars(envelope: InboundEnvelope): CustomerResponse {
+  function handleSetPars(body: Record<string, unknown>, envelope: InboundEnvelope): CustomerResponse {
+    // V1.0.4 setPars: if pars[] contains heartbeatTimer, restart the heartbeat with the new interval.
+    // Unit: seconds (per V1.0.4 spec).
+    const parsed = body as SetParsRequest;
+    const heartbeatPar = parsed.pars?.find(p => p.parId === 'heartbeatTimer');
+    if (heartbeatPar && activeConfig) {
+      const newInterval = Number(heartbeatPar.value);
+      if (Number.isFinite(newInterval) && newInterval > 0) {
+        // HeartbeatTimer has no restart(); stop + start with the new interval.
+        heartbeatTimer.stop();
+        heartbeatTimer.start(
+          activeConfig.subSysId,
+          newInterval,
+          (b) => postToCustomer('/admin/subSystem/heartbeat', b),
+        );
+      }
+    }
     return buildResponse(envelope, 1, 'ok');
   }
 
@@ -510,7 +585,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
           response = buildResponse(envelope, 2, 'Method not allowed');
           break;
         }
-        response = handleSetPars(envelope);
+        response = handleSetPars(body, envelope);
         break;
 
       case 'dataTransmit':
@@ -564,7 +639,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     heartbeatTimer.start(
       config.subSysId,
       15,
-      (body) => postToCustomer('/subSystem/heartbeat', body),
+      (body) => postToCustomer('/admin/subSystem/heartbeat', body),
     );
 
     requestUnsub = options.httpFacade.onRequest(serverId, async (req) => {
@@ -575,6 +650,13 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
         return jsonResponse(buildResponse(errEnvelope, 2, 'Internal error'), 500);
       }
     });
+
+    // 订阅 task 事件：onStepResult → msgReport, onTaskSettled → testCaseResultReport
+    if (taskEventUnsub) taskEventUnsub();
+    taskEventUnsub = options.taskService.subscribe({
+      onStepResult: (instanceId, result) => handleStepResult(instanceId, result),
+      onTaskSettled: (instanceId) => handleTaskSettled(instanceId),
+    });
   }
 
   async function stop(): Promise<void> {
@@ -582,6 +664,10 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     if (requestUnsub) {
       requestUnsub();
       requestUnsub = null;
+    }
+    if (taskEventUnsub) {
+      taskEventUnsub();
+      taskEventUnsub = null;
     }
     if (serverId) {
       await options.httpFacade.stopServer(serverId);
@@ -603,38 +689,39 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
   async function reportDeviceInfo(items: readonly DeviceInfoItem[]): Promise<void> {
     const report = translateDeviceInfoReport(items, envelopeConfig());
-    await postToCustomer('/deviceInfo/deviceInfoReport', report);
+    await postToCustomer('/admin/deviceInfo/deviceInfoReport', report);
   }
 
   async function reportDeviceAlarm(items: readonly DeviceAlarmItem[]): Promise<void> {
     const report = translateDeviceAlarmReport(items, envelopeConfig());
-    await postToCustomer('/deviceInfo/deviceAlarmReport', report);
+    await postToCustomer('/admin/deviceInfo/deviceAlarmReport', report);
   }
 
   async function reportSubSysAlarm(items: readonly SubSysAlarmItem[]): Promise<void> {
     const report = translateSubSysAlarmReport(items, envelopeConfig());
-    await postToCustomer('/subSystem/subSysAlarmReport', report);
+    await postToCustomer('/admin/subSystem/subSysAlarmReport', report);
   }
 
   async function reportTestDataFileComplete(file: Omit<TestDataFileCompleteOutbound, keyof OutboundEnvelope>): Promise<void> {
     const report = translateTestDataFileComplete(file, envelopeConfig());
-    await postToCustomer('/report/testDataFileTranslationComplete', report);
+    await postToCustomer('/admin/report/testDataFileTranslationComplete', report);
   }
 
   async function reportFileTranslationComplete(file: Omit<FileTranslationCompleteOutbound, keyof OutboundEnvelope>): Promise<void> {
     const report = translateFileTranslationComplete(file, envelopeConfig());
-    await postToCustomer('/report/fileTranslationComplete', report);
+    await postToCustomer('/admin/report/fileTranslationComplete', report);
   }
 
   async function reportSigReport(data: readonly SigReportDevice[], taskId: string, testCaseId: string): Promise<void> {
     const report = translateSigReport(data, taskId, testCaseId, envelopeConfig());
-    await postToCustomer('/report/sigReport', report);
+    await postToCustomer('/admin/report/sigReport', report);
   }
 
   return {
     start, stop, isActive,
     getSessionStatus: () => state.getSnapshot(),
     handleStepResult,
+    handleTaskSettled,
     reportDeviceInfo,
     reportDeviceAlarm,
     reportSubSysAlarm,

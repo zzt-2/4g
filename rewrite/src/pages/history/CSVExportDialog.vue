@@ -56,7 +56,11 @@ async function exportCsv(): Promise<void> {
     const channels = new Set<string>();
     const fieldKeys: string[] = [];
     for (const fieldId of props.selectedItems) {
-      const [channel, key] = fieldId.split(':');
+      // history composite id: `${channel}:${storageKey}` — split on first ':' only (storageKey may contain ':')
+      const sep = fieldId.indexOf(':');
+      if (sep === -1) continue;
+      const channel = fieldId.slice(0, sep);
+      const key = fieldId.slice(sep + 1);
       channels.add(channel);
       fieldKeys.push(key);
     }

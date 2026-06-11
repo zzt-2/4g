@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createNorthboundService, type NorthboundServiceOptions, type NorthboundConfig, type FtpFacade } from '../services/northbound-service';
 import type { TaskService } from '@/features/task';
 import type { ResultService } from '@/features/result';
 import type { HttpFacade, HttpResponse } from '@/platform';
-import type { TaskInstanceState, TaskDefinition, TaskStepResult } from '@/features/task/core';
+import type { TaskInstanceState, TaskDefinition, TaskStepResult, TaskEventHandlers } from '@/features/task/core';
 import type { CaseVerdict } from '@/features/result';
 
 // ---------------------------------------------------------------------------
@@ -31,9 +31,15 @@ function makeMockInstance(overrides?: Partial<TaskInstanceState>): TaskInstanceS
 }
 
 function makeMockTaskService(): TaskService {
-  return {
+  const handlersList: TaskEventHandlers[] = [];
+  const mock = {
     createTask: vi.fn().mockReturnValue(makeMockInstance()),
-    startTask: vi.fn(),
+    startTask: vi.fn((instanceId: string) => {
+      // 模拟 task 立即完成：同步触发 onTaskSettled 事件
+      for (const handlers of handlersList) {
+        handlers.onTaskSettled?.(instanceId, 'completed');
+      }
+    }),
     stopTask: vi.fn(),
     pauseTask: vi.fn(),
     resumeTask: vi.fn(),
@@ -46,7 +52,22 @@ function makeMockTaskService(): TaskService {
     getSnapshot: vi.fn().mockReturnValue({ instances: [] }),
     getProgress: vi.fn().mockReturnValue(undefined),
     getStatistics: vi.fn().mockReturnValue({ total: 0, active: 0, completed: 0, failed: 0 }),
+    subscribe: vi.fn((handlers: TaskEventHandlers) => {
+      handlersList.push(handlers);
+      return () => {
+        const idx = handlersList.indexOf(handlers);
+        if (idx >= 0) handlersList.splice(idx, 1);
+      };
+    }),
+    // template API 不参与本测试
+    createTemplate: vi.fn(),
+    listTemplates: vi.fn().mockReturnValue([]),
+    getTemplate: vi.fn().mockReturnValue(undefined),
+    updateTemplate: vi.fn().mockReturnValue(undefined),
+    deleteTemplate: vi.fn().mockReturnValue(false),
+    instanciateTemplate: vi.fn().mockReturnValue(makeMockInstance()),
   };
+  return mock as unknown as TaskService;
 }
 
 function makeMockResultService(): ResultService {
@@ -90,7 +111,7 @@ function makeOptions(overrides?: Partial<NorthboundServiceOptions>): NorthboundS
 const defaultConfig: NorthboundConfig = {
   serverHost: '0.0.0.0',
   serverPort: 8080,
-  customerBaseUrl: 'http://customer.example.com/partner-api/admin/',
+  customerBaseUrl: 'http://customer.example.com/partner-api/',
   subSysType: 'ADS',
   subSysId: 'ADS_001',
   auth: {
@@ -190,22 +211,37 @@ describe('createNorthboundService — inbound routes', () => {
     const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
     const handler = await startAndGetHandler(service, httpFacade);
 
+    // HAR-aligned payload: nodes + top-level testCaseInfo + layer (not layerNo)
     const body = JSON.stringify({
       method: 'setTestTask',
       requestId: 1001,
       subSysType: 'ADS',
       subSysId: 'ADS_001',
       sessionId: 5001,
+      taskId: 'T_178022737246337558',
+      taskName: 'Set 1',
+      resources: [],
+      immediate: true,
+      repeatCount: 1,
+      isEnd: true,
+      orbitProtectTime: 0,
+      testCaseInfo: [{
+        testCaseId: 'tc-001',
+        deviceIds: ['KPS_UE_202'],
+        masterTest: true,
+        testMode: 1,
+        ephMode: 1,
+        orbitInfo: null,
+        inputPars: [],
+      }],
+      ftpInfo: null,
       executionPlan: {
         layers: [{
-          layerNo: 1,
+          layer: 1,
           parallel: true,
-          testCaseInfoList: [{
-            testCaseId: 'tc-001',
-            testCaseName: 'Test case 1',
-            steps: [{ kind: 'send', frameId: 'f1', targetId: 't1' }],
-          }],
+          nodes: [{ id: 'tc-001', name: 'Test case 1', type: 'case' }],
         }],
+        caseSets: [],
       },
     });
 
@@ -240,23 +276,77 @@ describe('createNorthboundService — inbound routes', () => {
     expect(parsed.requestId).toBe(1002);
   });
 
-  it('controlTestTask with stop controlType calls stopTask', async () => {
+  it('setTestTask expands caseSet nodes into member cases', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const body = JSON.stringify({
+      method: 'setTestTask',
+      requestId: 1100,
+      subSysType: 'ADS',
+      subSysId: 'ADS_001',
+      taskId: 'T_set_a',
+      taskName: 'Set A',
+      resources: [],
+      immediate: true,
+      repeatCount: 1,
+      isEnd: true,
+      orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'tc-a', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+        { testCaseId: 'tc-b', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [{
+          layer: 1,
+          parallel: false,
+          nodes: [{ id: 'cs-1', name: 'Set one', type: 'caseSet' }],
+        }],
+        caseSets: [{
+          id: 'cs-1',
+          name: 'Set one',
+          cases: [
+            { id: 'tc-a', name: 'A' },
+            { id: 'tc-b', name: 'B' },
+          ],
+        }],
+      },
+    });
+
+    await handler({ method: 'POST', url: '/setTestTask', body });
+
+    // processLayers fires async (fire-and-forget); wait for both cases to be created.
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(2));
+    expect(taskService.startTask).toHaveBeenCalledTimes(2);
+  });
+
+  it('controlTestTask with stop action calls stopTask via taskId mapping', async () => {
     const httpFacade = makeMockHttpFacade();
     const taskService = makeMockTaskService();
     const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
 
-    // First, create a mapping via setTestTask
+    // First, create a customerTaskId mapping via setTestTask
     const handler = await startAndGetHandler(service, httpFacade);
     const setBody = JSON.stringify({
       method: 'setTestTask', requestId: 2001, subSysType: 'ADS', subSysId: 'ADS_001',
-      executionPlan: { layers: [{ layerNo: 1, parallel: true, testCaseInfoList: [{ testCaseId: 'tc-ctrl', testCaseName: 'Ctrl test', steps: [{ kind: 'send', frameId: 'f1', targetId: 't1' }] }] }] },
+      taskId: 'T_ctrl_1', taskName: 'Ctrl', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [{ testCaseId: 'tc-ctrl', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [{ layer: 1, parallel: true, nodes: [{ id: 'tc-ctrl', name: 'Ctrl test', type: 'case' }] }],
+        caseSets: [],
+      },
     });
     await handler({ method: 'POST', url: '/setTestTask', body: setBody });
 
-    // Now send controlTestTask
+    // Now send controlTestTask with the customer-issued taskId
     const ctrlBody = JSON.stringify({
       method: 'controlTestTask', requestId: 2002, subSysType: 'ADS', subSysId: 'ADS_001',
-      testCaseIdList: ['tc-ctrl'], controlType: 'stop',
+      taskId: 'T_ctrl_1', action: 'stop',
     });
     const resp = await handler({ method: 'POST', url: '/controlTestTask', body: ctrlBody });
 
@@ -264,10 +354,12 @@ describe('createNorthboundService — inbound routes', () => {
     expect(parsed.method).toBe('controlTestTaskResponse');
     expect(parsed.statusCode).toBe(1);
     expect(parsed.requestId).toBe(2002);
+    expect(parsed.taskId).toBe('T_ctrl_1');
+    expect(parsed.handleCode).toBe(0);
     expect(taskService.stopTask).toHaveBeenCalledWith('inst-001');
   });
 
-  it('controlTestTask with pause calls pauseTask', async () => {
+  it('controlTestTask with pause action calls pauseTask', async () => {
     const httpFacade = makeMockHttpFacade();
     const taskService = makeMockTaskService();
     const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
@@ -276,12 +368,19 @@ describe('createNorthboundService — inbound routes', () => {
     // Setup mapping
     await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
       method: 'setTestTask', requestId: 1, subSysType: 'ADS', subSysId: 'ADS_001',
-      executionPlan: { layers: [{ layerNo: 1, parallel: true, testCaseInfoList: [{ testCaseId: 'tc-p', testCaseName: 'Pause', steps: [{ kind: 'send', frameId: 'f1', targetId: 't1' }] }] }] },
+      taskId: 'T_pause_1', taskName: 'Pause', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [{ testCaseId: 'tc-p', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [{ layer: 1, parallel: true, nodes: [{ id: 'tc-p', name: 'Pause', type: 'case' }] }],
+        caseSets: [],
+      },
     }) });
 
     const resp = await handler({ method: 'POST', url: '/controlTestTask', body: JSON.stringify({
       method: 'controlTestTask', requestId: 2003, subSysType: 'ADS', subSysId: 'ADS_001',
-      testCaseIdList: ['tc-p'], controlType: 'pause',
+      taskId: 'T_pause_1', action: 'pause',
     }) });
 
     const parsed = JSON.parse(resp.body as string);
@@ -289,19 +388,37 @@ describe('createNorthboundService — inbound routes', () => {
     expect(taskService.pauseTask).toHaveBeenCalledWith('inst-001');
   });
 
-  it('controlTestTask with missing testCaseIdList returns error', async () => {
+  it('controlTestTask with missing taskId returns handleCode=2', async () => {
     const httpFacade = makeMockHttpFacade();
     const service = createNorthboundService(makeOptions({ httpFacade }));
     const handler = await startAndGetHandler(service, httpFacade);
 
     const resp = await handler({ method: 'POST', url: '/controlTestTask', body: JSON.stringify({
       method: 'controlTestTask', requestId: 2004, subSysType: 'ADS', subSysId: 'ADS_001',
-      testCaseIdList: [], controlType: 'stop',
+      taskId: '', action: 'stop',
     }) });
 
     const parsed = JSON.parse(resp.body as string);
     expect(parsed.statusCode).toBe(2);
-    expect(parsed.msg).toBe('Missing testCaseIdList');
+    expect(parsed.msg).toBe('Missing taskId');
+    expect(parsed.handleCode).toBe(2);
+  });
+
+  it('controlTestTask with unknown taskId returns handleCode=1 (busy) without throwing', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const resp = await handler({ method: 'POST', url: '/controlTestTask', body: JSON.stringify({
+      method: 'controlTestTask', requestId: 2010, subSysType: 'ADS', subSysId: 'ADS_001',
+      taskId: 'T_unknown', action: 'stop',
+    }) });
+
+    const parsed = JSON.parse(resp.body as string);
+    expect(parsed.statusCode).toBe(1);
+    expect(parsed.handleCode).toBe(1);
+    expect(taskService.stopTask).not.toHaveBeenCalled();
   });
 
   it('heartbeat inbound returns envelope response', async () => {
@@ -394,7 +511,14 @@ describe('createNorthboundService — handleStepResult positive path', () => {
     // Create mapping via setTestTask
     await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
       method: 'setTestTask', requestId: 1, subSysType: 'ADS', subSysId: 'ADS_001',
-      executionPlan: { layers: [{ layerNo: 1, parallel: true, testCaseInfoList: [{ testCaseId: 'tc-step', testCaseName: 'Step test', steps: [{ kind: 'send', frameId: 'f1', targetId: 't1' }] }] }] },
+      taskId: 'T_step_1', taskName: 'Step test', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [{ testCaseId: 'tc-step', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [{ layer: 1, parallel: true, nodes: [{ id: 'tc-step', name: 'Step test', type: 'case' }] }],
+        caseSets: [],
+      },
     }) });
 
     // Clear previous sendRequest calls (login + possible outbound)
@@ -420,10 +544,11 @@ describe('createNorthboundService — handleStepResult positive path', () => {
     await vi.waitFor(() => expect(httpFacade.sendRequest).toHaveBeenCalled());
 
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.url).toContain('/report/msgReport');
+    expect(call.url).toContain('/admin/report/msgReport');
     expect(call.headers?.Authorization).toBe('Bearer test-token');
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('msgReport');
+    // step result taskId stays as instanceId (per-step reporting is local-only, no customer echo)
     expect(body.taskId).toBe('inst-001');
     expect(body.testCaseId).toBe('tc-step');
     expect(body.stepInfo).toHaveLength(1);
@@ -448,7 +573,7 @@ describe('createNorthboundService — report methods', () => {
     return service;
   }
 
-  it('reportDeviceInfo POSTs to /deviceInfo/deviceInfoReport with envelope', async () => {
+  it('reportDeviceInfo POSTs to /admin/deviceInfo/deviceInfoReport with envelope', async () => {
     const httpFacade = makeMockHttpFacade();
     const service = await startAndClear(httpFacade);
 
@@ -456,7 +581,7 @@ describe('createNorthboundService — report methods', () => {
 
     expect(httpFacade.sendRequest).toHaveBeenCalledOnce();
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.url).toContain('/deviceInfo/deviceInfoReport');
+    expect(call.url).toContain('/admin/deviceInfo/deviceInfoReport');
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('deviceInfoReport');
     expect(body.subSysType).toBe('ADS');
@@ -475,20 +600,20 @@ describe('createNorthboundService — report methods', () => {
     expect(call.headers?.Clientid).toBe('6af72c14148848b9b1c08220a6d8ee54');
   });
 
-  it('reportSubSysAlarm POSTs to /subSystem/subSysAlarmReport', async () => {
+  it('reportSubSysAlarm POSTs to /admin/subSystem/subSysAlarmReport', async () => {
     const httpFacade = makeMockHttpFacade();
     const service = await startAndClear(httpFacade);
 
     await service.reportSubSysAlarm([{ alarmId: 'A2', severity: 'warn', warnTime: '2026-01-01T00:00:00', msg: 'sys alarm' }]);
 
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.url).toContain('/subSystem/subSysAlarmReport');
+    expect(call.url).toContain('/admin/subSystem/subSysAlarmReport');
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('subSysAlarmReport');
     expect(body.datas).toHaveLength(1);
   });
 
-  it('reportTestDataFileComplete POSTs to /report/testDataFileTranslationComplete', async () => {
+  it('reportTestDataFileComplete POSTs to /admin/report/testDataFileTranslationComplete', async () => {
     const httpFacade = makeMockHttpFacade();
     const service = await startAndClear(httpFacade);
 
@@ -497,14 +622,14 @@ describe('createNorthboundService — report methods', () => {
     });
 
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.url).toContain('/report/testDataFileTranslationComplete');
+    expect(call.url).toContain('/admin/report/testDataFileTranslationComplete');
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('testDataFileTranslationComplete');
     expect(body.taskId).toBe('T1');
     expect(body.ftpServerIP).toBe('192.168.0.1');
   });
 
-  it('reportFileTranslationComplete POSTs to /report/fileTranslationComplete', async () => {
+  it('reportFileTranslationComplete POSTs to /admin/report/fileTranslationComplete', async () => {
     const httpFacade = makeMockHttpFacade();
     const service = await startAndClear(httpFacade);
 
@@ -513,7 +638,7 @@ describe('createNorthboundService — report methods', () => {
     });
 
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.url).toContain('/report/fileTranslationComplete');
+    expect(call.url).toContain('/admin/report/fileTranslationComplete');
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('fileTranslationComplete');
     expect(body.tranType).toBe('upload');
@@ -530,7 +655,7 @@ describe('createNorthboundService — report methods', () => {
     }], 'T1', 'TC1');
 
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.url).toContain('/report/sigReport');
+    expect(call.url).toContain('/admin/report/sigReport');
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('sigReport');
     expect(body.taskId).toBe('T1');
@@ -740,5 +865,109 @@ describe('createNorthboundService — inbound stub handlers', () => {
       expect(parsed.statusCode).toBe(2);
       expect(parsed.msg).toBe('Method not allowed');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setPars heartbeatTimer restart + customerTaskId echo on testCaseResultReport
+// ---------------------------------------------------------------------------
+
+describe('createNorthboundService — setPars heartbeat + customerTaskId echo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('setPars with heartbeatTimer restarts heartbeat at new interval', async () => {
+    // Start with fake timers so every heartbeat schedule (initial + restarted) is fake.
+    vi.useFakeTimers();
+    const httpFacade = makeMockHttpFacade();
+    const service = createNorthboundService(makeOptions({ httpFacade }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const resp = await handler({ method: 'POST', url: '/setPars', body: JSON.stringify({
+      method: 'setPars', requestId: 7001, subSysType: 'ADS', subSysId: 'ADS_001',
+      pars: [{ parId: 'heartbeatTimer', value: '30' }],
+    }) });
+
+    const parsed = JSON.parse(resp.body as string);
+    expect(parsed.method).toBe('setParsResponse');
+    expect(parsed.statusCode).toBe(1);
+
+    // Clear the sendRequest spy so only heartbeat POSTs after setPars are observed.
+    (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mockClear();
+
+    // At 29s nothing should have fired yet; at 31s the 30s heartbeat should POST once.
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(httpFacade.sendRequest).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(httpFacade.sendRequest).toHaveBeenCalledTimes(1);
+    const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.url).toContain('/admin/subSystem/heartbeat');
+    const body = JSON.parse(call.body as string);
+    expect(body.timer).toBe(30);
+  });
+
+  it('setPars without heartbeatTimer leaves existing heartbeat untouched', async () => {
+    vi.useFakeTimers();
+    const httpFacade = makeMockHttpFacade();
+    const service = createNorthboundService(makeOptions({ httpFacade }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const resp = await handler({ method: 'POST', url: '/setPars', body: JSON.stringify({
+      method: 'setPars', requestId: 7002, subSysType: 'ADS', subSysId: 'ADS_001',
+      pars: [{ parId: 'someOtherPar', value: '42' }],
+    }) });
+
+    const parsed = JSON.parse(resp.body as string);
+    expect(parsed.statusCode).toBe(1);
+
+    (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mockClear();
+
+    // Default 15s heartbeat should still fire once after 16s.
+    await vi.advanceTimersByTimeAsync(16_000);
+    expect(httpFacade.sendRequest).toHaveBeenCalled();
+    const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const body = JSON.parse(call.body as string);
+    expect(body.timer).toBe(15);
+  });
+
+  it('testCaseResultReport echoes customer-issued taskId (T_xxx), not instanceId', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const resultService = makeMockResultService();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, resultService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // Trigger a setTestTask; onSettled resolves immediately, so reportTaskResult fires.
+    (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mockClear();
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 8001, subSysType: 'ADS', subSysId: 'ADS_001',
+      taskId: 'T_178022737246337558', taskName: 'Result test', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [{ testCaseId: 'tc-result', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [{ layer: 1, parallel: false, nodes: [{ id: 'tc-result', name: 'Result test', type: 'case' }] }],
+        caseSets: [],
+      },
+    }) });
+
+    // Wait for the serial layer to settle and call reportTaskResult
+    await vi.waitFor(() => {
+      const calls = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls;
+      return calls.some(c => (c[0].url as string).includes('/admin/report/testCaseResultReport'));
+    });
+
+    const calls = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls;
+    const resultCall = calls.find(c => (c[0].url as string).includes('/admin/report/testCaseResultReport'))!;
+    const body = JSON.parse(resultCall[0].body as string);
+    expect(body.method).toBe('testCaseResultReport');
+    expect(body.taskId).toBe('T_178022737246337558');
+    expect(body.taskId).not.toBe('inst-001');
+    expect(body.testCaseId).toBe('tc-result');
   });
 });

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useQuasar } from 'quasar';
 import DataTable from '@/widgets/DataTable.vue';
 import WaveformChart from '@/widgets/WaveformChart.vue';
 import ScatterChart from '@/widgets/ScatterChart.vue';
@@ -12,6 +13,10 @@ import type {
   TableRowProjection,
 } from '../core';
 
+interface FieldMeta {
+  readonly description?: string;
+}
+
 interface Props {
   panelId: '1' | '2';
   mode: DisplayMode;
@@ -21,6 +26,9 @@ interface Props {
   chartInstance: ChartInstanceProjection | null;
   scatter: ScatterProjection;
   canUseConstellation: boolean;
+  reorderMode: boolean;
+  visibleColumns: readonly string[];
+  fieldMeta?: ReadonlyMap<string, FieldMeta>;
 }
 
 const props = defineProps<Props>();
@@ -28,10 +36,15 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   'update:mode': [mode: DisplayMode];
   'update:selectedGroupId': [groupId: string];
+  'update:reorderMode': [value: boolean];
+  'update:visibleColumns': [columns: readonly string[]];
   'openChartSettings': [];
   'openScatterSettings': [];
   'openGroupConfig': [];
+  'reorderField': [dataItemId: string, direction: 'up' | 'down'];
 }>();
+
+const $q = useQuasar();
 
 const groupOptions = computed(() => [
   { value: '', label: '全部分组' },
@@ -49,16 +62,51 @@ const modeOptions = computed(() => [
   },
 ]);
 
-function formatTime(iso?: string): string {
-  if (!iso) return '--';
-  try {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  } catch {
-    return iso;
+const activeColumns = computed(() => {
+  const visible = props.visibleColumns.length === 0
+    ? panelTableColumns
+    : panelTableColumns.filter((col) => new Set(props.visibleColumns).has(col.name));
+  if (!props.reorderMode) return visible.filter((col) => col.name !== '_reorder');
+  return visible;
+});
+
+function hexDisplay(row: TableRowProjection): string {
+  return row.rawHex ?? '-';
+}
+
+function copyToClipboard(text: string): void {
+  if (!text || text === '-') return;
+  navigator.clipboard.writeText(text).then(
+    () => { $q.notify({ message: '已复制', timeout: 800, type: 'positive' }); },
+    () => { $q.notify({ message: '复制失败', timeout: 800, type: 'negative' }); },
+  );
+}
+
+function moveField(row: TableRowProjection, direction: 'up' | 'down'): void {
+  emit('reorderField', row.dataItemId, direction);
+}
+
+function toggleColumn(colName: string): void {
+  const current = [...props.visibleColumns];
+  if (current.length === 0) {
+    // If empty, start from all columns visible
+    const allNames = panelTableColumns.map((c) => c.name);
+    const next = allNames.filter((n) => n !== colName);
+    emit('update:visibleColumns', next);
+  } else {
+    const idx = current.indexOf(colName);
+    if (idx >= 0) {
+      current.splice(idx, 1);
+    } else {
+      current.push(colName);
+    }
+    emit('update:visibleColumns', current);
   }
 }
+
+const allColumnNames = panelTableColumns
+  .filter((c) => c.name !== '_reorder')
+  .map((c) => c.name);
 </script>
 
 <template>
@@ -100,6 +148,48 @@ function formatTime(iso?: string): string {
       </q-btn>
 
       <q-btn
+        v-if="mode === 'table'"
+        flat
+        round
+        dense
+        :icon="reorderMode ? 'check' : 'swap_vert'"
+        :color="reorderMode ? 'primary' : undefined"
+        size="sm"
+        @click="emit('update:reorderMode', !reorderMode)"
+      >
+        <q-tooltip>{{ reorderMode ? '完成排序' : '排序模式' }}</q-tooltip>
+      </q-btn>
+
+      <q-btn
+        v-if="mode === 'table'"
+        flat
+        round
+        dense
+        icon="view_column"
+        size="sm"
+      >
+        <q-tooltip>列设置</q-tooltip>
+        <q-menu>
+          <q-list dense>
+            <q-item
+              v-for="colName in allColumnNames"
+              :key="colName"
+              clickable
+              @click="toggleColumn(colName)"
+            >
+              <q-item-section side>
+                <q-checkbox
+                  :model-value="visibleColumns.length === 0 || visibleColumns.includes(colName)"
+                  dense
+                />
+              </q-item-section>
+              <q-item-section>{{ panelTableColumns.find(c => c.name === colName)?.label || colName }}</q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+
+      <q-btn
         v-if="mode === 'chart'"
         flat
         round
@@ -128,7 +218,7 @@ function formatTime(iso?: string): string {
       <div class="absolute inset-0">
         <DataTable
           v-if="mode === 'table'"
-          :columns="panelTableColumns"
+          :columns="activeColumns"
           :rows="rows"
           row-key="dataItemId"
           container-height="100%"
@@ -136,16 +226,58 @@ function formatTime(iso?: string): string {
           <template #no-data>
             <div class="text-center w-full p-4 rw-text-label">暂无字段数据</div>
           </template>
-          <template #body-cell-updatedAt="slotProps">
+          <template #body-cell-displayValue="slotProps">
             <q-td :props="slotProps">
-              <span class="rw-text-desc text-xs">{{ formatTime(slotProps.row.updatedAt) }}</span>
+              <span
+                class="rw-text-value cursor-pointer"
+                @click="copyToClipboard(String(slotProps.row.displayValue ?? ''))"
+              >
+                {{ slotProps.row.displayValue ?? '-' }}
+              </span>
+              <q-tooltip v-if="fieldMeta?.get(slotProps.row.dataItemId)?.description" :delay="400">
+                {{ fieldMeta.get(slotProps.row.dataItemId)!.description }}
+              </q-tooltip>
             </q-td>
+          </template>
+          <template #body-cell-rawHex="slotProps">
+            <q-td :props="slotProps">
+              <span
+                class="rw-text-value font-mono text-xs cursor-pointer"
+                @click="copyToClipboard(hexDisplay(slotProps.row))"
+              >
+                {{ hexDisplay(slotProps.row) }}
+              </span>
+            </q-td>
+          </template>
+          <template #body-cell-_reorder="slotProps">
+            <q-td v-if="reorderMode" :props="slotProps">
+              <q-btn
+                flat
+                round
+                dense
+                icon="keyboard_arrow_up"
+                size="xs"
+                :disable="slotProps.rowIndex === 0"
+                @click="moveField(slotProps.row, 'up')"
+              />
+              <q-btn
+                flat
+                round
+                dense
+                icon="keyboard_arrow_down"
+                size="xs"
+                :disable="slotProps.rowIndex === (rows.length - 1)"
+                @click="moveField(slotProps.row, 'down')"
+              />
+            </q-td>
+            <q-td v-else :props="slotProps" />
           </template>
         </DataTable>
 
         <div v-else-if="mode === 'chart'" class="h-full p-2">
           <WaveformChart
             :series="chartInstance?.series ?? []"
+            :empty-variant="(chartInstance?.series.length ?? 0) > 0 ? 'no-data' : 'no-selection'"
             height="100%"
           />
         </div>

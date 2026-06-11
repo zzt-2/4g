@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, onUnmounted, shallowRef } from 'vue';
+import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { usePolling } from '@/shared/composables';
 import StatusBadge from '@/widgets/StatusBadge.vue';
@@ -16,6 +16,7 @@ import type {
   DisplayMode,
   GroupOption,
   ScatterDisplayPreference,
+  ScatterSourceBinding,
   TableDisplayPreference,
   TableRowProjection,
 } from '@/features/display';
@@ -29,7 +30,7 @@ const storageService = runtime.features.storageService;
 const frameService = runtime.features.frameService;
 const frameReader = runtime.features.frameReader;
 
-const displayRefresh = useDisplayRefresh(displayService);
+const displayRefresh = useDisplayRefresh(displayService, frameReader);
 
 // ===== Receive stats =====
 const lifecycle = ref<ReceiveLifecycleStatus>('idle');
@@ -73,10 +74,46 @@ const groups = computed((): GroupOption[] => {
 });
 
 const receiveFrames = computed(() => frameService.listFrames({ direction: 'receive' }));
-const allFrames = computed(() => frameService.listFrames());
+
+// ===== Field metadata (description/unit for tooltips) =====
+const fieldMeta = computed(() => {
+  const map = new Map<string, { description?: string }>();
+  for (const frame of receiveFrames.value) {
+    const full = frameReader.getFrame(frame.id);
+    if (!full) continue;
+    for (const f of full.fields) {
+      if (!f.description) continue;
+      const dataItemId = `${frame.id}:${f.id}`;
+      map.set(dataItemId, { description: f.description });
+    }
+  }
+  return map;
+});
+
+// R19: fieldName lookup from frameReader (static metadata).
+// TableRowProjection.fieldName is intentionally not projected from material (see projection.toRow);
+// UI consumption of fieldName MUST go through this lookup, never material.fieldName.
+const fieldNameLookup = computed(() => {
+  const map = new Map<string, string>();
+  for (const frame of receiveFrames.value) {
+    const refs = frameReader.listFieldReferences({ frameId: frame.id });
+    for (const r of refs) {
+      map.set(`${r.frameId}:${r.fieldId}`, r.fieldName);
+    }
+  }
+  return map;
+});
+
+function enrichRows(rows: readonly TableRowProjection[]): TableRowProjection[] {
+  const lookup = fieldNameLookup.value;
+  return rows.map((r) => ({
+    ...r,
+    fieldName: lookup.get(r.dataItemId) ?? '[Unknown Field]',
+  }));
+}
 
 const availableFields = computed(() => {
-  const map = new Map<string, { fieldId: string; fieldName: string; frameName: string; frameId: string }>();
+  const map = new Map<string, { fieldId: string; binding: ScatterSourceBinding; fieldName: string; frameName: string; frameId: string }>();
   const groups = configuredGroups.value;
   const coveredFrameIds = new Set<string>();
 
@@ -87,18 +124,30 @@ const availableFields = computed(() => {
       for (const f of fields) {
         const dataItemId = `${f.frameId}:${f.fieldId}`;
         const key = `${group.id}:${dataItemId}`;
-        if (!map.has(key)) map.set(key, { fieldId: key, fieldName: f.fieldName, frameName: f.frameName, frameId: f.frameId });
+        if (!map.has(key)) map.set(key, {
+          fieldId: key,
+          binding: { groupId: group.id, dataItemId },
+          fieldName: f.fieldName,
+          frameName: f.frameName,
+          frameId: f.frameId,
+        });
       }
     }
   }
 
-  for (const frame of allFrames.value) {
+  for (const frame of receiveFrames.value) {
     if (coveredFrameIds.has(frame.id)) continue;
     const fields = frameReader.listFieldReferences({ frameId: frame.id });
     for (const f of fields) {
       const dataItemId = `${f.frameId}:${f.fieldId}`;
       const key = `${frame.id}:${dataItemId}`;
-      if (!map.has(key)) map.set(key, { fieldId: key, fieldName: f.fieldName, frameName: f.frameName, frameId: f.frameId });
+      if (!map.has(key)) map.set(key, {
+        fieldId: key,
+        binding: { groupId: frame.id, dataItemId },
+        fieldName: f.fieldName,
+        frameName: f.frameName,
+        frameId: f.frameId,
+      });
     }
   }
 
@@ -108,23 +157,44 @@ const availableFields = computed(() => {
 const chartAvailableFields = computed(() => {
   const panelKey = chartConfigPanel.value === '1' ? 'table1' : 'table2';
   const selectedGroupId = prefs.value[panelKey].selectedGroupId;
-  if (!selectedGroupId) return availableFields.value;
 
-  const group = configuredGroups.value.find((g) => g.id === selectedGroupId);
-  if (!group) return availableFields.value;
+  const result: { groupId: string; frameId: string; fieldId: string; fieldName: string; frameName: string }[] = [];
+  const covered = new Set<string>();
 
-  const result: { fieldId: string; fieldName: string; frameName: string; frameId: string }[] = [];
-  for (const entry of group.frames) {
-    const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+  function push(groupId: string, frameId: string, fieldId: string, fieldName: string, frameName: string): void {
+    const key = `${groupId}:${frameId}:${fieldId}`;
+    if (covered.has(key)) return;
+    covered.add(key);
+    result.push({ groupId, frameId, fieldId, fieldName, frameName });
+  }
+
+  if (selectedGroupId) {
+    const group = configuredGroups.value.find((g) => g.id === selectedGroupId);
+    if (group) {
+      for (const entry of group.frames) {
+        const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+        for (const f of fields) {
+          if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
+          push(group.id, f.frameId, f.fieldId, f.fieldName, f.frameName);
+        }
+      }
+      return result;
+    }
+  }
+
+  for (const group of configuredGroups.value) {
+    for (const entry of group.frames) {
+      const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+      for (const f of fields) {
+        if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
+        push(group.id, f.frameId, f.fieldId, f.fieldName, f.frameName);
+      }
+    }
+  }
+  for (const frame of receiveFrames.value) {
+    const fields = frameReader.listFieldReferences({ frameId: frame.id });
     for (const f of fields) {
-      if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
-      const dataItemId = `${f.frameId}:${f.fieldId}`;
-      result.push({
-        fieldId: `${group.id}:${dataItemId}`,
-        fieldName: f.fieldName,
-        frameName: f.frameName,
-        frameId: f.frameId,
-      });
+      push(frame.id, f.frameId, f.fieldId, f.fieldName, f.frameName);
     }
   }
   return result;
@@ -156,7 +226,7 @@ function buildPlaceholderRows(selectedGroupId: string): TableRowProjection[] {
     return rows;
   }
   const rows: TableRowProjection[] = [];
-  for (const frame of allFrames.value) {
+  for (const frame of receiveFrames.value) {
     const fields = frameReader.listFieldReferences({ frameId: frame.id });
     for (const f of fields) {
       rows.push({
@@ -174,17 +244,25 @@ function buildPlaceholderRows(selectedGroupId: string): TableRowProjection[] {
 const panel1Rows = computed(() => {
   const live = displayRefresh.table1Rows.value;
   const placeholders = buildPlaceholderRows(prefs.value.table1.selectedGroupId);
-  if (placeholders.length === 0) return live;
-  const liveIds = new Set(live.map((r) => r.dataItemId));
-  return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
+  const merged = placeholders.length === 0
+    ? live
+    : (() => {
+        const liveIds = new Set(live.map((r) => r.dataItemId));
+        return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
+      })();
+  return enrichRows(merged);
 });
 
 const panel2Rows = computed(() => {
   const live = displayRefresh.table2Rows.value;
   const placeholders = buildPlaceholderRows(prefs.value.table2.selectedGroupId);
-  if (placeholders.length === 0) return live;
-  const liveIds = new Set(live.map((r) => r.dataItemId));
-  return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
+  const merged = placeholders.length === 0
+    ? live
+    : (() => {
+        const liveIds = new Set(live.map((r) => r.dataItemId));
+        return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
+      })();
+  return enrichRows(merged);
 });
 
 // ===== Constellation mutual exclusion (D5) =====
@@ -202,12 +280,62 @@ const chartConfigPreference = computed(() => {
   return prefs.value.charts[idx] ?? null;
 });
 
-const chartConfigTarget = computed(() => {
-  const idx = chartConfigPanel.value === '1' ? 0 : 1;
-  return displayRefresh.chartInstances.value[idx] ?? null;
-});
-
 const scatterPreference = computed(() => prefs.value.scatter);
+
+// ===== Reorder mode =====
+const reorderMode1 = ref(false);
+const reorderMode2 = ref(false);
+
+function onReorderField(panel: '1' | '2', dataItemId: string, direction: 'up' | 'down'): void {
+  const panelKey = panel === '1' ? 'table1' : 'table2';
+  const groupId = prefs.value[panelKey].selectedGroupId;
+  if (!groupId) return;
+
+  const rows = panel === '1' ? panel1Rows.value : panel2Rows.value;
+  const itemIds = rows.map((r) => r.dataItemId);
+  const idx = itemIds.indexOf(dataItemId);
+  if (idx < 0) return;
+
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (targetIdx < 0 || targetIdx >= itemIds.length) return;
+
+  // Swap
+  [itemIds[idx], itemIds[targetIdx]] = [itemIds[targetIdx], itemIds[idx]];
+
+  // Update group config with new fieldOrder
+  const newGroups = configuredGroups.value.map((g) => {
+    if (g.id !== groupId) return g;
+    // Extract frameId from dataItemId to group orders per frame
+    const frameOrders = new Map<string, string[]>();
+    for (const id of itemIds) {
+      const sep = id.indexOf(':');
+      const frameId = sep > 0 ? id.slice(0, sep) : id;
+      const fieldId = sep > 0 ? id.slice(sep + 1) : id;
+      if (!frameOrders.has(frameId)) frameOrders.set(frameId, []);
+      frameOrders.get(frameId)!.push(fieldId);
+    }
+    return {
+      ...g,
+      frames: g.frames.map((entry) => ({
+        ...entry,
+        fieldOrder: frameOrders.get(entry.frameId) ?? entry.fieldOrder,
+      })),
+    };
+  });
+
+  displayService.updatePreferences({ groups: newGroups });
+  persistDisplay();
+}
+
+// ===== Visible columns =====
+const visibleColumns1 = computed(() => prefs.value.table1.visibleColumns ?? []);
+const visibleColumns2 = computed(() => prefs.value.table2.visibleColumns ?? []);
+
+function onVisibleColumnsChange(panel: '1' | '2', columns: readonly string[]): void {
+  const panelKey = panel === '1' ? 'table1' : 'table2';
+  displayService.updatePreferences({ [panelKey]: { visibleColumns: columns } as Partial<TableDisplayPreference> });
+  persistDisplay();
+}
 
 // ===== Mode / group change handlers =====
 function persistDisplay(): void {
@@ -377,12 +505,18 @@ onUnmounted(() => {
         :chart-instance="chart1"
         :scatter="displayRefresh.scatter.value"
         :can-use-constellation="canPanel1UseConstellation"
+        :reorder-mode="reorderMode1"
+        :visible-columns="visibleColumns1"
+        :field-meta="fieldMeta"
         class="flex-1 min-w-0"
         @update:mode="onModeChange('1', $event)"
         @update:selected-group-id="onGroupChange('1', $event)"
+        @update:reorder-mode="reorderMode1 = $event"
+        @update:visible-columns="onVisibleColumnsChange('1', $event)"
         @open-chart-settings="openChartConfig('1')"
         @open-scatter-settings="scatterConfigOpen = true"
         @open-group-config="groupConfigOpen = true"
+        @reorder-field="(id, dir) => onReorderField('1', id, dir)"
       />
       <DisplayPanel
         panel-id="2"
@@ -393,12 +527,18 @@ onUnmounted(() => {
         :chart-instance="chart2"
         :scatter="displayRefresh.scatter.value"
         :can-use-constellation="canPanel2UseConstellation"
+        :reorder-mode="reorderMode2"
+        :visible-columns="visibleColumns2"
+        :field-meta="fieldMeta"
         class="flex-1 min-w-0"
         @update:mode="onModeChange('2', $event)"
         @update:selected-group-id="onGroupChange('2', $event)"
+        @update:reorder-mode="reorderMode2 = $event"
+        @update:visible-columns="onVisibleColumnsChange('2', $event)"
         @open-chart-settings="openChartConfig('2')"
         @open-scatter-settings="scatterConfigOpen = true"
         @open-group-config="groupConfigOpen = true"
+        @reorder-field="(id, dir) => onReorderField('2', id, dir)"
       />
     </div>
 
@@ -490,7 +630,7 @@ onUnmounted(() => {
   border-right: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
   display: grid;
   gap: 2px;
-  padding: 12px 16px;
+  padding: var(--rw-space-3) var(--rw-space-4);
 
   &:last-child {
     border-right: none;
@@ -523,7 +663,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: var(--rw-space-2) var(--rw-space-4);
 }
 
 .recording-indicator {

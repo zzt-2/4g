@@ -9,8 +9,6 @@ function createMockDisplayService(groups: DisplayService['getPreferences'] exten
     getSnapshot: vi.fn(),
     getTable1Rows: vi.fn(),
     getTable2Rows: vi.fn(),
-    getChartInstances: vi.fn(),
-    getChartSeries: vi.fn(),
     getScatterProjection: vi.fn(),
     getAvailability: vi.fn(),
     updatePreferences: vi.fn(),
@@ -23,6 +21,7 @@ function createMockDisplayService(groups: DisplayService['getPreferences'] exten
     })),
     clearProjection: vi.fn(),
     reset: vi.fn(),
+    getSourceFields: vi.fn(),
   } as unknown as DisplayService;
 }
 

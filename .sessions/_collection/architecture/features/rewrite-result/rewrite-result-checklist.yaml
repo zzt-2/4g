@@ -1,0 +1,127 @@
+---
+doc_type: feature-checklist
+feature: rewrite-result
+status: draft
+date: 2026-05-06
+summary: rewrite-result feature implementation checklist. Must reconfirm design before implementation.
+---
+
+# Rewrite result feature checklist
+
+## Pre-implementation gates
+
+- [ ] Reconfirm direct contract list from design §1
+- [ ] Reconfirm boundary guards from design §2
+- [ ] Reconfirm owner/not-owner scope from design §4.1
+- [ ] TaskInstanceCompletion event is available from task service
+- [ ] TaskStepResult final shape is confirmed by task implementation
+- [ ] Storage service provides result material persistence capability
+- [ ] No new platform/preload/main API needed (confirmed in design §4.12)
+
+## Core types
+
+- [ ] CaseResult type with kind (passed/failed/stopped/partial), verdictSource, summary, stepDetails, lifecycle
+- [ ] CaseStepDetail type with outcome, rootCause, sendResult, conditionMatch
+- [ ] TaskResultSummary type with totalCases, per-kind counts, lastResult, lastRunAt
+- [ ] ResultAggregationRule type with stepFailurePolicy, skipPolicy, timeoutPolicy, stoppedPolicy
+- [ ] ResultLifecycleStatus enum (collecting/finalized/archived)
+- [ ] ResultReadModel query filter and return types
+
+## Core logic (features/result/core)
+
+- [ ] Aggregation rule evaluation: CaseResult.kind from TaskInstanceCompletion + aggregation rules
+- [ ] CaseStepDetail attribution: send-step outcome and rootCause extraction
+- [ ] CaseStepDetail attribution: wait-condition-step outcome extraction (matched/timedOut/onTimeout)
+- [ ] CaseStepDetail attribution: delay-step always passed
+- [ ] TaskResultSummary incremental update
+- [ ] ResultReadModel aggregation queries
+- [ ] All core logic is pure TypeScript, no Vue/Pinia/Electron/platform/Node dependencies
+
+## Service (features/result/services)
+
+- [ ] ResultService.handleTaskCompletion: receive TaskInstanceCompletion, build CaseResult
+- [ ] ResultService.getCaseResult: query single result
+- [ ] ResultService.getTaskResultSummary: query task-level summary
+- [ ] ResultService.queryResults: filtered result read model query
+- [ ] ResultService.clearResults: transient state cleanup
+- [ ] ResultService.archiveResults: trigger storage persistence
+- [ ] Service receives dependencies via explicit injection (task event source, storage service)
+
+## State (features/result/state)
+
+- [ ] CaseResult instances: single-writer (result service), read-only selectors
+- [ ] TaskResultSummary: incremental update, read-only selectors
+- [ ] ResultReadModel: windowed, read-only selectors
+- [ ] No storage of task/send/receive/SCOE internal state
+- [ ] No mutable state references exposed
+
+## Cross-feature contracts
+
+- [ ] task -> result: consume TaskInstanceCompletion event via runtime routing
+- [ ] result -> report: expose CaseResult selector/event, report reads only
+- [ ] result -> status: expose result statistics selector, status reads only
+- [ ] result -> northbound: expose CaseResult/TaskResultSummary read-only selector
+- [ ] result -> pages: expose UI-safe selectors via composables
+- [ ] result -> storage: request persistence via storage public service
+- [ ] result does NOT import task/send/receive/SCOE/status/report/northbound internal state
+- [ ] result does NOT subscribe to independent SendResult or ReceiveInputEvent events
+
+## Boundary compliance
+
+- [ ] result does NOT generate report files
+- [ ] result does NOT freeze external schema/enum/error codes
+- [ ] result does NOT perform northbound delivery
+- [ ] result does NOT directly access platform/main/preload
+- [ ] result does NOT hardcode SCOE-specific result logic
+- [ ] result does NOT maintain SCOE domain state (commandSuccessCount etc.)
+
+## Fake adapter and fixture strategy
+
+- [ ] Fake task completion source: provide TaskInstanceCompletion fixtures (various kind/summary)
+- [ ] Fake storage writer: accept CaseResult data, record calls
+- [ ] Aggregation rule fixtures: all policy combinations
+- [ ] Step detail fixtures: send-step all outcomes, wait-condition-step all outcomes, delay-step
+- [ ] Mixed step type fixtures: send + wait-condition + delay sequences
+- [ ] Legacy observable behavior oracle: old task completion -> expected result mapping
+
+## Validation
+
+- [ ] Static scan: features/result/core has no Vue/Pinia/Electron/Node dependencies
+- [ ] Static scan: result does not import other feature internal state
+- [ ] Vitest: aggregation rule evaluation (all policy combinations)
+- [ ] Vitest: CaseStepDetail attribution (all step type + outcome combinations)
+- [ ] Vitest: TaskResultSummary incremental update
+- [ ] Vitest: ResultReadModel filter and aggregation
+- [ ] Vitest: service with fake task completion source and fake storage
+- [ ] Fixture: task completed + all passed -> passed
+- [ ] Fixture: task completed + any fail + any-fail policy -> failed
+- [ ] Fixture: task completed + partial fail + all-fail policy -> partial
+- [ ] Fixture: task completed + skipped + skip-is-partial -> partial
+- [ ] Fixture: task stopped -> stopped
+- [ ] Fixture: task failed -> failed
+- [ ] Fixture: wait-condition timeout + timeout-is-partial -> partial
+- [ ] Manual checklist: result page entry reachable (if implemented)
+- [ ] Manual checklist: result detail shows step attribution
+
+## Runtime wiring
+
+- [ ] Runtime routes TaskInstanceCompletion event to ResultService.handleTaskCompletion
+- [ ] Runtime creates ResultService with injected dependencies
+- [ ] Runtime routes CaseResultFinalized event to report/status/northbound consumers
+- [ ] App startup/shutdown cleans up transient result state
+
+## Known gaps (from design)
+
+- [ ] Deferred: concrete CaseResult/CaseStepDetail schema finalization
+- [ ] Deferred: aggregation rule per-TaskDefinition override configuration
+- [ ] Deferred: running result snapshot (collecting state)
+- [ ] Deferred: manual verdict / override
+- [ ] Deferred: result read model window size and archive strategy
+- [ ] Deferred: result page UI design
+- [ ] Deferred: expression evaluation in step attribution
+- [ ] Deferred: result statistics vs status global stats boundary (await status design)
+- [ ] Blocked: task service must output TaskInstanceCompletion event
+- [ ] Blocked: TaskStepResult final shape must be confirmed
+- [ ] Blocked: storage service must provide result material persistence
+- [ ] Blocked: report/northbound design must confirm result as material source
+- [ ] Blocked: customer validation for external result semantics

@@ -327,6 +327,22 @@ background: var(--rw-color-surface-selected);
 
 电压 `12.5 V`，温度 `25.3 ℃`，百分比 `85.3%`（无空格）。超长文本用 CSS 截断，QTooltip 展示全文。
 
+### V5. 无数据流时 UI 必须降级占位，不报错不显示随机 ID
+
+receive 管线未跑、帧未匹配、用户未配置字段选择时，图表/表格/散点数据为空是**正常状态**，UI 必须：
+
+- 显示占位提示（如"点击设置选择字段"、"暂无数据"、"等待数据流入"），引导用户下一步操作。
+- 不崩溃、不抛错、不显示原始 fieldId/UUID/随机字符串作为图例或表头。
+- 不为空状态加默认值或自动选字段（避免选错业务意图）。
+
+实现位置：
+
+- 表格空状态：QTable `no-data` slot 或 `loading/noDataLabel`。
+- 图表空状态：WaveformChart/DisplayPanel 在 `series.length === 0` 或 `points.length === 0` 时 `v-if` 渲染占位 `<div>`。
+- 散点空状态：同理。
+
+fieldName/frameName 等静态信息在无数据流时也必须能从帧定义（frameReader）解析显示，不能依赖运行时 sourceFields（见 quality-rules R19）。
+
 ---
 
 ## 8. 性能

@@ -7,7 +7,6 @@ import {
   createDisplayIssue,
   type ChartInstancePatch,
   type ChartInstancePreference,
-  type ChartInstanceProjection,
   type DisplayFieldMaterial,
   type DisplayPreferences,
   type DisplayPreferencesPatch,
@@ -18,13 +17,11 @@ import {
   type ReadonlyDisplaySnapshot,
   type ReadonlyDisplayPreferences,
   type TableRowProjection,
-  type ChartSeriesProjection,
   type ScatterProjection,
 } from '../core';
 import { DEFAULT_CHART_INSTANCE } from '../core/defaults';
 import {
   selectAvailability,
-  selectChartInstances,
   selectDisplaySnapshot,
   selectPreferences,
   selectScatterProjection,
@@ -38,8 +35,6 @@ export interface DisplayReader {
   getPreferences(): ReadonlyDisplayPreferences;
   getTable1Rows(): TableRowProjection[];
   getTable2Rows(): TableRowProjection[];
-  getChartInstances(): ChartInstanceProjection[];
-  getChartSeries(): ChartSeriesProjection[];
   getScatterProjection(): ScatterProjection;
   getAvailability(): DisplaySourceAvailability;
 }
@@ -57,6 +52,7 @@ export interface DisplayService extends DisplayReader {
   ingestSourceMaterial(material: DisplaySourceMaterial): DisplayOperationResult;
   clearProjection(): DisplayOperationResult;
   reset(): DisplayOperationResult;
+  getSourceFields(): readonly DisplayFieldMaterial[];
 }
 
 interface DisplayBuffer {
@@ -107,13 +103,6 @@ export function createDisplayReader(
     },
     getTable2Rows() {
       return selectTable2Rows(snapshotProvider());
-    },
-    getChartInstances() {
-      return selectChartInstances(snapshotProvider());
-    },
-    getChartSeries() {
-      const charts = selectChartInstances(snapshotProvider());
-      return charts.length > 0 ? charts[0].series : [];
     },
     getScatterProjection() {
       return selectScatterProjection(snapshotProvider());
@@ -242,6 +231,13 @@ export function createDisplayService(
 
       const snapshot = state.resetSnapshot();
       return toOperationResult(snapshot, []);
+    },
+
+    getSourceFields() {
+      // Returns runtime data only (value, displayValue, etc.); fieldName on these materials is
+      // runtime-redundant. UI layers needing static fieldName/frameName must use frameReader (R19).
+      // Returns a fresh deep-copy to enforce Selector immutability (CLAUDE.md Selector rules).
+      return buffer.sourceFields.map((f) => ({ ...f }));
     },
   };
 }

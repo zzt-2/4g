@@ -1,0 +1,98 @@
+version: 1
+feature: rewrite-frame-real
+status: approved
+date: "2026-05-08"
+purpose: "frame-real 实施入口清单：JSON schema 定稿、frameReader 生产路径、旧格式迁移、selector 不可变修复。"
+
+direct_contract:
+  - "codestable/compound/2026-05-07-runtime-next-phase-global-planning.md"
+  - "codestable/features/rewrite-frame/frame-real-design.md"
+
+boundary_guards:
+  - "只实现 JSON schema 定稿、frameReader 生产路径、旧格式迁移、selector 不可变修复。"
+  - "不实现 UI 页面、runtime 装配、receive/send/task/SCOE 消费端改造。"
+  - "不冻结 platform API schema。"
+  - "旧 JSON 只作迁移输入/fixture/oracle，不污染新核心模型。"
+  - "帧定义全局唯一，任何模块不得维护独立帧列表。"
+
+items:
+  - id: FR-REAL-001
+    title: "Noun layer 修正"
+    status: done
+    scope: "types + selectors"
+    acceptance:
+      - "identifierRules 类型从 unknown[] 改为 IdentifierRule[]（含 operator 枚举 'eq'|'neq'|'gt'|'lt'|'range'|'mask'|'any'）。"
+      - "FrameFieldDefinition 增加 factor?: number 字段（值换算系数）。"
+      - "FrameChecksumDefinition 的 startFieldIndex/endFieldIndex 从 string 改为 number。"
+      - "checksumMethod 增加枚举类型 ChecksumMethod（'sum8'|'xor8'|'crc16'|'crc32'|'custom'）。"
+      - "所有 selector 返回深拷贝（structuredClone），无浅拷贝 spread。"
+      - "selector 级单测验证：修改返回值不影响 state。"
+      - "pnpm -C rewrite build 通过。"
+      - "pnpm -C rewrite vitest 全绿。"
+    validation:
+      - vitest
+      - build
+
+  - id: FR-REAL-002
+    title: "ExpressionDefinition 对齐验证"
+    status: done
+    scope: "expression alignment"
+    acceptance:
+      - "ConditionalExpressionDefinition 与 shared/expression compileConditional 输入格式对齐确认。"
+      - "validation-expression.ts 增加编译级语法检查（调用 shared/expression compileExpression/compileConditional）。"
+      - "旧系统表达式样本在新引擎全部编译通过。"
+      - "变量 identifier 在表达式中被引用检查。"
+    validation:
+      - vitest
+
+  - id: FR-REAL-003
+    title: "Legacy migration 完善"
+    status: done
+    scope: "migration + fixtures"
+    acceptance:
+      - "legacy.ts 处理旧 JSON 所有特征字段：lastId/timestamp 丢弃、factor 字符串→数字、identifierRules startIndex/endIndex 字符串→数字 + operator 枚举校验、validOption startFieldIndex/endFieldIndex 字符串→数字、checksumMethod 枚举校验。"
+      - "从 public/data/frames/ 沉淀至少 4 个迁移 fixture（最小帧、多字段帧、含表达式帧、含 factor 帧）。"
+      - "迁移 round-trip：旧 JSON → migrate → 新 FrameAsset[] → serialize → parse → 字段值一致（含 factor 数值精度）。"
+      - "非法输入（非 JSON、空数组、缺失 direction）返回 recognized=false + 明确 issues。"
+    validation:
+      - vitest
+      - fixture
+
+  - id: FR-REAL-004
+    title: "JSON schema + 序列化"
+    status: done
+    scope: "serialization"
+    acceptance:
+      - "FrameAssetFile { schemaVersion: 1, frames: FrameAsset[] } 格式实现。"
+      - "import 路径：JSON → schemaVersion check → 新格式直接校验 / 旧格式走 migration。"
+      - "export 路径：FrameAsset[] → FrameAssetFile → JSON string。"
+      - "round-trip：export → import → 深度相等（排除 createdAt/updatedAt 时间戳差异）。"
+    validation:
+      - vitest
+
+  - id: FR-REAL-005
+    title: "FrameReader 生产路径验证"
+    status: done
+    scope: "L0 dependency"
+    acceptance:
+      - "frameReader.getFrame(id) 返回深拷贝，修改返回值不影响 state。"
+      - "frameReader.getSnapshot() 返回完整快照。"
+      - "现有 L2 消费者测试（receive/send 注入 frameReader）仍通过。"
+      - "frameReader 返回类型全部为 ReadonlyDeep，无 any/unknown 逃逸。"
+    validation:
+      - vitest
+
+  - id: FR-REAL-006
+    title: "集成验证"
+    status: done
+    scope: "verification"
+    acceptance:
+      - "pnpm -C rewrite build 通过。"
+      - "pnpm -C rewrite lint 通过。"
+      - "pnpm -C rewrite vitest 全绿。"
+      - "无新增跨 feature 内部文件 import（全部通过 index.ts public API）。"
+      - "实施摘要包含 Changed files / Verify evidence / Open issues。"
+    validation:
+      - build
+      - lint
+      - vitest

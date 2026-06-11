@@ -1,0 +1,203 @@
+version: 1
+feature: rewrite-frame
+status: draft
+date: "2026-04-30"
+purpose: "后续 cs-feat-impl 的入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/compound/2026-04-28-rewrite-scope-default-preserve.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-system-architecture.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/architecture/rewrite-shared-tooling-audit-plan.md"
+  - "codestable/architecture/rewrite-pre-design-gate-and-sequencing.md"
+  - "codestable/architecture/rewrite-platform-app-shell-file-dialog.md"
+  - "codestable/architecture/rewrite-platform-api-surface-reduction.md"
+  - "codestable/architecture/rewrite-shared-tooling-app-shell-ownership.md"
+  - "codestable/quality/rewrite-validation-fixture-oracle-baseline.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+
+boundary_guards:
+  - "只实现 frame 静态资产、字段、表达式定义、校验、导入导出和迁移入口。"
+  - "不设计 receive/send/task/SCOE/report/northbound 内部细节。"
+  - "不冻结 preload/main/renderer API schema。"
+  - "不把旧 JSON 当成新核心模型。"
+  - "frame 新代码只落在 rewrite/src/features/frame；旧 src/public 路径只作为 evidence、fixture 或 oracle 输入。"
+  - "不把统计 read model 写回 frame definition 或 field definition。"
+  - "不把 frame helper 提前抽到 shared，除非满足 shared 纯工具条件。"
+
+items:
+  - id: FR-IMPL-001
+    title: "实现前重新确认 owner / not owner"
+    status: pending
+    scope: "frame design guard"
+    acceptance:
+      - "实现说明列出 frame owner 和 not owner。"
+      - "实现范围不包含 receive/send/task/SCOE/report/northbound 内部规则。"
+      - "实现范围不包含 platform API schema 设计。"
+    validation:
+      - manual
+
+  - id: FR-TEST-BASELINE-001
+    title: "独立引入 Vitest 测试基线"
+    status: completed
+    scope: "test baseline"
+    acceptance:
+      - "rewrite/package.json 已提供 test 脚本，执行 pnpm -C rewrite test。"
+      - "rewrite/vitest.config.ts 已建立 Vitest 配置。"
+      - "rewrite/test/smoke.spec.ts 已提供最小 infra smoke test。"
+      - "基线完成后再进入 frame core/service/adapter/selector 的实现测试。"
+      - "Vitest 只作为 core/service/adapter/selector 默认单测栈；页面交互先走 manual checklist。"
+      - "不以 build/lint 代替 Vitest 单测，也不用 Vitest 声明 runtime、hardware、SCOE、HTTP/FTP、northbound 或 customer closure 完成。"
+    validation:
+      - manual
+      - vitest
+
+  - id: FR-IMPL-002
+    title: "建立 frame core 纯 TypeScript 规则"
+    status: pending
+    scope: "rewrite/src/features/frame/core"
+    acceptance:
+      - "core 只接收显式输入，不依赖 Vue、Pinia、Electron、platform、Node 或全局 store。"
+      - "core 覆盖 frame asset、field、expression definition 的静态校验。"
+      - "core 包含旧 JSON 识别、迁移和序列化/反序列化规则，但不冻结本 checklist 外的 schema。"
+    validation:
+      - fixture
+      - vitest
+
+  - id: FR-IMPL-003
+    title: "建立 frame service 用例层"
+    status: pending
+    scope: "rewrite/src/features/frame/services"
+    acceptance:
+      - "service 负责 create/update/delete/duplicate/favorite/import/export/migrate/validate。"
+      - "service 协调 core、state 和 adapter，不直接访问平台能力。"
+      - "删除当前选中帧、收藏切换、导入覆盖或合并策略有可测行为。"
+    validation:
+      - fixture
+      - vitest
+      - fake adapter test
+
+  - id: FR-IMPL-004
+    title: "建立 frame state 边界"
+    status: pending
+    scope: "rewrite/src/features/frame/state"
+    acceptance:
+      - "state 只维护静态 frame assets、只读 selector 和必要 UI snapshot。"
+      - "state 不维护接收数据、发送结果、任务状态、SCOE 状态、连接状态或统计 read model。"
+      - "state 不向外暴露可变 collection、internal store、Vue ref 或全局 singleton。"
+    validation:
+      - fixture
+      - vitest
+
+  - id: FR-IMPL-005
+    title: "建立只读 consumer selector"
+    status: pending
+    scope: "rewrite/src/features/frame public surface"
+    acceptance:
+      - "receive 只能通过只读 snapshot 或 selector 读取接收方向 frame asset。"
+      - "send 只能通过只读 snapshot 或 selector 读取发送方向 frame asset。"
+      - "task/SCOE/report 如需读取 frame，只能使用明确的 reference projection。"
+      - "不为无真实消费者的能力创建同构空壳 public API。"
+    validation:
+      - fixture
+      - vitest
+
+  - id: FR-IMPL-006
+    title: "收口 expression definition 与 runtime 边界"
+    status: pending
+    scope: "frame expression boundary"
+    acceptance:
+      - "frame owns expression definition validation。"
+      - "表达式运行输入、运行结果和运行事实归 receive/send/SCOE/status 等消费者或运行编排。"
+      - "frame core 不读取 receive/global/SCOE store。"
+      - "旧 `new Function` 执行方式只作为 legacy evidence，不直接升级为新安全模型。"
+    validation:
+      - fixture
+      - vitest
+      - runtime
+
+  - id: FR-IMPL-007
+    title: "建立 import/export adapter 边界"
+    status: pending
+    scope: "rewrite/src/features/frame/adapters"
+    acceptance:
+      - "adapter 只负责 storage/file/app shell 技术适配。"
+      - "frame JSON 语义、校验、迁移和导出结构由 frame service/core 决定。"
+      - "renderer 不直接访问 Node、Electron、fs、path、ipcRenderer 或旧 window.electron 大包。"
+      - "本项不定义最终 platform API schema。"
+      - "导入/导出文件对话框和真实文件读写完成声明必须分别等待 runtime validation 和 package validation 证据。"
+    validation:
+      - fixture
+      - vitest
+      - fake adapter test
+      - manual
+      - runtime
+      - package validation
+
+  - id: FR-IMPL-008
+    title: "沉淀 legacy fixtures 和 oracle"
+    status: pending
+    scope: "rewrite/src/features/frame/fixtures and tests"
+    acceptance:
+      - "从允许的旧 JSON 样本沉淀正例、反例、迁移输入和预期输出。"
+      - "fixtures 不作为新核心模型或长期 schema。"
+      - "至少覆盖最小合法 frame、重复字段、表达式定义、跨 feature 引用样本和非法导入样本。"
+      - "迁移输出和导出 round-trip 预期输出必须登记为 oracle comparison 输入。"
+    validation:
+      - fixture
+      - vitest
+      - oracle comparison
+
+  - id: FR-IMPL-009
+    title: "迁移 frame 页面交互到目标分层"
+    status: pending
+    scope: "rewrite/src/features/frame composables/components/pages integration"
+    acceptance:
+      - "frame list/editor/field/expression UI 通过 composables/service/selector 使用 frame 能力。"
+      - "组件不直接访问 platform、跨 feature internal state 或旧全局 store。"
+      - "搜索、筛选、选中项、编辑草稿和对话框状态作为 UI snapshot 管理。"
+    validation:
+      - manual
+      - vitest
+
+  - id: FR-IMPL-010
+    title: "登记 runtime 装配需求"
+    status: pending
+    scope: "rewrite/src/runtime and app lifecycle"
+    acceptance:
+      - "若 receive/send/task 等消费者依赖启动时 frame assets，runtime 只登记加载顺序和订阅装配。"
+      - "runtime 不包含 frame 校验、迁移、表达式定义或 import/export JSON 语义。"
+      - "如出现 main 侧缓存需求，必须登记边界例外和业务语义归口。"
+    validation:
+      - manual
+      - runtime
+
+  - id: FR-IMPL-011
+    title: "完成自动测试和文档验证"
+    status: pending
+    scope: "implementation verification"
+    acceptance:
+      - "在 FR-TEST-BASELINE-001 完成后，用 Vitest 覆盖 core/service/adapter/selector 的纯 TypeScript 行为。"
+      - "实现阶段按项目要求运行 pnpm build 和 pnpm lint，除非当轮明确为纯文档。"
+      - "不得用静态测试声明 hardware、packaged app、HTTP/FTP、SCOE、northbound 或 customer closure 完成。"
+      - "实现摘要必须按 validation baseline 说明 oracle comparison、fake adapter test 和 package validation 覆盖或未覆盖项。"
+    validation:
+      - fixture
+      - vitest
+      - manual
+
+  - id: FR-DEFER-001
+    title: "保留阻塞和延期项"
+    status: pending
+    scope: "deferred"
+    acceptance:
+      - "新 frame 字段 schema、旧 JSON 完整兼容范围、expression runtime 安全模型、platform file/path/dialog API、receive/send/task/SCOE/report 内部设计均单独推进。"
+      - "打包态 data path、真实硬件链路、HTTP/FTP、northbound 和客户闭环不由 frame feature implementation 宣称完成。"
+      - "connection boundary 只作为后续 consumer 设计护栏，不授权本 checklist 进入 receive/send/task/SCOE 实现。"
+    validation:
+      - manual

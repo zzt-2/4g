@@ -34,39 +34,90 @@ export interface EnvelopeConfig {
 
 // --- Inbound request types ---
 
-export interface SetTestTaskRequest {
-  readonly executionPlan: {
-    readonly layers: readonly ExecutionPlanLayer[];
-  };
+// HAR-aligned setTestTask payload (see rewrite/docs/10.15.5.53.har /dispatch/data response).
+// Envelope fields (method/requestId/subSysType/subSysId/sessionId) come from InboundEnvelope.
+export interface SetTestTaskRequest extends InboundEnvelope {
+  readonly method: 'setTestTask';
+  readonly resources: readonly TestTaskResource[];
+  readonly taskId: string;                 // 'T_178022737246337558'
+  readonly taskName: string;
+  readonly immediate: boolean;
+  readonly repeatCount: number;
+  readonly isEnd: boolean;
+  readonly orbitProtectTime: number;       // seconds
+  readonly testCaseInfo: readonly TestCaseInfo[];
+  readonly ftpInfo: FtpInfo | null;
+  readonly executionPlan: ExecutionPlan;
 }
 
-export interface ExecutionPlanLayer {
-  readonly layerNo: number;
-  readonly parallel: boolean;
-  readonly testCaseInfoList: readonly TestCaseInfo[];
+export interface TestTaskResource {
+  readonly satelliteId: string;
+  readonly loadIds: readonly string[];
+  readonly payload: readonly { readonly ip?: string; readonly payloadId?: string }[];
 }
 
 export interface TestCaseInfo {
   readonly testCaseId: string;
-  readonly testCaseName: string;
-  readonly testCaseParams?: Readonly<Record<string, unknown>>;
-  readonly steps: readonly TestCaseStep[];
-  readonly timeout?: number;
+  readonly deviceIds: readonly string[];   // ['KPS_UE_202']
+  readonly masterTest: boolean;
+  readonly testMode: 1 | 2;
+  readonly ephMode: 1 | 2;
+  readonly orbitInfo: readonly OrbitInfo[] | null;
+  readonly inputPars: readonly InputPar[];
 }
 
-export type TestCaseStep =
-  | { readonly kind: 'send'; readonly frameId: string; readonly targetId: string; readonly fieldValues?: Readonly<Record<string, unknown>> }
-  | { readonly kind: 'wait-condition'; readonly conditions: readonly WaitConditionDef[]; readonly timeoutMs?: number };
-
-export interface WaitConditionDef {
-  readonly fieldId: string;
-  readonly operator: string;
-  readonly value: unknown;
+export interface OrbitInfo {
+  readonly subSysId?: string;
+  readonly satelliteId?: string;
+  readonly satelliteType?: string;
+  readonly cellIds?: readonly string[];
+  readonly stationId?: string;
+  readonly orbitId?: string;
+  readonly loopNum?: number;
+  readonly startTime?: string;
+  readonly endTime?: string;
 }
 
-export interface ControlTestTaskRequest {
-  readonly testCaseIdList: readonly string[];
-  readonly controlType: 'abort' | 'pause' | 'continue' | 'stop';
+export interface InputPar {
+  readonly parId: string;
+  readonly value: string;
+}
+
+export interface ExecutionPlan {
+  readonly layers: readonly ExecutionPlanLayer[];
+  readonly caseSets: readonly CaseSet[];
+}
+
+export interface ExecutionPlanLayer {
+  readonly layer: number;                  // NOTE: 'layer' not 'layerNo'
+  readonly parallel: boolean;
+  readonly nodes: readonly ExecutionPlanNode[];  // NOTE: 'nodes' not 'testCaseInfoList'
+}
+
+export interface ExecutionPlanNode {
+  readonly id: string;
+  readonly name: string;
+  readonly type: 'case' | 'caseSet';
+}
+
+export interface CaseSet {
+  readonly id: string;
+  readonly name: string;
+  readonly cases: readonly { readonly id: string; readonly name: string }[];
+}
+
+// V1.0.4 controlTestTask: single taskId + action (not testCaseIdList[] + controlType).
+// Response adds handleCode + taskId echo on top of CustomerResponse.
+export interface ControlTestTaskRequest extends InboundEnvelope {
+  readonly method: 'controlTestTask';
+  readonly taskId: string;
+  readonly action: 'pause' | 'continue' | 'stop' | 'abort';
+}
+
+export interface ControlTestTaskResponse extends CustomerResponse {
+  readonly method: 'controlTestTask';
+  readonly taskId: string;
+  readonly handleCode: 0 | 1 | 2;           // 0=ok, 1=busy, 2=env not ready
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

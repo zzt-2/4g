@@ -2,6 +2,10 @@ import type {
   TaskDefinition,
   TaskInstanceState,
   TaskProgress,
+  TaskTemplate,
+  TemplateUpdates,
+  TaskEventHandlers,
+  Unsubscribe,
 } from '../core';
 import { isTerminal } from '../core';
 import type { SendServiceProvider, ReceiveEventSource } from '../adapters';
@@ -18,6 +22,13 @@ import { createStepExecutors } from './task-step-executors';
 import { createLifecycleManager } from './task-lifecycle-manager';
 import { createErrorPolicyHandler } from './task-error-policy';
 import { createIterationLoops } from './task-iteration-loops';
+import type { TaskTemplateStorage } from './task-template-storage';
+import { debounce } from '@/shared/utils/debounce';
+
+function generateTemplateId(): string {
+  // Electron 30+ renderer 必有 crypto.randomUUID；不需要 fallback
+  return crypto.randomUUID();
+}
 
 // --- Public interfaces ---
 
@@ -38,7 +49,15 @@ export interface TaskService extends TaskReader {
   removeTask(instanceId: string): void;
   retryTask(sourceInstanceId: string): TaskInstanceState | undefined;
   updateTask(instanceId: string, definition: TaskDefinition): TaskInstanceState | undefined;
+  /** @deprecated 改用 subscribe({ onTaskSettled })。本 API 保留向后兼容。 */
   onSettled(instanceId: string): Promise<void>;
+  createTemplate(name: string, definition: TaskDefinition, tags?: readonly string[]): TaskTemplate;
+  listTemplates(): readonly TaskTemplate[];
+  getTemplate(templateId: string): TaskTemplate | undefined;
+  updateTemplate(templateId: string, updates: TemplateUpdates): TaskTemplate | undefined;
+  deleteTemplate(templateId: string): boolean;
+  instanciateTemplate(templateId: string): TaskInstanceState;
+  subscribe(handlers: TaskEventHandlers): Unsubscribe;
 }
 
 export interface CreateTaskServiceOptions {
@@ -48,7 +67,7 @@ export interface CreateTaskServiceOptions {
   readonly fieldValueProvider?: () => Readonly<Record<string, number | string | null>>;
   readonly state?: TaskStateContainer;
   readonly now?: () => string;
-  readonly onStepResult?: (instanceId: string, result: import('../core').TaskStepResult) => void;
+  readonly templateStorage?: TaskTemplateStorage;
 }
 
 // --- Factory ---
@@ -61,6 +80,22 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
   const state = options.state ?? createTaskState();
   const now = options.now ?? (() => new Date().toISOString());
   const fieldValueProvider = options.fieldValueProvider;
+  const templateStorage = options.templateStorage;
+
+  // 持久化：启动时 loadAll 灌进 state；变更后 debounce 500ms 写入
+  if (templateStorage) {
+    for (const tpl of templateStorage.loadAll()) {
+      state.upsertTemplate(tpl);
+    }
+  }
+  const schedulePersist = debounce((): void => {
+    if (!templateStorage) return;
+    try {
+      templateStorage.saveAll(state.listTemplates());
+    } catch (err) {
+      console.error('[task] template persist failed', err);
+    }
+  }, 500);
 
   // Execution control
   const abortResolvers = new Map<string, () => void>();
@@ -104,7 +139,6 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
     errorPolicy,
     fieldValueProvider,
     now,
-    onStepResult: options.onStepResult,
   });
 
   // --- Subscription management ---
@@ -162,6 +196,14 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
 
   // --- Public API ---
 
+  function createTaskInternal(
+    definition: TaskDefinition,
+    opts?: { readonly templateId?: string },
+  ): TaskInstanceState {
+    const instanceId = `task-inst-${nextInstanceId++}`;
+    return state.createInstance(instanceId, definition, opts?.templateId);
+  }
+
   return {
     getSnapshot() {
       return selectTaskSnapshot(state.getSnapshot());
@@ -180,8 +222,7 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
     },
 
     createTask(definition) {
-      const instanceId = `task-inst-${nextInstanceId++}`;
-      return state.createInstance(instanceId, definition);
+      return createTaskInternal(definition);
     },
 
     startTask(instanceId) {
@@ -255,7 +296,11 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       if (!source || !isTerminal(source.lifecycle)) return undefined;
 
       const newInstanceId = `task-inst-${nextInstanceId++}`;
-      state.createInstance(newInstanceId, source.definitionRef);
+      state.createInstance(
+        newInstanceId,
+        source.definitionRef,
+        source.templateId,
+      );
       lifecycle.updateLifecycle(newInstanceId, 'start');
       const signal = lifecycle.createAbortSignal(newInstanceId);
       runExecutionLoop(newInstanceId, signal);
@@ -280,6 +325,62 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
         }
         resolvers.add(resolve);
       });
+    },
+
+    createTemplate(name, definition, tags = []) {
+      const nowTs = now();
+      const template: TaskTemplate = {
+        templateId: generateTemplateId(),
+        name,
+        tags: [...tags],
+        definition,
+        createdAt: nowTs,
+        updatedAt: nowTs,
+      };
+      const result = state.upsertTemplate(template);
+      schedulePersist();
+      return result;
+    },
+
+    listTemplates() {
+      return state.listTemplates();
+    },
+
+    getTemplate(templateId) {
+      return state.getTemplate(templateId);
+    },
+
+    updateTemplate(templateId, updates) {
+      const existing = state.getTemplate(templateId);
+      if (!existing) return undefined;
+      const updated: TaskTemplate = {
+        ...existing,
+        ...(updates.name !== undefined ? { name: updates.name } : {}),
+        ...(updates.tags !== undefined ? { tags: [...updates.tags] } : {}),
+        ...(updates.definition !== undefined ? { definition: updates.definition } : {}),
+        updatedAt: now(),
+      };
+      const result = state.upsertTemplate(updated);
+      schedulePersist();
+      return result;
+    },
+
+    deleteTemplate(templateId) {
+      const result = state.removeTemplate(templateId);
+      schedulePersist();
+      return result;
+    },
+
+    instanciateTemplate(templateId) {
+      const template = state.getTemplate(templateId);
+      if (!template) {
+        throw new Error(`Template ${templateId} not found`);
+      }
+      return createTaskInternal(template.definition, { templateId });
+    },
+
+    subscribe(handlers) {
+      return state.subscribe(handlers);
     },
   };
 }

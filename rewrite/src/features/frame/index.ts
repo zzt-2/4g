@@ -51,3 +51,4 @@ export type {
 } from './selectors';
 export { createFrameAssetReader, createFrameAssetService, deserializeFrames, serializeFrames } from './services';
 export type { FrameAssetReader, FrameAssetFile, FrameAssetOperationResult, FrameAssetService, FrameDeserializeResult } from './services';
+export { default as FrameSelector } from './components/FrameSelector.vue';

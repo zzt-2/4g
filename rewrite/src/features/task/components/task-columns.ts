@@ -4,6 +4,7 @@ import type { ReadonlyTaskInstanceState } from '../core';
 export interface TaskTableRow {
   readonly instanceId: string;
   readonly name: string;
+  readonly templateId?: string;
   readonly scheduleKind: string;
   readonly scheduleKindDisplay: { readonly color: string; readonly label: string };
   readonly lifecycle: string;
@@ -20,6 +21,14 @@ export const taskColumns: QTableColumn[] = [
     field: 'name',
     align: 'left',
     sortable: true,
+  },
+  {
+    name: 'templateId',
+    label: '来源模板',
+    field: 'templateId',
+    align: 'left',
+    style: 'width: 120px',
+    headerStyle: 'width: 120px',
   },
   {
     name: 'scheduleKind',

@@ -1,0 +1,97 @@
+# rewrite-ui-architecture Checklist
+
+## 元数据
+
+- **feature**: rewrite-ui-architecture
+- **design**: rewrite-ui-architecture-design.md
+- **brainstorm**: rewrite-ui-architecture-brainstorm.md
+- **date**: 2026-05-12
+
+---
+
+## D1 导航体系
+
+- [ ] AppShell 实现 QDrawer + QHeader 布局 (manual)
+- [ ] AppNavigation 支持二级折叠菜单 (QExpansionItem) (manual)
+- [ ] 顶部连接选择器实现 (QSelect + connection.selectTransportTargets) (manual)
+- [ ] 面包屑组件实现 (QBreadcrumbs + 路由 meta) (manual)
+- [ ] mini/展开状态 localStorage 持久化 (runtime)
+- [ ] MVP 10个路由全部注册 (manual)
+- [ ] 侧边栏宽度 232px (--rw-size-app-drawer token) (static)
+
+## D2 布局骨架
+
+- [ ] 连接管理页使用主从双栏布局 (manual)
+- [ ] 帧列表页使用主从双栏布局 (manual)
+- [ ] 帧发送页使用三栏布局 (manual)
+- [ ] 高速存储/设置/SCOE使用单栏居中(max 1120px) (manual)
+- [ ] 所有页面内边距使用 spacing token (static lint)
+- [ ] 无硬编码 px/rem 间距值 (static lint)
+
+## D3 共享 Widget
+
+### P0
+- [ ] DataTable: client模式(全量+virtual-scroll) (manual + vitest)
+- [ ] DataTable: server模式(@request+service分页) (manual + vitest)
+- [ ] DataTable: 空状态 #no-data slot (manual)
+- [ ] DataTable: loading prop (manual)
+- [ ] DataTable: row-key 稳定唯一标识符 (static)
+
+### P1
+- [ ] StatusBadge: 状态色映射(positive/warning/negative/info) (manual)
+- [ ] TableToolbar: 搜索/筛选/操作按钮 (manual)
+- [ ] SendTargetSelector: 目标选择+状态显示 (manual)
+- [ ] FrameSelector: 帧下拉+方向过滤+搜索 (manual)
+
+### P2
+- [ ] ChartWidget: ECharts封装+props驱动 (manual)
+- [ ] ChartWidget: animation:false (static)
+
+## D4 实时数据展示
+
+- [ ] useDisplayRefresh composable (features/display/composables/) (vitest)
+- [ ] rAF + cadenceMs(200ms) 节流逻辑 (vitest)
+- [ ] shallowRef 整组替换 (vitest)
+- [ ] document.hidden 后台暂停 (vitest)
+- [ ] CSS @keyframes value-flash 值变化高亮 (manual)
+- [ ] 数据过期降级(变灰+时间戳) (manual)
+- [ ] 100+参数场景虚拟滚动+分组折叠 (runtime performance)
+- [ ] 与 display-ui-design 完全对齐 (static review)
+
+## D5 暗色模式
+
+- [ ] surface token 改为暗色值 (static)
+- [ ] text token 改为浅色值 (static)
+- [ ] 图表色板在暗色背景下对比度验证 (manual)
+- [ ] 所有页面暗色背景视觉验证 (manual)
+
+## D6 页面清单
+
+- [ ] 11个页面路由+组件文件存在 (static)
+- [ ] 每个页面对应feature public API可访问 (static)
+- [ ] 旧系统85个行为在新系统有对应 (static review)
+
+## 标识对齐
+
+- [ ] 路由参数 :frameId 与 FrameAsset.frameId 对齐 (static)
+- [ ] DataTable rowKey 与 feature entity ID 对齐 (static)
+- [ ] 无不必要的标识映射转换层 (static review)
+
+## 规范合规
+
+- [ ] 无硬编码颜色值 (static lint)
+- [ ] 状态色使用 positive/warning/negative/info (static lint)
+- [ ] DOM 节点 ≤3000 (runtime)
+- [ ] 无第三方 UI 库引入 (static)
+- [ ] v-for 使用稳定唯一 key (static lint)
+- [ ] 弹窗宽度使用语义 class (static lint)
+
+## 验证方式说明
+
+- **static**: 代码静态分析/lint 可验证
+- **static lint**: pnpm -C rewrite lint 可验证
+- **static review**: 人工 code review 验证
+- **manual**: 手工操作验证
+- **runtime**: 运行时性能监控验证
+- **runtime performance**: 压测/性能工具验证
+- **vitest**: 单元测试验证

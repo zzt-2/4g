@@ -343,3 +343,81 @@ interface UseCentralDockingReturn {
 
 - 当前 mock 能否正常工作（端到端验证）
 - Task UI 如何展示北向任务（区分、关联）
+
+### 2026-06-11 第四轮 — HAR 真实流量比对 + P1 修复计划
+
+#### 背景
+
+用户从甲方管理后台 `http://10.15.5.53` 抓了 HAR 文件（`rewrite/docs/10.15.5.53.har`），53 条请求全部是甲方管理 UI 流量（`/prod-api/admin/...`），不含 partner API 流量。但 `/dispatch/data` 响应体即甲方真实下发给子系统的 setTestTask payload，价值极高。
+
+两轮共 12 个子 agent 全量比对 HAR + V1.0/V1.0.4 文档 vs 现有代码，列出全部偏差。
+
+#### 决策（已拍板）
+
+| 项 | 决策 | 依据 |
+|----|------|------|
+| `/admin/` 前缀 | **要加**（出站 9 路径全部） | V1.0 文档第 78-94 行明确列出，partner API 路径就是 `/partner-api/admin/...` |
+| `subSysType` | 用 HAR 小写语义名（`laser`/`ka`） | HAR 真实流量 |
+| `subSysId` | 用 **outSubSysId 短码**（如 `JG`/`KPS_001`），不用雪花长 ID | HAR dispatch/data 真实值 + V1.0.4 ≤15 字符限制 |
+| FTP 文件交付 | 后续做 | 用户决策，不阻塞联调 |
+| HAR vs V1.0.4 冲突 | **V1.0.4 优先** | HAR 是管理后台流量，partner API 可能偏差 |
+| HTTP vs HTTPS | HTTP only（现有实现） | HAR 确认是 HTTP，无 HTTPS |
+
+#### 偏差统计
+
+| 严重度 | 数量 | 含义 |
+|--------|------|------|
+| BLOCKS_CONNECTION | 12 | 不修就接不上 |
+| AFFECTS_BEHAVIOR | 25+ | 能接上但语义错 |
+| COSMETIC | 10+ | 不影响联通 |
+
+#### P1 修改清单（必须改，阻断联调）
+
+| # | 改动 | 文件 |
+|---|------|------|
+| P1.1 | 重写 `SetTestTaskRequest` + `TestCaseInfo` 类型，对齐 HAR 真实形状（缺 resources/taskId/immediate/repeatCount/isEnd/orbitProtectTime；testCaseInfo 缺 deviceIds/masterTest/testMode/ephMode/orbitInfo/inputPars） | `core/types.ts` |
+| P1.2 | 重写 `ExecutionPlanLayer`：`layerNo`→`layer`、`testCaseInfoList`→`nodes`（带 `type` 字段）、新增 `caseSets[]` 概念；改 `processLayers` 处理新结构（区分 case/caseSet node） | `core/types.ts`、`services/northbound-service.ts` |
+| P1.3 | 重写 `inbound-translator.ts`：适配新 TestCaseInfo（deviceIds/testMode/inputPars → task steps） | `core/inbound-translator.ts` |
+| P1.4 | 修 `controlTestTask`：`controlType`→`action`、`testCaseIdList:string[]`→`taskId:string`、响应加 `handleCode` + `taskId` 回显 | `core/types.ts`、`services/northbound-service.ts` |
+| P1.5 | 出站路径全部加 `/admin/`：`postToCustomer('/admin/report/msgReport', ...)` 等 9 处 | `services/northbound-service.ts` |
+| P1.6 | 修 `SUB_SYS_TYPE_OPTIONS`：改成 `laser/ka/wer/fps/ads/seu`（小写） | `command-ingress/components/docking-labels.ts` |
+| P1.7 | 修默认 `customerBaseUrl`：建议默认 `http://ip/partner-api/admin/`，提示用户替换 | `command-ingress/components/docking-labels.ts` |
+| P1.8 | 修默认 `subSysId`：用 `JG`（短码）而非长 ID | `command-ingress/components/docking-labels.ts` |
+
+#### P2 修改清单（建议一起改）
+
+| # | 改动 | 文件 |
+|---|------|------|
+| P2.1 | testCaseResultReport 里 taskId 透传甲方下发的 `T_xxx`，不用本地 instanceId（需在 state 加 instanceId↔customerTaskId 映射） | `services/northbound-service.ts`、`state/northbound-state.ts` |
+| P2.2 | `setPars` handler 至少实现 `heartbeatTimer` 参数 → 重启心跳定时器 | `services/northbound-service.ts` |
+
+#### 不做（后续）
+
+- P3 FTP 文件交付链路（V1.0.4 § 2.3.2 目录命名 + sigReport/fileTranslationComplete 调用接线 + 多 fileType）
+- P4 美观问题（两份 mock 漂移、getSubSysState data[] 空、字符串长度校验等）
+
+#### 派发计划
+
+主线程上下文紧张，按依赖关系拆 3 批：
+
+**第一批（基础层，并行 2 个）**
+- A1: 改 `core/types.ts`（P1.1/P1.2/P1.4 类型部分）
+- A2: 改 `command-ingress/components/docking-labels.ts`（P1.6/P1.7/P1.8 配置）
+
+**第二批（应用层，并行 2 个，依赖第一批）**
+- A3: 改 `core/inbound-translator.ts`（P1.3，依赖 A1 的新类型）
+- A4: 改 `services/northbound-service.ts`（P1.2 processLayers / P1.4 controlTestTask / P1.5 出站路径 / P2.1 taskId 映射 / P2.2 setPars，依赖 A1）
+
+**第三批（验证，1 个）**
+- A5: build + lint，修编译错误，回报结果
+
+#### 与甲方待确认
+
+| # | 问题 | 影响 |
+|---|------|------|
+| Q1 | subSysType 码本（laser/ka/wer/...）是否完整？ | 默认配置 |
+| Q2 | customerBaseUrl 是 `http://ip/partner-api/admin/`（含 /admin/）还是 `http://ip/partner-api/`？ | URL 拼接策略 |
+| Q3 | 用例目录走 V1.0.4 FTP 文件还是别的接口？ | getTestCaseAll 实现 |
+| Q4 | password 明文还是 MD5？ | auth.ts 登录 |
+| Q5 | 联调时要不要测 FTP 文件交付？ | P3 是否本轮做 |
+| Q6 | 我方 IP 让甲方配到哪个子系统的 baseUrl？ | 联调前置 |

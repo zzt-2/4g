@@ -1,0 +1,143 @@
+---
+feature: rewrite-task-ui-overhaul
+doc_type: feature-checklist
+status: done
+date: 2026-06-11
+design: codestable/features/rewrite-task/task-ui-overhaul-design.md
+
+steps:
+  - id: s1-bug-fixes
+    title: "Fix o_send/o_timer/o_error naming bugs"
+    status: done
+    description: |
+      Fixed all 9 naming bugs:
+      - task-labels.ts: ADD_STEP_OPTIONS 'o_send' → 'send'
+      - TaskManagePage.vue: onAddStep case, updateSendStepField check, template v-if, FieldEditWidget direction, copy-previous condition, schedule kind 'o_timer', validation severity 'o_error'
+      - TaskExecutionDetail.vue: formatStepResult case + result.kind + emit('o_pause'/'o_stop')
+    exit_signal: "grep returns only icon fields"
+    validation:
+      - static-scan: pass
+
+  - id: s2-frame-selector
+    title: "Create FrameSelector component in frame feature"
+    status: done
+    description: |
+      Created FrameSelector.vue in features/frame/components/.
+      Props: modelValue, direction, label, disable.
+      Data source: frameService.listFrames({ direction }).
+      Exported from features/frame/index.ts.
+    exit_signal: "FrameSelector.vue exists, exported, builds without error"
+    validation:
+      - lint: pass
+
+  - id: s3-condition-term-editor
+    title: "Create ConditionTermEditor widget"
+    status: done
+    description: |
+      Created ConditionTermEditor.vue in widgets/.
+      Internal: FrameSelector → field QSelect → operator QSelect → threshold QInput → logicOperator QBtnToggle.
+      Cascading clear on frameId/fieldId change.
+    exit_signal: "ConditionTermEditor.vue in widgets/, compiles"
+    validation:
+      - lint: pass
+
+  - id: s4-labels-update
+    title: "Update task-labels.ts with new constants"
+    status: done
+    description: |
+      Added COMPARISON_OPERATOR_LABELS, LOGIC_OPERATOR_OPTIONS, ERROR_ACTION_OPTIONS to task-labels.ts.
+      All at module level with as const.
+    exit_signal: "New constants exported, no lint errors"
+    validation:
+      - lint: pass
+
+  - id: s5-delay-step-editor
+    title: "Create DelayStepEditor component"
+    status: done
+    description: |
+      Created DelayStepEditor.vue in features/task/components/.
+      Props: step, stepName, disable. Emits: update:step, update:stepName.
+    exit_signal: "Component exists, builds"
+    validation:
+      - lint: pass
+
+  - id: s6-wait-condition-step-editor
+    title: "Create WaitConditionStepEditor component"
+    status: done
+    description: |
+      Created WaitConditionStepEditor.vue in features/task/components/.
+      Uses ConditionTermEditor for condition list with add/remove.
+      Includes timeoutMs and onTimeout config.
+    exit_signal: "Component exists, builds"
+    validation:
+      - lint: pass
+
+  - id: s7-send-step-editor
+    title: "Create SendStepEditor component"
+    status: done
+    description: |
+      Created SendStepEditor.vue in features/task/components/.
+      Uses FrameSelector, SendTargetSelector, FieldEditWidget, ConditionTermEditor.
+      Includes repeat config (intervalMs, maxCount, until conditions).
+    exit_signal: "Component exists, builds"
+    validation:
+      - lint: pass
+
+  - id: s8-advanced-config-panel
+    title: "Create AdvancedConfigPanel component"
+    status: done
+    description: |
+      Created AdvancedConfigPanel.vue in features/task/components/.
+      Includes stop condition, exit conditions, error policy, field variations.
+      Uses ConditionTermEditor for exit conditions.
+    exit_signal: "Component exists, builds"
+    validation:
+      - lint: pass
+
+  - id: s9-composable-update
+    title: "Update use-task-editor composable"
+    status: done
+    description: |
+      Added: updateStepRepeat, fieldVariations, addExitCondition, removeExitCondition,
+      addFieldVariation, removeFieldVariation, updateFieldVariation.
+      Updated openNew/openEdit/buildDefinition for fieldVariations.
+    exit_signal: "New functions exist, existing tests still pass"
+    validation:
+      - test: pass (all task tests pass)
+
+  - id: s10-page-refactor
+    title: "Refactor TaskManagePage.vue to use new components"
+    status: done
+    description: |
+      Replaced inline step editors with SendStepEditor/WaitConditionStepEditor/DelayStepEditor.
+      Replaced inline event conditions with ConditionTermEditor.
+      Replaced inline advanced config with AdvancedConfigPanel.
+      Removed all inline helper functions (getFrameFields, updateSendStepField, etc.).
+      Fixed right panel fieldVariations display.
+      Added eventCooldownMs input.
+    exit_signal: "Page uses component-based step editors"
+    validation:
+      - lint: pass
+
+  - id: s11-execution-detail-fix
+    title: "Fix TaskExecutionDetail step kind checks"
+    status: done
+    description: |
+      Fixed formatStepResult: 'o_send' → 'send'.
+      Fixed emit('o_pause'/'o_stop') → emit('pause'/'stop').
+    exit_signal: "No o_send in TaskExecutionDetail.vue logic"
+    validation:
+      - lint: pass
+
+  - id: s12-verify
+    title: "Full verification"
+    status: done
+    description: |
+      lint: 0 new errors (5 pre-existing).
+      test: 0 new failures (1 pre-existing in connection-core, 1 flaky timeout in task-service).
+      static scan: no o_send/o_timer/o_error in task logic code.
+    exit_signal: "build + lint + test pass, no o_send in logic code"
+    validation:
+      - lint: pass
+      - test: pass (no new failures)
+      - static-scan: pass

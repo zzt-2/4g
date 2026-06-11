@@ -3,6 +3,7 @@ import { createDefaultDisplaySnapshot, DEFAULT_CHART_INSTANCE } from './defaults
 import {
   DISPLAY_SCHEMA_VERSION,
   type ChartInstancePreference,
+  type ChartSelectedItem,
   type DisplayGroupConfig,
   type DisplayGroupFrameEntry,
   type DisplayNormalizationResult,
@@ -63,6 +64,47 @@ function stringArrayValue(
   return [];
 }
 
+function chartSelectedItemsValue(
+  value: unknown,
+  path: string,
+  issues: DisplayValidationIssue[],
+): ChartSelectedItem[] {
+  if (!Array.isArray(value)) {
+    if (value !== undefined) {
+      issues.push(
+        createDisplayIssue(
+          'display.preference.selectedItemsInvalid',
+          path,
+          'Invalid chart selected items defaulted to empty.',
+        ),
+      );
+    }
+    return [];
+  }
+  const result: ChartSelectedItem[] = [];
+  for (const item of value) {
+    if (
+      item !== null
+      && typeof item === 'object'
+      && typeof (item as Record<string, unknown>).groupId === 'string'
+      && typeof (item as Record<string, unknown>).frameId === 'string'
+      && typeof (item as Record<string, unknown>).fieldId === 'string'
+    ) {
+      const v = item as { groupId: string; frameId: string; fieldId: string };
+      result.push({ groupId: v.groupId, frameId: v.frameId, fieldId: v.fieldId });
+    } else {
+      issues.push(
+        createDisplayIssue(
+          'display.preference.chartSelectedItemInvalid',
+          path,
+          'Invalid chart selected item dropped.',
+        ),
+      );
+    }
+  }
+  return result;
+}
+
 function positiveNumberValue(
   value: unknown,
   fallback: number,
@@ -89,10 +131,13 @@ function normalizeTablePreference(
     return { ...fallback, selectedItems: [...fallback.selectedItems] };
   }
 
+  const visibleColumns = stringArrayValue(raw.visibleColumns, `${prefix}.visibleColumns`, issues);
+
   return {
     displayMode: displayModeValue(raw.displayMode, fallback.displayMode, `${prefix}.displayMode`, issues) as DisplayPreferences['table1']['displayMode'],
     selectedGroupId: typeof raw.selectedGroupId === 'string' ? raw.selectedGroupId : fallback.selectedGroupId,
     selectedItems: stringArrayValue(raw.selectedItems, `${prefix}.selectedItems`, issues),
+    ...(visibleColumns.length > 0 ? { visibleColumns } : {}),
   };
 }
 
@@ -106,6 +151,10 @@ function normalizeYAxis(raw: unknown, fallback: YAxisPreference): YAxisPreferenc
   };
 }
 
+function cloneChartSelectedItems(items: readonly ChartSelectedItem[]): ChartSelectedItem[] {
+  return items.map((it) => ({ groupId: it.groupId, frameId: it.frameId, fieldId: it.fieldId }));
+}
+
 function normalizeChartInstance(
   raw: unknown,
   fallback: ChartInstancePreference,
@@ -115,7 +164,7 @@ function normalizeChartInstance(
     return {
       id: fallback.id,
       title: fallback.title,
-      selectedItems: [...fallback.selectedItems],
+      selectedItems: cloneChartSelectedItems(fallback.selectedItems),
       yAxis: { ...fallback.yAxis },
       performance: { ...fallback.performance },
     };
@@ -126,7 +175,7 @@ function normalizeChartInstance(
   return {
     id: typeof raw.id === 'string' ? raw.id : fallback.id,
     title: typeof raw.title === 'string' ? raw.title : fallback.title,
-    selectedItems: stringArrayValue(raw.selectedItems, `${path}.selectedItems`, issues),
+    selectedItems: chartSelectedItemsValue(raw.selectedItems, `${path}.selectedItems`, issues),
     yAxis: normalizeYAxis(raw.yAxis, fallback.yAxis),
     performance: {
       maxPoints: positiveNumberValue(perfRaw.maxPoints, fallback.performance.maxPoints, `${path}.performance.maxPoints`, 'display.chart.maxPointsInvalid', issues),
@@ -146,7 +195,7 @@ function normalizeCharts(
     return safeFallbacks.map((f) => ({
       id: f.id,
       title: f.title,
-      selectedItems: [...f.selectedItems],
+      selectedItems: cloneChartSelectedItems(f.selectedItems),
       yAxis: { ...f.yAxis },
       performance: { ...f.performance },
     }));
@@ -167,14 +216,16 @@ function normalizeCharts(
     // New charts beyond existing count start with empty selectedItems
     const isNew = i >= safeFallbacks.length;
     const fallback: ChartInstancePreference = {
-      ...base,
       id: `chart-${i + 1}`,
       title: `图表${i + 1}`,
-      ...(isNew ? { selectedItems: [] } : {}),
+      selectedItems: isNew ? [] : [...base!.selectedItems],
+      yAxis: { ...base!.yAxis },
+      performance: { ...base!.performance },
     };
     result.push(normalizeChartInstance(raw[i], fallback, issues));
   }
-  return result.length > 0 ? result : [normalizeChartInstance(undefined, safeFallbacks[0], issues)];
+  const firstFallback = safeFallbacks[0]!;
+  return result.length > 0 ? result : [normalizeChartInstance(undefined, firstFallback, issues)];
 }
 
 function normalizeScatterBinding(
@@ -260,7 +311,10 @@ function normalizeGroupFrames(
     }
     globalFrameIds.add(frameId);
     const visibleFieldIds = stringArrayValue(item.visibleFieldIds, `groups[${groupId}].frames[${frameId}].visibleFieldIds`, issues);
-    result.push({ frameId, visibleFieldIds });
+    const rawOrder = item.fieldOrder;
+    const fieldOrder = stringArrayValue(rawOrder, `groups[${groupId}].frames[${frameId}].fieldOrder`, issues);
+    const dedupedOrder = [...new Set(fieldOrder)];
+    result.push({ frameId, visibleFieldIds, ...(dedupedOrder.length > 0 ? { fieldOrder: dedupedOrder } : {}) });
   }
   return result;
 }
@@ -323,7 +377,7 @@ export function applyDisplayPreferencesPatch(
       return {
         id: existing.id,
         title: p.title ?? existing.title,
-        selectedItems: p.selectedItems ? [...p.selectedItems] : existing.selectedItems,
+        selectedItems: p.selectedItems ? cloneChartSelectedItems(p.selectedItems) : existing.selectedItems,
         yAxis: p.yAxis ? { ...existing.yAxis, ...p.yAxis } : existing.yAxis,
         performance: p.performance ? { ...existing.performance, ...p.performance } : existing.performance,
       };
@@ -353,10 +407,63 @@ export function applyDisplayPreferencesPatch(
       ? patch.groups.map((g) => ({
           id: g.id,
           label: g.label,
-          frames: g.frames.map((f) => ({ frameId: f.frameId, visibleFieldIds: [...f.visibleFieldIds] })),
+          frames: g.frames.map((f) => ({
+            frameId: f.frameId,
+            visibleFieldIds: [...f.visibleFieldIds],
+            ...(f.fieldOrder ? { fieldOrder: [...f.fieldOrder] } : {}),
+          })),
         }))
       : currentPrefs.groups,
   };
 
   return normalizeDisplayPreferencesInput(merged, current);
+}
+
+export interface ChartSelectionFrameLookup {
+  listFieldReferences(query: { readonly frameId: string }): ReadonlyArray<{ readonly fieldId: string; readonly fieldName: string }>;
+}
+
+export function validateChartSelectedItems(
+  prefs: DisplayPreferences,
+  lookup: ChartSelectionFrameLookup,
+): DisplayPreferences {
+  const knownGroupIds = new Set(prefs.groups.map((g) => g.id));
+  const frameFieldCache = new Map<string, Set<string>>();
+
+  function isFieldKnown(frameId: string, fieldId: string): boolean {
+    let fields = frameFieldCache.get(frameId);
+    if (fields === undefined) {
+      const refs = lookup.listFieldReferences({ frameId });
+      fields = new Set(refs.map((r) => r.fieldId));
+      frameFieldCache.set(frameId, fields);
+    }
+    return fields.has(fieldId);
+  }
+
+  let anyChartChanged = false;
+  const validatedCharts = prefs.charts.map((chart) => {
+    if (chart.selectedItems.length === 0) return chart;
+    const validatedItems: ChartSelectedItem[] = [];
+    let dropped = false;
+    for (const item of chart.selectedItems) {
+      if (!isFieldKnown(item.frameId, item.fieldId)) {
+        console.warn('[display] chart selected item dropped: frame/field not found', item);
+        dropped = true;
+        continue;
+      }
+      let normalizedGroupId = item.groupId;
+      if (item.groupId !== item.frameId && !knownGroupIds.has(item.groupId)) {
+        console.warn('[display] chart selected item groupId fallback to frameId', item);
+        normalizedGroupId = item.frameId;
+        dropped = true;
+      }
+      validatedItems.push({ groupId: normalizedGroupId, frameId: item.frameId, fieldId: item.fieldId });
+    }
+    if (!dropped) return chart;
+    anyChartChanged = true;
+    return { ...chart, selectedItems: validatedItems };
+  });
+
+  if (!anyChartChanged) return prefs;
+  return { ...prefs, charts: validatedCharts };
 }

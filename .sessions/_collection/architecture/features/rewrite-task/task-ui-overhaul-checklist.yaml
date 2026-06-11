@@ -1,0 +1,178 @@
+---
+feature: rewrite-task-ui-overhaul
+doc_type: feature-checklist
+status: draft
+date: 2026-06-11
+design: codestable/features/rewrite-task/task-ui-overhaul-design.md
+
+steps:
+  - id: s1-bug-fixes
+    title: "Fix o_send/o_timer/o_error naming bugs"
+    description: |
+      Fix all instances where step kind 'send' was incorrectly written as 'o_send':
+      - task-labels.ts: ADD_STEP_OPTIONS value
+      - TaskManagePage.vue: onAddStep switch, updateSendStepField check, template v-if, FieldEditWidget direction, copy-previous condition
+      - TaskExecutionDetail.vue: formatStepResult switch and result.kind check
+      - TaskManagePage.vue: schedule kind 'o_timer' → 'timer' (if found), validation severity 'o_error' → 'error' (if found)
+      DO NOT change icon names (o_send icon is correct Quasar Material icon).
+    exit_signal: "grep -r 'o_send\\|o_timer\\|o_error' in task .vue/.ts files returns zero matches (except icon fields)"
+    validation:
+      - static-scan
+      - build
+
+  - id: s2-frame-selector
+    title: "Create FrameSelector component in frame feature"
+    description: |
+      Create FrameSelector.vue in features/frame/components/.
+      Props: modelValue (string|null), direction ('send'|'receive'), label, disable.
+      Emits: update:modelValue.
+      Data source: frameAssetService.listFrames({ direction }).
+      Export via features/frame/index.ts.
+      Follow SendTargetSelector pattern (QSelect, dense, outlined, emit-value, map-options).
+    exit_signal: "FrameSelector.vue exists, exported from frame/index.ts, builds without error"
+    validation:
+      - build
+      - lint
+
+  - id: s3-condition-term-editor
+    title: "Create ConditionTermEditor widget"
+    description: |
+      Create ConditionTermEditor.vue in widgets/.
+      Props: modelValue (ConditionTerm), showLogicOperator (boolean), direction ('send'|'receive'), disable.
+      Emits: update:modelValue.
+      Internal: FrameSelector → field QSelect (depends on frameId) → operator QSelect (COMPARISON_OPERATORS) → threshold QInput → logicOperator QBtnToggle.
+      Cascading clear: frameId change clears fieldId; fieldId change clears threshold.
+      Add COMPARISON_OPERATOR_LABELS map to task-labels.ts if not exists.
+      Add ON_TIMEOUT_OPTIONS to task-labels.ts if not exists.
+    exit_signal: "ConditionTermEditor.vue in widgets/, compiles, renders frame/field/operator/threshold cascade"
+    validation:
+      - build
+      - lint
+
+  - id: s4-labels-update
+    title: "Update task-labels.ts with new constants"
+    description: |
+      Add to task-labels.ts:
+      - COMPARISON_OPERATOR_LABELS: Record<ComparisonOperator, string> (eq→等于, neq→不等于, gt→大于, lt→小于, gte→大于等于, lte→小于等于, contains→包含, change→变化, any→任意)
+      - LOGIC_OPERATOR_OPTIONS: [{ value: 'and', label: '且' }, { value: 'or', label: '或' }]
+      - ON_TIMEOUT_OPTIONS: [{ value: 'continue', label: '继续' }, { value: 'skip', label: '跳过' }, { value: 'fail', label: '失败' }]
+      - ERROR_ACTION_OPTIONS: [{ value: 'retry', label: '重试' }, { value: 'skip-step', label: '跳过步骤' }, { value: 'stop', label: '停止' }, { value: 'pause', label: '暂停' }]
+      All at module level with as const.
+    exit_signal: "New constants exported, no lint errors"
+    validation:
+      - lint
+
+  - id: s5-delay-step-editor
+    title: "Create DelayStepEditor component"
+    description: |
+      Create DelayStepEditor.vue in features/task/components/.
+      Props: step ({ durationMs }), stepName (string), disable.
+      Emits: update:step, update:stepName.
+      Simplest editor — validates component pattern before complex ones.
+      QInput for step name + QInput for durationMs with validation (> 0).
+    exit_signal: "Component exists, builds, simplest step editor pattern validated"
+    validation:
+      - build
+
+  - id: s6-wait-condition-step-editor
+    title: "Create WaitConditionStepEditor component"
+    description: |
+      Create WaitConditionStepEditor.vue in features/task/components/.
+      Props: step (WaitConditionConfig), stepName (string), disable.
+      Emits: update:step, update:stepName.
+      Internal: step name QInput + ConditionTermEditor list (add/remove) + timeoutMs QInput + onTimeout QSelect.
+      Condition list: v-for with stable keys, add button, remove button per item.
+      First condition: showLogicOperator=false. Subsequent: showLogicOperator=true.
+      Frame direction for conditions: 'receive' (wait-condition monitors received frames).
+    exit_signal: "Component exists, conditions render with frame/field/operator/threshold cascade"
+    validation:
+      - build
+
+  - id: s7-send-step-editor
+    title: "Create SendStepEditor component"
+    description: |
+      Create SendStepEditor.vue in features/task/components/.
+      Props: step (SendStepConfig), stepName (string), stepIndex (number), hasPreviousSendStep (boolean), disable.
+      Emits: update:step, update:stepName, copyPrevious.
+      Internal:
+      - Step name QInput
+      - FrameSelector (direction='send')
+      - SendTargetSelector (from features/send)
+      - FieldEditWidget (direction='send', fields from selected frame)
+      - intervalAfterMs QInput
+      - Copy previous values QBtn (if hasPreviousSendStep)
+      - Step repeat config (QExpansionItem, collapsible):
+        - repeat.intervalMs QInput
+        - repeat.maxCount QInput
+        - repeat.until: ConditionTermEditor list (direction='receive')
+    exit_signal: "Component exists, frame selection triggers field display, repeat config available"
+    validation:
+      - build
+
+  - id: s8-advanced-config-panel
+    title: "Create AdvancedConfigPanel component"
+    description: |
+      Create AdvancedConfigPanel.vue in features/task/components/.
+      Props: stopCondition?, errorPolicy, fieldVariations?, disable.
+      Emits: update:stopCondition, update:errorPolicy, update:fieldVariations.
+      QExpansionItem (default collapsed):
+      - Stop condition: maxIterations QInput + maxDurationMs QInput
+      - Exit conditions: ConditionTermEditor list (add/remove)
+      - Error policy: onFailure QSelect + retryCount QInput + retryDelayMs QInput
+      - Field variations: list of items, each with fieldId QInput + values multi-input
+    exit_signal: "Component exists, all advanced config sections render"
+    validation:
+      - build
+
+  - id: s9-composable-update
+    title: "Update use-task-editor composable"
+    description: |
+      Add to use-task-editor.ts:
+      - updateStepRepeat(index, repeat): update step.config.repeat for send steps
+      - addExitCondition() / removeExitCondition(index): manage stopCondition.exitCondition
+      - addFieldVariation() / removeFieldVariation(index) / updateFieldVariation(index, variation): manage fieldVariations
+      Ensure existing functions work with new component structure (step editors emit updates).
+    exit_signal: "New functions exist and compile, existing tests still pass"
+    validation:
+      - build
+      - vitest-unit
+
+  - id: s10-page-refactor
+    title: "Refactor TaskManagePage.vue to use new components"
+    description: |
+      Replace inline step editor code with component calls:
+      - q-expansion-item loop uses SendStepEditor / WaitConditionStepEditor / DelayStepEditor
+      - Event schedule conditions use ConditionTermEditor
+      - Advanced config uses AdvancedConfigPanel
+      - Fix event schedule: add cooldownMs QInput, use ConditionTermEditor for conditions
+      - Remove all inline step editing code
+      Keep: dialog structure, polling, task list, history, toolbar.
+    exit_signal: "Page uses component-based step editors, no inline step editing code remains"
+    validation:
+      - build
+      - lint
+
+  - id: s11-execution-detail-fix
+    title: "Fix TaskExecutionDetail step kind checks"
+    description: |
+      Fix formatStepResult: 'o_send' → 'send', result.kind === 'o_send' → result.kind === 'send'.
+      Verify all step kind references use correct values.
+    exit_signal: "No o_send in TaskExecutionDetail.vue"
+    validation:
+      - build
+
+  - id: s12-verify
+    title: "Full verification"
+    description: |
+      Run complete verification:
+      - pnpm -C rewrite build
+      - pnpm -C rewrite lint (zero NEW errors)
+      - pnpm -C rewrite test (all existing tests pass)
+      - Static scan: grep -r 'o_send' in .vue/.ts returns only icon fields
+      - Manual check: task editor dialog opens, step editors render correctly
+    exit_signal: "build + lint + test pass, no o_send in logic code"
+    validation:
+      - build
+      - lint
+      - vitest-unit
+      - static-scan

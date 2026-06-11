@@ -8,9 +8,12 @@ import type {
   TaskStopCondition,
   SendStepConfig,
   ConditionTerm,
+  StepRepeat,
+  FieldVariation,
 } from '../core';
 import { validateTaskDefinition, createTaskDefinition, cloneStepDefinition } from '../core';
 import type { TaskValidationIssue } from '../core/task-validation';
+import { deepToRaw } from './deep-raw';
 
 export function useTaskEditor(taskService: TaskService) {
   const isEditing = ref(false);
@@ -61,14 +64,16 @@ export function useTaskEditor(taskService: TaskService) {
   }
 
   function buildDefinition(): TaskDefinition {
-    return createTaskDefinition({
+    const def = createTaskDefinition({
       id: editingInstanceId.value ?? `task-${Date.now()}`,
       name: taskName.value,
       schedule: buildScheduleDriver(),
       steps: steps.value,
       errorPolicy: errorPolicy.value,
       stopCondition: buildStopCondition(),
+      fieldVariations: fieldVariations.value.length > 0 ? fieldVariations.value : undefined,
     });
+    return deepToRaw(def);
   }
 
   function validate(): boolean {
@@ -90,6 +95,7 @@ export function useTaskEditor(taskService: TaskService) {
     steps.value = [];
     stopCondition.value = {};
     errorPolicy.value = { onFailure: 'stop' };
+    fieldVariations.value = [];
     validationIssues.value = [];
     isEditing.value = true;
   }
@@ -115,6 +121,10 @@ export function useTaskEditor(taskService: TaskService) {
     steps.value = def.steps.map(cloneStepDefinition);
     stopCondition.value = def.stopCondition ? { ...def.stopCondition } : {};
     errorPolicy.value = { ...def.errorPolicy };
+
+    fieldVariations.value = def.fieldVariations
+      ? def.fieldVariations.map((v) => ({ ...v }))
+      : [];
 
     if (stopCondition.value.maxIterations !== undefined) {
       timerIterations.value = stopCondition.value.maxIterations;
@@ -201,6 +211,39 @@ export function useTaskEditor(taskService: TaskService) {
     }
   }
 
+  function updateStepRepeat(index: number, repeat: StepRepeat | undefined): void {
+    const step = steps.value[index];
+    if (step.kind !== 'send') return;
+    const config = { ...(step.config as SendStepConfig), repeat };
+    updateStep(index, { ...step, config });
+  }
+
+  const fieldVariations = ref<FieldVariation[]>([]);
+
+  function addExitCondition(): void {
+    const sc = { ...stopCondition.value };
+    const conds = [...(sc.exitCondition ?? []), { frameId: '', fieldId: '', operator: 'eq' as const, threshold: '' }];
+    stopCondition.value = { ...sc, exitCondition: conds };
+  }
+
+  function removeExitCondition(index: number): void {
+    const sc = { ...stopCondition.value };
+    const conds = (sc.exitCondition ?? []).filter((_, i) => i !== index);
+    stopCondition.value = { ...sc, exitCondition: conds };
+  }
+
+  function addFieldVariation(): void {
+    fieldVariations.value = [...fieldVariations.value, { fieldId: '', values: [] }];
+  }
+
+  function removeFieldVariation(index: number): void {
+    fieldVariations.value = fieldVariations.value.filter((_, i) => i !== index);
+  }
+
+  function updateFieldVariation(index: number, variation: FieldVariation): void {
+    fieldVariations.value = fieldVariations.value.map((v, i) => (i === index ? variation : v));
+  }
+
   return {
     isEditing,
     editingInstanceId,
@@ -229,5 +272,12 @@ export function useTaskEditor(taskService: TaskService) {
     removeEventCondition,
     updateEventCondition,
     duplicateStepValuesFromPrevious,
+    updateStepRepeat,
+    fieldVariations,
+    addExitCondition,
+    removeExitCondition,
+    addFieldVariation,
+    removeFieldVariation,
+    updateFieldVariation,
   };
 }

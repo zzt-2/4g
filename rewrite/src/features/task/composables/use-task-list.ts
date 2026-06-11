@@ -14,7 +14,7 @@ export function toTaskRow(inst: ReadonlyTaskInstanceState): TaskTableRow {
   const total = progress.stepsTotal || 1;
   const pct = Math.round((progress.stepsCompleted / total) * 100);
   const kind = inst.definitionRef.schedule.kind;
-  return {
+  const base: TaskTableRow = {
     instanceId: inst.instanceId,
     name: inst.definitionRef.name,
     scheduleKind: kind,
@@ -25,6 +25,10 @@ export function toTaskRow(inst: ReadonlyTaskInstanceState): TaskTableRow {
     progressLabel: `${progress.stepsCompleted}/${progress.stepsTotal}`,
     _original: inst,
   };
+  if (inst.templateId !== undefined) {
+    return { ...base, templateId: inst.templateId };
+  }
+  return base;
 }
 
 export function toHistoryRow(inst: ReadonlyTaskInstanceState): HistoryTableRow {

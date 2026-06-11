@@ -5,7 +5,6 @@ import {
   cloneDisplaySnapshot,
   computeDisplayProjection,
   normalizeDisplayPreferencesInput,
-  projectChartSeries,
   projectScatter,
   projectTableRows,
 } from '../core';
@@ -37,14 +36,16 @@ describe('display core projection', () => {
   it('projects table rows filtered by groupId and selectedItems', () => {
     const rows = projectTableRows(sampleFieldMaterial, 'g1', ['frame1:voltage']);
     expect(rows).toHaveLength(1);
-    expect(rows[0].fieldName).toBe('Voltage');
+    // R19 (v2): toRow no longer projects fieldName; UI resolves it via frameReader lookup.
+    expect(rows[0].fieldName).toBeUndefined();
     expect(rows[0].value).toBe(3.3);
   });
 
   it('projects all fields for a group when selectedItems is empty', () => {
     const rows = projectTableRows(sampleFieldMaterial, 'g1', []);
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.fieldName)).toEqual(['Voltage', 'Current']);
+    // R19 (v2): fieldName not projected; assert dataItemId ordering instead.
+    expect(rows.map((r) => r.dataItemId)).toEqual(['frame1:voltage', 'frame1:current']);
   });
 
   it('projects all fields when groupId is empty', () => {
@@ -55,18 +56,6 @@ describe('display core projection', () => {
   it('returns empty rows for empty fields', () => {
     const rows = projectTableRows(emptyFieldMaterial, 'g1', ['f1']);
     expect(rows).toHaveLength(0);
-  });
-
-  it('returns empty chart series when no items selected', () => {
-    const series = projectChartSeries(sampleFieldMaterial, []);
-    expect(series).toHaveLength(0);
-  });
-
-  it('projects chart series with field name from matching fields', () => {
-    const series = projectChartSeries(sampleFieldMaterial, ['g1:frame1:voltage']);
-    expect(series).toHaveLength(1);
-    expect(series[0].fieldName).toBe('Voltage');
-    expect(series[0].points).toEqual([]);
   });
 
   it('returns empty scatter when I/Q sources not matched', () => {
@@ -105,8 +94,6 @@ describe('display core projection', () => {
     const projection = computeDisplayProjection(sampleFieldMaterial, prefs);
     expect(projection.table1Rows).toHaveLength(4);
     expect(projection.table2Rows).toHaveLength(4);
-    expect(projection.charts).toHaveLength(1);
-    expect(projection.charts[0].series).toHaveLength(0);
     expect(projection.scatter.points).toHaveLength(0);
   });
 });
@@ -181,7 +168,7 @@ describe('display state isolation', () => {
     const next = cloneDisplaySnapshot(defaultDisplayFixture);
     state.replaceSnapshot(next);
     (next as Record<string, unknown>).schemaVersion = 999 as never;
-    expect(state.getSnapshot().schemaVersion).toBe(1);
+    expect(state.getSnapshot().schemaVersion).toBe(2);
   });
 });
 
@@ -195,7 +182,8 @@ describe('display service', () => {
 
     const rows = service.getTable1Rows();
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.fieldName)).toEqual(['Voltage', 'Current']);
+    // R19 (v2): service projection no longer carries fieldName; UI enriches via frameReader.
+    expect(rows.map((r) => r.dataItemId)).toEqual(['frame1:voltage', 'frame1:current']);
   });
 
   it('ingests source material and produces projections', () => {
@@ -204,10 +192,7 @@ describe('display service', () => {
     const result = service.ingestSourceMaterial({ fields: sampleFieldMaterial });
 
     expect(result.ok).toBe(true);
-    const instances = service.getChartInstances();
-    expect(instances).toHaveLength(1);
-    expect(instances[0].series).toHaveLength(2);
-    expect(instances[0].series[0].fieldName).toBe('Voltage');
+    expect(service.getSourceFields()).toHaveLength(4);
   });
 
   it('ingests scatter source material and projects I/Q', () => {
@@ -264,14 +249,13 @@ describe('display service multi-chart', () => {
     service.ingestSourceMaterial({ fields: sampleFieldMaterial });
 
     service.updateChartConfig('chart-1', updateChart1Patch);
-    const instances = service.getChartInstances();
-    expect(instances[0].series).toHaveLength(2);
-    expect(instances[0].series.map((s) => s.fieldName)).toEqual(['Voltage', 'Current']);
+    const chart = service.getPreferences().charts[0];
+    expect(chart.selectedItems).toHaveLength(2);
   });
 
   it('updateChartConfig returns error for unknown chart', () => {
     const service = createDisplayService();
-    const result = service.updateChartConfig('nonexistent', { selectedItems: ['a'] });
+    const result = service.updateChartConfig('nonexistent', { selectedItems: [{ groupId: 'g1', frameId: 'f1', fieldId: 'a' }] });
     expect(result.ok).toBe(false);
     expect(result.issues[0].code).toBe('display.chart.notFound');
   });
@@ -293,7 +277,10 @@ describe('display service multi-chart', () => {
     const prefs = service.getPreferences();
     expect(prefs.charts).toHaveLength(1);
     expect(prefs.charts[0].id).toBe('chart-1');
-    expect(prefs.charts[0].selectedItems).toEqual(['g1:frame1:voltage', 'g1:frame1:current']);
+    expect(prefs.charts[0].selectedItems).toEqual([
+      { groupId: 'g1', frameId: 'frame1', fieldId: 'voltage' },
+      { groupId: 'g1', frameId: 'frame1', fieldId: 'current' },
+    ]);
   });
 
   it('updateChartCount clamps to 1-4', () => {
@@ -302,14 +289,6 @@ describe('display service multi-chart', () => {
     expect(service.getPreferences().charts).toHaveLength(1);
     service.updateChartCount(10);
     expect(service.getPreferences().charts).toHaveLength(4);
-  });
-
-  it('getChartSeries returns first chart series for backward compat', () => {
-    const service = createDisplayService();
-    service.ingestSourceMaterial({ fields: sampleFieldMaterial });
-    service.updateChartConfig('chart-1', updateChart1Patch);
-    const series = service.getChartSeries();
-    expect(series).toHaveLength(2);
   });
 });
 
@@ -334,8 +313,6 @@ describe('display selector and public api', () => {
     expect(displayPublicApi).toHaveProperty('createDisplayReader');
     expect(displayPublicApi).toHaveProperty('createDisplayService');
     expect(displayPublicApi).toHaveProperty('selectTable1Rows');
-    expect(displayPublicApi).toHaveProperty('selectChartInstances');
-    expect(displayPublicApi).toHaveProperty('selectChartSeries');
     expect(displayPublicApi).toHaveProperty('selectScatterProjection');
     expect(displayPublicApi).not.toHaveProperty('createDisplayState');
     expect(displayPublicApi).not.toHaveProperty('normalizeDisplayPreferencesInput');
@@ -366,7 +343,10 @@ describe('display service multi-chart edge cases', () => {
     service.updateChartCount(3);
     const prefs = service.getPreferences();
     // chart-1 keeps its selection
-    expect(prefs.charts[0].selectedItems).toEqual(['g1:frame1:voltage', 'g1:frame1:current']);
+    expect(prefs.charts[0].selectedItems).toEqual([
+      { groupId: 'g1', frameId: 'frame1', fieldId: 'voltage' },
+      { groupId: 'g1', frameId: 'frame1', fieldId: 'current' },
+    ]);
     // new charts start empty
     expect(prefs.charts[1].selectedItems).toEqual([]);
     expect(prefs.charts[2].selectedItems).toEqual([]);
@@ -393,13 +373,6 @@ describe('display service multi-chart edge cases', () => {
     expect(service.getPreferences().charts).toHaveLength(1);
   });
 
-  it('getChartInstances returns empty series when no data', () => {
-    const service = createDisplayService();
-    const instances = service.getChartInstances();
-    expect(instances).toHaveLength(1);
-    expect(instances[0].series).toEqual([]);
-  });
-
   it('updatePreferences with empty charts normalizes to single chart', () => {
     const service = createDisplayService();
     service.updatePreferences({ charts: [] });
@@ -414,7 +387,7 @@ describe('display normalize edge cases', () => {
   it('normalizes >4 charts input by truncating with warning', () => {
     const fiveCharts = Array.from({ length: 5 }, (_, i) => ({
       id: `chart-${i + 1}`,
-      selectedItems: [`g1:f${i + 1}`],
+      selectedItems: [{ groupId: 'g1', frameId: `f${i + 1}`, fieldId: `field-${i + 1}` }],
     }));
     const result = normalizeDisplayPreferencesInput({
       charts: fiveCharts,

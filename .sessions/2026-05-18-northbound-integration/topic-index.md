@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-10
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-11
 
 ## 专题目标
 
@@ -184,8 +184,9 @@
 ## 当前状态
 
 **入站 12/12 handler 就绪，出站 9/9 translator 就绪，auth + heartbeat + FTP 就绪。**
-**两个待做：H002 mock 数据真实化、H003 甲方连通 UI。两个可并行，UI 更紧迫。**
-**已知未做：UI 配置页面、真实设备对接、联调验证。**
+**S008 + H005 完成（中心对接 UI + TaskManagePage 重构）。**
+**S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
+**已知未做：UI 配置页面美化、真实设备对接、联调验证、preHandle/afterHandle 翻译层。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -211,3 +212,40 @@
 - lint 零新增 error
 - 设计+实施文档：S008-docking-ui-design.md
 - 2026-06-11 第三轮：Mock 状态审计（上报链路 real，用例/执行 mock），发现 Task step kind `o_send` vs `send` 不匹配 bug，Task UI 无法区分北向任务
+- 2026-06-11 第四轮：HAR 真实流量比对（12 agent × 2 批），列出 12 BLOCKS + 25 AFFECTS_BEHAVIOR 偏差。决策：/admin/ 要加、subSysType 用 laser/ka 小写、subSysId 用 outSubSysId 短码、FTP 后续做、V1.0.4 > HAR 优先级。P1 修复清单 8 项 + P2 修复清单 2 项已锁定，按 3 批子 agent 派发（types+labels → translator+service → 验证）
+
+### H005 — Task UI Overhaul 实施 Handoff
+- TaskManagePage 全面修复 + 功能补全 + 组件化重构
+- 9 处 o_send bug + 缺失的帧/字段/运算符选择器 + Phase 2 功能（repeat/exitCondition/fieldVariation）
+- 6 个新组件：FrameSelector / ConditionTermEditor / SendStepEditor / WaitConditionStepEditor / DelayStepEditor / AdvancedConfigPanel
+- 设计文档：`codestable/features/rewrite-task/task-ui-overhaul-design.md`
+- Checklist：`codestable/features/rewrite-task/task-ui-overhaul-checklist.yaml`
+- 12 步实施，s1→s12
+- **2026-06-11 实施 + 审查完成**：
+  - checklist 全部 done，lint 0 新错误，test 0 新失败
+  - 三路独立审查（新组件 / 页面重构 / 跨模块集成）通过
+  - 4 个 critical 代码质量问题（SendStepEditor 缺 props 声明 + null check；AdvancedConfigPanel exitConditions() 应改 computed + 内联 split/map/filter）
+  - 发现 **DataCloneError 阻塞 bug**：use-task-editor 从 reactive ref 构建 TaskDefinition → 传入 service → task-state deepClone(structuredClone) 无法克隆 Vue Proxy → 保存失败。修复方向：composable 层 toRaw() 解包
+  - 发现 **任务持久化缺失（设计 gap）**：当前任务完全无持久化，刷新即丢。task-real-brainstorm.md:265 写了"不做任务模板"但用户明确反对，是 brainstorm 阶段错误决策，需推翻
+  - 用户反馈 UI 丑，待具体反馈
+  - **三个问题待后续深度讨论**：DataCloneError 修复 / 任务持久化方案（localStorage vs 文件，模板 vs 实例 UI）/ UI 美化
+
+### S009 — 任务定位讨论与钩子机制新发现
+- 用户提出"任务定位模糊"根因问题，比持久化/UI 更根本
+- 五点拍板：A 模板 / B 外封一层（大唐/SCOE 都是 task + 控制信封）/ C 同概念 / D 双 tab / E 钩子机制（事件流）
+- 第一批 3 个 explore agent 调研：task 代码结构 / brainstorm 文档脉络 / 事件通知现状
+- 关键发现：
+  - TaskDefinition/TaskInstanceState 类型分离 ✓，但 service 层无"模板"概念，createTask 直接创建 instance
+  - 无任何持久化代码
+  - "不做任务模板"是 brainstorm 笔误/遗漏（从未在讨论中出现）
+  - 钩子机制完全没在文档里提到，是设计盲区
+  - 现有事件机制：硬编码回调注入 + 延迟绑定（stepResultHolder），单订阅者，无终态事件
+- 设计产出：`codestable/features/rewrite-task/task-positioning-design.md` + checklist.yaml（M1-M4，s1-s4）
+- 文档：S009-task-positioning-and-hook-mechanism.md
+- **H006 实施 s1-s4 全部完成**（2026-06-11）：
+  - s1 模板/实例分离 + DataCloneError 修复（types/state/service 改造 + deep-raw.ts）
+  - s2 钩子机制（subscribe + 错误隔离 + northbound 事件驱动）
+  - s3 持久化层（localStorage + JSON 导入导出 + debounce 500ms）
+  - s4 UI 双 tab（TemplateListPage + ExecutionListPage + TaskManagePage 重构 + createBlankStepByKind）
+  - 226 测试通过，lint 0 错误
+  - 独立审查 revise-required → 修复 2 major（搜索失效、详情面板 stale data）+ 4 minor，已交付

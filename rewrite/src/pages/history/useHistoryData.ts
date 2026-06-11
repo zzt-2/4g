@@ -3,6 +3,8 @@ import type {
   ChartInstanceProjection,
   ChartSeriesProjection,
   ChartPoint,
+  ChartSelectedItem,
+  ChartSelectionFrameLookup,
   DisplayService,
 } from '@/features/display';
 import type {
@@ -86,38 +88,47 @@ export function extractItemHierarchy(records: readonly StorageLocalRecord[]): Da
 // --- Storage → ChartSeriesProjection bridge ---
 
 function buildSeriesWithPoints(
-  selectedItems: readonly string[],
+  selectedItems: readonly ChartSelectedItem[],
   records: readonly StorageLocalRecord[],
+  frameReader: ChartSelectionFrameLookup,
 ): ChartSeriesProjection[] {
-  const fieldMap = new Map<string, DisplayFieldMaterial>();
-  for (const fieldId of selectedItems) {
-    fieldMap.set(fieldId, { fieldId });
-  }
-
-  const seriesMap = new Map<string, ChartPoint[]>();
-  for (const fieldId of selectedItems) {
-    seriesMap.set(fieldId, []);
+  const fieldNameCache = new Map<string, string>();
+  function getFieldName(frameId: string, fieldId: string): string {
+    const cacheKey = `${frameId}:${fieldId}`;
+    const cached = fieldNameCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const refs = frameReader.listFieldReferences({ frameId });
+    let resolved = fieldId;
+    for (const r of refs) {
+      if (r.fieldId === fieldId) resolved = r.fieldName;
+    }
+    fieldNameCache.set(cacheKey, resolved);
+    return resolved;
   }
 
   const sortedRecords = [...records].sort(
     (a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt),
   );
 
-  for (const record of sortedRecords) {
-    for (const field of record.fields) {
-      const fieldId = `${record.channel}:${field.key}`;
-      const points = seriesMap.get(fieldId);
-      if (points && typeof field.value === 'number') {
-        points.push({ timestamp: record.capturedAt, value: field.value });
+  // history record.fields.key format: `${groupId}:${frameId}:${fieldId}:${fieldName}` (set at recording time)
+  return selectedItems.map((item) => {
+    const fieldName = getFieldName(item.frameId, item.fieldId);
+    const recordKey = `${item.groupId}:${item.frameId}:${item.fieldId}:${fieldName}`;
+    const points: ChartPoint[] = [];
+    for (const record of sortedRecords) {
+      for (const field of record.fields) {
+        if (field.key !== recordKey) continue;
+        if (typeof field.value === 'number') {
+          points.push({ timestamp: record.capturedAt, value: field.value });
+        }
       }
     }
-  }
-
-  return selectedItems.map((fieldId) => ({
-    fieldId,
-    fieldName: fieldId.split(':')[1] ?? fieldId,
-    points: seriesMap.get(fieldId) ?? [],
-  }));
+    return {
+      fieldId: `${item.groupId}:${item.frameId}:${item.fieldId}`,
+      fieldName,
+      points,
+    };
+  });
 }
 
 // --- Statistics computation ---
@@ -147,6 +158,7 @@ export interface HistoryDataState {
 export function useHistoryData(
   storageService: StorageLocalService,
   displayService: DisplayService,
+  frameReader: ChartSelectionFrameLookup,
 ): HistoryDataState & {
   loadData(): Promise<void>;
   refreshCharts(): void;
@@ -177,7 +189,7 @@ export function useHistoryData(
 
     const charts: ChartInstanceProjection[] = prefs.charts.map((chart) => ({
       id: chart.id,
-      series: buildSeriesWithPoints(chart.selectedItems, filteredRecords),
+      series: buildSeriesWithPoints(chart.selectedItems, filteredRecords, frameReader),
     }));
     enrichedCharts.value = charts;
 

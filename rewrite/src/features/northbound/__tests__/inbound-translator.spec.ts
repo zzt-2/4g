@@ -1,37 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { translateTestCaseToTaskDefinition } from '../core/inbound-translator';
-import type { TestCaseInfo, TestCaseStep } from '../core/types';
+import {
+  translateTestCaseToMockTaskDefinition,
+  translateTestCaseToTaskDefinition,
+} from '../core/inbound-translator';
+import type { TestCaseInfo, InputPar } from '../core/types';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeSendStep(overrides?: Partial<{ frameId: string; targetId: string; fieldValues?: Record<string, unknown> }>): TestCaseStep {
+function makeInputPar(overrides?: Partial<InputPar>): InputPar {
   return {
-    kind: 'send',
-    frameId: overrides?.frameId ?? 'frame-001',
-    targetId: overrides?.targetId ?? 'target-serial-1',
-    ...(overrides?.fieldValues !== undefined ? { fieldValues: overrides.fieldValues } : {}),
-  };
-}
-
-function makeWaitConditionStep(overrides?: Partial<{ timeoutMs: number }>): TestCaseStep {
-  return {
-    kind: 'wait-condition',
-    conditions: [
-      { fieldId: 'voltage', operator: 'gte', value: 12.5 },
-      { fieldId: 'current', operator: 'lt', value: 100 },
-    ],
-    ...(overrides?.timeoutMs !== undefined ? { timeoutMs: overrides.timeoutMs } : {}),
+    parId: overrides?.parId ?? 'x',
+    value: overrides?.value ?? '1',
   };
 }
 
 function makeTestCase(overrides?: Partial<TestCaseInfo>): TestCaseInfo {
   return {
-    testCaseId: 'tc-001',
-    testCaseName: 'Voltage check',
-    steps: [],
-    ...overrides,
+    testCaseId: overrides?.testCaseId ?? 'V3_Test_Ping_UL',
+    deviceIds: overrides?.deviceIds ?? ['JG_UE_001'],
+    masterTest: overrides?.masterTest ?? true,
+    testMode: overrides?.testMode ?? 1,
+    ephMode: overrides?.ephMode ?? 1,
+    orbitInfo: overrides?.orbitInfo ?? null,
+    inputPars: overrides?.inputPars ?? [makeInputPar()],
   };
 }
 
@@ -39,149 +32,79 @@ function makeTestCase(overrides?: Partial<TestCaseInfo>): TestCaseInfo {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('translateTestCaseToTaskDefinition', () => {
-  // 1. Single send step
-  it('translates a single send step into a TaskDefinition with 1 send step', () => {
-    const tc = makeTestCase({
-      steps: [makeSendStep({ frameId: 'frame-A', targetId: 'target-B' })],
-    });
+describe('translateTestCaseToMockTaskDefinition', () => {
+  it('produces a TaskDefinition with a single 1.5s delay step', () => {
+    const tc = makeTestCase();
 
-    const def = translateTestCaseToTaskDefinition(tc);
+    const def = translateTestCaseToMockTaskDefinition(tc);
 
     expect(def.steps).toHaveLength(1);
-    expect(def.steps[0]!.kind).toBe('send');
-    const sendStep = def.steps[0] as { kind: 'send'; config: { frameId: string; targetId: string } };
-    expect(sendStep.config.frameId).toBe('frame-A');
-    expect(sendStep.config.targetId).toBe('target-B');
+    expect(def.steps[0]!.kind).toBe('delay');
+    const delayStep = def.steps[0] as { kind: 'delay'; config: { durationMs: number } };
+    expect(delayStep.config.durationMs).toBe(1500);
   });
 
-  // 2. Single wait-condition step
-  it('translates a single wait-condition step with conditions mapped', () => {
-    const tc = makeTestCase({
-      steps: [makeWaitConditionStep()],
-    });
+  it('uses testCaseId as the task name', () => {
+    const tc = makeTestCase({ testCaseId: 'V3_Test_Ping_UL' });
 
-    const def = translateTestCaseToTaskDefinition(tc);
+    const def = translateTestCaseToMockTaskDefinition(tc);
 
-    expect(def.steps).toHaveLength(1);
-    expect(def.steps[0]!.kind).toBe('wait-condition');
-    const wcStep = def.steps[0] as {
-      kind: 'wait-condition';
-      config: { conditions: { fieldId: string; operator: string; threshold: string | number }[]; timeoutMs: number };
-    };
-    expect(wcStep.config.conditions).toHaveLength(2);
-    expect(wcStep.config.conditions[0]!.fieldId).toBe('voltage');
-    expect(wcStep.config.conditions[0]!.operator).toBe('gte');
-    expect(wcStep.config.conditions[0]!.threshold).toBe(12.5);
-    expect(wcStep.config.conditions[1]!.fieldId).toBe('current');
-    expect(wcStep.config.conditions[1]!.operator).toBe('lt');
-    expect(wcStep.config.conditions[1]!.threshold).toBe(100);
+    expect(def.name).toBe('V3_Test_Ping_UL');
   });
 
-  // 3. Mixed send + wait-condition steps
-  it('translates mixed send and wait-condition steps preserving order', () => {
-    const tc = makeTestCase({
-      steps: [
-        makeSendStep({ frameId: 'frame-X', targetId: 'target-Y' }),
-        makeWaitConditionStep(),
-        makeSendStep({ frameId: 'frame-Z', targetId: 'target-W' }),
-      ],
-    });
+  it('generates an id prefixed with nb- and containing the testCaseId', () => {
+    const tc = makeTestCase({ testCaseId: 'V3_Test_Ping_UL' });
 
-    const def = translateTestCaseToTaskDefinition(tc);
+    const def = translateTestCaseToMockTaskDefinition(tc);
 
-    expect(def.steps).toHaveLength(3);
-    expect(def.steps[0]!.kind).toBe('send');
-    expect(def.steps[1]!.kind).toBe('wait-condition');
-    expect(def.steps[2]!.kind).toBe('send');
-
-    // Verify the send steps kept their frame/target info
-    const step0 = def.steps[0] as { kind: 'send'; config: { frameId: string; targetId: string } };
-    expect(step0.config.frameId).toBe('frame-X');
-    const step2 = def.steps[2] as { kind: 'send'; config: { frameId: string; targetId: string } };
-    expect(step2.config.frameId).toBe('frame-Z');
+    expect(def.id).toContain('nb-');
+    expect(def.id).toContain('V3_Test_Ping_UL');
   });
 
-  // 4. Empty steps array
-  it('produces a TaskDefinition with empty steps when input has no steps', () => {
-    const tc = makeTestCase({ steps: [] });
+  it('defaults schedule to immediate and errorPolicy.onFailure to stop', () => {
+    const tc = makeTestCase();
 
-    const def = translateTestCaseToTaskDefinition(tc);
-
-    expect(def.steps).toHaveLength(0);
-  });
-
-  // 5. Schedule and errorPolicy defaults
-  it('sets schedule.kind to immediate and errorPolicy.onFailure to stop', () => {
-    const tc = makeTestCase({ steps: [makeSendStep()] });
-
-    const def = translateTestCaseToTaskDefinition(tc);
+    const def = translateTestCaseToMockTaskDefinition(tc);
 
     expect(def.schedule.kind).toBe('immediate');
     expect(def.errorPolicy.onFailure).toBe('stop');
   });
 
-  // 6. Name matches testCaseName
-  it('sets the TaskDefinition name to testCaseName', () => {
-    const tc = makeTestCase({ testCaseName: 'Custom TC Name' });
-
-    const def = translateTestCaseToTaskDefinition(tc);
-
-    expect(def.name).toBe('Custom TC Name');
-  });
-
-  // Additional: wait-condition step uses default timeoutMs when not provided
-  it('uses default 5000ms timeout for wait-condition step when timeoutMs is omitted', () => {
+  it('ignores inputPars content in MVP (still single delay step)', () => {
     const tc = makeTestCase({
-      steps: [makeWaitConditionStep()],
+      inputPars: [
+        makeInputPar({ parId: 'p1', value: '42' }),
+        makeInputPar({ parId: 'p2', value: 'hello' }),
+        makeInputPar({ parId: 'p3', value: 'true' }),
+      ],
     });
 
-    const def = translateTestCaseToTaskDefinition(tc);
+    const def = translateTestCaseToMockTaskDefinition(tc);
 
-    const wcStep = def.steps[0] as {
-      kind: 'wait-condition';
-      config: { timeoutMs: number };
-    };
-    expect(wcStep.config.timeoutMs).toBe(5000);
+    expect(def.steps).toHaveLength(1);
+    expect(def.steps[0]!.kind).toBe('delay');
   });
 
-  // Additional: wait-condition step uses explicit timeoutMs when provided
-  it('uses explicit timeoutMs for wait-condition step when provided', () => {
-    const tc = makeTestCase({
-      steps: [makeWaitConditionStep({ timeoutMs: 10000 })],
-    });
+  it('handles empty deviceIds and empty inputPars without crashing', () => {
+    const tc = makeTestCase({ deviceIds: [], inputPars: [] });
 
-    const def = translateTestCaseToTaskDefinition(tc);
+    const def = translateTestCaseToMockTaskDefinition(tc);
 
-    const wcStep = def.steps[0] as {
-      kind: 'wait-condition';
-      config: { timeoutMs: number };
-    };
-    expect(wcStep.config.timeoutMs).toBe(10000);
+    expect(def.steps).toHaveLength(1);
+    expect(def.name).toBe('V3_Test_Ping_UL');
   });
+});
 
-  // Additional: generated id contains the testCaseId
-  it('generates a TaskDefinition id that includes the testCaseId', () => {
-    const tc = makeTestCase({ testCaseId: 'tc-special-42' });
-
-    const def = translateTestCaseToTaskDefinition(tc);
-
-    expect(def.id).toContain('tc-special-42');
-    expect(def.id).toContain('nb-');
-  });
-
-  // Additional: send step with fieldValues
-  it('passes fieldValues through to the send step config', () => {
-    const tc = makeTestCase({
-      steps: [makeSendStep({ fieldValues: { temp: 42.5, mode: 'auto' } })],
-    });
+describe('translateTestCaseToTaskDefinition (real translation placeholder)', () => {
+  it('currently falls back to mock translation (single delay step)', () => {
+    const tc = makeTestCase();
 
     const def = translateTestCaseToTaskDefinition(tc);
 
-    const sendStep = def.steps[0] as {
-      kind: 'send';
-      config: { userFieldValues?: Record<string, unknown> };
-    };
-    expect(sendStep.config.userFieldValues).toEqual({ temp: 42.5, mode: 'auto' });
+    // Until frame/condition feature wiring lands, real translation == mock
+    expect(def.steps).toHaveLength(1);
+    expect(def.steps[0]!.kind).toBe('delay');
+    const delayStep = def.steps[0] as { kind: 'delay'; config: { durationMs: number } };
+    expect(delayStep.config.durationMs).toBe(1500);
   });
 });

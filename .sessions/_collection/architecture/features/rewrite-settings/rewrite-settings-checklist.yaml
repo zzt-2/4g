@@ -1,0 +1,89 @@
+version: 2
+feature: rewrite-settings
+status: approved
+date: "2026-04-30"
+purpose: "settings storage/general 配置项扩展实施清单"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/features/rewrite-settings/rewrite-settings-design.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+
+boundary_guards:
+  - "settings 只拥有配置事实，不拥有运行事实、领域流程或状态解释。"
+  - "core/ 零 Vue/Pinia/Electron/Node 依赖。"
+  - "其他 feature 通过 selector 消费 settings snapshot，settings 不知道消费 feature 的存在。"
+  - "不实现 adapter/composable/component 层（归 STG-IMPL-006/011/012）。"
+  - "不实现 status indicator、display/chart、connection 默认参数的业务语义。"
+  - "不冻结 settings 字段 schema、存储文件格式或 platform API schema。"
+
+steps:
+  - action: "扩展 core types/defaults/clone：新增 SettingsStorageConfig、SettingsGeneralConfig 类型、默认值、clone 函数"
+    exit_signal: "TypeScript 编译通过，createDefaultSettingsSnapshot() 返回含 recording+storage+general 的完整 snapshot"
+    status: pending
+
+  - action: "扩展 normalize/validation：增加 storage 和 general 分组的规范化（旧 key 识别、缺失回退、非法降级）和校验规则"
+    exit_signal: "normalizeSettingsInput 对空输入/部分输入/非法输入/旧 key 输入均产出正确 snapshot + issues"
+    status: pending
+
+  - action: "扩展 selectors/service：增加 selectStorageSettings、selectGeneralSettings 等 selector 和对应 service 方法"
+    exit_signal: "selector 返回克隆副本，service update/reset 支持 storage 和 general 范围"
+    status: pending
+
+  - action: "更新 fixtures 和测试：增加 storage/general fixture 样本，补全 normalize/validate/selector/service 测试"
+    exit_signal: "所有测试通过，pnpm build + pnpm lint 通过"
+    status: pending
+
+checks:
+  - item: "SettingsSnapshot 包含 recording、storage、general 三个配置分组"
+    source: 名词契约
+    status: pending
+
+  - item: "DEFAULT_SETTINGS 包含 storage（maxHistoryHours=24, enableAutoSave=true, enableHistoryStorage=true）和 general（updateInterval=1000）默认值"
+    source: 名词契约
+    status: pending
+
+  - item: "所有新增 selector 返回克隆副本，不泄露内部 state 引用"
+    source: 名词契约
+    status: pending
+
+  - item: "normalize 对 storage/general 的空输入、部分输入、非法值、旧 key 均能正确处理"
+    source: 编排骨架
+    status: pending
+
+  - item: "SettingsResetScope 支持 storage 和 general 范围的局部 reset"
+    source: 编排骨架
+    status: pending
+
+  - item: "public API index.ts 导出新增 selector 和 service 类型，不导出 StateContainer 或 normalizeSettingsInput"
+    source: 挂载点
+    status: pending
+
+  - item: "core/ 中无 Vue/Pinia/Electron/Node import"
+    source: 范围守护
+    status: pending
+
+  - item: "settings 不 import 任何其他 feature 的 internal module"
+    source: 范围守护
+    status: pending
+
+  - item: "SettingsSnapshot 不包含运行事实字段（connectionStatus/recordingState/indicatorActiveColor 等）"
+    source: 范围守护
+    status: pending
+
+  - item: "recording 配置原有行为不回归：默认值、旧 key 兼容、非法值降级、隔离性、局部 reset"
+    source: 验收场景
+    status: pending
+
+  - item: "storage 配置验收：默认值、normalize 空输入/部分输入/旧 key、validate 非法值/非法类型、selector 隔离、update/reset"
+    source: 验收场景
+    status: pending
+
+  - item: "general 配置验收：默认值、normalize 部分输入、validate 负数/零/非法类型、update/reset"
+    source: 验收场景
+    status: pending

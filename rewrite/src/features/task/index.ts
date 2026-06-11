@@ -30,6 +30,10 @@ export type {
   TaskStepResult,
   TaskInstanceState,
   ReadonlyTaskInstanceState,
+  TaskTemplate,
+  TemplateUpdates,
+  TaskEventHandlers,
+  Unsubscribe,
   TaskProgress,
   TaskExecutionSummary,
   ConditionMatchInput,
@@ -55,6 +59,11 @@ export type { SerializedTaskDefinition } from './core';
 // Services
 export { createTaskService } from './services';
 export type { TaskService, TaskReader, CreateTaskServiceOptions } from './services';
+
+// Template storage & IO
+export { createTaskTemplateStorage } from './services/task-template-storage';
+export type { TaskTemplateStorage } from './services/task-template-storage';
+export { exportTemplates, parseImportedFile } from './services/task-template-io';
 
 // Adapter ports
 export type { ReceiveEventSource, SendServiceProvider, TimerService } from './adapters';

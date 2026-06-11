@@ -5,3 +5,4 @@ export * from './validation';
 export * from './normalize';
 export * from './projection';
 export * from './group-resolution';
+export * from './migrate';

@@ -29,7 +29,6 @@ export const defaultDisplayFixture: DisplaySnapshot = {
   projection: {
     table1Rows: [],
     table2Rows: [],
-    charts: [{ id: 'chart-1', series: [] }],
     scatter: { points: [], sampleCount: 0 },
   },
   availability: { available: false, reason: 'no-source' },
@@ -64,11 +63,19 @@ export const updateTable1Patch: DisplayPreferencesPatch = {
 
 /** Patches chart-0's selectedItems via positional patch array. */
 export const updateChart0Patch: DisplayPreferencesPatch = {
-  charts: [{ selectedItems: ['g1:frame1:voltage', 'g1:frame1:current'] }],
+  charts: [{
+    selectedItems: [
+      { groupId: 'g1', frameId: 'frame1', fieldId: 'voltage' },
+      { groupId: 'g1', frameId: 'frame1', fieldId: 'current' },
+    ],
+  }],
 };
 
 export const updateChart1Patch: ChartInstancePatch = {
-  selectedItems: ['g1:frame1:voltage', 'g1:frame1:current'],
+  selectedItems: [
+    { groupId: 'g1', frameId: 'frame1', fieldId: 'voltage' },
+    { groupId: 'g1', frameId: 'frame1', fieldId: 'current' },
+  ],
 };
 
 export const updateScatterPatch: DisplayPreferencesPatch = {

@@ -1,0 +1,160 @@
+---
+feature: rewrite-task-positioning
+doc_type: feature-checklist
+status: pending
+date: 2026-06-11
+design: codestable/features/rewrite-task/task-positioning-design.md
+source: .sessions/2026-05-18-northbound-integration/S009-task-positioning-and-hook-mechanism.md
+
+steps:
+  - id: s1-template-instance-separation
+    title: "M1: 模板/实例分离"
+    status: pending
+    description: |
+      新增 TaskTemplate 类型，与 TaskDefinition/TaskInstanceState 分离。模板可保存复用，实例化时拷贝 definition。
+
+      改动文件：
+      - rewrite/src/features/task/core/types.ts: 新增 TaskTemplate + TemplateUpdates 接口；TaskInstanceState 加 optional templateId 用于追溯
+      - rewrite/src/features/task/state/task-state.ts: 新增 templates Map<string, TaskTemplate> + getter/updater，沿用 deepClone 不可变性
+      - rewrite/src/features/task/services/task-service.ts: 新增 createTemplate/listTemplates/getTemplate/updateTemplate/deleteTemplate/instanciateTemplate 六个方法
+      - rewrite/src/features/task/index.ts: 导出新类型和 API
+      - rewrite/src/features/task/composables/use-task-editor.ts: buildDefinition 调 toRaw 深层解包 reactive 对象（顺便修 DataCloneError）
+
+      不改：
+      - TaskDefinition 核心字段（id/name/steps/schedule/stopCondition/fieldVariations/errorPolicy）
+      - TaskInstanceState 现有字段（只加 optional templateId）
+      - createTask/startTask/pauseTask/resumeTask/stopTask/removeTask/retryTask/updateTask 现有 API
+      - task-builders.ts / lifecycle.ts / condition-matcher.ts / progress.ts
+
+      instanciateTemplate 语义：从模板拷贝 definition 创建实例，实例与模板完全解耦（模板修改不影响已创建实例，实例运行不修改模板）。
+
+      DataCloneError 修法：buildDefinition 内对每个 reactive ref/.value 调 toRaw()，递归解包嵌套对象。修在 composable 边界，不进 shared/deep-clone.ts（避免引 Vue 依赖）。
+    exit_signal: "新 API 可用；现有 instance 流程测试通过；DataCloneError 修复（保存模板和实例不再报 structuredClone 错误）"
+    validation:
+      - test: 新增 template CRUD 单元测试通过（create/list/get/update/delete/instanciate）
+      - test: 现有 task instance 测试不破
+      - test: instanciateTemplate 创建的实例与模板解耦（修改模板不影响实例）
+      - lint: pass
+
+  - id: s2-hook-mechanism
+    title: "M2: 钩子机制（事件订阅）"
+    status: pending
+    description: |
+      task service 暴露 subscribe API 支持多订阅者，移除 feature-wiring 的 stepResultHolder 延迟绑定。
+
+      改动文件：
+      - rewrite/src/features/task/core/types.ts: 新增 TaskEventHandlers + Unsubscribe 类型
+      - rewrite/src/features/task/state/task-state.ts: 新增 subscribers Set<TaskEventHandlers> + 内部 emit 函数（emitStepResult/emitTaskSettled/emitTaskLifecycleChange），每个回调 try-catch 错误隔离
+      - rewrite/src/features/task/services/task-service.ts: 新增 subscribe(handlers): Unsubscribe 方法，返回取消订阅函数
+      - rewrite/src/features/task/core/task-iteration-loops.ts: 触发点改造（addStepResult 后调 emitStepResult，替换现有 ctx.onStepResult 直接调用）
+      - rewrite/src/features/task/state/lifecycle.ts（或同等位置）: lifecycle 状态变化时触发 emitTaskLifecycleChange；终态（completed/failed/stopped）时触发 emitTaskSettled
+      - rewrite/src/runtime/feature-wiring.ts: 移除 stepResultHolder 中间层，改为 taskService.subscribe({ onStepResult, onTaskSettled })
+      - rewrite/src/features/northbound/services/northbound-service.ts: 新增 handleTaskSettled 方法；processLayers 改为事件驱动（不再 await taskService.onSettled）
+
+      钩子事件清单：
+      - onStepResult(instanceId, result): step 完成时触发
+      - onTaskSettled(instanceId, lifecycle): 终态时触发（completed/failed/stopped）
+      - onTaskLifecycleChange(instanceId, from, to): 任何 lifecycle 状态变化时触发
+
+      错误隔离：每个 subscriber 回调用 try-catch 包裹，单个失败不影响其他订阅者。
+
+      多订阅者：内部 Set<TaskEventHandlers> 存储，subscribe 加入 Set，unsubscribe 移除。
+
+      不改：
+      - receive event source subscribe 模式（参考但不改）
+      - result feature 被动查询模式（保持 collectResult）
+      - 现有 onSettled Promise API（保留向后兼容，可标 deprecated 注释）
+    exit_signal: "taskService.subscribe 可用；feature-wiring 无 stepResultHolder；northbound 通过 subscribe 订阅事件；多订阅者 + 错误隔离工作"
+    validation:
+      - test: 新增 subscribe 单元测试（多订阅者 + 错误隔离 + unsubscribe 后不再收到事件）
+      - test: northbound 改用 subscribe 后流程测试通过
+      - test: emitTaskSettled 在终态时正确触发
+      - lint: pass
+
+  - id: s3-persistence-layer
+    title: "M3: 持久化层"
+    status: pending
+    description: |
+      模板库持久化到 localStorage + JSON 导入导出。活跃实例不持久化。
+
+      新建文件：
+      - rewrite/src/features/task/services/task-template-storage.ts: TaskTemplateStorage 接口 + createTaskTemplateStorage 工厂。loadAll/saveAll 两个方法。localStorage key 'rw-task-templates'。schema version 1。JSON parse 错误降级返回空数组。
+      - rewrite/src/features/task/services/task-template-io.ts: exportTemplates(templates): Blob（JSON 格式，pretty print）+ parseImportedFile(blob): Promise<readonly TaskTemplate[]>。冲突处理：同 templateId 跳过。
+      - rewrite/src/shared/debounce.ts（如果 shared 没有现成 debounce）: 通用 debounce utility
+
+      改动文件：
+      - rewrite/src/features/task/services/task-service.ts: createTaskService options 新增 templateStorage? 参数；createTemplate/updateTemplate/deleteTemplate 内部 debounce 500ms 调 storage.saveAll
+      - rewrite/src/runtime/feature-wiring.ts: 启动时调 templateStorage.loadAll() 灌进 state.templates
+      - rewrite/src/features/task/index.ts: 导出新模块
+
+      持久化 payload 结构：
+        { version: 1, templates: TaskTemplate[] }
+
+      持久化范围：
+      - 模板库（TaskTemplate[]）: localStorage
+      - 活跃实例（TaskInstanceState）: 不持久化（刷新即丢）
+      - 历史归档: 后续接 storage-local-baseline
+
+      不持久化原因：实例是运行态，刷新即丢符合当前定位；历史归档需要更大容量（接 storage-local-baseline）。
+
+      schema 版本管理：loadAll 时校验 version 字段，不匹配则降级返回空数组（后续支持 migration）。
+    exit_signal: "模板刷新后仍在；导入导出 JSON 可循环；schema version 校验工作；debounce 写入工作"
+    validation:
+      - test: 新增 storage 单元测试（load/save/parse error fallback/empty 初始状态）
+      - test: 导入导出循环测试（export 后 import 还原一致）
+      - test: 模板变更后 debounce 写入测试（500ms 内多次变更只写一次）
+      - test: 同 templateId 导入冲突跳过
+      - lint: pass
+
+  - id: s4-ui-double-tab
+    title: "M4: UI 双 tab"
+    status: pending
+    description: |
+      TaskManagePage 拆为双 tab：模板管理 + 执行监控。
+
+      新建文件：
+      - rewrite/src/features/task/pages/TemplateListPage.vue（或 components/，按现有约定）: 模板列表 + 工具栏（新建/导入/导出/标签筛选）+ 编辑器弹窗
+      - rewrite/src/features/task/pages/ExecutionListPage.vue: 执行实例列表 + 工具栏（从模板创建）+ 实例详情面板
+      - rewrite/src/features/task/composables/use-template-editor.ts: 模板编辑器逻辑（openNewTemplate/openEditTemplate/saveTemplate）
+      - rewrite/src/features/task/components/template-columns.ts: 模板列表列定义
+
+      改动文件：
+      - rewrite/src/pages/TaskManagePage.vue: 改为 QTab 容器，内嵌 TemplateListPage + ExecutionListPage
+      - rewrite/src/features/task/components/task-columns.ts: 加 templateName 列（optional，用于追溯）
+
+      TemplateListPage 交互：
+      - 新建 → 编辑器弹窗 → createTemplate → 列表刷新
+      - 编辑 → 编辑器弹窗（带初始值）→ updateTemplate → 列表刷新
+      - 实例化 → instanciateTemplate → 自动切到执行 tab
+      - 删除 → $q.dialog 确认 → deleteTemplate
+      - 导入 → QFile 选择 → parseImportedFile → 批量 createTemplate → useAsyncAction 包装
+      - 导出 → exportTemplates → 浏览器下载（QFileDownloader 或 a[download]）
+      - 标签筛选：QBtnToggle 多选，基于 tags 字段过滤
+
+      ExecutionListPage 交互：
+      - 从模板创建 → 弹模板选择器（QDialog + 模板列表）→ instanciateTemplate
+      - lifecycle=created 可编辑（use-task-editor 编辑 definition）
+      - lifecycle=running/paused 禁用编辑
+      - 终态禁用所有操作（除删除）
+      - 实例详情面板显示步骤进度 + step 结果
+
+      复用（不动）：
+      - 6 个 step editor 组件（SendStepEditor/WaitConditionStepEditor/DelayStepEditor/AdvancedConfigPanel）
+      - TaskExecutionDetail.vue
+      - use-task-editor.ts 核心逻辑（s1 已修 DataCloneError）
+
+      规范合规：
+      - 异步操作用 useAsyncAction（导入导出）
+      - 通知用 useNotify
+      - 删除操作用 $q.dialog 确认
+      - v-for key 用 templateId/instanceId 不用 index
+      - 列定义提取到 template-columns.ts
+      - shallowRef 用于模板列表（避免深度响应式开销）
+      - 无 inline style 消费 token
+    exit_signal: "双 tab UI 可用；模板 CRUD + 实例化 + 导入导出 + 执行监控全部跑通；刷新后模板库还在"
+    validation:
+      - lint: pass
+      - manual: 创建模板 → 实例化 → 执行 → 终态全流程
+      - manual: 导入导出循环
+      - manual: 刷新后模板库还在
+      - manual: 标签筛选工作

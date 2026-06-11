@@ -1,0 +1,100 @@
+{
+  "env": {
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1,
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
+    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "OMC_PLUGIN_ROOT": "/home/zzt/.claude-marketplaces/oh-my-claudecode"
+  },
+  "model": "opus",
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "permissions": {
+    "allow": [
+      "mcp__plugin_oh-my-claudecode_t__*",
+      "mcp__web_reader__webReader",
+      "mcp__4_5v_mcp__analyze_image",
+      "WebSearch",
+      "Read",
+      "Edit",
+      "Write",
+      "Bash(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git checkout -- *)",
+      "Bash(git checkout .)",
+      "Bash(git checkout HEAD -- *)",
+      "Bash(git checkout HEAD -- .)",
+      "Bash(git restore *)",
+      "Bash(git clean -f*)",
+      "Bash(git clean -fdx *)",
+      "Bash(git stash drop *)",
+      "Bash(git stash clear)",
+      "Bash(git worktree remove --force *)",
+      "Bash(git gc --prune=now *)",
+      "Bash(git gc --prune=now)",
+      "Bash(git reflog expire --expire=now *)",
+      "Bash(git rm * --force *)",
+      "Bash(shutdown *)",
+      "Bash(reboot *)",
+      "Bash(poweroff *)",
+      "Bash(mkfs *)",
+      "Bash(dd *)"
+    ]
+  },
+  "skillOverrides": {
+    "oh-my-claudecode:sciomc": "user-invocable-only",
+    "oh-my-claudecode:self-improve": "user-invocable-only",
+    "oh-my-claudecode:writer-memory": "user-invocable-only",
+    "oh-my-claudecode:visual-verdict": "user-invocable-only",
+    "oh-my-claudecode:project-session-manager": "user-invocable-only",
+    "oh-my-claudecode:release": "user-invocable-only",
+    "oh-my-claudecode:configure-notifications": "user-invocable-only",
+    "oh-my-claudecode:team": "user-invocable-only",
+    "oh-my-claudecode:ccg": "user-invocable-only",
+    "oh-my-claudecode:omc-teams": "user-invocable-only",
+    "oh-my-claudecode:omc-reference": "user-invocable-only",
+    "oh-my-claudecode:setup": "user-invocable-only",
+    "oh-my-claudecode:deepinit": "user-invocable-only",
+    "review": "user-invocable-only",
+    "keybindings-help": "user-invocable-only"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/zzt/.claude/scripts/notify-done.sh",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hud/omc-hud.mjs"
+  }
+}

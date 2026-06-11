@@ -1,4 +1,4 @@
-export const DISPLAY_SCHEMA_VERSION = 1 as const;
+export const DISPLAY_SCHEMA_VERSION = 2 as const;
 
 // --- Display modes ---
 
@@ -10,6 +10,7 @@ export interface TableDisplayPreference {
   readonly displayMode: DisplayMode;
   readonly selectedGroupId: string;
   readonly selectedItems: readonly string[];
+  readonly visibleColumns?: readonly string[];
 }
 
 export interface ChartPerformancePreference {
@@ -23,10 +24,16 @@ export interface YAxisPreference {
   readonly max?: number;
 }
 
+export interface ChartSelectedItem {
+  readonly groupId: string;
+  readonly frameId: string;
+  readonly fieldId: string;
+}
+
 export interface ChartInstancePreference {
   readonly id: string;
   readonly title: string;
-  readonly selectedItems: readonly string[];
+  readonly selectedItems: readonly ChartSelectedItem[];
   readonly yAxis: YAxisPreference;
   readonly performance: ChartPerformancePreference;
 }
@@ -34,6 +41,7 @@ export interface ChartInstancePreference {
 export interface DisplayGroupFrameEntry {
   readonly frameId: string;
   readonly visibleFieldIds: readonly string[];
+  readonly fieldOrder?: readonly string[];
 }
 
 export interface DisplayGroupConfig {
@@ -77,6 +85,7 @@ export interface DisplayFieldMaterial {
   readonly fieldName: string;
   readonly value: unknown;
   readonly displayValue: string;
+  readonly rawHex?: string;
   readonly updatedAt?: string;
 }
 
@@ -95,9 +104,10 @@ export interface DisplaySourceMaterial {
 export interface TableRowProjection {
   readonly groupId: string;
   readonly dataItemId: string;
-  readonly fieldName: string;
+  readonly fieldName?: string;
   readonly value: unknown;
   readonly displayValue: string;
+  readonly rawHex?: string;
   readonly updatedAt?: string;
 }
 
@@ -130,7 +140,6 @@ export interface ChartInstanceProjection {
 export interface DisplayProjection {
   readonly table1Rows: readonly TableRowProjection[];
   readonly table2Rows: readonly TableRowProjection[];
-  readonly charts: readonly ChartInstanceProjection[];
   readonly scatter: ScatterProjection;
 }
 
@@ -148,7 +157,7 @@ export interface DisplaySnapshot {
 
 export interface ChartInstancePatch {
   readonly title?: string;
-  readonly selectedItems?: readonly string[];
+  readonly selectedItems?: readonly ChartSelectedItem[];
   readonly yAxis?: Partial<YAxisPreference>;
   readonly performance?: Partial<ChartPerformancePreference>;
 }

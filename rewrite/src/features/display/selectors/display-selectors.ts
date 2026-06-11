@@ -1,9 +1,6 @@
 import {
-  cloneChartInstanceProjection,
   cloneDisplayPreferences,
   cloneDisplaySnapshot,
-  type ChartInstanceProjection,
-  type ChartSeriesProjection,
   type ReadonlyDisplaySnapshot,
   type ReadonlyDisplayPreferences,
   type ScatterProjection,
@@ -24,16 +21,6 @@ export function selectTable1Rows(source: ReadonlyDisplaySnapshot): TableRowProje
 
 export function selectTable2Rows(source: ReadonlyDisplaySnapshot): TableRowProjection[] {
   return source.projection.table2Rows.map((r) => ({ ...r }));
-}
-
-export function selectChartInstances(source: ReadonlyDisplaySnapshot): ChartInstanceProjection[] {
-  return source.projection.charts.map(cloneChartInstanceProjection);
-}
-
-/** Returns series from the first chart instance for backward compatibility. */
-export function selectChartSeries(source: ReadonlyDisplaySnapshot): ChartSeriesProjection[] {
-  const instances = selectChartInstances(source);
-  return instances.length > 0 ? instances[0].series : [];
 }
 
 export function selectScatterProjection(source: ReadonlyDisplaySnapshot): ScatterProjection {

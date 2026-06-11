@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import type { ChartInstancePreference, ChartInstancePatch, YAxisPreference } from '../core';
+import type { ChartInstancePreference, ChartInstancePatch, ChartSelectedItem, YAxisPreference } from '../core';
 
 interface FieldOption {
+  readonly groupId: string;
+  readonly frameId: string;
   readonly fieldId: string;
   readonly fieldName: string;
   readonly frameName: string;
-  readonly frameId: string;
 }
 
 interface FrameGroup {
@@ -28,7 +29,7 @@ const emit = defineEmits<{
   'save': [patch: ChartInstancePatch];
 }>();
 
-const selectedItems = ref<string[]>([]);
+const selectedItems = ref<ChartSelectedItem[]>([]);
 const activeFrame = ref('');
 const autoScale = ref(true);
 const yMin = ref<number | undefined>(undefined);
@@ -49,9 +50,15 @@ const frames = computed<FrameGroup[]>(() => {
   return [...map.values()];
 });
 
+function isSelected(field: FieldOption): boolean {
+  return selectedItems.value.some(
+    (s) => s.groupId === field.groupId && s.frameId === field.frameId && s.fieldId === field.fieldId,
+  );
+}
+
 watch(() => props.modelValue, (open) => {
   if (open && props.chartPreference) {
-    selectedItems.value = [...props.chartPreference.selectedItems];
+    selectedItems.value = props.chartPreference.selectedItems.map((s) => ({ ...s }));
     autoScale.value = props.chartPreference.yAxis.autoScale;
     yMin.value = props.chartPreference.yAxis.min;
     yMax.value = props.chartPreference.yAxis.max;
@@ -63,12 +70,17 @@ watch(() => props.modelValue, (open) => {
   }
 });
 
-function toggleField(fieldId: string): void {
-  const idx = selectedItems.value.indexOf(fieldId);
+function toggleField(field: FieldOption): void {
+  const idx = selectedItems.value.findIndex(
+    (s) => s.groupId === field.groupId && s.frameId === field.frameId && s.fieldId === field.fieldId,
+  );
   if (idx === -1) {
-    selectedItems.value = [...selectedItems.value, fieldId];
+    selectedItems.value = [
+      ...selectedItems.value,
+      { groupId: field.groupId, frameId: field.frameId, fieldId: field.fieldId },
+    ];
   } else {
-    selectedItems.value = selectedItems.value.filter((id) => id !== fieldId);
+    selectedItems.value = selectedItems.value.filter((_, i) => i !== idx);
   }
 }
 
@@ -78,7 +90,7 @@ function save(): void {
     ...(autoScale.value ? {} : { min: yMin.value, max: yMax.value }),
   };
   emit('save', {
-    selectedItems: selectedItems.value,
+    selectedItems: selectedItems.value.map((s) => ({ ...s })),
     yAxis,
     performance: {
       maxPoints: maxPoints.value,
@@ -129,13 +141,13 @@ function close(): void {
                 <div v-if="frame.fields.length > 0" class="flex flex-wrap gap-2">
                   <q-chip
                     v-for="field in frame.fields"
-                    :key="field.fieldId"
-                    :outline="!selectedItems.includes(field.fieldId)"
-                    :color="selectedItems.includes(field.fieldId) ? 'primary' : 'grey'"
+                    :key="`${field.groupId}:${field.frameId}:${field.fieldId}`"
+                    :outline="!isSelected(field)"
+                    :color="isSelected(field) ? 'primary' : 'grey'"
                     text-color="white"
                     dense
                     clickable
-                    @click="toggleField(field.fieldId)"
+                    @click="toggleField(field)"
                   >
                     {{ field.fieldName }}
                   </q-chip>

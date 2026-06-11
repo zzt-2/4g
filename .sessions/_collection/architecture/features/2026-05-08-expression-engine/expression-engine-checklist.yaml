@@ -1,0 +1,96 @@
+feature: 2026-05-08-expression-engine
+created: 2026-05-08
+
+steps:
+  - action: "词法+语法分析器：实现 tokenizer 和 recursive descent parser"
+    exit_signal: "真实表达式样本（含中文变量、大数、一元负号）全部解析成功；错误表达式返回 position"
+    status: done
+
+  - action: "编译+单表达式求值：实现 compileExpression + evaluate"
+    exit_signal: "四则运算、比较、逻辑、函数调用、中文变量单测全通过"
+    status: done
+
+  - action: "条件表达式：实现 compileConditional + evaluateConditional"
+    exit_signal: "多分支条件、fallback、字符串比较、短路求值单测全通过"
+    status: done
+
+  - action: "批量求值：实现 compileGroup + evaluateGroup（含 Kahn 拓扑排序）"
+    exit_signal: "依赖链、循环检测、部分失败单测全通过"
+    status: done
+
+  - action: "导出+集成测试：index.ts 统一导出 + integration.spec.ts 真实样本验证"
+    exit_signal: "lint 通过 + 真实配置文件表达式样本测试全通过"
+    status: done
+
+  - action: "三个 feature 集成点确认"
+    exit_signal: "receive/send/task 各自集成方式有对应验收场景证据"
+    status: done
+
+checks:
+  - item: "compileExpression 对所有真实表达式样本返回 success=true"
+    source: 验收场景
+    status: done
+
+  - item: "evaluate 正确处理四则运算、比较、逻辑、函数调用"
+    source: 验收场景
+    status: done
+
+  - item: "一元负号语法正确处理：-5、(-速度)、(-5+速度)"
+    source: 验收场景
+    status: done
+
+  - item: "变量/函数名冲突用语法消歧：abs→变量，abs(x)→函数"
+    source: 验收场景
+    status: done
+
+  - item: "条件表达式多分支短路求值 + fallback 正确"
+    source: 验收场景
+    status: done
+
+  - item: "批量求值拓扑序正确，循环依赖返回错误，部分失败不阻断独立表达式"
+    source: 验收场景
+    status: done
+
+  - item: "除零返回 EvalResult.error，不传 Infinity"
+    source: 跨层纪律
+    status: done
+
+  - item: "== 严格语义：5 == '5' 返回 false"
+    source: 跨层纪律
+    status: done
+
+  - item: "null/undefined 变量值返回运行时错误，不隐式转 0"
+    source: 跨层纪律
+    status: done
+
+  - item: "expression/ 下无 Vue/Pinia/Electron import"
+    source: 范围守护
+    status: done
+
+  - item: "expression/ 下无 feature 内部文件 import"
+    source: 范围守护
+    status: done
+
+  - item: "无 eval() 或 new Function() 调用"
+    source: 范围守护
+    status: done
+
+  - item: "无 BigInt 相关类型"
+    source: 范围守护
+    status: done
+
+  - item: "无 DataSourceType 或 sourceType/sourceId 绑定逻辑"
+    source: 范围守护
+    status: done
+
+  - item: "不导出 AST 节点类型或 tokenizer/parser 内部实现"
+    source: 范围守护
+    status: done
+
+  - item: "单表达式预编译求值 < 1μs"
+    source: 验收场景
+    status: done
+
+  - item: "50 表达式批量求值 < 20μs"
+    source: 验收场景
+    status: done

@@ -3,7 +3,8 @@ import { createRewriteRuntime, type RewriteRuntime } from '@/runtime';
 import { getTransportFacade, getFileFacade, type FileFacade } from '@/platform';
 import { createRealSerialAdapter, createRealNetworkAdapter, createCompositeAdapter, type TransportConfig } from '@/features/connection';
 import type { FrameAsset } from '@/features/frame';
-import type { DisplayPreferences, DisplayPreferencesPatch } from '@/features/display';
+import type { DisplayPreferences } from '@/features/display';
+import { migrateDisplayPreferencesFromV1, validateChartSelectedItems } from '@/features/display';
 import type { HighSpeedStorageConfig, FrameHeaderRule } from '@/features/storage-highspeed';
 import type { SendFrameInstance } from '@/features/send';
 import { restoreSendInstances, getSendInstancesSnapshot } from '@/features/send/composables/use-send-instances';
@@ -126,7 +127,27 @@ async function initPersistenceAsync(
 
     const dpData = await safeReadJson(fileFacade, `${dataDir}/state/display-preferences.json`);
     if (dpData && typeof dpData === 'object' && !Array.isArray(dpData)) {
-      runtime.features.displayService.updatePreferences(dpData as Partial<DisplayPreferencesPatch>);
+      try {
+        const migratedPatch = migrateDisplayPreferencesFromV1(dpData);
+        const hydrated = runtime.features.displayService.updatePreferences(migratedPatch);
+        // Validate static references against current frame definitions (drops/falls back on stale items)
+        const validatedPrefs = validateChartSelectedItems(
+          hydrated.snapshot.preferences as DisplayPreferences,
+          runtime.features.frameReader,
+        );
+        if (validatedPrefs !== hydrated.snapshot.preferences) {
+          runtime.features.displayService.updatePreferences({
+            charts: validatedPrefs.charts.map((c) => ({
+              title: c.title,
+              selectedItems: c.selectedItems.map((it) => ({ ...it })),
+              yAxis: { ...c.yAxis },
+              performance: { ...c.performance },
+            })),
+          });
+        }
+      } catch (err: unknown) {
+        console.error('[bootstrap] display preferences hydration failed:', err instanceof Error ? err.message : err);
+      }
     }
   } catch (err: unknown) {
     console.error('[bootstrap] Persistence initialization failed:', err instanceof Error ? err.message : err);

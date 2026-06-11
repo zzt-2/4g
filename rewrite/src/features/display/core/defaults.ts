@@ -32,7 +32,6 @@ const DEFAULT_DISPLAY: DisplaySnapshot = {
   projection: {
     table1Rows: [],
     table2Rows: [],
-    charts: [{ id: 'chart-1', series: [] }],
     scatter: { ...EMPTY_SCATTER_PROJECTION },
   },
   availability: { available: false, reason: 'no-source' },

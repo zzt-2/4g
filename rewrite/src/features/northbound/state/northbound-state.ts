@@ -9,6 +9,12 @@ export interface NorthboundStateContainer {
   getTestCaseId(instanceId: string): string | undefined;
   removeMapping(testCaseId: string): void;
   hasTestCase(testCaseId: string): boolean;
+  // P2.1: customerTaskId (envelope.taskId / T_xxx) ↔ instanceId mapping.
+  // testCaseResultReport must echo the customer-issued taskId, not the local instanceId.
+  mapTaskId(instanceId: string, customerTaskId: string): void;
+  getCustomerTaskId(instanceId: string): string | undefined;
+  getInstanceIdByCustomerTaskId(customerTaskId: string): string | undefined;
+  removeTaskIdMapping(instanceId: string): void;
   getSnapshot(): NorthboundSessionSnapshot;
   setServerRunning(running: boolean): void;
   clear(): void;
@@ -17,6 +23,8 @@ export interface NorthboundStateContainer {
 export function createNorthboundState(): NorthboundStateContainer {
   const testCaseToInstance = new Map<string, string>();
   const instanceToTestCase = new Map<string, string>();
+  const instanceToCustomerTaskId = new Map<string, string>();
+  const customerTaskIdToInstance = new Map<string, string>();
   let serverRunning = false;
 
   return {
@@ -43,6 +51,25 @@ export function createNorthboundState(): NorthboundStateContainer {
       return testCaseToInstance.has(testCaseId);
     },
 
+    mapTaskId(instanceId: string, customerTaskId: string): void {
+      instanceToCustomerTaskId.set(instanceId, customerTaskId);
+      customerTaskIdToInstance.set(customerTaskId, instanceId);
+    },
+
+    getCustomerTaskId(instanceId: string): string | undefined {
+      return instanceToCustomerTaskId.get(instanceId);
+    },
+
+    getInstanceIdByCustomerTaskId(customerTaskId: string): string | undefined {
+      return customerTaskIdToInstance.get(customerTaskId);
+    },
+
+    removeTaskIdMapping(instanceId: string): void {
+      const customerTaskId = instanceToCustomerTaskId.get(instanceId);
+      instanceToCustomerTaskId.delete(instanceId);
+      if (customerTaskId) customerTaskIdToInstance.delete(customerTaskId);
+    },
+
     getSnapshot(): NorthboundSessionSnapshot {
       const activeTestCases = new Map<string, { readonly instanceId: string; readonly status: string }>();
       for (const [testCaseId, instanceId] of testCaseToInstance) {
@@ -58,6 +85,8 @@ export function createNorthboundState(): NorthboundStateContainer {
     clear(): void {
       testCaseToInstance.clear();
       instanceToTestCase.clear();
+      instanceToCustomerTaskId.clear();
+      customerTaskIdToInstance.clear();
       serverRunning = false;
     },
   };

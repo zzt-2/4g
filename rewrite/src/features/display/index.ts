@@ -4,6 +4,8 @@ export type {
   ChartInstanceProjection,
   ChartPerformancePreference,
   ChartPoint,
+  ChartSelectedItem,
+  ChartSelectionFrameLookup,
   ChartSeriesProjection,
   DisplayFieldMaterial,
   DisplayGroupConfig,
@@ -31,9 +33,11 @@ export {
   buildFrameGroupLookup,
 } from './core';
 export {
+  validateChartSelectedItems,
+  migrateDisplayPreferencesFromV1,
+} from './core';
+export {
   selectAvailability,
-  selectChartInstances,
-  selectChartSeries,
   selectDisplaySnapshot,
   selectPreferences,
   selectScatterProjection,

@@ -332,6 +332,25 @@ MUST NOT:
 
 WHY: SCOE adapter 的 `getCommandConfigs()` 合并卫星配置 + 基础配置时，卫星版同名 command 覆盖基础版。如果卫星 `send_frame` 没配 checksums，基础版带 checksum 的 `send_frame` 就被静默替换，校验和验证消失。任何"子配置覆盖父配置"的场景都有此风险。
 
+### R19. Static metadata must resolve from config layer, not runtime data streams
+
+MUST:
+
+- 静态元数据（fieldName、frameName、frameId、direction、dataType、unit、description 等帧定义或配置层就能确定的标识）必须从配置层 selector（如 `frameReader.listFieldReferences()`）静态 lookup。
+- 运行时数据流（`sourceFields`、`matchedOutcome.fields`、events、buffer）只承载动态值（value、displayValue、updatedAt、timestamp），不承担静态标识解析。
+- 复合 key（如 chart preference 的 selectedItems、storage record 的 field key）必须用结构化对象 `{ groupId, frameId, fieldId }` 表达，禁止字符串嵌套拼接（`groupId:frameId:fieldId`）作为持久化 shape。
+- preference 加载时必须 validate 静态引用（fieldId/groupId 在当前帧定义/分组配置中是否存在），失效条目丢弃并 warn，不阻断其他有效条目。
+
+MUST NOT:
+
+- 从运行时数据流（sourceFields、outcome.fields）读取 fieldName/frameName 用于 UI 渲染。
+- 用字符串分割（`fieldId.split(':')[1]`）作为静态标识解析的降级路径。
+- 把 fieldName 当作"数据流的一部分"透传到 UI 层。
+- 用嵌套拼接的字符串 key（`a:b:c`）作为 preference 持久化 shape——内部计算可以用，持久化 shape 必须结构化。
+- 在没有静态源的情况下回退到 UUID 或随机 ID 显示。
+
+WHY: Display feature 的图表图例曾显示随机 UUID（如 `Y05eqFmYqrpIBnjq22Wtd`）。根因是 composable 从 `service.getSourceFields()` 读 fieldName，sourceFields 是 receive 管线的运行时数据流——没数据流时降级到 `key.split(':').pop()` 显示 fieldId 末段。同类反模式遍布 display composable/bridge/projection 和 history 页面（字符串分割 `fieldId.split(':')[1]`）。把静态信息耦合到运行时数据流，导致：(1) 无数据流时 UI 崩溃；(2) 复合 key 格式不一致（`groupId:dataItemId` 其中 dataItemId 是 `frameId:fieldId`，三层嵌套）让 chartBuffer 累积失败；(3) 字符串分割在多处重复实现。修复方向：composable 注入 frameReader 静态 lookup，selectedItems 改结构化对象。
+
 ## 5. Boundary Exceptions
 
 边界例外允许存在，但必须登记。
@@ -374,6 +393,9 @@ WHY: SCOE adapter 的 `getCommandConfigs()` 合并卫星配置 + 基础配置时
 - 组件直接 import service 内部实现并绕过公开入口。
 - 为旧 JSON 兼容把新模型设计扭歪。
 - 为了架构感堆 manager/event/command，但没有明确生命周期、跨域流程或验证收益。
+- 从运行时数据流（sourceFields、outcome.fields）解析 fieldName/frameName 等静态元数据用于 UI 渲染（违反 R19）。
+- 用字符串分割（`fieldId.split(':')[1]`）作为静态标识解析的降级路径（违反 R19）。
+- 用嵌套拼接的字符串 key（`groupId:frameId:fieldId`）作为 preference 持久化 shape（违反 R19）。
 
 ## 7. Required Review Evidence
 

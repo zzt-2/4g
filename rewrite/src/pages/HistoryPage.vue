@@ -13,10 +13,11 @@ import { useHistoryData } from './history/useHistoryData';
 const runtime = useRewriteRuntime();
 const storageService = runtime.features.storageLocalService;
 const displayService = runtime.features.displayService;
+const frameReader = runtime.features.frameReader;
 const filesFacade = runtime.platform.files;
 
 // ===== Composable =====
-const history = useHistoryData(storageService, displayService);
+const history = useHistoryData(storageService, displayService, frameReader);
 const notify = useNotify();
 
 // ===== UI state =====

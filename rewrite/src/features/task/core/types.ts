@@ -173,7 +173,44 @@ export interface TaskInstanceState {
   readonly currentIteration: number;
   readonly stepResults: readonly TaskStepResult[];
   readonly error?: string;
+  /** 实例追溯：若从模板创建，记录 templateId，不影响运行。 */
+  readonly templateId?: string;
 }
+
+// --- Template (template / instance 分离) ---
+
+export interface TaskTemplate {
+  readonly templateId: string;
+  readonly name: string;
+  readonly tags: readonly string[];
+  readonly definition: TaskDefinition;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface TemplateUpdates {
+  readonly name?: string;
+  readonly tags?: readonly string[];
+  readonly definition?: TaskDefinition;
+}
+
+// --- Event subscription (hook mechanism) ---
+
+export interface TaskEventHandlers {
+  onStepResult?: (instanceId: string, result: TaskStepResult) => void;
+  onTaskSettled?: (instanceId: string, lifecycle: TaskLifecycleStatus) => void;
+  /**
+   * Reserved for future UI/debug consumers. 当前无生产消费者；保留以避免后续 subscriber
+   * 想监听 lifecycle 转移时再回头扩接口。
+   */
+  onTaskLifecycleChange?: (
+    instanceId: string,
+    from: TaskLifecycleStatus,
+    to: TaskLifecycleStatus,
+  ) => void;
+}
+
+export type Unsubscribe = () => void;
 
 export type ReadonlyTaskInstanceState = ReadonlyDeep<TaskInstanceState>;
 

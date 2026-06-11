@@ -28,8 +28,8 @@ import {
 } from '@/features/send';
 import {
   createTaskService,
+  createTaskTemplateStorage,
   type TaskService,
-  type TaskStepResult,
 } from '@/features/task';
 import {
   createCommandIngressService,
@@ -134,16 +134,13 @@ export function wireFeatures(
   // L3: needs L2
   const receiveEventSourceBridge = new ReceiveEventSourceBridge();
 
-  // Late-binding for onStepResult (northbound not yet created)
-  const stepResultHolder = { current: undefined as ((instanceId: string, result: TaskStepResult) => void) | undefined };
-
   const resultState = createResultState();
   const resultService = createResultService(resultState);
 
   const taskService = createTaskService({
     sendService,
     receiveEventSource: receiveEventSourceBridge,
-    onStepResult: (instanceId, result) => stepResultHolder.current?.(instanceId, result),
+    templateStorage: createTaskTemplateStorage(),
   });
 
   // L4: needs L3 + config
@@ -189,8 +186,7 @@ export function wireFeatures(
     connectionSnapshot: () => connectionService.getSnapshot(),
   });
 
-  // Bind the step result callback
-  stepResultHolder.current = northboundService.handleStepResult;
+  // 事件订阅（onStepResult / onTaskSettled）由 northbound 在 start() 内自管
 
   return {
     frameReader,

@@ -279,3 +279,243 @@ sequenceDiagram
 - **跨层纪律**：无新增跨 feature 约束
 
 acceptance 阶段核实后跳过归并。
+
+---
+
+## 5. v2 修订（2026-06-12）
+
+> 状态：**待认可**（用户确认后纳入 approved 主干，作为本轮实施直接合同）
+> 来源：S005/S002 运行时调试 + 6 agent 反模式扫描
+
+### 5.1 触发原因
+
+S001-S005 实施完成后，运行时验证发现两个 bug：
+
+1. **图表不出数据**（双重根因）：
+   - **复合 key 不一致**：bridge 输出的 sourceFields key 是 `groupId:frameId:fieldId`（未选分组时为 `frameId:frameId:fieldId`）；而 ChartConfigDialog 在未选分组时构造的 fieldId 是 `frameId:fieldId`。两者格式不一致 → chartBuffer 累积失败。
+   - **冷启动 UI 引导缺失**：`selectedItems` 默认为空数组，用户不配置就永远看不到图。
+2. **图例显示 UUID**：composable 通过 `service.getSourceFields()` 拿 fieldName，sourceFields 为空时降级到 `key.split(':').pop()` 显示 fieldId 末段（可能是 UUID）。
+
+**深层根因**：fieldName、frameName 是帧定义的**静态属性**，被错误地耦合到运行时数据流（sourceFields）。6 个 agent 扫描确认此反模式遍布 display composable/bridge/projection 和 history 页面（`useHistoryData.ts:118`、`CSVExportDialog.vue:59`）。设计文档原本**未提及** fieldName 解析路径，是设计 gap。
+
+### 5.2 新增决策
+
+**D7: 静态元数据从配置层 lookup，禁止从运行时数据流解析。**
+
+fieldName、frameName、frameId、dataType、unit 等是帧定义的静态属性，必须从 `frameReader.listFieldReferences()` 解析。运行时数据流（sourceFields）只提供动态值（value、displayValue、updatedAt），不承担静态标识解析。
+
+违反此约束的反模式（实施时统一清理）：
+- composable 从 `getSourceFields()` 读 fieldName
+- 字符串分割 `fieldId.split(':')[1]`（display + history 多处）
+- bridge/projection 透传 material.fieldName 而不校验
+
+**D8: chart preference selectedItems 改结构化对象。**
+
+```typescript
+export interface ChartSelectedItem {
+  readonly groupId: string;
+  readonly frameId: string;
+  readonly fieldId: string;
+}
+
+export interface ChartInstancePreference {
+  selectedItems: readonly ChartSelectedItem[];  // 原 string[]
+}
+```
+
+理由：原 `groupId:dataItemId` 字符串嵌套拼接（dataItemId 本身是 `frameId:fieldId`）导致三层嵌套，格式不一致是 bug 根源之一。结构化对象消除歧义。persistence migration 见 5.3。
+
+**D9: 图表冷启动用空状态占位，selectedItems 默认仍空。**
+
+理由：默认选中前 N 个字段可能选错（不符合用户业务意图）。空状态占位"点击设置选择字段"让用户知道下一步做什么，不改变默认行为。
+
+**D10: 无数据流时 UI 降级策略——占位，不报错，不显示 UUID。**
+
+receive 管线未跑或帧未匹配时，图表/表格数据为空是正常状态，UI 不应崩溃或显示随机 ID。表格已有空状态。图表需补同样语义。
+
+### 5.3 persistence migration
+
+**schemaVersion 升级**：`DisplayPreferences` schemaVersion 从 1 → 2。加载时检测版本，1 → 2 触发 migration。
+
+旧 shape（已持久化的 selectedItems 是 `string[]`，格式可能 2 段或 3 段）：
+
+```typescript
+// 3 段（已选分组时）
+{ schemaVersion: 1, charts: [{ selectedItems: ['g1:f1:voltage', 'g1:f1:current'] }] }
+// 2 段（未选分组时，bridge 把 groupId=frameId）
+{ schemaVersion: 1, charts: [{ selectedItems: ['f1:voltage', 'f1:current'] }] }
+```
+
+新 shape：
+
+```typescript
+{ schemaVersion: 2, charts: [{ selectedItems: [
+  { groupId: 'g1', frameId: 'f1', fieldId: 'voltage' },
+  { groupId: 'g1', frameId: 'f1', fieldId: 'current' }
+] }] }
+```
+
+migration 在 `runtime/persistence.ts` 加载时执行：
+
+1. 检测 `schemaVersion`，缺失或 = 1 触发 migration
+2. 检测 `selectedItems[0]` 是否为 string
+3. 是 → 按 `:` 拆分：
+   - **3 段**（`groupId:frameId:fieldId`）→ 直接构造 `ChartSelectedItem`
+   - **2 段**（`frameId:fieldId`，未选分组）→ `groupId = frameId`（与 bridge 当前行为一致）
+   - **少于 2 段或多于 3 段** → 丢弃该条目并 `console.warn`
+4. 否 → 直接通过
+5. 写回时把 `schemaVersion` 标记为 2
+
+**回滚策略**：migration 在内存中完成，写回前若发生异常保留原始数据并 `console.error`。不提供反向 migration（旧代码读到结构化对象会忽略 selectedItems，不会崩溃）。
+
+### 5.4 名词层扩展
+
+| 动作 | 内容 | 动机 |
+|------|------|------|
+| 新增 | `ChartSelectedItem { groupId, frameId, fieldId }` | 结构化字段引用 |
+| 改变 | `ChartInstancePreference.selectedItems`: `readonly string[]` → `readonly ChartSelectedItem[]` | D8 |
+| 改变 | `DisplayPreferences.schemaVersion`: `1` → `2` | 5.3 migration |
+| 改变 | `useDisplayRefresh` 签名：注入 `frameReader` | D7 |
+| 改变 | `DisplayFieldMaterial.fieldName` 标注为"运行时冗余字段"（保留兼容但 UI 不应信任） | D7 |
+| 约束 | `DisplayService.getSourceFields()` / `useDisplayRefresh.refreshCharts()` 返回值必须为 `readonly` + 深拷贝（Selector 不可变约束，CLAUDE.md） | D7 |
+
+**不提取 shared 工具**：原计划 `shared/utils/field-key.ts` 不满足"2+ feature 才提取 shared"规则（formatFieldKey/lookupFieldName 只有一处消费）。改为：
+- display 用结构化对象 `ChartSelectedItem`，内部不需要字符串解析工具
+- persistence migration 的字符串解析是一次性逻辑，内部实现即可
+- history 的字符串分割（`useHistoryData.ts:118` / `CSVExportDialog.vue:59`）由 history feature 自行修复，不强行提取 shared
+
+### 5.5 编排层变更
+
+#### use-display-refresh.refreshCharts 重写
+
+```typescript
+// 旧：依赖 sourceFields 解析 fieldName（无数据流时降级 UUID）
+// 新：注入 frameReader，selectedItems 是结构化对象
+function refreshCharts(
+  selectedItems: readonly ChartSelectedItem[],
+  sourceFields: readonly DisplayFieldMaterial[],
+  frameReader: FrameAssetReader,
+): readonly ChartInstanceProjection[] {  // 返回 readonly + 深拷贝
+  // 1. 静态：从 frameReader.listFieldReferences() 构建 fieldId → fieldName/frameName Map
+  // 2. 动态：从 sourceFields 按 groupId+frameId+fieldId 匹配取 value
+  // 3. 渲染：fieldName 永远从静态 Map 拿，不依赖 sourceFields 是否有数据
+}
+```
+
+#### chartBuffer Map key 生成
+
+```typescript
+// ChartSelectedItem → string key（用于 chartBuffer Map）
+function chartItemKey(item: ChartSelectedItem): string {
+  return `${item.groupId}:${item.frameId}:${item.fieldId}`;
+}
+// 永远用此格式，未选分组时 groupId=frameId，key 仍唯一稳定
+```
+
+#### buffer 清空时机
+
+- **selectedItems 变更**（用户改字段选择）：清空整个 chartBuffer（已有逻辑，signature 检测）
+- **groups 配置变更**（用户增删分组或改帧分配）：清空整个 chartBuffer（key 可能失效）
+- **frameReader 刷新**（帧定义热更新）：清空整个 chartBuffer（fieldName/frameName 可能变更）
+
+#### DisplayPage chart1/chart2 computed 重写
+
+不再需要 enrich（方案 A），因为 composable 已用 frameReader 静态解析。chart preference selectedItems 直接传结构化对象给 DisplayPanel。
+
+### 5.6 验收契约新增场景
+
+| 场景 | 输入 / 触发 | 期望可观察结果 |
+|------|------------|--------------|
+| 图表空状态（冷启动） | selectedItems 为空 | 图表区显示"点击设置选择字段"占位 |
+| 无数据流时图例 | selectedItems 有值，sourceFields 为空 | 图例显示 frameReader 中的 fieldName，points 为空（不显示 UUID） |
+| 旧 persistence migration（3 段） | 启动加载 `'g1:f1:voltage'` 格式 | 自动转为 `{groupId:'g1', frameId:'f1', fieldId:'voltage'}` |
+| 旧 persistence migration（2 段） | 启动加载 `'f1:voltage'` 格式 | 自动转为 `{groupId:'f1', frameId:'f1', fieldId:'voltage'}`（groupId=frameId） |
+| migration 畸形条目 | `'foo'` 或 `'a:b:c:d'` | 丢弃并 console.warn，不阻断其他条目 |
+| 字段名解析（已修复） | selectedItems 含已知 fieldId | 图例显示 frameReader 中的 fieldName |
+| 帧定义热更新 | 字段改名/删除后 selectedItems 失效 | 启动 validate 丢弃失效条目并 warn，UI 不崩 |
+| 分组删除后 selectedItems 失效 | selectedItems 含已删 groupId | validate 时回退 groupId=frameId 或丢弃并 warn |
+| 增减图表数量 | updateChartCount(3) | 保留前 2 个已有配置，新增的 selectedItems 为空 |
+| history 同步修复 | useHistoryData.ts 解析 fieldId | history 自行用 split 解析（不提取 shared），不依赖运行时 fieldName |
+
+### 5.7 影响范围（修改挂载点清单）
+
+| 挂载位置 | 动作 | 严重度 |
+|---------|------|--------|
+| `display/core/types.ts` | 新增 ChartSelectedItem + 改 selectedItems 类型 + schemaVersion=2 | blocker |
+| `display/core/normalize.ts` | selectedItems normalize 改用结构化对象 + 帧定义/分组 validate 函数 | blocker |
+| `display/composables/use-display-refresh.ts` | 签名注入 frameReader + refreshCharts 重写 + buffer 清空时机 | blocker |
+| `runtime/bridges/receive-display-bridge.ts` | 不再透传 fieldName 依赖（保留 material.fieldName 作为运行时冗余，UI 不信任） | major |
+| `display/core/projection.ts` | toRow 不信任 material.fieldName，加注释 | major |
+| `display/services/display-service.ts` | getSourceFields 语义说明（运行时冗余）+ 返回 readonly 深拷贝 | major |
+| `display/components/ChartConfigDialog.vue` | 字段勾选构造 ChartSelectedItem | blocker |
+| `display/components/DisplayPanel.vue` | 图表区空状态占位 | blocker |
+| `widgets/WaveformChart.vue` | series 空状态占位 | blocker |
+| `pages/DisplayPage.vue` | chart1/chart2 computed 重写，selectedItems 直接传 + 注入 frameReader 给 composable | blocker |
+| `runtime/persistence.ts` | migration 函数（schemaVersion 1→2） | blocker |
+| `pages/history/useHistoryData.ts` | history 自行修复字符串分割（不提取 shared） | minor |
+| `pages/history/CSVExportDialog.vue` | history 自行修复字符串分割（不提取 shared） | minor |
+
+### 5.8 v2 明确不做
+
+- 不改 `DisplayFieldMaterial` shape（fieldName 保留作为运行时冗余，未来可移除但本轮不动）
+- 不改 receive outcome 形状（matchedOutcome.fields 仍带 fieldName，display 层不再依赖即可）
+- 不为图表默认选字段（D9 决策冷启动用占位）
+- 不提取 `shared/utils/field-key.ts`（不满足 2+ feature 提取条件）
+- 不修 northbound `parId → frameId` 映射（独立 blocker，本轮不在范围）
+
+### 5.9 实施顺序
+
+依赖关系决定顺序，每步退出信号明确：
+
+```
+1. types + normalize（ChartSelectedItem / schemaVersion=2 / validate 函数）
+   退出信号：pnpm -C rewrite build 通过（类型编译通过）
+2. ChartConfigDialog（构造 ChartSelectedItem）+ DisplayPanel/WaveformChart（空状态占位）
+   退出信号：弹窗内勾选字段保存为结构化对象；图表空状态可见
+3. composable（use-display-refresh 注入 frameReader + refreshCharts 重写 + buffer 清空时机）
+   退出信号：composable 单测通过；无 sourceFields 时 fieldName 仍从 frameReader 拿到
+4. DisplayPage（chart1/chart2 computed 重写 + 注入 frameReader）
+   退出信号：手动验证图表渲染（表格有数据 → 图表配置后图表有点）
+5. persistence migration（schemaVersion 1→2，2 段/3 段解析）
+   退出信号：persistence-recovery 测试通过；启动加载旧数据不崩
+6. history 同步修复（useHistoryData + CSVExportDialog）
+   退出信号：history 单测通过；不再字符串分割
+7. bridge/projection/service 注释 + 语义清理（major 级）
+   退出信号：lint 通过；注释明确 material.fieldName 为运行时冗余
+8. 全量 lint + test 验证
+   退出信号：pnpm -C rewrite lint 零新增 error；pnpm -C rewrite test 零新增失败
+```
+
+### 5.10 边界场景处理
+
+**帧定义热更新后 selectedItems 失效**：
+
+帧定义改了字段（重命名/删除），chart preference 的 selectedItems 中 fieldId 失效。
+
+策略：在 `normalize.ts` 加 `validateChartSelectedItems(prefs, frameReader)`：
+- 加载 preference 时调用
+- 对每个 `ChartSelectedItem`，用 `frameReader.listFieldReferences({ frameId })` 查 fieldId 是否存在
+- 不存在 → 丢弃该条目并 `console.warn('[display] chart selected item dropped: frame/field not found', item)`
+- 不阻断其他有效条目
+
+**分组删除后 groupId 失效**：
+
+用户删了分组，但 chart preference selectedItems 仍含旧 groupId。
+
+策略：在同一个 validate 函数中：
+- 检查 `item.groupId` 是否在当前 `prefs.groups` 中（或等于 frameId，表示未分组）
+- 不在且不等于 frameId → 回退 `groupId = frameId`（保守，保留字段引用）
+- 同时 warn 提示用户重新配置
+
+**updateChartCount 迁移**：
+
+增减图表数量时（`service.updateChartCount(n)`）：
+- n > 现有：新增的 chart instance selectedItems 为空数组（默认）
+- n < 现有：保留前 n 个的配置，多余的丢弃
+- 已在 normalize 现有逻辑中，v2 验证结构化对象兼容即可
+
+**多图表实例指向相同字段**：
+
+两个 chart instance 都选了同一字段。chartBuffer 用 `${groupId}:${frameId}:${fieldId}` 作为 key，会被两个实例共享累积。
+
+策略：**有意共享**——同一字段在不同图表中显示的是同一时间序列，共享 buffer 节省内存。实例的 series 投影独立（按 instance.id 分组输出），但底层 points 数据共享。如未来需要独立序列，再引入 instance 限定 key。

@@ -1,0 +1,76 @@
+feature: 2026-05-07-runtime-wiring
+created: 2026-05-07
+
+steps:
+  - action: "桥接适配器 + 编排骨架：bridges/ 子目录 + feature-wiring.ts 实现 3 层创建"
+    exit_signal: "wireFeatures() 返回所有 service/reader 引用，单测覆盖 wiring 正确性和 bridge 转换"
+    status: done
+
+  - action: "路由函数：routing-tick.ts 实现无状态 routingTick"
+    exit_signal: "routingTick() 能将 connection data 事件经 receive 解析后触发 bridge emit，错误路径返回 error"
+    status: done
+
+  - action: "facade 整合：重构 index.ts 委托 wiring + routingTick"
+    exit_signal: "现有 rewrite-runtime.spec.ts 全部通过 + pnpm -C rewrite build 通过 + pnpm -C rewrite lint 通过"
+    status: done
+
+checks:
+  - item: "runtime/ 下 .ts 文件零 vue/pinia import"
+    source: 范围守护
+    status: done
+
+  - item: "runtime/ 只从 feature root index.ts import，无 feature 子目录穿透"
+    source: 范围守护
+    status: done
+
+  - item: "runtime 不持有任何 feature 内部可变 state"
+    source: 跨层纪律
+    status: done
+
+  - item: "ConnectionToReceiveInputSource 不持有 ConnectionTransportAdapter 引用"
+    source: 名词契约
+    status: done
+
+  - item: "routingTick 是无状态函数，runtime 不使用 setTimeout/setInterval"
+    source: 跨层纪律
+    status: done
+
+  - item: "每个 runtime 模块不超过 200 行"
+    source: 范围守护
+    status: done
+
+  - item: "S1: wireFeatures 返回所有 service/reader/bridge 引用且类型正确"
+    source: 验收场景
+    status: done
+
+  - item: "S2: connection data 事件经 routingTick 到达 receive 的 matched outcome"
+    source: 验收场景
+    status: done
+
+  - item: "S3: receive matched outcome 提取为 ConditionMatchInput 并经 bridge 通知 handler"
+    source: 验收场景
+    status: done
+
+  - item: "S4: sendService.execute 正确委托到 connectionService.write"
+    source: 验收场景
+    status: done
+
+  - item: "S5: connection drain 失败时 routingTick 返回 error，后续步骤不执行"
+    source: 验收场景
+    status: done
+
+  - item: "S6: destroy() 调用 connectionService.cleanup + bridge.clear"
+    source: 验收场景
+    status: done
+
+  - item: "S7: getOverviewSnapshot 向后兼容"
+    source: 验收场景
+    status: done
+
+  - item: "S8: resetSettings 向后兼容"
+    source: 验收场景
+    status: done
+
+  - item: "S9: send bridge ok=true 但无 write-accepted 时 fallback 到 bytesWritten=0"
+    source: 验收场景
+    status: done

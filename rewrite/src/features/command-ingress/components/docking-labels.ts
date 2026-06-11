@@ -30,12 +30,12 @@ export const VERDICT_STATUS_MAP: Record<string, { label: string; color: string }
 // --- Sub-system type options ---
 
 export const SUB_SYS_TYPE_OPTIONS = [
-  { value: 'ADS', label: 'ADS — 馈电测试子系统' },
-  { value: 'KPS', label: 'KPS — Ka载荷测试子系统' },
-  { value: 'WER', label: 'WER — 路由交换测试子系统' },
-  { value: 'FPS', label: 'FPS — 馈电测试子系统' },
-  { value: 'LAS', label: 'LAS — 激光载荷测试子系统' },
-  { value: 'SEU', label: 'SEU — 单粒子故障注入子系统' },
+  { value: 'laser', label: '激光（laser）' },
+  { value: 'ka', label: 'Ka 宽带（ka）' },
+  { value: 'wer', label: '微波（wer）' },
+  { value: 'fps', label: '导航（fps）' },
+  { value: 'ads', label: '航空监视（ads）' },
+  { value: 'seu', label: '星间激光（seu）' },
 ] as const;
 
 // --- Default config ---
@@ -43,10 +43,10 @@ export const SUB_SYS_TYPE_OPTIONS = [
 export const DEFAULT_DOCKING_CONFIG = {
   serverHost: '0.0.0.0',
   serverPort: 5001,
-  customerBaseUrl: '',
-  subSysType: 'LAS',
-  subSysId: 'LAS_001',
-  loginUrl: '',
+  customerBaseUrl: 'http://ip/partner-api/',
+  subSysType: 'laser',
+  subSysId: 'JG',
+  loginUrl: 'http://ip/partner-api/auth/partner/login',
   clientId: '6af72c14148848b9b1c08220a6d8ee54',
   username: 'subsys',
   password: '',
@@ -59,7 +59,7 @@ export const DEFAULT_DOCKING_CONFIG = {
 export const MOCK_DEVICES: readonly DeviceInfoItem[] = [
   {
     name: '激光通信终端',
-    deviceId: 'LAS_LCT_01',
+    deviceId: 'JG_LCT_01',
     type: 'LCT',
     ip: '192.168.1.100',
     swVer: 'V1.0.0',
@@ -72,13 +72,13 @@ export const MOCK_DEVICES: readonly DeviceInfoItem[] = [
 
 export const DEFAULT_TEST_CATALOG: Record<string, unknown> = {
   datas: [{
-    name: '激光链路测试', id: 'LAS_MENU_01', isParent: true,
+    name: '激光链路测试', id: 'JG_MENU_01', isParent: true,
     type: '', runSubSys: '', depSubSys: '', depSubNe: '',
     durate: 0, execSteps: '', remark: '',
     inputPars: [], preHandle: [], afterHandle: [],
     children: [{
-      name: '激光通信测试', id: 'LAS_TC_001', isParent: false,
-      type: 'land', runSubSys: 'LAS', depSubSys: '', depSubNe: '',
+      name: '激光通信测试', id: 'JG_TC_001', isParent: false,
+      type: 'land', runSubSys: 'JG', depSubSys: '', depSubNe: '',
       durate: 60, execSteps: '1.发送帧;2.接收帧;3.校验结果',
       remark: 'Mock 测试用例',
       inputPars: [], preHandle: [], afterHandle: [],

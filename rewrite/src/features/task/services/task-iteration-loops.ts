@@ -19,7 +19,6 @@ export interface TaskExecutionContext {
   errorPolicy: ReturnType<typeof createErrorPolicyHandler>;
   fieldValueProvider?: () => Readonly<Record<string, number | string | null>>;
   now: () => string;
-  onStepResult?: (instanceId: string, result: TaskStepResult) => void;
 }
 
 // --- ScheduleDriverAdapter ---
@@ -161,7 +160,6 @@ async function executeRepeatableSend(
   if (!repeat) {
     const result = await ctx.stepExecutors.executeSendStep(instanceId, step, iteration, stepIndex, definition);
     ctx.state.addStepResult(instanceId, result);
-    try { ctx.onStepResult?.(instanceId, result); } catch { /* callback errors must not propagate */ }
     return result.sendResult.kind === 'sent';
   }
 
@@ -171,7 +169,6 @@ async function executeRepeatableSend(
   while (count < maxCount) {
     const result = await ctx.stepExecutors.executeSendStep(instanceId, step, iteration, stepIndex, definition);
     ctx.state.addStepResult(instanceId, result);
-    try { ctx.onStepResult?.(instanceId, result); } catch { /* callback errors must not propagate */ }
 
     if (result.sendResult.kind !== 'sent') return false;
 
@@ -223,7 +220,6 @@ async function executeSteps(
       const outcome = await executeStepCore(instanceId, step, iteration, i, ctx, signal);
       if (outcome === null) return false;
       ctx.state.addStepResult(instanceId, outcome.result);
-      try { ctx.onStepResult?.(instanceId, outcome.result); } catch { /* callback errors must not propagate */ }
       if (outcome.shouldStop) return false;
     }
 
@@ -336,7 +332,6 @@ export interface IterationLoopContext {
   errorPolicy: ReturnType<typeof createErrorPolicyHandler>;
   fieldValueProvider?: () => Readonly<Record<string, number | string | null>>;
   now: () => string;
-  onStepResult?: (instanceId: string, result: TaskStepResult) => void;
 }
 
 export function createIterationLoops(ctx: IterationLoopContext) {
@@ -351,7 +346,6 @@ export function createIterationLoops(ctx: IterationLoopContext) {
       errorPolicy: ctx.errorPolicy,
       fieldValueProvider: ctx.fieldValueProvider,
       now: ctx.now,
-      onStepResult: ctx.onStepResult,
     };
   }
 

@@ -1,0 +1,349 @@
+version: 1
+feature: rewrite-connection
+status: draft
+date: "2026-05-04"
+purpose: "后续 cs-feat-impl 的入口清单；本文件不定义字段 schema，不进入实现。"
+
+direct_contract:
+  - "AGENTS.md"
+  - "codestable/compound/2026-04-28-rewrite-execution-charter.md"
+  - "codestable/architecture/rewrite-target-structure.md"
+  - "codestable/architecture/rewrite-system-architecture.md"
+  - "codestable/architecture/rewrite-feature-boundaries.md"
+  - "codestable/architecture/rewrite-feature-interaction-matrix.md"
+  - "codestable/architecture/rewrite-connection-transport-boundary.md"
+  - "codestable/architecture/rewrite-connection-platform-bridge.md"
+  - "codestable/architecture/rewrite-platform-api-surface-reduction.md"
+  - "codestable/quality/rewrite-validation-fixture-oracle-baseline.md"
+  - "codestable/quality/rewrite-quality-rules.md"
+  - "codestable/quality/rewrite-review-checklist.md"
+
+boundary_guards:
+  - "只实现 connection transport config、runtime connection facts、target availability、transport-level lifecycle/error/event。"
+  - "不实现 serial/TCP client/TCP server/UDP 真实平台链路，除非后续 implementation 另行进入实现阶段。"
+  - "不冻结 preload/main/renderer API schema、channel、method、DTO、字段、错误码或枚举。"
+  - "不实现 frame parsing、receive matching、send task state、SCOE semantics、result、report、northbound 内部语义。"
+  - "main 只承载平台 transport 资源、生命周期和必要 buffer/batch/queue/backpressure，不解释业务语义。"
+  - "renderer 不直接访问 Node、Electron、ipcRenderer、fs、path、net、serialport 或旧 window.electron。"
+  - "serial/network target 不等同 northbound deviceId、业务设备身份、task、case 或 report delivery target。"
+  - "旧 src/src-electron/public 只作为 evidence、fixture 或 oracle 输入。"
+  - "不读取或修改前端自动生成 types 文件。"
+
+items:
+  - id: CONN-IMPL-001
+    title: "实现前重新确认 owner / not owner"
+    status: done
+    scope: "connection design guard"
+    acceptance:
+      - "实现说明列出 connection owner 和 not owner。"
+      - "实现范围只包含 transport config、runtime connection facts、target availability、transport event/error/lifecycle。"
+      - "实现范围不包含 receive/send/task/SCOE/result/report/northbound 内部规则。"
+      - "实现范围不包含最终 preload/main/renderer API schema。"
+    validation:
+      - "manual checklist"
+      - "static scan"
+
+  - id: CONN-IMPL-002
+    title: "建立 connection core 纯 TypeScript 规则"
+    status: done
+    scope: "rewrite/src/features/connection/core"
+    acceptance:
+      - "core 只接收显式输入，不依赖 Vue、Pinia、Electron、platform、Node、socket、serialport 或全局 store。"
+      - "core 覆盖 transport config validation category、lifecycle reducer、target availability derivation、event/error normalization 和 selector projection。"
+      - "core 不解析 frame，不构造 send frame，不推进 task，不解释 SCOE/result/report/northbound。"
+      - "core 不冻结本 checklist 外的字段 schema、target id、错误码或枚举。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+
+  - id: CONN-IMPL-003
+    title: "建立 connection service 用例层"
+    status: done
+    scope: "rewrite/src/features/connection/services"
+    acceptance:
+      - "service 负责 connection lifecycle command、target query、transport write request、event ingestion、cleanup 和 error normalization。"
+      - "service 通过显式 adapter port 消费 platform transport primitive。"
+      - "service 的依赖通过构造函数、工厂或明确 context 传入，便于 fake adapter 测试。"
+      - "service 不直接修改 receive/send/task/SCOE/status/result/report/northbound 内部 state。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "fake adapter test"
+
+  - id: CONN-IMPL-004
+    title: "建立 connection state 和只读 selector"
+    status: done
+    scope: "rewrite/src/features/connection/state"
+    acceptance:
+      - "state 只维护 connection runtime facts、transport read model、target availability、transport counters 和必要 UI-independent selector。"
+      - "state 不保存 receive parse result、send business result、task progress、SCOE record、result truth、report state 或 northbound transaction。"
+      - "state 不向外暴露 mutable state、internal store、Vue ref、platform adapter、socket 或 serialport object。"
+      - "selector 面向 receive/send/task/SCOE/status/pages/runtime 提供只读 projection。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "static scan"
+
+  - id: CONN-IMPL-005
+    title: "建立 platform transport adapter 边界"
+    status: done
+    scope: "rewrite/src/features/connection/adapters and rewrite/src/platform capability boundary"
+    acceptance:
+      - "real adapter 只通过 rewrite/src/platform facade 访问 accepted transport primitive。"
+      - "真实 platform bridge implementation 前必须引用 codestable/architecture/rewrite-connection-platform-bridge.md，并只实现已接受的 capability categories。"
+      - "fake adapter 覆盖 serial/TCP/TCP server/UDP 的成功、错误、关闭、stale event 和 cleanup 场景。"
+      - "adapter 不定义最终 preload/main/renderer API schema。"
+      - "adapter 不把旧 src/api/common/serialApi 或 networkApi 一一迁入 rewrite/src/platform。"
+      - "renderer 不直接访问 Node、Electron、ipcRenderer、fs、path、net、serialport 或旧 window.electron。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "fake adapter test"
+      - "static scan"
+      - "runtime validation"
+
+  - id: CONN-IMPL-006
+    title: "锁定 lifecycle / error / event 边界"
+    status: done
+    scope: "connection lifecycle and transport events"
+    acceptance:
+      - "connect/disconnect/cleanup 对 duplicate action、already closed resource、stale platform event 和 app shutdown 有可测行为。"
+      - "transport-level error 只作为 connection fact 或 consumer input material，不直接定义 task/result/report/northbound 语义。"
+      - "write failure 只向 send/SCOE 提供 transport-level material，send/task/SCOE 自己决定业务含义。"
+      - "automatic reconnect 若实现，必须显式登记 retry policy、cancellation、UI visibility 和 runtime/hardware validation；默认不假定存在。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "fake adapter test"
+      - "manual checklist"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: CONN-IMPL-007
+    title: "建立 target availability 和 route projection"
+    status: done
+    scope: "connection target boundary"
+    acceptance:
+      - "serial、TCP、TCP server listener/client、UDP remote route 都以 transport target material 表达。"
+      - "target availability 不等同 northbound deviceId、业务设备、task、case 或 report destination。"
+      - "send/SCOE/task/pages 只能读取只读 target projection 或通过 runtime 调用 connection public boundary。"
+      - "UDP remote route、TCP server client route 和 target id 表示不在本项冻结 schema。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "manual checklist"
+      - "hardware validation"
+
+  - id: CONN-IMPL-008
+    title: "收口 byte input / byte output 消费边界"
+    status: done
+    scope: "connection -> receive / send / SCOE"
+    acceptance:
+      - "receive 只消费 incoming byte batches、source snapshot 和 lifecycle/error material，不 import connection internals。"
+      - "send/SCOE 只通过 transport write capability 发送 bytes，并接收 transport-level acceptance/failure material。"
+      - "connection 不解析 frame、不处理 receive match、不构造 send frame、不写 send stats、不推进 task。"
+      - "TCP line split、高速存储 short-circuit、SCOE fixed route 均登记为 deferred 或 runtime exception，不由 connection 私自实现业务语义。"
+    validation:
+      - "Vitest unit"
+      - "fixture test"
+      - "fake adapter test"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: CONN-IMPL-009
+    title: "登记 runtime 装配与跨 feature 路由"
+    status: done
+    scope: "rewrite/src/runtime and app lifecycle"
+    acceptance:
+      - "runtime 只负责 connection service/adapter/subscription 的创建、释放、启动顺序、cleanup 和跨 feature 路由。"
+      - "runtime route connection byte batches to receive without receive importing connection internal state。"
+      - "runtime route send/SCOE transport write request through connection public boundary。"
+      - "runtime 不包含 receive parser、send builder、task lifecycle、SCOE protocol、result/report/northbound semantics。"
+      - "high-frequency buffer/backpressure、high-speed storage、SCOE fixed route、package/native-module 等例外按 registry 登记。"
+    validation:
+      - "manual checklist"
+      - "runtime validation"
+      - "static scan"
+
+  - id: CONN-IMPL-010
+    title: "保留连接页面和用户可见流程"
+    status: done
+    scope: "rewrite/src/pages and rewrite/src/features/connection/components"
+    acceptance:
+      - "连接页入口仍可从路由和导航访问。"
+      - "串口列表、网络连接列表、连接配置、连接状态、错误提示和测试工具保留用户可见 workflow。"
+      - "connect/disconnect/reconnect/test 相关按钮状态和错误状态可人工验证。"
+      - "页面和组件只通过 connection composable/service/selector 或 runtime page entry 使用能力。"
+      - "页面不直接访问 platform、Node/Electron、raw transport event 或其他 feature internal state。"
+    validation:
+      - "manual checklist"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: CONN-TEST-001
+    title: "沉淀 connection fixtures 和 oracle"
+    status: done
+    scope: "rewrite/src/features/connection/fixtures and tests"
+    acceptance:
+      - "fixture 覆盖 serial/TCP/TCP server/UDP config 正例、反例和 legacy observable behavior。"
+      - "fixture 覆盖 duplicate connect、already closed disconnect、stale event、write failure、timeout、disconnect during write 和 listener cleanup。"
+      - "fixture 覆盖 target availability projection、transport counters 和 error/lifecycle read model。"
+      - "legacy evidence 只作为 oracle/material，不作为新核心 schema。"
+      - "关键 lifecycle/output projection 需要登记为 oracle comparison 输入。"
+    validation:
+      - "fixture test"
+      - "Vitest unit"
+      - "oracle comparison"
+      - "fake adapter test"
+
+  - id: CONN-RUNTIME-001
+    title: "完成 Electron runtime 与高频链路验证计划"
+    status: done
+    scope: "runtime validation"
+    acceptance:
+      - "实现说明列出 startup/shutdown/subscription cleanup/event ordering 的 runtime validation 项。"
+      - "实现说明列出 batch/window/overflow/backpressure/UI snapshot 的 runtime validation 项或明确 deferred。"
+      - "未完成 runtime evidence 前，不声明 high-frequency steady-state accepted。"
+      - "main 只保留平台侧或性能侧处理，业务语义 owner 与退出条件登记清楚。"
+    validation:
+      - "runtime validation"
+      - "manual checklist"
+
+  - id: CONN-HW-001
+    title: "登记真实 serial/TCP/TCP server/UDP hardware validation"
+    status: done
+    scope: "hardware validation"
+    acceptance:
+      - "真实串口 enumerate/open/close/reopen/send/receive/error/unplug 行为必须有硬件验证记录。"
+      - "真实 TCP client connect/send/receive/close/error/timeout 必须有运行或硬件验证记录。"
+      - "真实 TCP server listen/client accept/multiple client send/close/server close cleanup 必须有运行或硬件验证记录。"
+      - "真实 UDP bind/send/receive/broadcast candidate/remote route 必须有运行或硬件验证记录。"
+      - "没有这些证据时，只能声明 static/fixture/fake adapter 通过，不能声明 hardware accepted。"
+    validation:
+      - "hardware validation"
+      - "runtime validation"
+      - "manual checklist"
+
+  - id: CONN-PKG-001
+    title: "登记 package/native transport blocker"
+    status: done
+    scope: "package validation"
+    acceptance:
+      - "若实现触达 serialport native module、Electron bridge packaging、extraResources、resource path 或 packaged runtime 差异，必须登记 package validation。"
+      - "未完成 package validation 前，不声明 packaged transport bridge/native module behavior accepted。"
+      - "package validation 不由 Vitest、fixture 或开发态 Electron runtime 替代。"
+    validation:
+      - "package validation"
+      - "runtime validation"
+
+  - id: CONN-DEFER-001
+    title: "保留 high-frequency / high-speed / TCP line split deferred 项"
+    status: done
+    scope: "deferred boundary"
+    acceptance:
+      - "queue depth、batch window、overflow/drop policy、backpressure、sampling、UI refresh interval 和 target throughput 单独设计。"
+      - "真实 serial/TCP/UDP bridge 的 event model、subscription scope、stale event handling、package/native-module gate 按 rewrite-connection-platform-bridge.md 保持 deferred，直到 implementation design 接受。"
+      - "TCP line split 归属后续由 receive/connection design 决定，不在 connection implementation 中私自固化。"
+      - "high-speed storage short-circuit 必须由 storage/receive/runtime 共同登记 exception，不由 connection 单独决定。"
+      - "network status-change drift、global webContents broadcast replacement 和 target window/subscriber scoping 需实现前复核。"
+    validation:
+      - "manual checklist"
+      - "runtime validation"
+      - "hardware validation"
+
+  - id: CONN-DEFER-002
+    title: "保留 SCOE / northbound not-owner guard"
+    status: done
+    scope: "SCOE and northbound guard"
+    acceptance:
+      - "SCOE fixed source/target 作为 later SCOE runtime exception，connection 只提供 transport availability。"
+      - "connection 不解释 SCOE command、completion condition、tool record 或 device semantics。"
+      - "connection target 不等同 northbound deviceId，不冻结 customer-facing identity mapping。"
+      - "connection 不声明 result/report/file delivery/HTTP/FTP/customer closure 完成。"
+    validation:
+      - "manual checklist"
+      - "hardware validation"
+      - "customer validation"
+
+  - id: CONN-BRIDGE-001
+    title: "Real bridge implementation readiness gate"
+    status: done
+    scope: "bridge implementation gate"
+    acceptance:
+      - "实现轮把 rewrite-connection-bridge-implementation-design.md 列入 direct contract 或 boundary guard。"
+      - "实现轮列出本轮接受的 capability categories：discovery、lifecycle command、byte I/O、event drain、backpressure signal。"
+      - "实现轮确认 owner split、event model、queue/backpressure principles、error mapping 和 forbidden surfaces 与 implementation design 一致。"
+      - "real adapter 遵守 ConnectionTransportAdapter port，不暴露 platform resource handle。"
+      - "renderer 不直接访问 Node/Electron/raw IPC，preload 不暴露裸通道，main 不承载业务语义。"
+    validation:
+      - "static scan"
+      - "manual checklist"
+
+  - id: CONN-BRIDGE-002
+    title: "Native dependency 和 packaged validation 前置"
+    status: done
+    scope: "native dependency setup"
+    acceptance:
+      - "serialport 和 @serialport/bindings-cpp 已添加为 rewrite 依赖。"
+      - "electron-rebuild 或 @electron/rebuild 已添加为 devDep 并配置 rebuild script。"
+      - "Vite rollupOptions.external 已排除 serialport 相关 package。"
+      - "asarUnpack 已配置 *.node 和 @serialport/** 模式。"
+      - "开发态 build 和 dev-mode serial enumerate 成功。"
+      - "未完成 package validation 前不声明 packaged transport bridge accepted。"
+    validation:
+      - "runtime validation"
+      - "package validation"
+      - "manual checklist"
+
+  - id: CONN-BRIDGE-003
+    title: "Event model 和 queue/backpressure 实现验证"
+    status: done
+    scope: "event model and backpressure"
+    acceptance:
+      - "lifecycle event 和 data event 使用分离的设计 lane。"
+      - "main per-connection byte batch buffer 有 flush trigger（size + time window）。"
+      - "async event queue 有 bounded depth 和 overflow signal。"
+      - "overflow 是 observable transport material，不静默丢弃。"
+      - "per-connection queue isolation，一个连接的背压不阻塞其他连接。"
+      - "main 不根据 byte content 决定 data 是否进入 renderer。"
+      - "batch window 不导致低频数据无限延迟。"
+      - "queue depth、batch window、overflow policy 参数基于 runtime evidence 确定。"
+      - "未完成 runtime high-frequency evidence 前不声明 steady-state accepted。"
+    validation:
+      - "runtime validation"
+      - "hardware validation"
+      - "fake adapter test"
+
+  - id: CONN-BRIDGE-004
+    title: "Real adapter 与 fake adapter port 兼容"
+    status: done
+    scope: "adapter port compatibility"
+    acceptance:
+      - "real adapter 实现同一 ConnectionTransportAdapter 接口，不修改 port 定义。"
+      - "connection service/state/core 不因 real adapter 增加任何平台依赖。"
+      - "fake adapter 继续用于 Vitest/fixture，real adapter 通过 platform facade 接入。"
+      - "runtime 可在 fake 和 real adapter 间切换。"
+      - "discovery（枚举串口）通过 platform facade 补充，不修改 port。"
+    validation:
+      - "Vitest unit"
+      - "fake adapter test"
+      - "static scan"
+      - "runtime validation"
+
+  - id: CONN-VERIFY-001
+    title: "实现阶段完成验证和未验证项声明"
+    status: done
+    scope: "implementation verification"
+    acceptance:
+      - "实现阶段按项目要求运行 pnpm build 和 pnpm lint，除非当轮明确为纯文档。"
+      - "实现说明列出 Changed files、Verify evidence、Open issues。"
+      - "实现说明按 validation baseline 列出 static scan、Vitest unit、fixture test、oracle comparison、fake adapter test、manual checklist、runtime validation、hardware validation、package validation、customer validation 的结果或未运行原因。"
+      - "不得用 static scan、Vitest、fixture、fake adapter、build 或 lint 宣称 hardware、package、HTTP/FTP、SCOE、northbound 或 customer closure 完成。"
+    validation:
+      - "static scan"
+      - "Vitest unit"
+      - "fixture test"
+      - "oracle comparison"
+      - "fake adapter test"
+      - "manual checklist"

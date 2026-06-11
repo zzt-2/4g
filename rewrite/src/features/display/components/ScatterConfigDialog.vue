@@ -4,6 +4,7 @@ import type { ScatterDisplayPreference, ScatterSourceBinding } from '../core';
 
 interface FieldOption {
   readonly fieldId: string;
+  readonly binding: ScatterSourceBinding;
   readonly fieldName: string;
   readonly frameName: string;
   readonly frameId: string;
@@ -50,10 +51,10 @@ const fieldOptions = computed(() =>
   })),
 );
 
-function toBinding(fieldId: string): ScatterSourceBinding {
-  const sep = fieldId.indexOf(':');
-  if (sep === -1) return { groupId: '', dataItemId: '' };
-  return { groupId: fieldId.slice(0, sep), dataItemId: fieldId.slice(sep + 1) };
+function toBinding(fieldKey: string): ScatterSourceBinding {
+  // R19: structured lookup, no string split.
+  const match = props.availableFields.find((f) => f.fieldId === fieldKey);
+  return match ? { ...match.binding } : { groupId: '', dataItemId: '' };
 }
 
 function save(): void {
