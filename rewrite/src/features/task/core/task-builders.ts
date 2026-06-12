@@ -56,6 +56,7 @@ export function createTaskDefinition(
     readonly errorPolicy: TaskErrorPolicy;
     readonly stopCondition?: TaskStopCondition;
     readonly fieldVariations?: readonly FieldVariation[];
+    readonly defaultTargetId?: string;
   },
 ): TaskDefinition {
   return options as TaskDefinition;

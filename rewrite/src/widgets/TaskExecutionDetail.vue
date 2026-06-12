@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import type { TaskInstanceState, TaskProgress, TaskStepDefinition, TaskStepResult } from '@/features/task';
 import { STEP_KIND_LABELS } from '@/features/task/components/task-labels';
 import StatusBadge from './StatusBadge.vue';
@@ -19,6 +19,17 @@ const emit = defineEmits<{
   resume: [];
   stop: [];
 }>();
+
+const nowMs = ref(Date.now());
+let tickTimer: ReturnType<typeof setInterval>;
+
+onMounted(() => {
+  tickTimer = setInterval(() => { nowMs.value = Date.now(); }, 1000);
+});
+
+onUnmounted(() => {
+  clearInterval(tickTimer);
+});
 
 const stepStatuses = computed(() => {
   const steps = props.instance.definitionRef.steps;
@@ -70,6 +81,21 @@ function formatStepResult(step: TaskStepDefinition, result: TaskStepResult | und
 
 const isRunning = computed(() => props.instance.lifecycle === 'running');
 const isPaused = computed(() => props.instance.lifecycle === 'paused');
+
+function delayRemainingText(stepIndex: number): string | null {
+  if (stepIndex !== props.instance.currentStepIndex) return null;
+  const step = props.instance.definitionRef.steps[stepIndex];
+  if (!step || step.kind !== 'delay') return null;
+  if (!props.instance.currentStepStartedAt) return null;
+  const startedAt = new Date(props.instance.currentStepStartedAt).getTime();
+  const elapsed = nowMs.value - startedAt;
+  const remaining = Math.max(0, step.config.durationMs - elapsed);
+  if (remaining < 1000) return '即将完成';
+  const secs = Math.ceil(remaining / 1000);
+  if (secs < 60) return `剩余 ${secs}s`;
+  const mins = Math.floor(secs / 60);
+  return `剩余 ${mins}m${secs % 60}s`;
+}
 
 const progressPct = computed(() => {
   if (!props.progress) return 0;
@@ -128,6 +154,9 @@ const progressPct = computed(() => {
         </span>
         <span v-if="item.result" class="rw-text-desc text-xs">
           {{ formatStepResult(item.step, item.result) }}
+        </span>
+        <span v-else-if="item.status === 'running' && delayRemainingText(item.index)" class="rw-text-desc text-xs">
+          {{ delayRemainingText(item.index) }}
         </span>
       </div>
     </div>

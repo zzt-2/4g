@@ -41,7 +41,7 @@ export function evaluateGroup(
   group: CompiledGroup,
   variables: VariableMap,
 ): GroupEvalResult {
-  const values = new Map<string, number | string | boolean>();
+  const values = new Map<string, number | string | boolean | bigint>();
   const errors = new Map<string, string>();
   const vars = new Map(variables);
 

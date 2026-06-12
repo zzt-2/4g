@@ -88,7 +88,7 @@ describe('validateTaskDefinition', () => {
     expect(issues.find((i) => i.code === 'task.step.send.missingFrameId')!.severity).toBe('error');
   });
 
-  it('send step missing targetId -> error', () => {
+  it('send step missing targetId and no definition.defaultTargetId -> error', () => {
     const def = {
       ...timedTaskDef(),
       steps: [
@@ -96,7 +96,19 @@ describe('validateTaskDefinition', () => {
       ],
     };
     const issues = validateTaskDefinition(def);
-    expect(issues.some((i) => i.code === 'task.step.send.missingTargetId')).toBe(true);
+    expect(issues.some((i) => i.code === 'task.step.send.targetUnresolvable')).toBe(true);
+  });
+
+  it('send step missing targetId is OK when definition.defaultTargetId is set', () => {
+    const def: TaskDefinition = {
+      ...timedTaskDef(),
+      defaultTargetId: 'fallback-target',
+      steps: [
+        { id: 's1', kind: 'send' as const, config: { frameId: 'f1', targetId: '', userFieldValues: {} } },
+      ],
+    };
+    const issues = validateTaskDefinition(def);
+    expect(issues.some((i) => i.code === 'task.step.send.targetUnresolvable')).toBe(false);
   });
 
   it('wait-condition step missing conditions -> error', () => {

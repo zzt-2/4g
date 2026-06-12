@@ -52,9 +52,36 @@ export function checksumCrc32(bytes: readonly number[]): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
+export function checksumSum32(
+  bytes: readonly number[],
+  bigEndian: boolean = false,
+): number {
+  let sum = 0;
+  const buf = Uint8Array.from(bytes);
+  for (let i = 0; i + 4 <= buf.length; i += 4) {
+    const view = new DataView(buf.buffer, buf.byteOffset + i, 4);
+    sum += view.getUint32(0, !bigEndian);
+  }
+  return sum >>> 0;
+}
+
+export function checksumSum16(
+  bytes: readonly number[],
+  bigEndian: boolean = false,
+): number {
+  let sum = 0;
+  const buf = Uint8Array.from(bytes);
+  for (let i = 0; i + 2 <= buf.length; i += 2) {
+    const view = new DataView(buf.buffer, buf.byteOffset + i, 2);
+    sum += view.getUint16(0, !bigEndian);
+  }
+  return sum & 0xffff;
+}
+
 export interface ChecksumOptions {
   readonly startIdx?: number;
   readonly endIdx?: number;
+  readonly bigEndian?: boolean;
 }
 
 export function calculateChecksum(
@@ -66,6 +93,7 @@ export function calculateChecksum(
   if (options?.startIdx !== undefined || options?.endIdx !== undefined) {
     slice = bytes.slice(options?.startIdx ?? 0, options?.endIdx);
   }
+  const be = options?.bigEndian ?? false;
   switch (kind) {
     case 'sum8':
       return checksumSum8(slice);
@@ -76,6 +104,10 @@ export function calculateChecksum(
       return checksumCrc16Modbus(slice);
     case 'crc32':
       return checksumCrc32(slice);
+    case 'sum32':
+      return checksumSum32(slice, be);
+    case 'sum16':
+      return checksumSum16(slice, be);
     default:
       return 0;
   }
@@ -134,9 +166,25 @@ export function applyBuildPostPatch(
       const startByte = fields[startFieldIndex]!.offset;
       const endField = fields[endFieldIndex]!;
       const endByte = endField.offset + endField.length;
+
+      // Range alignment validation (sum32 requires multiple of 4B, sum16 of 2B)
+      const rangeLength = endByte - startByte;
+      const expectedMultiple = method === 'sum32' ? 4 : method === 'sum16' ? 2 : 0;
+      if (expectedMultiple > 0 && rangeLength % expectedMultiple !== 0) {
+        issues.push(makeIssue(
+          'error',
+          'send.build.checksumRangeUnaligned',
+          `${method} requires range length to be a multiple of ${expectedMultiple} bytes (got ${rangeLength}).`,
+          field.id,
+        ));
+        continue;
+      }
+
       const checksumBytes = Array.from(result.slice(startByte, endByte));
 
-      const checksumValue = calculateChecksum(checksumBytes, method);
+      const checksumValue = calculateChecksum(checksumBytes, method, {
+        bigEndian: field.bigEndian,
+      });
 
       // Check overflow
       const maxForLength = field.length === 1 ? 0xff : field.length === 2 ? 0xffff : 0xffffffff;

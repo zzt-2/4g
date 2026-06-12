@@ -1,4 +1,4 @@
-export type VariableValue = number | string | boolean;
+export type VariableValue = number | string | boolean | bigint;
 export type VariableMap = ReadonlyMap<string, VariableValue>;
 export type FunctionTable = ReadonlyMap<string, (...args: number[]) => number>;
 

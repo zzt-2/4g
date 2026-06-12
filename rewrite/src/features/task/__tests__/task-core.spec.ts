@@ -643,13 +643,42 @@ describe('buildSendRequest', () => {
     expect((req as Record<string, unknown>).options).toBeUndefined();
   });
 
-  it('uses targetId from step config (no fallback to definition)', () => {
+  it('uses step.targetId when present', () => {
     const step = {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1', targetId: 'explicit-target' },
     };
     const req = buildSendRequest(step, baseDef, 0, 0);
     expect(req.targetId).toBe('explicit-target');
+  });
+
+  it('falls back to definition.defaultTargetId when step.targetId is absent', () => {
+    const def: TaskDefinition = { ...baseDef, defaultTargetId: 'task-default-target' };
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1' },
+    };
+    const req = buildSendRequest(step, def, 0, 0);
+    expect(req.targetId).toBe('task-default-target');
+  });
+
+  it('step.targetId overrides definition.defaultTargetId', () => {
+    const def: TaskDefinition = { ...baseDef, defaultTargetId: 'task-default-target' };
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1', targetId: 'step-override' },
+    };
+    const req = buildSendRequest(step, def, 0, 0);
+    expect(req.targetId).toBe('step-override');
+  });
+
+  it('returns empty string when neither step nor definition provides targetId', () => {
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: { frameId: 'f1' },
+    };
+    const req = buildSendRequest(step, baseDef, 0, 0);
+    expect(req.targetId).toBe('');
   });
 
   it('merges fieldVariations into userFieldValues at given iteration', () => {

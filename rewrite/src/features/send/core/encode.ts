@@ -11,6 +11,8 @@ const INTEGER_TYPES = new Set([
   'uint8', 'int8', 'uint16', 'int16', 'uint32', 'int32', 'uint64', 'int64',
 ]);
 
+const BIGINT_TYPES = new Set(['uint64', 'int64']);
+
 const FLOAT_TYPES = new Set(['float', 'double']);
 
 const INTEGER_RANGES: Record<string, readonly [number, number]> = {
@@ -20,8 +22,11 @@ const INTEGER_RANGES: Record<string, readonly [number, number]> = {
   int16: [-32768, 32767],
   uint32: [0, 4294967295],
   int32: [-2147483648, 2147483647],
-  uint64: [0, Number.MAX_SAFE_INTEGER],
-  int64: [Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+};
+
+const BIGINT_RANGES: Record<string, readonly [bigint, bigint]> = {
+  uint64: [0n, 18_446_744_073_709_551_615n],
+  int64: [-9_223_372_036_854_775_808n, 9_223_372_036_854_775_807n],
 };
 
 function parseNumericValue(value: SendFieldValue): number {
@@ -32,43 +37,69 @@ function parseNumericValue(value: SendFieldValue): number {
   return Number(str);
 }
 
-function encodeInteger(value: number, dataType: string, bigEndian: boolean): number[] {
+function parseBigIntValue(value: SendFieldValue): bigint {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'boolean') return value ? 1n : 0n;
+  if (typeof value === 'number') {
+    if (!Number.isInteger(value)) {
+      throw new Error(`bigint field cannot accept non-integer number: ${value}`);
+    }
+    return BigInt(value);
+  }
+  const str = String(value).trim();
+  if (/^-?0x[0-9a-f]+$/i.test(str)) {
+    const negative = str.startsWith('-');
+    const body = negative ? str.slice(1) : str;
+    const bi = BigInt(body);
+    return negative ? -bi : bi;
+  }
+  if (/^-?\d+$/.test(str)) {
+    return BigInt(str);
+  }
+  throw new Error(`cannot parse bigint from: ${JSON.stringify(value)}`);
+}
+
+function encodeInteger(value: number | bigint, dataType: string, bigEndian: boolean): number[] {
   const le = !bigEndian;
   switch (dataType) {
     case 'uint8': {
       const buf = new ArrayBuffer(1);
-      new DataView(buf).setUint8(0, value & 0xff);
+      new DataView(buf).setUint8(0, (value as number) & 0xff);
       return [new Uint8Array(buf)[0]!];
     }
     case 'int8': {
       const buf = new ArrayBuffer(1);
-      new DataView(buf).setInt8(0, value);
+      new DataView(buf).setInt8(0, value as number);
       return [new Uint8Array(buf)[0]!];
     }
     case 'uint16': {
       const buf = new ArrayBuffer(2);
-      new DataView(buf).setUint16(0, value & 0xffff, le);
+      new DataView(buf).setUint16(0, (value as number) & 0xffff, le);
       return [...new Uint8Array(buf)];
     }
     case 'int16': {
       const buf = new ArrayBuffer(2);
-      new DataView(buf).setInt16(0, value, le);
+      new DataView(buf).setInt16(0, value as number, le);
       return [...new Uint8Array(buf)];
     }
     case 'uint32': {
       const buf = new ArrayBuffer(4);
-      new DataView(buf).setUint32(0, value >>> 0, le);
+      new DataView(buf).setUint32(0, (value as number) >>> 0, le);
       return [...new Uint8Array(buf)];
     }
     case 'int32': {
       const buf = new ArrayBuffer(4);
-      new DataView(buf).setInt32(0, value, le);
+      new DataView(buf).setInt32(0, value as number, le);
       return [...new Uint8Array(buf)];
     }
-    case 'uint64':
+    case 'uint64': {
+      const buf = new ArrayBuffer(8);
+      new DataView(buf).setBigUint64(0, value as bigint, le);
+      return [...new Uint8Array(buf)];
+    }
     case 'int64': {
       const buf = new ArrayBuffer(8);
-      new DataView(buf).setBigInt64(0, BigInt(Math.trunc(value)), le);
+      new DataView(buf).setBigInt64(0, value as bigint, le);
       return [...new Uint8Array(buf)];
     }
     default:
@@ -115,6 +146,9 @@ function encodeFieldValue(
 ): number[] {
   if (field.isASCII) return encodeASCII(value, field.length);
   if (field.dataType === 'bytes') return encodeBytes(value, field.length);
+  if (BIGINT_TYPES.has(field.dataType)) {
+    return encodeInteger(parseBigIntValue(value), field.dataType, field.bigEndian);
+  }
   if (INTEGER_TYPES.has(field.dataType)) {
     return encodeInteger(parseNumericValue(value), field.dataType, field.bigEndian);
   }
@@ -149,10 +183,31 @@ export function buildFrame(input: SendBuildInput): FrameBuildOutput {
       continue;
     }
 
-    const encoded = encodeFieldValue(value, field);
-
-    // Range check for integer types
-    if (INTEGER_TYPES.has(field.dataType)) {
+    // 对 BIGINT 字段先做解析+范围校验，失败则跳过 encode 并记录 issue
+    let bigintValue: bigint | null = null;
+    let bigintFailed = false;
+    if (BIGINT_TYPES.has(field.dataType)) {
+      try {
+        bigintValue = parseBigIntValue(value);
+        const range = BIGINT_RANGES[field.dataType];
+        if (range && (bigintValue < range[0] || bigintValue > range[1])) {
+          issues.push({
+            severity: 'warning',
+            code: 'send.encode.valueOutOfRange',
+            fieldId: field.id,
+            message: `Value ${bigintValue.toString()} exceeds ${field.dataType} range [${range[0].toString()}, ${range[1].toString()}], will be truncated`,
+          });
+        }
+      } catch (e) {
+        bigintFailed = true;
+        issues.push({
+          severity: 'warning',
+          code: 'send.encode.valueUnparseable',
+          fieldId: field.id,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    } else if (INTEGER_TYPES.has(field.dataType)) {
       const numValue = parseNumericValue(value);
       const range = INTEGER_RANGES[field.dataType];
       if (range && (numValue < range[0] || numValue > range[1])) {
@@ -164,6 +219,10 @@ export function buildFrame(input: SendBuildInput): FrameBuildOutput {
         });
       }
     }
+
+    const encoded = bigintFailed
+      ? Array(field.length).fill(0)
+      : encodeFieldValue(value, field);
 
     for (let i = 0; i < Math.min(encoded.length, field.length); i++) {
       buffer[field.offset + i] = encoded[i]!;

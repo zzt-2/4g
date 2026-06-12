@@ -1,0 +1,507 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "templateId": "task-full-reset",
+      "name": "整机复位（12 模块串行脉冲）",
+      "tags": [
+        "reset",
+        "ops"
+      ],
+      "definition": {
+        "id": "task-full-reset",
+        "name": "整机复位（12 模块串行脉冲）",
+        "schedule": {
+          "kind": "immediate"
+        },
+        "steps": [
+          {
+            "id": "reset-1-rc-adc-pulse-reset",
+            "kind": "send",
+            "name": "ADC 复位",
+            "config": {
+              "frameId": "rc-adc-pulse-reset"
+            }
+          },
+          {
+            "id": "reset-delay-1",
+            "kind": "delay",
+            "name": "复位间隔 1",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-2-rc-gt-pulse-reset",
+            "kind": "send",
+            "name": "GT 复位",
+            "config": {
+              "frameId": "rc-gt-pulse-reset"
+            }
+          },
+          {
+            "id": "reset-delay-2",
+            "kind": "delay",
+            "name": "复位间隔 2",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-3-rc-cxp-pulse-reset",
+            "kind": "send",
+            "name": "CXP 业务复位",
+            "config": {
+              "frameId": "rc-cxp-pulse-reset"
+            }
+          },
+          {
+            "id": "reset-delay-3",
+            "kind": "delay",
+            "name": "复位间隔 3",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-4-rc-biz-rx-pulse-clear",
+            "kind": "send",
+            "name": "BIZ_RX 计数清零",
+            "config": {
+              "frameId": "rc-biz-rx-pulse-clear"
+            }
+          },
+          {
+            "id": "reset-delay-4",
+            "kind": "delay",
+            "name": "复位间隔 4",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-5-rc-biz-rx-pulse-reset",
+            "kind": "send",
+            "name": "BIZ_RX 复位",
+            "config": {
+              "frameId": "rc-biz-rx-pulse-reset"
+            }
+          },
+          {
+            "id": "reset-delay-5",
+            "kind": "delay",
+            "name": "复位间隔 5",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-6-rc-biz-tx-pulse-clear",
+            "kind": "send",
+            "name": "BIZ_TX 计数清零",
+            "config": {
+              "frameId": "rc-biz-tx-pulse-clear"
+            }
+          },
+          {
+            "id": "reset-delay-6",
+            "kind": "delay",
+            "name": "复位间隔 6",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-7-rc-biz-tx-pulse-reset",
+            "kind": "send",
+            "name": "BIZ_TX 复位",
+            "config": {
+              "frameId": "rc-biz-tx-pulse-reset"
+            }
+          },
+          {
+            "id": "reset-delay-7",
+            "kind": "delay",
+            "name": "复位间隔 7",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-8-rc-comm-tx-pulse-reset",
+            "kind": "send",
+            "name": "COMM_TX 复位",
+            "config": {
+              "frameId": "rc-comm-tx-pulse-reset"
+            }
+          },
+          {
+            "id": "reset-delay-8",
+            "kind": "delay",
+            "name": "复位间隔 8",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-9-rc-comm-tx-pulse-clear",
+            "kind": "send",
+            "name": "COMM_TX 计数清零",
+            "config": {
+              "frameId": "rc-comm-tx-pulse-clear"
+            }
+          },
+          {
+            "id": "reset-delay-9",
+            "kind": "delay",
+            "name": "复位间隔 9",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-10-rc-comm-rx-pulse-range-rst",
+            "kind": "send",
+            "name": "COMM_RX 测距复位",
+            "config": {
+              "frameId": "rc-comm-rx-pulse-range-rst"
+            }
+          },
+          {
+            "id": "reset-delay-10",
+            "kind": "delay",
+            "name": "复位间隔 10",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-11-rc-comm-rx-pulse-count-clr",
+            "kind": "send",
+            "name": "COMM_RX 计数清零",
+            "config": {
+              "frameId": "rc-comm-rx-pulse-count-clr"
+            }
+          },
+          {
+            "id": "reset-delay-11",
+            "kind": "delay",
+            "name": "复位间隔 11",
+            "config": {
+              "durationMs": 100
+            }
+          },
+          {
+            "id": "reset-12-rc-comm-rx-pulse-manual-rst",
+            "kind": "send",
+            "name": "COMM_RX 全体复位",
+            "config": {
+              "frameId": "rc-comm-rx-pulse-manual-rst"
+            }
+          }
+        ],
+        "errorPolicy": {
+          "onFailure": "skip-step"
+        },
+        "defaultTargetId": "dongfanghong-device-1"
+      },
+      "createdAt": "2026-06-11T00:00:00.000Z",
+      "updatedAt": "2026-06-11T00:00:00.000Z"
+    },
+    {
+      "templateId": "task-laser-init-and-check",
+      "name": "激光器初始化 + 自检",
+      "tags": [
+        "laser",
+        "init"
+      ],
+      "definition": {
+        "id": "task-laser-init-and-check",
+        "name": "激光器初始化 + 自检",
+        "schedule": {
+          "kind": "immediate"
+        },
+        "steps": [
+          {
+            "id": "laser-step-1-txm-on",
+            "kind": "send",
+            "name": "开启 TXM1 发射激光器",
+            "config": {
+              "frameId": "rc-laser-txm-on",
+              "userFieldValues": {
+                "txm-on": "0x00000001"
+              }
+            }
+          },
+          {
+            "id": "laser-step-2-lo-on",
+            "kind": "send",
+            "name": "开启 LO1 本振激光器",
+            "config": {
+              "frameId": "rc-laser-lo-on",
+              "userFieldValues": {
+                "lo-on": "0x00000001"
+              }
+            }
+          },
+          {
+            "id": "laser-step-3-tec-on1",
+            "kind": "send",
+            "name": "开启 TEC1",
+            "config": {
+              "frameId": "rc-laser-tec-on1",
+              "userFieldValues": {
+                "tec-on1": "0x00000001"
+              }
+            }
+          },
+          {
+            "id": "laser-step-4-wave-set",
+            "kind": "send",
+            "name": "切到手动温度路径",
+            "config": {
+              "frameId": "rc-laser-wave-set-on",
+              "userFieldValues": {
+                "wave-set-on": "0x00000001"
+              }
+            }
+          },
+          {
+            "id": "laser-step-5-txm1-set",
+            "kind": "send",
+            "name": "设置 TXM1 温度（0x80 0x00 = 默认中点）",
+            "config": {
+              "frameId": "rc-laser-txm1-set",
+              "userFieldValues": {
+                "txm1-set": "0x00008000"
+              }
+            }
+          },
+          {
+            "id": "laser-step-6-lo1-set",
+            "kind": "send",
+            "name": "设置 LO1 温度",
+            "config": {
+              "frameId": "rc-laser-lo1-set",
+              "userFieldValues": {
+                "lo1-set": "0x00008000"
+              }
+            }
+          },
+          {
+            "id": "laser-step-7-stabilize",
+            "kind": "delay",
+            "name": "等 TEC 起转",
+            "config": {
+              "durationMs": 500
+            }
+          },
+          {
+            "id": "laser-step-8-vol-auto",
+            "kind": "send",
+            "name": "调制开始",
+            "config": {
+              "frameId": "rc-laser-vol-auto",
+              "userFieldValues": {
+                "vol-auto": "0x00000001"
+              }
+            }
+          },
+          {
+            "id": "laser-step-9-wait-tec1",
+            "kind": "wait-condition",
+            "name": "等 TEC1 温度遥测到达",
+            "config": {
+              "conditions": [
+                {
+                  "frameId": "tm-laser-runtime",
+                  "fieldId": "tec1-t-m-out",
+                  "operator": "any",
+                  "threshold": 0
+                }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          }
+        ],
+        "errorPolicy": {
+          "onFailure": "stop"
+        },
+        "defaultTargetId": "dongfanghong-device-1"
+      },
+      "createdAt": "2026-06-11T00:00:00.000Z",
+      "updatedAt": "2026-06-11T00:00:00.000Z"
+    },
+    {
+      "templateId": "task-comm-link-check",
+      "name": "通信链路建链自检",
+      "tags": [
+        "comm",
+        "self-check"
+      ],
+      "definition": {
+        "id": "task-comm-link-check",
+        "name": "通信链路建链自检",
+        "schedule": {
+          "kind": "immediate"
+        },
+        "steps": [
+          {
+            "id": "link-step-1-tx-map",
+            "kind": "send",
+            "name": "下发发送链路配置",
+            "config": {
+              "frameId": "rc-comm-tx-map",
+              "userFieldValues": {
+                "rate": "0x00000003",
+                "scramble": "0x00000001",
+                "encode": "0x00000000",
+                "ber-inject": "0x00000000",
+                "crc-error": "0x00000000",
+                "header-error": "0x00000000",
+                "data-type-error": "0x00000000",
+                "field-pos-error": "0x00000000",
+                "encode-error": "0x00000000",
+                "data-link-break": "0x00000000"
+              }
+            }
+          },
+          {
+            "id": "link-step-2-rx-map",
+            "kind": "send",
+            "name": "下发接收链路配置",
+            "config": {
+              "frameId": "rc-comm-rx-map",
+              "userFieldValues": {
+                "rate": "0x00000003",
+                "decode": "0x00000000",
+                "descramble": "0x00000001",
+                "filter": "0x00000001",
+                "loop-bw": "0x00000003",
+                "timing-filter": "0x00000000",
+                "auto-reset": "0x00000001",
+                "loop-enable": "0x00000000"
+              }
+            }
+          },
+          {
+            "id": "link-step-3-settle",
+            "kind": "delay",
+            "name": "等 1s 建链",
+            "config": {
+              "durationMs": 1000
+            }
+          },
+          {
+            "id": "link-step-4-wait-lock",
+            "kind": "wait-condition",
+            "name": "等载波 / 符号 / 帧三态锁定",
+            "config": {
+              "conditions": [
+                {
+                  "frameId": "tm-comm-rx-runtime",
+                  "fieldId": "carrier-lock-state",
+                  "operator": "eq",
+                  "threshold": 1
+                },
+                {
+                  "frameId": "tm-comm-rx-runtime",
+                  "fieldId": "symbol-lock-state",
+                  "operator": "eq",
+                  "threshold": 1
+                },
+                {
+                  "frameId": "tm-comm-rx-runtime",
+                  "fieldId": "frame-lock-state",
+                  "operator": "eq",
+                  "threshold": 1
+                }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          }
+        ],
+        "errorPolicy": {
+          "onFailure": "stop"
+        },
+        "defaultTargetId": "dongfanghong-device-1"
+      },
+      "createdAt": "2026-06-11T00:00:00.000Z",
+      "updatedAt": "2026-06-11T00:00:00.000Z"
+    },
+    {
+      "templateId": "task-rate-sweep",
+      "name": "速率扫描测试（10s 一档，8 档）",
+      "tags": [
+        "comm",
+        "rate-sweep"
+      ],
+      "definition": {
+        "id": "task-rate-sweep",
+        "name": "速率扫描测试（10s 一档，8 档）",
+        "schedule": {
+          "kind": "timer",
+          "intervalMs": 10000
+        },
+        "steps": [
+          {
+            "id": "sweep-step-1-settle",
+            "kind": "delay",
+            "name": "等 2s 建链",
+            "config": {
+              "durationMs": 2000
+            }
+          },
+          {
+            "id": "sweep-step-2-wait-lock",
+            "kind": "wait-condition",
+            "name": "等三态锁定",
+            "config": {
+              "conditions": [
+                {
+                  "frameId": "tm-comm-rx-runtime",
+                  "fieldId": "carrier-lock-state",
+                  "operator": "eq",
+                  "threshold": 1
+                },
+                {
+                  "frameId": "tm-comm-rx-runtime",
+                  "fieldId": "symbol-lock-state",
+                  "operator": "eq",
+                  "threshold": 1
+                },
+                {
+                  "frameId": "tm-comm-rx-runtime",
+                  "fieldId": "frame-lock-state",
+                  "operator": "eq",
+                  "threshold": 1
+                }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "skip"
+            }
+          },
+          {
+            "id": "sweep-step-3-acquire",
+            "kind": "delay",
+            "name": "采集窗口 5s",
+            "config": {
+              "durationMs": 5000
+            }
+          }
+        ],
+        "errorPolicy": {
+          "onFailure": "skip-step"
+        },
+        "stopCondition": {
+          "maxIterations": 8
+        },
+        "defaultTargetId": "dongfanghong-device-1"
+      },
+      "createdAt": "2026-06-11T00:00:00.000Z",
+      "updatedAt": "2026-06-11T00:00:00.000Z"
+    }
+  ]
+}

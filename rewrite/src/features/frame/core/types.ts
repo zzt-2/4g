@@ -17,7 +17,7 @@ export const DATA_PARTICIPATION_TYPES = ['direct', 'indirect'] as const;
 export const EXPRESSION_SOURCE_TYPES = ['current_field', 'frame_field', 'global_stat'] as const;
 export const IDENTIFIER_RULE_OPERATORS = ['eq', 'neq', 'gt', 'lt', 'range', 'mask', 'any'] as const;
 export const IDENTIFIER_LOGIC_OPERATORS = ['and', 'or'] as const;
-export const CHECKSUM_METHODS = ['sum8', 'xor8', 'crc16', 'crc32', 'custom'] as const;
+export const CHECKSUM_METHODS = ['sum8', 'xor8', 'crc16', 'crc32', 'sum32', 'sum16', 'custom'] as const;
 
 export type FrameDirection = (typeof FRAME_DIRECTIONS)[number];
 export type FrameDataType = (typeof FRAME_DATA_TYPES)[number];

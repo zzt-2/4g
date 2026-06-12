@@ -23,6 +23,34 @@ const FIXED_DATA_TYPE_LENGTHS: Partial<Record<FrameDataType, number>> = {
   double: 8,
 };
 
+const BIGINT_RANGE_BY_TYPE: Partial<Record<FrameDataType, readonly [bigint, bigint]>> = {
+  uint64: [0n, 18_446_744_073_709_551_615n],
+  int64: [-9_223_372_036_854_775_808n, 9_223_372_036_854_775_807n],
+};
+
+function parseBigintValue(text: string): bigint | null {
+  const str = text.trim();
+  if (str === '') return null;
+  if (/^-?0x[0-9a-f]+$/i.test(str)) {
+    const negative = str.startsWith('-');
+    const body = negative ? str.slice(1) : str;
+    try {
+      const bi = BigInt(body);
+      return negative ? -bi : bi;
+    } catch {
+      return null;
+    }
+  }
+  if (/^-?\d+$/.test(str)) {
+    try {
+      return BigInt(str);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function validateFrameField(
   field: FrameFieldDefinition,
   path = 'field',
@@ -72,6 +100,29 @@ export function validateFrameField(
 
   if ((field.inputType === 'select' || field.inputType === 'radio') && field.options.length === 0) {
     issues.push(createIssue('field.optionsMissing', `${path}.options`, '选择类字段必须提供选项'));
+  }
+
+  // uint64/int64 默认值范围校验
+  const bigintRange = BIGINT_RANGE_BY_TYPE[field.dataType];
+  if (bigintRange && typeof field.defaultValue === 'string' && field.defaultValue.trim() !== '') {
+    const parsed = parseBigintValue(field.defaultValue);
+    if (parsed === null) {
+      issues.push(
+        createIssue(
+          'field.defaultValueInvalidBigint',
+          `${path}.defaultValue`,
+          `${field.dataType} 默认值无法解析为整数（支持 10 进制或 0x 前缀 16 进制）`,
+        ),
+      );
+    } else if (parsed < bigintRange[0] || parsed > bigintRange[1]) {
+      issues.push(
+        createIssue(
+          'field.defaultValueOutOfRange',
+          `${path}.defaultValue`,
+          `${field.dataType} 默认值 ${parsed.toString()} 超出范围 [${bigintRange[0].toString()}, ${bigintRange[1].toString()}]`,
+        ),
+      );
+    }
   }
 
   if (field.inputType === 'expression') {

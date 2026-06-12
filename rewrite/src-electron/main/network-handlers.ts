@@ -27,6 +27,7 @@ interface ManagedTcpClient {
   config: TcpClientConnectConfig;
   batchBuffer: number[];
   batchTimer: ReturnType<typeof setTimeout> | null;
+  frameBuffer: number[]; // FIXME: TEMPORARY sticky packet patch
 }
 
 interface ManagedTcpServer {
@@ -44,6 +45,7 @@ interface ManagedTcpServerClient {
   listenerId: string;
   batchBuffer: number[];
   batchTimer: ReturnType<typeof setTimeout> | null;
+  frameBuffer: number[]; // FIXME: TEMPORARY sticky packet patch
 }
 
 interface ManagedUdp {
@@ -60,6 +62,42 @@ type ManagedConnection =
   | ManagedTcpServer
   | ManagedTcpServerClient
   | ManagedUdp;
+
+// FIXME: TEMPORARY TCP sticky packet patch — delete once FPGA handles framing.
+// See memory: project_tcp_sticky_packet_patch.md
+const TCP_SYNC = [0x1A, 0xCF, 0xFC, 0x1D] as const;
+
+function splitBySyncWord(
+  frameBuffer: number[],
+  chunk: Buffer,
+): { frames: number[][]; remaining: number[] } {
+  for (let i = 0; i < chunk.length; i++) {
+    frameBuffer.push(chunk[i] as number);
+  }
+
+  const positions: number[] = [];
+  for (let i = 0; i <= frameBuffer.length - 4; i++) {
+    if (
+      frameBuffer[i] === TCP_SYNC[0] &&
+      frameBuffer[i + 1] === TCP_SYNC[1] &&
+      frameBuffer[i + 2] === TCP_SYNC[2] &&
+      frameBuffer[i + 3] === TCP_SYNC[3]
+    ) {
+      positions.push(i);
+    }
+  }
+
+  if (positions.length < 2) {
+    return { frames: [], remaining: frameBuffer };
+  }
+
+  const frames: number[][] = [];
+  for (let i = 0; i < positions.length - 1; i++) {
+    frames.push(frameBuffer.slice(positions[i], positions[i + 1]));
+  }
+  return { frames, remaining: frameBuffer.slice(positions[positions.length - 1]) };
+}
+// END FIXME
 
 // --- Batch infrastructure ---
 
@@ -177,6 +215,7 @@ async function handleTcpClientConnect(
       config,
       batchBuffer: [],
       batchTimer: null,
+      frameBuffer: [],
     };
 
     socket.setNoDelay(true);
@@ -208,13 +247,23 @@ async function handleTcpClientConnect(
         storageFilter.storeData(chunk);
         return;
       }
-      for (let i = 0; i < chunk.length; i++) {
-        conn.batchBuffer.push(chunk[i] as number);
+      // FIXME: TEMPORARY TCP sticky packet patch — split by sync word
+      const { frames, remaining } = splitBySyncWord(conn.frameBuffer, chunk);
+      conn.frameBuffer = remaining;
+      for (const frame of frames) {
+        emitToRenderer(win, {
+          kind: 'data',
+          connectionId: config.id,
+          occurredAt: now(),
+          bytes: frame,
+          byteLength: frame.length,
+        });
       }
-      scheduleBatchFlush(conn, config.id, win);
+      // END FIXME
     });
 
     socket.on('close', () => {
+      conn.frameBuffer = []; // FIXME: TEMPORARY sticky packet patch
       cleanupBatchable(conn);
       connections.delete(config.id);
       if (!intentionalDisconnect.has(config.id)) {
@@ -308,6 +357,7 @@ async function handleTcpServerConnect(
         listenerId: config.id,
         batchBuffer: [],
         batchTimer: null,
+        frameBuffer: [],
       };
 
       conn.clients.set(clientId, clientConn);
@@ -332,13 +382,23 @@ async function handleTcpServerConnect(
           storageFilter.storeData(chunk);
           return;
         }
-        for (let i = 0; i < chunk.length; i++) {
-          clientConn.batchBuffer.push(chunk[i] as number);
+        // FIXME: TEMPORARY TCP sticky packet patch — split by sync word
+        const { frames, remaining } = splitBySyncWord(clientConn.frameBuffer, chunk);
+        clientConn.frameBuffer = remaining;
+        for (const frame of frames) {
+          emitToRenderer(win, {
+            kind: 'data',
+            connectionId: clientId,
+            occurredAt: now(),
+            bytes: frame,
+            byteLength: frame.length,
+          });
         }
-        scheduleBatchFlush(clientConn, clientId, win);
+        // END FIXME
       });
 
       socket.on('close', () => {
+        clientConn.frameBuffer = []; // FIXME: TEMPORARY sticky packet patch
         cleanupBatchable(clientConn);
         conn.clients.delete(clientId);
         connections.delete(clientId);

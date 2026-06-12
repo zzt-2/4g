@@ -2,7 +2,7 @@
 	"name": "LCT-Commander",
 	"version": "1.0.0",
 	"description": "A Quasar Project",
-	"productName": "激光链路标准测试设备上位机",
+	"productName": "激光模拟器",
 	"author": "zzt-2 <3114178549@qq.com>",
 	"private": true,
 	"scripts": {

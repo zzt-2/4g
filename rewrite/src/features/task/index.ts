@@ -63,6 +63,8 @@ export type { TaskService, TaskReader, CreateTaskServiceOptions } from './servic
 // Template storage & IO
 export { createTaskTemplateStorage } from './services/task-template-storage';
 export type { TaskTemplateStorage } from './services/task-template-storage';
+export { createTaskHistoryStorage } from './services/task-history-storage';
+export type { TaskHistoryStorage } from './services/task-history-storage';
 export { exportTemplates, parseImportedFile } from './services/task-template-io';
 
 // Adapter ports

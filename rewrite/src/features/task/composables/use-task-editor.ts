@@ -33,6 +33,7 @@ export function useTaskEditor(taskService: TaskService) {
   const errorPolicy = ref<TaskErrorPolicy>({
     onFailure: 'stop',
   });
+  const defaultTargetId = ref<string | null>(null);
 
   const validationIssues = shallowRef<TaskValidationIssue[]>([]);
 
@@ -72,7 +73,17 @@ export function useTaskEditor(taskService: TaskService) {
       errorPolicy: errorPolicy.value,
       stopCondition: buildStopCondition(),
       fieldVariations: fieldVariations.value.length > 0 ? fieldVariations.value : undefined,
+      ...(defaultTargetId.value ? { defaultTargetId: defaultTargetId.value } : {}),
     });
+    // [task-debug] inspect what is being saved into the instance
+    console.info(
+      '[task-debug] buildDefinition id=', def.id,
+      'defaultTargetId=', def.defaultTargetId,
+      'sendSteps=', def.steps.map((s) => s.kind === 'send'
+        ? { id: s.id, targetId: s.config.targetId }
+        : null,
+      ),
+    );
     return deepToRaw(def);
   }
 
@@ -96,6 +107,7 @@ export function useTaskEditor(taskService: TaskService) {
     stopCondition.value = {};
     errorPolicy.value = { onFailure: 'stop' };
     fieldVariations.value = [];
+    defaultTargetId.value = null;
     validationIssues.value = [];
     isEditing.value = true;
   }
@@ -125,6 +137,8 @@ export function useTaskEditor(taskService: TaskService) {
     fieldVariations.value = def.fieldVariations
       ? def.fieldVariations.map((v) => ({ ...v }))
       : [];
+
+    defaultTargetId.value = def.defaultTargetId ?? null;
 
     if (stopCondition.value.maxIterations !== undefined) {
       timerIterations.value = stopCondition.value.maxIterations;
@@ -211,6 +225,15 @@ export function useTaskEditor(taskService: TaskService) {
     }
   }
 
+  function clearAllStepTargetOverrides(): void {
+    steps.value = steps.value.map((step) => {
+      if (step.kind !== 'send') return step;
+      const { targetId: _omit, ...rest } = step.config as SendStepConfig;
+      void _omit;
+      return { ...step, config: { ...rest } } as TaskStepDefinition;
+    });
+  }
+
   function updateStepRepeat(index: number, repeat: StepRepeat | undefined): void {
     const step = steps.value[index];
     if (step.kind !== 'send') return;
@@ -258,6 +281,7 @@ export function useTaskEditor(taskService: TaskService) {
     steps,
     stopCondition,
     errorPolicy,
+    defaultTargetId,
     validationIssues,
     hasErrors,
     openNew,
@@ -272,6 +296,7 @@ export function useTaskEditor(taskService: TaskService) {
     removeEventCondition,
     updateEventCondition,
     duplicateStepValuesFromPrevious,
+    clearAllStepTargetOverrides,
     updateStepRepeat,
     fieldVariations,
     addExitCondition,

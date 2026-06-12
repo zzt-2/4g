@@ -29,6 +29,7 @@ import {
 import {
   createTaskService,
   createTaskTemplateStorage,
+  createTaskHistoryStorage,
   type TaskService,
 } from '@/features/task';
 import {
@@ -141,6 +142,7 @@ export function wireFeatures(
     sendService,
     receiveEventSource: receiveEventSourceBridge,
     templateStorage: createTaskTemplateStorage(),
+    historyStorage: createTaskHistoryStorage(),
   });
 
   // L4: needs L3 + config

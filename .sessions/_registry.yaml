@@ -47,3 +47,10 @@ sessions:
     created: 2026-06-11
     last_updated: 2026-06-11
     description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。
+
+  - slug: 2026-06-12-checksum-sum-word
+    title: Checksum SUM32/SUM16 Feature 实施
+    status: active
+    created: 2026-06-12
+    last_updated: 2026-06-12
+    description: Lane B 单 feature 实施。在 CHECKSUM_METHODS 加 sum32/sum16 算法、加 range 对齐校验、端序贯通 field.bigEndian。S001 实施完成，checksum 单测 51/51 全过，等独立审查。

@@ -9,6 +9,7 @@ import SendStepEditor from '@/features/task/components/SendStepEditor.vue';
 import WaitConditionStepEditor from '@/features/task/components/WaitConditionStepEditor.vue';
 import DelayStepEditor from '@/features/task/components/DelayStepEditor.vue';
 import AdvancedConfigPanel from '@/features/task/components/AdvancedConfigPanel.vue';
+import SendTargetSelector from '@/features/send/components/SendTargetSelector.vue';
 import { useAsyncAction, useNotify } from '@/shared/composables';
 import { formatDateTime } from '@/shared/utils/format';
 import type { TaskStepDefinition, TaskTemplate } from '@/features/task/core';
@@ -433,6 +434,24 @@ function onToggleTagFilter(tag: string): void {
                   />
                 </div>
               </template>
+
+              <div>
+                <span class="rw-text-label text-xs">默认发送目标</span>
+                <SendTargetSelector
+                  :model-value="editor.defaultTargetId.value"
+                  :connection-service="connectionService"
+                  class="mt-1"
+                  @update:model-value="editor.defaultTargetId.value = $event"
+                />
+                <div class="rw-text-desc text-caption mt-1">未在步骤内单独覆盖时，所有 send 步骤使用此目标</div>
+                <q-btn
+                  flat dense no-caps
+                  label="清空所有步骤的发送目标覆盖"
+                  size="sm"
+                  color="primary"
+                  @click="editor.clearAllStepTargetOverrides()"
+                />
+              </div>
 
               <q-separator />
 

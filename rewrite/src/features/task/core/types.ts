@@ -59,7 +59,7 @@ export interface StepRepeat {
 
 export interface SendStepConfig {
   readonly frameId: string;
-  readonly targetId: string; // required (was optional + fallback to definition.targetId)
+  readonly targetId?: string; // optional; falls back to definition.defaultTargetId at runtime
   readonly userFieldValues?: Readonly<Record<string, string | number | boolean>>;
   readonly variables?: VariableMap;
   readonly intervalAfterMs?: number;
@@ -112,6 +112,7 @@ export interface TaskDefinition {
   readonly stopCondition?: TaskStopCondition;
   readonly fieldVariations?: readonly FieldVariation[];
   readonly errorPolicy: TaskErrorPolicy;
+  readonly defaultTargetId?: string; // task-wide fallback for send steps that omit targetId
 }
 
 // --- Lifecycle ---
@@ -170,6 +171,7 @@ export interface TaskInstanceState {
   readonly completedAt?: string;
   readonly failedAt?: string;
   readonly currentStepIndex: number;
+  readonly currentStepStartedAt?: string;
   readonly currentIteration: number;
   readonly stepResults: readonly TaskStepResult[];
   readonly error?: string;

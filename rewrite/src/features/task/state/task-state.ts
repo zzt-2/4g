@@ -56,6 +56,8 @@ export interface TaskStateContainer {
   addStepResult(instanceId: string, result: TaskStepResult): TaskInstanceState | undefined;
   getInstance(instanceId: string): TaskInstanceState | undefined;
   moveToHistory(instanceId: string): TaskInstanceState | undefined;
+  removeFromHistory(instanceId: string): boolean;
+  clearHistory(): void;
   resetStats(): TaskStateSnapshot;
   listTemplates(): readonly TaskTemplate[];
   getTemplate(templateId: string): TaskTemplate | undefined;
@@ -64,7 +66,7 @@ export interface TaskStateContainer {
   subscribe(handlers: TaskEventHandlers): Unsubscribe;
 }
 
-function emptyStatistics(): TaskStatisticsSnapshot {
+export function emptyStatistics(): TaskStatisticsSnapshot {
   return {
     totalCreated: 0,
     totalCompleted: 0,
@@ -240,6 +242,16 @@ export function createTaskState(
       instances.delete(instanceId);
       history = [...history, deepClone(existing)].slice(-MAX_HISTORY);
       return deepClone(existing);
+    },
+
+    removeFromHistory(instanceId) {
+      const before = history.length;
+      history = history.filter((h) => h.instanceId !== instanceId);
+      return history.length < before;
+    },
+
+    clearHistory() {
+      history = [];
     },
 
     resetStats() {

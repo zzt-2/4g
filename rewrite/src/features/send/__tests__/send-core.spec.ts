@@ -331,3 +331,116 @@ describe('send core: integer range validation', () => {
     expect(output.bytes.length).toBe(1);
   });
 });
+
+describe('send core: uint64/int64 bigint encoding', () => {
+  function singleField(dataType: string, length: number): Record<string, unknown>[] {
+    return [{ id: 'val', dataType, length, bigEndian: true, isASCII: false, offset: 0 }];
+  }
+
+  it('encodes uint64 = 2^53+1 without losing precision (string value)', () => {
+    const output = buildFrame({
+      fields: singleField('uint64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: '9007199254740993' },
+    });
+    const expected = new Uint8Array(8);
+    const dv = new DataView(expected.buffer);
+    dv.setBigUint64(0, 9007199254740993n, false);
+    expect(output.bytes).toEqual(expected);
+    const outOfRange = output.issues.some((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(outOfRange).toBe(false);
+  });
+
+  it('encodes uint64 max value (2^64-1) from hex string', () => {
+    const output = buildFrame({
+      fields: singleField('uint64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: '0xFFFFFFFFFFFFFFFF' },
+    });
+    expect(output.bytes).toEqual(new Uint8Array([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]));
+  });
+
+  it('encodes int64 negative value', () => {
+    const output = buildFrame({
+      fields: singleField('int64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: '-1' },
+    });
+    const expected = new Uint8Array(8);
+    new DataView(expected.buffer).setBigInt64(0, -1n, false);
+    expect(output.bytes).toEqual(expected);
+  });
+
+  it('decodes uint64 encoded bytes back to original value via field-parser', async () => {
+    const { parseReceiveFrameFields } = await import('../../receive/core/field-parser');
+    const original = 18_446_744_073_709_551_614n;
+    const buf = new ArrayBuffer(8);
+    new DataView(buf).setBigUint64(0, original, false);
+    const bytes = [...new Uint8Array(buf)];
+    const frame = {
+      id: 'test',
+      name: 'test',
+      direction: 'receive' as const,
+      fields: [{
+        id: 'val', name: 'val', dataType: 'uint64' as const, length: 8,
+        inputType: 'input' as const, configurable: false, options: [],
+        dataParticipationType: 'direct' as const, bigEndian: true,
+      }],
+    };
+    const outcome = parseReceiveFrameFields({ frame, bytes });
+    const field = outcome.fields.find((f) => f.fieldId === 'val');
+    expect(field?.value).toBe(original.toString());
+  });
+
+  it('roundtrip: encode 2^63 then decode equals original (uint64 little-endian)', () => {
+    const original = 9_223_372_036_854_775_808n;
+    const encoded = buildFrame({
+      fields: [{ id: 'val', dataType: 'uint64', length: 8, bigEndian: false, isASCII: false, offset: 0 }],
+      totalByteLength: 8,
+      fieldValues: { val: original.toString() },
+    });
+    const dv = new DataView(encoded.bytes.buffer, encoded.bytes.byteOffset, 8);
+    expect(dv.getBigUint64(0, true)).toBe(original);
+  });
+
+  it('warns when uint64 value exceeds 2^64-1', () => {
+    const output = buildFrame({
+      fields: singleField('uint64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: '18446744073709551616' },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain('uint64');
+  });
+
+  it('warns when int64 value below -2^63', () => {
+    const output = buildFrame({
+      fields: singleField('int64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: '-9223372036854775809' },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('warns when int64 value above 2^63-1', () => {
+    const output = buildFrame({
+      fields: singleField('int64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: '9223372036854775808' },
+    });
+    const warning = output.issues.find((i) => i.code === 'send.encode.valueOutOfRange');
+    expect(warning).toBeDefined();
+  });
+
+  it('emits valueUnparseable issue when bigint value is malformed', () => {
+    const output = buildFrame({
+      fields: singleField('uint64', 8),
+      totalByteLength: 8,
+      fieldValues: { val: 'not-a-number' },
+    });
+    const issue = output.issues.find((i) => i.code === 'send.encode.valueUnparseable');
+    expect(issue).toBeDefined();
+  });
+});

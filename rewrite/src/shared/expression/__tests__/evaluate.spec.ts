@@ -148,4 +148,70 @@ describe('evaluate', () => {
       expect(r.value).toBe((100 * 1000 - 10 * 2) / 0.5);
     });
   });
+
+  describe('B1-B6: bigint semantics', () => {
+    it('B1: bigint + bigint returns bigint', () => {
+      const vars = new Map<string, number | bigint | string | boolean>([
+        ['totalBits', 9_007_199_254_740_993n],
+        ['extra', 7n],
+      ]);
+      const r = evalExpr('totalBits + extra', vars);
+      expect(r.success).toBe(true);
+      if (!r.success) return;
+      expect(r.value).toBe(9_007_199_254_741_000n);
+      expect(typeof r.value).toBe('bigint');
+    });
+
+    it('B2: bigint + integer number promotes number to bigint', () => {
+      const vars = new Map<string, number | bigint | string | boolean>([
+        ['totalBits', 9_007_199_254_740_993n],
+      ]);
+      const r = evalExpr('totalBits + 1', vars);
+      expect(r.success).toBe(true);
+      if (!r.success) return;
+      expect(r.value).toBe(9_007_199_254_740_994n);
+      expect(typeof r.value).toBe('bigint');
+    });
+
+    it('B3: bigint + non-integer number returns error', () => {
+      const vars = new Map<string, number | bigint | string | boolean>([
+        ['totalBits', 9_007_199_254_740_993n],
+      ]);
+      const r = evalExpr('totalBits + 0.5', vars);
+      expect(r.success).toBe(false);
+      if (!r.success) return;
+      expect(r.error).toContain('non-integer');
+    });
+
+    it('B4: bigint subtraction', () => {
+      const vars = new Map<string, number | bigint | string | boolean>([
+        ['a', 18_446_744_073_709_551_615n],
+        ['b', 1n],
+      ]);
+      const r = evalExpr('a - b', vars);
+      expect(r.success).toBe(true);
+      if (!r.success) return;
+      expect(r.value).toBe(18_446_744_073_709_551_614n);
+    });
+
+    it('B5: bigint comparison', () => {
+      const vars = new Map<string, number | bigint | string | boolean>([
+        ['totalBits', 9_007_199_254_740_993n],
+      ]);
+      const r = evalExpr('totalBits > 9007199254740992', vars);
+      expect(r.success).toBe(true);
+      if (!r.success) return;
+      expect(r.value).toBe(true);
+    });
+
+    it('B6: bigint equality with integer number', () => {
+      const vars = new Map<string, number | bigint | string | boolean>([
+        ['totalBits', 100n],
+      ]);
+      const r = evalExpr('totalBits == 100', vars);
+      expect(r.success).toBe(true);
+      if (!r.success) return;
+      expect(r.value).toBe(true);
+    });
+  });
 });

@@ -323,12 +323,12 @@ export default defineConfig((ctx) => {
 					// 可执行文件名（使用英文，避免路径问题）
 					executableName: 'lct-commander',
 					// deb 包描述信息
-					synopsis: '激光链路标准测试设备上位机',
-					description: '激光链路标准测试设备上位机应用程序',
+					synopsis: '激光模拟器',
+					description: '激光模拟器',
 					// desktop 文件配置
 					desktop: {
-						Name: '激光链路标准测试设备上位机',
-						Comment: '激光链路标准测试设备上位机',
+						Name: '激光模拟器',
+						Comment: '激光模拟器',
 						Categories: 'Utility;',
 						// Exec 字段会自动生成，格式为: executableName %U
 						// Terminal: false, // 默认 false，如果设置为 true，会在终端中运行

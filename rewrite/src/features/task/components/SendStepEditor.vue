@@ -82,14 +82,15 @@ function updateRepeatUntil(index: number, term: ConditionTerm): void {
     />
 
     <div>
-      <span class="rw-text-label text-xs">发送目标</span>
+      <span class="rw-text-label text-xs">发送目标（覆盖）</span>
       <SendTargetSelector
-        :model-value="step.targetId"
+        :model-value="step.targetId ?? null"
         :connection-service="connectionService"
         :disable="disable"
         class="mt-1"
-        @update:model-value="patchConfig({ targetId: $event ?? '' })"
+        @update:model-value="patchConfig({ targetId: $event ?? undefined })"
       />
+      <div class="rw-text-desc text-caption mt-1">留空则使用任务级默认发送目标</div>
     </div>
 
     <template v-if="frameId && frameFields.length > 0">

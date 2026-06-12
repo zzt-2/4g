@@ -4,8 +4,6 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'created', label: '待启动' },
   { value: 'running', label: '运行中' },
   { value: 'paused', label: '已暂停' },
-  { value: 'completed', label: '已完成' },
-  { value: 'failed', label: '失败' },
 ] as const;
 </script>
 
@@ -22,6 +20,7 @@ import SendStepEditor from '@/features/task/components/SendStepEditor.vue';
 import WaitConditionStepEditor from '@/features/task/components/WaitConditionStepEditor.vue';
 import DelayStepEditor from '@/features/task/components/DelayStepEditor.vue';
 import AdvancedConfigPanel from '@/features/task/components/AdvancedConfigPanel.vue';
+import SendTargetSelector from '@/features/send/components/SendTargetSelector.vue';
 import { useAsyncAction, useNotify, usePolling } from '@/shared/composables';
 import { formatElapsed, formatDateTime } from '@/shared/utils/format';
 import { isTerminal, calculateProgress } from '@/features/task/core';
@@ -256,6 +255,20 @@ const filteredPickerRows = computed(() => {
   return templatePickerRows.value.filter((t) => t.name.toLowerCase().includes(q));
 });
 
+function onClearHistory(): void {
+  $q.dialog({
+    title: '确认清空',
+    message: '确定要清空所有历史记录吗？此操作不可撤销。',
+    cancel: true,
+    persistent: false,
+  }).onOk(() => {
+    taskService.clearHistory();
+    selectedHistoryRow.value = [];
+    notify.success('历史记录已清空');
+    refreshLists();
+  });
+}
+
 function onNewBlankTask(): void {
   editor.openNew();
 }
@@ -449,6 +462,9 @@ function hasPreviousSendStep(si: number): boolean {
         </q-tab-panel>
 
         <q-tab-panel name="history" class="p-0 pt-0">
+          <div v-if="historyRows.length > 0" class="flex justify-end px-4 py-1">
+            <q-btn flat no-caps dense icon="o_delete_sweep" label="清空历史" size="sm" color="negative" @click="onClearHistory" />
+          </div>
           <DataTable
             :columns="historyColumns"
             :rows="historyRows"
@@ -560,7 +576,7 @@ function hasPreviousSendStep(si: number): boolean {
           </div>
         </template>
 
-        <template v-else-if="!isTerminal(selectedInstance.lifecycle)">
+        <template v-else>
           <div class="p-4">
             <TaskExecutionDetail
               :instance="selectedInstance"
@@ -572,30 +588,7 @@ function hasPreviousSendStep(si: number): boolean {
               @stop="selectedInstance && onStop(selectedInstance.instanceId)"
             />
           </div>
-        </template>
-
-        <template v-else>
-          <div class="p-4 rw-divider-b">
-            <div class="flex items-center gap-2 mb-3">
-              <StatusBadge :status="selectedDisplayStatus" :status-map="TASK_STATUS_MAP" />
-              <span class="rw-text-value">{{ selectedInstance.definitionRef.name }}</span>
-            </div>
-            <div class="mb-2">
-              <span class="rw-text-label text-xs">调度类型</span>
-              <div class="mt-1">
-                <q-chip
-                  dense
-                  outline
-                  :color="selectedScheduleKindDisplay.color"
-                  :label="selectedScheduleKindDisplay.label"
-                />
-              </div>
-            </div>
-            <div v-if="selectedInstance.error" class="rw-text-error text-xs mt-2">
-              {{ selectedInstance.error }}
-            </div>
-          </div>
-          <div class="p-4">
+          <div v-if="isTerminal(selectedInstance.lifecycle)" class="p-4 rw-divider-t">
             <div class="flex items-center gap-2">
               <q-btn
                 flat no-caps icon="o_replay" label="重新执行" color="primary"
@@ -744,6 +737,24 @@ function hasPreviousSendStep(si: number): boolean {
                   />
                 </div>
               </template>
+
+              <div>
+                <span class="rw-text-label text-xs">默认发送目标</span>
+                <SendTargetSelector
+                  :model-value="editor.defaultTargetId.value"
+                  :connection-service="connectionService"
+                  class="mt-1"
+                  @update:model-value="editor.defaultTargetId.value = $event"
+                />
+                <div class="rw-text-desc text-caption mt-1">未在步骤内单独覆盖时，所有 send 步骤使用此目标</div>
+                <q-btn
+                  flat dense no-caps
+                  label="清空所有步骤的发送目标覆盖"
+                  size="sm"
+                  color="primary"
+                  @click="editor.clearAllStepTargetOverrides()"
+                />
+              </div>
 
               <q-separator />
 

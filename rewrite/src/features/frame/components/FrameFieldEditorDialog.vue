@@ -109,6 +109,53 @@ const requiredRule = (val: string) => !!val?.trim() || '此项为必填';
 const positiveIntRule = (val: number) =>
   (Number.isInteger(val) && val > 0) || '必须是正整数';
 
+const BIGINT_FIELD_TYPES = new Set(['uint64', 'int64']);
+const BIGINT_RANGE_HINT: Record<string, string> = {
+  uint64: 'uint64 范围: 0 ~ 18446744073709551615（支持 0x 前缀 16 进制）',
+  int64: 'int64 范围: -9223372036854775808 ~ 9223372036854775807（支持 0x 前缀 16 进制）',
+};
+const BIGINT_RANGE: Record<string, [bigint, bigint]> = {
+  uint64: [0n, 18_446_744_073_709_551_615n],
+  int64: [-9_223_372_036_854_775_808n, 9_223_372_036_854_775_807n],
+};
+
+const isBigintField = computed(() => BIGINT_FIELD_TYPES.has(workingField.value.dataType));
+
+function parseBigintText(text: string): bigint | null {
+  const str = text.trim();
+  if (str === '') return 0n;
+  if (/^-?0x[0-9a-f]+$/i.test(str)) {
+    const negative = str.startsWith('-');
+    try {
+      const bi = BigInt(negative ? str.slice(1) : str);
+      return negative ? -bi : bi;
+    } catch {
+      return null;
+    }
+  }
+  if (/^-?\d+$/.test(str)) {
+    try {
+      return BigInt(str);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+const bigintRule = (val: string): boolean | string => {
+  if (!val || !val.trim()) return true;
+  const parsed = parseBigintText(val);
+  if (parsed === null) return '请输入合法整数（10 进制或 0x 前缀 16 进制）';
+  const range = BIGINT_RANGE[workingField.value.dataType];
+  if (range && (parsed < range[0] || parsed > range[1])) {
+    return `数值超出 ${workingField.value.dataType} 范围`;
+  }
+  return true;
+};
+
+const bigintHint = computed(() => BIGINT_RANGE_HINT[workingField.value.dataType] ?? '');
+
 type OptionInputType = 'select' | 'radio';
 const inputTypeForOptionConfig = computed<OptionInputType>(() => workingField.value.inputType as OptionInputType);
 
@@ -204,6 +251,8 @@ const dialogVisible = computed({
               :model-value="workingField.defaultValue"
               label="默认值"
               class="mt-2"
+              :hint="isBigintField ? bigintHint : undefined"
+              :rules="isBigintField ? [bigintRule] : undefined"
               @update:model-value="(v: string) => updateField({ defaultValue: v || undefined })"
             />
             <q-select

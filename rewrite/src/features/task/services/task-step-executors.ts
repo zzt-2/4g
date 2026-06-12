@@ -4,6 +4,7 @@ import type { SendServiceProvider } from '../adapters';
 import type { TaskStateContainer } from '../state/task-state';
 import type { ConditionRegistry } from './condition-registry';
 import { resolveFieldValues } from './task-iteration-loops';
+import { resolveSendTargetId } from '../core';
 
 // --- Standalone helpers ---
 
@@ -21,9 +22,18 @@ export function buildSendRequest(
   stepIndex: number,
   iteration: number,
 ): SendRequest {
+  const resolvedTargetId = resolveSendTargetId(stepConfig.config, definition);
+  // [task-debug] inspect target resolution at runtime
+  console.info(
+    '[task-debug] buildSendRequest taskId=', definition.id,
+    'stepId=', stepConfig.id,
+    'stepTargetId=', stepConfig.config.targetId,
+    'defDefaultTargetId=', definition.defaultTargetId,
+    'resolved=', resolvedTargetId,
+  );
   return {
     frameId: stepConfig.config.frameId,
-    targetId: stepConfig.config.targetId,
+    targetId: resolvedTargetId ?? '',
     userFieldValues: resolveFieldValues(
       stepConfig.config.userFieldValues,
       definition.fieldVariations,
@@ -54,6 +64,13 @@ export function createStepExecutors(ctx: StepExecutorContext) {
   ): Promise<TaskStepResult> {
     const request = buildSendRequest(step, definition, stepIndex, iteration);
     const sendResult = await ctx.sendService.execute(request);
+    // [task-debug] inspect send outcome (kind anything other than 'sent' indicates failure)
+    console.info(
+      '[task-debug] executeSendStep instanceId=', instanceId,
+      'stepId=', step.id,
+      'resultKind=', sendResult.kind,
+      sendResult.kind !== 'sent' ? sendResult : '',
+    );
     return { kind: 'send', stepIndex, iteration, sendResult };
   }
 

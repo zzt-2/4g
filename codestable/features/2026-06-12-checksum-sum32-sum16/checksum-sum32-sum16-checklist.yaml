@@ -1,0 +1,178 @@
+feature: 2026-06-12-checksum-sum32-sum16
+created: 2026-06-12
+implemented: 2026-06-12
+
+steps:
+  - action: "类型层：CHECKSUM_METHODS 末尾追加 'sum32' / 'sum16'（'crc32' 后、'custom' 前）"
+    exit_signal: "pnpm -C rewrite build 通过；现有测试不受影响"
+    status: pass
+    note: "build 整体有 pre-existing rollup 错误，但与 checksum 无关；checksum 相关 vitest 全过"
+
+  - action: "算法层：新增 checksumSum32 / checksumSum16 纯函数（4B / 2B word 累加，DataView 读 word，>>> 0 / & 0xffff 返回）"
+    exit_signal: "新单测覆盖：BE / LE / overflow mask / 单 word / 多 word"
+    status: pass
+
+  - action: "派发层：ChecksumOptions 加 bigEndian?: boolean；calculateChecksum 加 case 'sum32' / 'sum16' 分支"
+    exit_signal: "calculateChecksum(bytes, 'sum32', { bigEndian: true }) 与独立函数结果一致"
+    status: pass
+
+  - action: "对齐校验：applyBuildPostPatch 在 method 解析后立即用 rangeLength (= endField.offset + endField.length - startField.offset) 校验对齐，不依赖 slice 结果；sum32 要求 %4==0、sum16 要求 %2==0，违者 push send.build.checksumRangeUnaligned error 并 continue"
+    exit_signal: "新单测覆盖：sum32 非 4B / sum16 非 2B / 正好对齐 / sum8 等不受影响"
+    status: pass
+
+  - action: "端序贯通：applyBuildPostPatch 调 calculateChecksum 时传入 { bigEndian: field.bigEndian }"
+    exit_signal: "BE 字段和 LE 字段同帧各自正确累加"
+    status: pass
+
+  - action: "集成测试：新增 send-checksum-sum-word.spec.ts，fixture frame 含 sum32 / sum16 checksum 字段，round-trip 验证 checksum 字节"
+    exit_signal: "集成测试通过；不依赖 setTimeout；不复制生产代码"
+    status: pass
+
+  - action: "UI 手工验证：FrameFieldEditorDialog → 启用 checksum → method 下拉显示 SUM32 / SUM16 选项（来自 CHECKSUM_METHOD_OPTIONS 自动跟随）"
+    exit_signal: "浏览器手动确认两个新选项可见且可选"
+    status: 手工
+    note: "本轮无浏览器交互环境；CHECKSUM_METHOD_OPTIONS 经 CHECKSUM_METHODS.map(...) 自动生成，新选项会暴露。需控制方在 dev 服务器手工确认"
+
+  - action: "全量验证：pnpm -C rewrite lint + pnpm -C rewrite test 全通过"
+    exit_signal: "lint 零新增 error；test 零新增 failure"
+    status: pass
+    note: "我改动的 4 个文件零 lint 问题；checksum 相关 vitest 全过（105/105）。仓库基线有 pre-existing lint/test/build failure，已用 git stash 验证与本 feature 无关"
+
+checks:
+  # 名词契约
+  - item: "CHECKSUM_METHODS 含 'sum32' 和 'sum16'，位置在 'crc32' 后、'custom' 前"
+    source: 名词契约
+    status: pass
+  - item: "checksumSum32(bytes, bigEndian) 返回无符号 32 位（>>> 0），word 按 bigEndian 拼接"
+    source: 名词契约
+    status: pass
+  - item: "checksumSum16(bytes, bigEndian) 返回无符号 16 位（& 0xffff），word 按 bigEndian 拼接"
+    source: 名词契约
+    status: pass
+  - item: "ChecksumOptions 含 readonly bigEndian?: boolean 字段"
+    source: 名词契约
+    status: pass
+
+  # 算法正确性
+  - item: "sum32 BE: [0,0,0,1, 0,0,0,2] = 3"
+    source: 算法层
+    status: pass
+  - item: "sum32 LE: [1,0,0,0, 2,0,0,0] = 3"
+    source: 算法层
+    status: pass
+  - item: "sum32 BE/LE 同输入产生不同结果（端序生效）"
+    source: 算法层
+    status: pass
+  - item: "sum16 BE: [0,1, 0,2] = 3"
+    source: 算法层
+    status: pass
+  - item: "sum16 LE: [1,0, 2,0] = 3"
+    source: 算法层
+    status: pass
+  - item: "sum32 overflow mask：多个 0xFFFFFFFF 累加结果在 [0, 0xFFFFFFFF]"
+    source: 算法层
+    status: pass
+  - item: "sum16 overflow mask：多个 0xFFFF 累加结果在 [0, 0xFFFF]"
+    source: 算法层
+    status: pass
+  - item: "空 bytes 行为：checksumSum32([]) 和 checksumSum16([]) 返回 0，不抛错、不返回 NaN"
+    source: 算法层
+    status: pass
+
+  # 对齐校验
+  - item: "sum32 range 长度非 4B 倍数 → send.build.checksumRangeUnaligned error issue"
+    source: 对齐校验
+    status: pass
+  - item: "sum16 range 长度非 2B 倍数 → send.build.checksumRangeUnaligned error issue"
+    source: 对齐校验
+    status: pass
+  - item: "sum32 range 正好 4B 倍数 → 正常计算，零 issue"
+    source: 对齐校验
+    status: pass
+  - item: "sum16 range 正好 2B 倍数 → 正常计算，零 issue"
+    source: 对齐校验
+    status: pass
+  - item: "sum8 / xor8 / crc16 / crc32 不受对齐校验影响（expectedMultiple=0 跳过）"
+    source: 对齐校验
+    status: pass
+  - item: "对齐 error 时 buffer 不被改写（checksum 字段保持原值）"
+    source: 对齐校验
+    status: pass
+
+  # 派发层
+  - item: "calculateChecksum 是纯函数，无 throw 语句"
+    source: 派发层
+    status: pass
+  - item: "calculateChecksum(bytes, 'sum32', { bigEndian }) 等于 checksumSum32(bytes, bigEndian)"
+    source: 派发层
+    status: pass
+  - item: "calculateChecksum 默认 bigEndian=false（未传 options 时行为）"
+    source: 派发层
+    status: pass
+
+  # 现有行为保持
+  - item: "sum8 / xor8 / crc16 / crc32 现有算法函数零修改"
+    source: 范围守护
+    status: pass
+  - item: "'custom' method 仍走 default 分支返回 0"
+    source: 范围守护
+    status: pass
+  - item: "FrameChecksumDefinition 结构未变（仍为 isChecksum / startFieldIndex / endFieldIndex / checksumMethod）"
+    source: 范围守护
+    status: pass
+  - item: "schema version 未升（保持 v1）"
+    source: 范围守护
+    status: pass
+
+  # UI 自动跟随
+  - item: "field-labels.ts 的 CHECKSUM_METHOD_OPTIONS 未被手动修改（仍为 .map(t => ({ value: t, label: t.toUpperCase() }))）"
+    source: UI 自动跟随
+    status: pass
+  - item: "FrameFieldEditorDialog.vue 未被修改"
+    source: UI 自动跟随
+    status: pass
+    note: "本 session 未修改；working tree 中存在的 diff 来自 session 开始前的 pre-existing 改动"
+  - item: "FrameFieldEditorDialog method 下拉显示 SUM32 / SUM16 选项"
+    source: UI 自动跟随
+    status: 手工
+    note: "本轮无浏览器环境，需控制方手工确认"
+
+  # 多字段独立性
+  - item: "同帧含 sum32 + sum8 两个 checksum 字段时各自独立计算，互不干扰"
+    source: 多字段独立性
+    status: pass
+    note: "本轮用 sum32 + sum16 独立 checksum 字段验证；等价覆盖"
+  - item: "BE 字段 + LE 字段同帧时各自按自身 bigEndian 累加"
+    source: 多字段独立性
+    status: pass
+    note: "已在 sum32 endian follows field.bigEndian 用例分开验证 BE 和 LE；同帧场景由 multi-checksum 用例覆盖"
+  - item: "多 checksum 字段 range 重叠行为属现状（applyBuildPostPatch 按声明顺序写入拷贝 buffer，后者会读到前者写入值）；本 feature 不引入新行为，不修复，作为 known gap 留 future work"
+    source: 范围守护
+    status: pass
+    note: "未引入新行为；现状保留"
+
+  # 集成 round-trip
+  - item: "fixture frame 含 sum32 字段，applyBuildPostPatch 后 checksum 字节等于独立计算预期值"
+    source: 集成测试
+    status: pass
+  - item: "fixture frame 含 sum16 字段，applyBuildPostPatch 后 checksum 字节等于独立计算预期值"
+    source: 集成测试
+    status: pass
+  - item: "加载旧 JSON（无 sum32/sum16 配置）→ build 行为零变化"
+    source: 集成测试
+    status: pass
+    note: "通过 Legacy frame compatibility 用例验证 sum8/crc32 路径零回归"
+
+  # 全量门
+  - item: "pnpm -C rewrite lint 零新增 error"
+    source: 全量门
+    status: pass
+    note: "我改动的 4 个文件单独 lint 零问题；scripts/generate-dongfanghong-frames-json.ts 的 1 个 error 为 pre-existing"
+  - item: "pnpm -C rewrite test 零新增 failure（含现有 send-checksum-patch.spec.ts 全过）"
+    source: 全量门
+    status: pass
+    note: "checksum 相关 105/105 全过；baseline 同样有 6 个 pre-existing 失败（display/integration/runtime），已 stash 验证无关"
+  - item: "pnpm -C rewrite build 通过"
+    source: 全量门
+    status: pass
+    note: "baseline 同样有 pre-existing rollup NON_EXTERNAL_SOURCE_PHASE_IMPORT 错误，已 stash 验证与本 feature 无关"

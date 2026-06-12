@@ -10,7 +10,7 @@ import type {
 import { isTerminal } from '../core';
 import type { SendServiceProvider, ReceiveEventSource } from '../adapters';
 import type { TaskStateSnapshot, TaskStatisticsSnapshot } from '../state';
-import { createTaskState, type TaskStateContainer } from '../state/task-state';
+import { createTaskState, emptyStatistics, type TaskStateContainer } from '../state/task-state';
 import {
   selectTaskInstance,
   selectTaskProgress,
@@ -23,6 +23,7 @@ import { createLifecycleManager } from './task-lifecycle-manager';
 import { createErrorPolicyHandler } from './task-error-policy';
 import { createIterationLoops } from './task-iteration-loops';
 import type { TaskTemplateStorage } from './task-template-storage';
+import type { TaskHistoryStorage } from './task-history-storage';
 import { debounce } from '@/shared/utils/debounce';
 
 function generateTemplateId(): string {
@@ -57,6 +58,7 @@ export interface TaskService extends TaskReader {
   updateTemplate(templateId: string, updates: TemplateUpdates): TaskTemplate | undefined;
   deleteTemplate(templateId: string): boolean;
   instanciateTemplate(templateId: string): TaskInstanceState;
+  clearHistory(): void;
   subscribe(handlers: TaskEventHandlers): Unsubscribe;
 }
 
@@ -68,6 +70,7 @@ export interface CreateTaskServiceOptions {
   readonly state?: TaskStateContainer;
   readonly now?: () => string;
   readonly templateStorage?: TaskTemplateStorage;
+  readonly historyStorage?: TaskHistoryStorage;
 }
 
 // --- Factory ---
@@ -77,7 +80,13 @@ let nextInstanceId = 1;
 export function createTaskService(options: CreateTaskServiceOptions): TaskService {
   const sendService = options.sendService;
   const receiveSource = options.receiveEventSource;
-  const state = options.state ?? createTaskState();
+  const historyStorage = options.historyStorage;
+  const loadedHistory = historyStorage?.loadAll() ?? [];
+  const state = options.state ?? createTaskState(
+    loadedHistory.length > 0
+      ? { snapshot: { instances: [], history: loadedHistory, statistics: emptyStatistics() } }
+      : undefined,
+  );
   const now = options.now ?? (() => new Date().toISOString());
   const fieldValueProvider = options.fieldValueProvider;
   const templateStorage = options.templateStorage;
@@ -94,6 +103,20 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       templateStorage.saveAll(state.listTemplates());
     } catch (err) {
       console.error('[task] template persist failed', err);
+    }
+  }, 500);
+
+  // 历史持久化：任务终态 / 删除 / 清空时 debounce 写入
+  const scheduleHistoryPersist = debounce((): void => {
+    if (!historyStorage) return;
+    try {
+      const snapshot = state.getSnapshot();
+      const terminated = snapshot.instances.filter((i) => isTerminal(i.lifecycle));
+      const historyIds = new Set(snapshot.history.map((i) => i.instanceId));
+      const merged = [...snapshot.history, ...terminated.filter((i) => !historyIds.has(i.instanceId))];
+      historyStorage.saveAll(merged);
+    } catch (err) {
+      console.error('[task] history persist failed', err);
     }
   }, 500);
 
@@ -162,6 +185,13 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       subscriptionRefCount = 0;
     }
   }
+
+  // --- Internal: auto-persist history when task settles ---
+  state.subscribe({
+    onTaskSettled() {
+      scheduleHistoryPersist();
+    },
+  });
 
   // --- Execution loop orchestration ---
 
@@ -284,11 +314,14 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
 
     removeTask(instanceId) {
       const inst = state.getInstance(instanceId);
-      if (!inst) return;
-      if (!isTerminal(inst.lifecycle)) return;
+      if (inst && !isTerminal(inst.lifecycle)) return;
 
-      lifecycle.abortInstance(instanceId);
-      state.removeInstance(instanceId);
+      if (inst) {
+        lifecycle.abortInstance(instanceId);
+        state.removeInstance(instanceId);
+      }
+      state.removeFromHistory(instanceId);
+      scheduleHistoryPersist();
     },
 
     retryTask(sourceInstanceId) {
@@ -377,6 +410,11 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
         throw new Error(`Template ${templateId} not found`);
       }
       return createTaskInternal(template.definition, { templateId });
+    },
+
+    clearHistory() {
+      state.clearHistory();
+      historyStorage?.clear();
     },
 
     subscribe(handlers) {

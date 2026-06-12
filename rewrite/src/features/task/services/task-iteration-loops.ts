@@ -208,7 +208,7 @@ async function executeSteps(
     const current = ctx.state.getInstance(instanceId);
     if (!current || current.lifecycle !== 'running') return false;
 
-    ctx.state.updateInstance(instanceId, { currentStepIndex: i });
+    ctx.state.updateInstance(instanceId, { currentStepIndex: i, currentStepStartedAt: ctx.now() });
 
     const step = steps[i]!;
 

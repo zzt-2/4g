@@ -1,7 +1,7 @@
 import type {
   VariableMap, FunctionTable, CompileResult,
   ConditionalCompileResult, GroupCompileResult,
-  CompiledExpr,
+  CompiledExpr, VariableValue,
 } from './types';
 import type { ASTNode, BinaryOp } from './_internal';
 import { tokenize } from './tokenizer';
@@ -11,17 +11,32 @@ import { defaultMathFunctions } from './functions';
 
 class ExprError extends Error {}
 
-function getVar(vars: VariableMap, name: string): number | string | boolean {
+function getVar(vars: VariableMap, name: string): VariableValue {
   if (!vars.has(name)) throw new ExprError(`undefined variable: ${name}`);
   const v = vars.get(name)!;
   if (v == null) throw new ExprError(`variable ${name} is null`);
   return v;
 }
 
+function toBigIntOrThrow(value: VariableValue, ctx: string): bigint {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') {
+    if (!Number.isInteger(value)) {
+      throw new ExprError(`cannot mix bigint with non-integer number in ${ctx}`);
+    }
+    return BigInt(value);
+  }
+  throw new ExprError(`cannot use ${typeof value} as bigint in ${ctx}`);
+}
+
+function isBigint(v: VariableValue): v is bigint {
+  return typeof v === 'bigint';
+}
+
 function compileNode(
   node: ASTNode,
   funcs: FunctionTable,
-): (vars: VariableMap) => number | string | boolean {
+): (vars: VariableMap) => VariableValue {
   switch (node.type) {
     case 'number':
       return () => node.value;
@@ -33,7 +48,10 @@ function compileNode(
       return (vars) => getVar(vars, node.name);
     case 'unary': {
       const operand = compileNode(node.operand, funcs);
-      if (node.op === '-') return (vars) => -(operand(vars) as number);
+      if (node.op === '-') return (vars) => {
+        const v = operand(vars);
+        return typeof v === 'bigint' ? -v : -(v as number);
+      };
       return (vars) => !(operand(vars));
     }
     case 'binary': {
@@ -45,39 +63,89 @@ function compileNode(
       const argFns = node.args.map(a => compileNode(a, funcs));
       const fn = funcs.get(node.name);
       if (!fn) throw new ExprError(`unknown function: ${node.name}`);
-      return (vars) => fn(...argFns.map(a => a(vars) as number));
+      return (vars) => {
+        const args = argFns.map((a) => {
+          const v = a(vars);
+          if (typeof v === 'bigint') {
+            throw new ExprError(`function ${node.name} cannot accept bigint argument`);
+          }
+          return v as number;
+        });
+        return fn(...args);
+      };
     }
   }
 }
 
 function makeBinary(
   op: BinaryOp,
-  left: (v: VariableMap) => number | string | boolean,
-  right: (v: VariableMap) => number | string | boolean,
-): (v: VariableMap) => number | string | boolean {
-  switch (op) {
-    case '+': return (v) => (left(v) as number) + (right(v) as number);
-    case '-': return (v) => (left(v) as number) - (right(v) as number);
-    case '*': return (v) => (left(v) as number) * (right(v) as number);
-    case '/': return (v) => {
-      const r = right(v) as number;
-      if (r === 0) throw new ExprError('division by zero');
-      return (left(v) as number) / r;
+  left: (v: VariableMap) => VariableValue,
+  right: (v: VariableMap) => VariableValue,
+): (v: VariableMap) => VariableValue {
+  if (op === '==' || op === '!=') {
+    return (v) => {
+      const l = left(v);
+      const r = right(v);
+      // bigint vs number: 把整数 number 提升为 bigint 后比较
+      if (isBigint(l) && typeof r === 'number') {
+        const rb = Number.isInteger(r) ? BigInt(r) : null;
+        if (rb === null) return op === '!=' ? true : false;
+        return op === '==' ? l === rb : l !== rb;
+      }
+      if (isBigint(r) && typeof l === 'number') {
+        const lb = Number.isInteger(l) ? BigInt(l) : null;
+        if (lb === null) return op === '!=' ? true : false;
+        return op === '==' ? lb === r : lb !== r;
+      }
+      return op === '==' ? l === r : l !== r;
     };
-    case '%': return (v) => {
-      const r = right(v) as number;
-      if (r === 0) throw new ExprError('division by zero');
-      return (left(v) as number) % r;
-    };
-    case '==': return (v) => left(v) === right(v);
-    case '!=': return (v) => left(v) !== right(v);
-    case '>': return (v) => (left(v) as number) > (right(v) as number);
-    case '<': return (v) => (left(v) as number) < (right(v) as number);
-    case '>=': return (v) => (left(v) as number) >= (right(v) as number);
-    case '<=': return (v) => (left(v) as number) <= (right(v) as number);
-    case '&&': return (v) => !!(left(v)) && !!(right(v));
-    case '||': return (v) => !!(left(v)) || !!(right(v));
   }
+  if (op === '&&' || op === '||') {
+    return (v) => (op === '&&' ? !!(left(v)) && !!(right(v)) : !!(left(v)) || !!(right(v)));
+  }
+  // arithmetic + comparison: 如果任一方是 bigint,提升对方为 bigint 后运算
+  const isComparison = op === '>' || op === '<' || op === '>=' || op === '<=';
+  return (v) => {
+    const l = left(v);
+    const r = right(v);
+    if (isBigint(l) || isBigint(r)) {
+      const lb = toBigIntOrThrow(l, op);
+      const rb = toBigIntOrThrow(r, op);
+      switch (op) {
+        case '+': return lb + rb;
+        case '-': return lb - rb;
+        case '*': return lb * rb;
+        case '/':
+          if (rb === 0n) throw new ExprError('division by zero');
+          return lb / rb;
+        case '%':
+          if (rb === 0n) throw new ExprError('division by zero');
+          return lb % rb;
+        case '>': return lb > rb;
+        case '<': return lb < rb;
+        case '>=': return lb >= rb;
+        case '<=': return lb <= rb;
+      }
+    }
+    const ln = l as number;
+    const rn = r as number;
+    switch (op) {
+      case '+': return ln + rn;
+      case '-': return ln - rn;
+      case '*': return ln * rn;
+      case '/':
+        if (rn === 0) throw new ExprError('division by zero');
+        return ln / rn;
+      case '%':
+        if (rn === 0) throw new ExprError('division by zero');
+        return ln % rn;
+      case '>': return ln > rn;
+      case '<': return ln < rn;
+      case '>=': return ln >= rn;
+      case '<=': return ln <= rn;
+    }
+    return isComparison ? false : 0;
+  };
 }
 
 function validateFunctions(node: ASTNode, funcs: FunctionTable): string | null {
@@ -131,8 +199,8 @@ export function compileConditional(
 ): ConditionalCompileResult {
   const funcs = functions ?? defaultMathFunctions;
   const compiledBranches: Array<{
-    conditionFn: (vars: VariableMap) => number | string | boolean;
-    expressionFn: (vars: VariableMap) => number | string | boolean;
+    conditionFn: (vars: VariableMap) => VariableValue;
+    expressionFn: (vars: VariableMap) => VariableValue;
   }> = [];
 
   for (let i = 0; i < branches.length; i++) {

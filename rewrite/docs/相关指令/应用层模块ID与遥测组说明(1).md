@@ -51,14 +51,14 @@
 | 模块 | 当前支持组 | `param_count` |
 | --- | --- | --- |
 | `top_clock_manager_block` | `cfg` | `2` |
-| `top_adc_rx_block` | `runtime`、`cfg` | `6`、`1` |
+| `top_adc_rx_block` | `runtime`、`cfg` | `7`、`1` |
 | `top_gt_tx_block` | `runtime` | `2` |
 | `top_cxp_yewu_block` | `runtime` | `2` |
-| `top_laser_ctrl_block` | `runtime`、`cfg` | `8`、`18` |
+| `top_laser_ctrl_block` | `runtime`、`cfg` | `14`、`21` |
 | `top_yewu_rx_block` | `runtime`、`cfg` | `6`、`1` |
 | `top_yewu_tx_block` | `runtime`、`cfg` | `4`、`1` |
-| `top_comm_tx_block` | `runtime`、`cfg` | `8`、`8` |
-| `top_comm_rx_block` | `runtime`、`cfg` | `14`、`10` |
+| `top_comm_tx_block` | `runtime`、`cfg` | `8`、`10` |
+| `top_comm_rx_block` | `runtime`、`cfg`、`iq` | `22`、`11`、`12` |
 
 ## 当前轮询顺序
 

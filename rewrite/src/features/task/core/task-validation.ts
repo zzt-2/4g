@@ -48,6 +48,20 @@ export function validateTaskDefinition(def: TaskDefinition): TaskValidationIssue
     }
   }
 
+  // Cross-step: every send step needs a resolvable target.
+  if (!def.defaultTargetId) {
+    for (const step of def.steps) {
+      if (step.kind === 'send' && !step.config.targetId) {
+        issues.push({
+          severity: 'error',
+          code: 'task.step.send.targetUnresolvable',
+          message: `Send step "${step.id}" has no targetId and task definition has no defaultTargetId.`,
+          stepId: step.id,
+        });
+      }
+    }
+  }
+
   if (def.stopCondition) {
     issues.push(...validateStopCondition(def.stopCondition));
   }
@@ -59,9 +73,6 @@ function validateSendStepConfig(stepId: string, config: SendStepConfig): TaskVal
   const issues: TaskValidationIssue[] = [];
   if (!config.frameId) {
     issues.push({ severity: 'error', code: 'task.step.send.missingFrameId', message: `Send step "${stepId}" must have a frameId.`, stepId });
-  }
-  if (!config.targetId) {
-    issues.push({ severity: 'error', code: 'task.step.send.missingTargetId', message: `Send step "${stepId}" must have a targetId.`, stepId });
   }
   return issues;
 }
