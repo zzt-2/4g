@@ -35,3 +35,7 @@ yarn-error.log*
 
 /public/data/history-statistics
 /public/business-data
+
+# Local-only Claude/OMC archives (not version controlled)
+/.sessions/_wsl-claude-archive/
+/.sessions/_archive_helpers/
