@@ -1,0 +1,45 @@
+# 步骤契约 Schema
+# 在 handoff 中用于声明步骤间的接口变更
+
+contracts:
+  # 接口变更类型 — 当 handoff 涉及代码改动时
+  - id: C001
+    type: interface-change
+    description: "变更描述"
+    location: "文件路径:行号 或 prompt 模板名"
+    change: "新增/修改了什么"
+    consumed_by: "哪个模块/步骤/prompt 消费这个接口"
+    verification_result: null  # 接收方回填：PASS / FAIL
+    verified_by: null          # 接收方回填：S### 或 V### 编号
+
+  # 已知债务类型 — 当已确定原则与实际状态有差距时
+  - id: C002
+    type: known-debt
+    description: "债务描述"
+    principle: "应达到的标准"
+    current_state: "实际状态"
+    trigger: "什么条件下必须解决"
+    resolved: false
+
+  # 一致性检查类型 — 当多份相关文档需要交叉验证时
+  - id: C003
+    type: consistency-check
+    description: "检查描述"
+    documents:
+      - "文件路径1"
+      - "文件路径2"
+    check_method: "grep 命令或检查步骤"
+    expected_result: "预期结果"
+    verification_result: null
+    verified_by: null
+
+  # 验证阈值类型 — 当涉及验证体系时
+  - id: C004
+    type: verification-threshold
+    description: "验证项描述"
+    metric: "测量的指标"
+    pass_criteria: "精确的 PASS 条件（量化）"
+    threshold_source: "人工设定 / 测试推导 / 行业标准"
+    history: "历史通过率"
+    verification_result: null
+    verified_by: null
