@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-13
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-16
 
 ## 专题目标
 
@@ -188,7 +188,7 @@
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
 **S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
 **联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 收到但用例同步卡点。**
-**已知未做：UI 配置页面美化、getTestCaseAll 响应格式对齐 V1.0.4 spec、真实设备对接、真实用例执行、preHandle/afterHandle 翻译层、报告生成。**
+**已知未做:UI 配置页面美化、getTestCaseAll 响应格式对齐(转 H008 调研,待真实报文)、真实设备对接、真实用例执行、preHandle/afterHandle 翻译层、报告生成。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -267,8 +267,17 @@
 - 留给新对话：getTestCaseAll 响应格式设计 + task 模板序列化（mock 换真实）
 
 ### H007 — getTestCaseAll 响应格式设计 Handoff
-- 交接目标：把 getTestCaseAll 从 mock 换成真实 task 模板列表，对齐 V1.0.4 spec 让甲方用例同步跑通
-- 已完成边界：联调网络/认证/heartbeat/getSubSysState 已通；2 个 bug 已修；task 模板基础设施（S009/H006）就绪
-- 不要做：不要把甲方内部存储格式当协议格式；不要重新发明模板存储；不要碰联调网络层；不要做真实执行/报告生成
-- 必读：本 handoff + S011 + V1.0.4 03-用例管理.md + S009 task-positioning-design
-- 下一轮：先 brainstorm 协议字段 + 映射方案，再 design，再实现替换 mock，最后联调验证
+- 交接目标:把 getTestCaseAll 从 mock 换成真实 task 模板列表,对齐 V1.0.4 spec 让甲方用例同步跑通
+- 已完成边界:联调网络/认证/heartbeat/getSubSysState 已通;2 个 bug 已修;task 模板基础设施(S009/H006)就绪
+- 不要做:不要把甲方内部存储格式当协议格式;不要重新发明模板存储;不要碰联调网络层;不要做真实执行/报告生成
+- 必读:本 handoff + S011 + V1.0.4 03-用例管理.md + S009 task-positioning-design
+- 下一轮:先 brainstorm 协议字段 + 映射方案,再 design,再实现替换 mock,最后联调验证
+- **2026-06-16 暂缓实施**:粒度方向需先用真实文档/报文厘清,转入 H008
+
+### H008 — 甲方任务/用例/实例 粒度调研 Handoff
+- 起因:用户对粒度方向困惑(任务↔实例 vs 任务↔用例),且发现旧文档/转述不足以下结论(HAR 已证明 V1.0.4 也不全准)
+- 性质:**纯调研**,不改代码。产出"粒度映射方案 + 真实证据"
+- 前提:用户先提供甲方最新接口文档 + 真实接口报文(getTestCaseAll 响应/setTestTask 请求体),用户说"让我去拿"
+- 5 个必答问题:Q1 甲方几层概念 / Q2 getTestCaseAll 真实结构 / Q3 setTestTask 真实结构 / Q4 现有模型怎么映射 / Q5 4 个凑合方案
+- 关键:topic-index:23 旧映射"testCase = task(TaskDefinition)"措辞过时,本调研厘清后由主对话更新为 D### 决策
+- 后续:调研产出 → 主对话建 D### + 更新 topic-index → H009 实施 getTestCaseAll 真实化
