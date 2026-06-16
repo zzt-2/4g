@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-11
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-13
 
 ## 专题目标
 
@@ -186,7 +186,9 @@
 **入站 12/12 handler 就绪，出站 9/9 translator 就绪，auth + heartbeat + FTP 就绪。**
 **S008 + H005 完成（中心对接 UI + TaskManagePage 重构）。**
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
-**已知未做：UI 配置页面美化、真实设备对接、联调验证、preHandle/afterHandle 翻译层。**
+**S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
+**联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 收到但用例同步卡点。**
+**已知未做：UI 配置页面美化、getTestCaseAll 响应格式对齐 V1.0.4 spec、真实设备对接、真实用例执行、preHandle/afterHandle 翻译层、报告生成。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -249,3 +251,24 @@
   - s4 UI 双 tab（TemplateListPage + ExecutionListPage + TaskManagePage 重构 + createBlankStepByKind）
   - 226 测试通过，lint 0 错误
   - 独立审查 revise-required → 修复 2 major（搜索失效、详情面板 stale data）+ 4 minor，已交付
+
+### S011 — 甲方真实联调：从静态就绪到双向连通
+- 目标：把已就绪的 northbound feature 跟甲方真实后端跑通
+- 网络拓扑分析：笔记本三网卡（有线 192.168.0.243 / WLAN 10.63.198.175 / VBox 192.168.56.1），甲方虚拟机宿主机 10.105.65.195 通过 NAT 暴露 880→80
+- 出站方案：单向 NAT 端口转发，笔记本访问 http://10.105.65.195:880/ 通
+- 修两个 bug：heartbeat subSysType 硬编码空串（heartbeat-timer.ts + outbound-translator.ts）+ auth expire_in 字段兼容（4 种命名）
+- 登录失败根因：不是字段名问题，是 password 缺失（JSON.stringify 自动省略 undefined）
+- RuoYi Plus 认证机制深挖：partner 登录不走 sys_user，走 t_third_application 表（app_key=username, app_secret=password），sys_client 表只验证 clientId
+- 用户在第三方应用管理菜单建记录后登录通
+- 入站连通：Windows 防火墙拦入站 80，加规则 `New-NetFirewallRule -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow` 后通
+- V1.0.4 信封格式被甲方实际流量印证（subSysType='laser'、subSysId='JG'、POST+/api/ 前缀全对）
+- 联调结果：heartbeat/login/getSubSysState ✓，getTestCaseAll 收到但用例同步卡点（mock 数据可能不符 spec）
+- 发现甲方不下发任务模板（确认 S001 决策），用户提"任务当用例"设计想法
+- 留给新对话：getTestCaseAll 响应格式设计 + task 模板序列化（mock 换真实）
+
+### H007 — getTestCaseAll 响应格式设计 Handoff
+- 交接目标：把 getTestCaseAll 从 mock 换成真实 task 模板列表，对齐 V1.0.4 spec 让甲方用例同步跑通
+- 已完成边界：联调网络/认证/heartbeat/getSubSysState 已通；2 个 bug 已修；task 模板基础设施（S009/H006）就绪
+- 不要做：不要把甲方内部存储格式当协议格式；不要重新发明模板存储；不要碰联调网络层；不要做真实执行/报告生成
+- 必读：本 handoff + S011 + V1.0.4 03-用例管理.md + S009 task-positioning-design
+- 下一轮：先 brainstorm 协议字段 + 映射方案，再 design，再实现替换 mock，最后联调验证
