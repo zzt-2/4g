@@ -2,7 +2,7 @@ import { TimerRegistry } from '@/shared/timer/timer-registry';
 import type { HeartbeatOutbound } from '../core/types';
 
 export interface HeartbeatTimer {
-  start(subSysId: string, intervalSeconds?: number, onSend?: (body: HeartbeatOutbound) => Promise<void>): void;
+  start(subSysType: string, subSysId: string, intervalSeconds?: number, onSend?: (body: HeartbeatOutbound) => Promise<void>): void;
   stop(): void;
   isRunning(): boolean;
 }
@@ -13,16 +13,19 @@ const DEFAULT_INTERVAL_S = 15;
 export function createHeartbeatTimer(): HeartbeatTimer {
   const registry = new TimerRegistry();
   let running = false;
+  let currentSubSysType = '';
   let currentSubSysId: string | undefined;
   let currentInterval = DEFAULT_INTERVAL_S;
   let currentOnSend: ((body: HeartbeatOutbound) => Promise<void>) | undefined;
 
   function start(
+    subSysType: string,
     subSysId: string,
     intervalSeconds = DEFAULT_INTERVAL_S,
     onSend?: (body: HeartbeatOutbound) => Promise<void>,
   ): void {
     stop();
+    currentSubSysType = subSysType;
     currentSubSysId = subSysId;
     currentInterval = intervalSeconds;
     currentOnSend = onSend;
@@ -33,7 +36,7 @@ export function createHeartbeatTimer(): HeartbeatTimer {
       const body: HeartbeatOutbound = {
         method: 'heartbeat',
         requestId: Math.floor(Math.random() * 2147483648),
-        subSysType: '',
+        subSysType: currentSubSysType,
         subSysId: currentSubSysId,
         sessionId: 0,
         timer: currentInterval,

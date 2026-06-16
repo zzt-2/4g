@@ -212,10 +212,11 @@ describe('translateStepResult', () => {
 // ---------------------------------------------------------------------------
 
 describe('translateHeartbeat', () => {
-  it('produces HeartbeatOutbound with subSysId and timer', () => {
-    const hb = translateHeartbeat('ADS_001', 15);
+  it('produces HeartbeatOutbound with subSysType/subSysId and timer', () => {
+    const hb = translateHeartbeat('ADS', 'ADS_001', 15);
 
     expect(hb.method).toBe('heartbeat');
+    expect(hb.subSysType).toBe('ADS');
     expect(hb.subSysId).toBe('ADS_001');
     expect(hb.timer).toBe(15);
     expect(hb.time).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);

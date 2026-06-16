@@ -49,7 +49,7 @@ export function createAuthService(httpFacade: HttpFacade, config: AuthConfig): A
     const parsed = JSON.parse(resp.body as string);
     const data = parsed.data ?? parsed;
     const token = data.access_token as string;
-    const expireIn = (data.expire_in as number) ?? 0;
+    const expireIn = (data.expire_in ?? data.expires_in ?? data.expireIn ?? data.expiresIn ?? 0) as number;
 
     cachedToken = token;
     expiresAt = Date.now() + expireIn * 1000 - EXPIRY_BUFFER_MS;

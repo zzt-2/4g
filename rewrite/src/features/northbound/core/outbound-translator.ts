@@ -83,11 +83,11 @@ export function translateStepResult(
 
 // --- New translators ---
 
-export function translateHeartbeat(subSysId: string, timer: number): HeartbeatOutbound {
+export function translateHeartbeat(subSysType: string, subSysId: string, timer: number): HeartbeatOutbound {
   return {
     method: 'heartbeat',
     requestId: Math.floor(Math.random() * 2147483648),
-    subSysType: '',
+    subSysType,
     subSysId,
     sessionId: 0,
     timer,

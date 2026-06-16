@@ -479,6 +479,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
         // HeartbeatTimer has no restart(); stop + start with the new interval.
         heartbeatTimer.stop();
         heartbeatTimer.start(
+          activeConfig.subSysType,
           activeConfig.subSysId,
           newInterval,
           (b) => postToCustomer('/admin/subSystem/heartbeat', b),
@@ -637,6 +638,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     state.setServerRunning(true);
 
     heartbeatTimer.start(
+      config.subSysType,
       config.subSysId,
       15,
       (body) => postToCustomer('/admin/subSystem/heartbeat', body),
