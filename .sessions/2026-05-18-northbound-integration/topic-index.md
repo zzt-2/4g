@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-16
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-17
 
 ## 专题目标
 
@@ -20,8 +20,9 @@
 
 ### 核心映射
 
-- **甲方 testCase = 我们的 task（TaskDefinition）**
-- 甲方的 executionPlan.layers 中每个 testCaseId → 我们创建一个 task 实例
+- **甲方 caseTemplate(getTestCaseAll 返回) = 我们的 TaskTemplate**(2026-06-17 D001 精确化;旧措辞"testCase = task(TaskDefinition)"已过时,TaskDefinition 是 TaskTemplate 内核非独立同步实体)
+- 甲方的 executionPlan(task 下发,每个 caseId 节点)→ 我们创建一个 TaskInstance
+- 四层厘清(R001): caseMenu(菜单,我们不持有)/ caseTemplate(用例,↔TaskTemplate)/ caseSet(用例集,暂不实现)/ task(执行编排,甲方建下发)
 - task 典型 steps = send step（发帧）+ wait-condition step（等接收帧校验参数）
 - verdict: wait-condition matched → success, timeout/不匹配 → fail, task 被 stop → tbd
 
@@ -187,8 +188,9 @@
 **S008 + H005 完成（中心对接 UI + TaskManagePage 重构）。**
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
 **S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
+**H008 + R001 完成（粒度调研:基于 0531 HAR 厘清甲方四层概念 + 确认 caseTemplate↔TaskTemplate 映射 D001）。**
 **联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 收到但用例同步卡点。**
-**已知未做:UI 配置页面美化、getTestCaseAll 响应格式对齐(转 H008 调研,待真实报文)、真实设备对接、真实用例执行、preHandle/afterHandle 翻译层、报告生成。**
+**已知未做:UI 配置页面美化、getTestCaseAll 响应真实化(方向已定 D001,待 H009 实施)、真实设备对接、真实用例执行、preHandle/afterHandle 翻译层、报告生成。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -280,4 +282,12 @@
 - 前提:用户先提供甲方最新接口文档 + 真实接口报文(getTestCaseAll 响应/setTestTask 请求体),用户说"让我去拿"
 - 5 个必答问题:Q1 甲方几层概念 / Q2 getTestCaseAll 真实结构 / Q3 setTestTask 真实结构 / Q4 现有模型怎么映射 / Q5 4 个凑合方案
 - 关键:topic-index:23 旧映射"testCase = task(TaskDefinition)"措辞过时,本调研厘清后由主对话更新为 D### 决策
-- 后续:调研产出 → 主对话建 D### + 更新 topic-index → H009 实施 getTestCaseAll 真实化
+- **2026-06-17 调研完成**:用户因 NAT 断无法新抓报文,但核查发现 0531 HAR 含完整甲方内部数据模型(caseMenu/caseTemplate/caseSet/task 四层),足够回答粒度问题。产出 R001。证据可靠度:高(真实流量>文档)。
+- **关键发现**: 甲方四层概念厘清;用户"任务对应实例太麻烦"基于错误前提(真实是甲方 task 下发 N caseId → 我们 N TaskInstance);taskMonitor/{id} 实锤甲方 `POST /api/task/setTestTask` 下发(目标 127.0.0.1:8800,与 S011 的 80 端口有差异待联调确认)。
+- **决策**: 新建 D001(caseTemplate↔TaskTemplate 映射确认 + 修正 topic-index:23 措辞)。用户拍板:getTestCaseAll 返回扁平 caseTemplate / 字段填空默认值 / caseSet 不支持。
+- 后续: H009 实施 getTestCaseAll 真实化(替换 mock)
+
+### R001 — 粒度调研结论(基于 0531 HAR)
+- 证据: `rewrite/docs/10.15.5.53.har` 53 条甲方前端真实流量,反推甲方 caseMenu/caseTemplate/caseTemplateParam/caseSet/task/taskFlowchart/taskMonitor/taskResult 全套数据模型
+- 结论: 四层概念厘清 + 映射方案 + 4 个凑合方案可行性,详见 R001 正文与证据索引表
+- 驱动决策: D001

@@ -17,8 +17,8 @@ sessions:
     title: 甲方对接闭环分析
     status: active
     created: 2026-05-18
-    last_updated: 2026-06-10
-    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项。S005 完成 connectivity 实施（74 tests，checklist 全 pass）。
+    last_updated: 2026-06-17
+    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项。H008+R001 完成:基于 0531 HAR 厘清甲方四层概念(caseMenu/caseTemplate/caseSet/task),确认 caseTemplate↔TaskTemplate 映射(D001)。
 
   - slug: 2026-05-19-integration-testing
     title: 集成测试体系建立

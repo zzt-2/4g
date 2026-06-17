@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-12 S006 v2 审查反馈修复完成
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-17 H001 stash 收口 handoff
 
 ## 进展线索
 
@@ -20,10 +20,11 @@
 
 ## 未决项
 
-- **等待用户二次审查**：S006 全部修复完成，验证证据齐（lint/tsc/test），等用户审查确认
-- **预存问题不在本轮范围**：tsc 残留（exactOptionalPropertyTypes + readonly Ref）/vite vue plugin/.vue import/connection-core test fail/quasar rollup build
-- **运行时手工验证**：图表冷启动占位、migration 加载旧 persistence、字段名显示
+- **🔴 主干测试坏掉(紧急)**:S007 完整修复在 `stash@{0}` 没提交,主干卡在 S006+半截S007 混合态,`use-display-refresh.spec.ts` 4/4 fail(`state.getTable1Rows is not a function`)。转 H001 收口。
+- **等待用户二次审查**:S006 全部修复完成,验证证据齐(lint/tsc/test),等用户审查确认(S007 收口后审查)
+- **预存问题不在本轮范围**:tsc 残留(exactOptionalPropertyTypes + readonly Ref)/vite vue plugin/.vue import/connection-core test fail/quasar rollup build
+- **运行时手工验证**:图表冷启动占位、migration 加载旧 persistence、字段名显示、图表不出数据上游根因(receive 是否有 matched 数据)—— H001 收口后下一步
 
 ## 当前位置
 
-S006 v2 审查反馈全部修复完成（4 blocker + 4 major + 2 minor），lint display 0 error / display test 66 pass（含 8 验收场景）/ v2 引入 tsc error 全清。不提交，等用户二次审查。
+主干 display 测试坏掉(4/4 fail),根因是 S007 半截状态(API 不一致)。修复已躺在 stash@{0}(混合 stash,需甄别只取 display 部分)。转 **H001-display-stash-reconciliation-handoff.md** 收口:取 stash display 改动 → 对齐 API → 测试转绿 → 提交。收口后再做运行时手工验证。
