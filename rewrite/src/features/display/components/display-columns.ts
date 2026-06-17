@@ -84,6 +84,10 @@ export const panelTableColumns: QTableColumn[] = [
     label: '字段',
     field: 'fieldName',
     align: 'left',
+    // TableRowProjection.fieldName is optional at the type level (projection does not populate it).
+    // Composable + placeholder paths both resolve fieldName via frameReader, but format guards
+    // against future regressions where a row might slip through without enrichment.
+    format: (val: unknown) => (typeof val === 'string' && val.length > 0 ? val : '[Unknown Field]'),
     style: 'min-width: 80px',
   },
   {

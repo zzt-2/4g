@@ -98,9 +98,11 @@ function buildSeriesWithPoints(
     const cached = fieldNameCache.get(cacheKey);
     if (cached !== undefined) return cached;
     const refs = frameReader.listFieldReferences({ frameId });
-    let resolved = fieldId;
-    for (const r of refs) {
-      if (r.fieldId === fieldId) resolved = r.fieldName;
+    const match = refs.find((r) => r.fieldId === fieldId);
+    const resolved = match ? match.fieldName : '[Unknown Field]';
+    if (!match) {
+      // Align with display composable (R19/V5): never leak raw fieldId/UUID to the UI.
+      console.warn('[history] chart series fieldName resolved to placeholder: field not found in frameReader', { frameId, fieldId });
     }
     fieldNameCache.set(cacheKey, resolved);
     return resolved;

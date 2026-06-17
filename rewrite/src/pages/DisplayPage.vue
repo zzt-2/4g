@@ -60,10 +60,10 @@ const groups = computed((): GroupOption[] => {
   const configured = configuredGroups.value;
   const configuredIds = new Set(configured.map((g) => g.id));
   const emergent = new Set<string>();
-  for (const r of displayRefresh.table1Rows.value) {
+  for (const r of displayRefresh.getTable1Rows()) {
     if (r.groupId && !configuredIds.has(r.groupId)) emergent.add(r.groupId);
   }
-  for (const r of displayRefresh.table2Rows.value) {
+  for (const r of displayRefresh.getTable2Rows()) {
     if (r.groupId && !configuredIds.has(r.groupId)) emergent.add(r.groupId);
   }
   const options: GroupOption[] = configured.map((g) => ({ value: g.id, label: g.label }));
@@ -90,27 +90,8 @@ const fieldMeta = computed(() => {
   return map;
 });
 
-// R19: fieldName lookup from frameReader (static metadata).
-// TableRowProjection.fieldName is intentionally not projected from material (see projection.toRow);
-// UI consumption of fieldName MUST go through this lookup, never material.fieldName.
-const fieldNameLookup = computed(() => {
-  const map = new Map<string, string>();
-  for (const frame of receiveFrames.value) {
-    const refs = frameReader.listFieldReferences({ frameId: frame.id });
-    for (const r of refs) {
-      map.set(`${r.frameId}:${r.fieldId}`, r.fieldName);
-    }
-  }
-  return map;
-});
-
-function enrichRows(rows: readonly TableRowProjection[]): TableRowProjection[] {
-  const lookup = fieldNameLookup.value;
-  return rows.map((r) => ({
-    ...r,
-    fieldName: lookup.get(r.dataItemId) ?? '[Unknown Field]',
-  }));
-}
+// R19: fieldName enrichment lives inside displayRefresh.getTable{1,2}Rows() (design 5.5).
+// Page MUST NOT enrich fieldName from frameReader directly — single source of truth in composable.
 
 const availableFields = computed(() => {
   const map = new Map<string, { fieldId: string; binding: ScatterSourceBinding; fieldName: string; frameName: string; frameId: string }>();
@@ -242,27 +223,19 @@ function buildPlaceholderRows(selectedGroupId: string): TableRowProjection[] {
 }
 
 const panel1Rows = computed(() => {
-  const live = displayRefresh.table1Rows.value;
+  const live = displayRefresh.getTable1Rows();
   const placeholders = buildPlaceholderRows(prefs.value.table1.selectedGroupId);
-  const merged = placeholders.length === 0
-    ? live
-    : (() => {
-        const liveIds = new Set(live.map((r) => r.dataItemId));
-        return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
-      })();
-  return enrichRows(merged);
+  if (placeholders.length === 0) return live;
+  const liveIds = new Set(live.map((r) => r.dataItemId));
+  return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
 });
 
 const panel2Rows = computed(() => {
-  const live = displayRefresh.table2Rows.value;
+  const live = displayRefresh.getTable2Rows();
   const placeholders = buildPlaceholderRows(prefs.value.table2.selectedGroupId);
-  const merged = placeholders.length === 0
-    ? live
-    : (() => {
-        const liveIds = new Set(live.map((r) => r.dataItemId));
-        return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
-      })();
-  return enrichRows(merged);
+  if (placeholders.length === 0) return live;
+  const liveIds = new Set(live.map((r) => r.dataItemId));
+  return [...live, ...placeholders.filter((p) => !liveIds.has(p.dataItemId))];
 });
 
 // ===== Constellation mutual exclusion (D5) =====
@@ -419,7 +392,7 @@ function startRecording(): void {
   recordCount.value = 0;
   recordStartTime.value = Date.now();
   recordInterval = setInterval(() => {
-    const rows = displayRefresh.table1Rows.value;
+    const rows = displayRefresh.getTable1Rows();
     if (rows.length === 0) return;
     const record: StorageLocalRecord = {
       id: crypto.randomUUID(),

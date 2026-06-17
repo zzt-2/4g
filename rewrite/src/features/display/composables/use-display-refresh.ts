@@ -13,17 +13,24 @@ import type {
 import type { DisplayService } from '../services/display-service';
 
 export interface DisplayRefreshState {
-  readonly table1Rows: Readonly<Ref<TableRowProjection[]>>;
-  readonly table2Rows: Readonly<Ref<TableRowProjection[]>>;
   readonly chartInstances: Readonly<Ref<ChartInstanceProjection[]>>;
   readonly chartSeries: Readonly<Ref<ChartSeriesProjection[]>>;
   readonly scatter: Readonly<Ref<ScatterProjection>>;
   readonly availability: Readonly<Ref<DisplaySourceAvailability>>;
   readonly preferences: Readonly<Ref<DisplayPreferences>>;
+  getTable1Rows(): readonly TableRowProjection[];
+  getTable2Rows(): readonly TableRowProjection[];
 }
 
 function chartItemKey(groupId: string, frameId: string, fieldId: string): string {
   return `${groupId}:${frameId}:${fieldId}`;
+}
+
+// Split `${frameId}:${fieldId}` dataItemId into parts. Returns empty frameId if format unexpected.
+function splitDataItemId(dataItemId: string): { frameId: string; fieldId: string } {
+  const sep = dataItemId.indexOf(':');
+  if (sep <= 0) return { frameId: '', fieldId: dataItemId };
+  return { frameId: dataItemId.slice(0, sep), fieldId: dataItemId.slice(sep + 1) };
 }
 
 export function useDisplayRefresh(
@@ -31,8 +38,10 @@ export function useDisplayRefresh(
   frameReader: ChartSelectionFrameLookup,
   cadenceMs = 200,
 ): DisplayRefreshState & { start: () => void; stop: () => void } {
-  const table1Rows = shallowRef<TableRowProjection[]>([]);
-  const table2Rows = shallowRef<TableRowProjection[]>([]);
+  // table1/table2 rows stored enriched (fieldName resolved from frameReader at refresh time).
+  // Exposed only via getTable1Rows()/getTable2Rows() which return fresh deep copies (Selector immutability).
+  const table1Rows = shallowRef<readonly TableRowProjection[]>([]);
+  const table2Rows = shallowRef<readonly TableRowProjection[]>([]);
   const chartInstances = shallowRef<ChartInstanceProjection[]>([]);
   const chartSeries = shallowRef<ChartSeriesProjection[]>([]);
   const scatter = shallowRef<ScatterProjection>({ points: [], sampleCount: 0 });
@@ -47,9 +56,41 @@ export function useDisplayRefresh(
   let lastTime = 0;
   let disposed = false;
 
+  // Resolve fieldName for a single row via frameReader (R19: static metadata from config layer).
+  // Falls back to '[Unknown Field]' when frame/field is not found, never returns raw fieldId (V5).
+  function resolveFieldName(
+    frameId: string,
+    fieldId: string,
+    cache: Map<string, string>,
+  ): string {
+    if (!frameId) return '[Unknown Field]';
+    const cacheKey = `${frameId}:${fieldId}`;
+    const cached = cache.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const refs = frameReader.listFieldReferences({ frameId });
+    const match = refs.find((r) => r.fieldId === fieldId);
+    const resolved = match ? match.fieldName : '[Unknown Field]';
+    if (!match) {
+      console.warn('[display] table row fieldName resolved to placeholder: field not found in frameReader', { frameId, fieldId });
+    }
+    cache.set(cacheKey, resolved);
+    return resolved;
+  }
+
+  // Enrich table rows with fieldName resolved from frameReader.
+  // Returns a fresh array (callers can safely mutate; internal ref is unaffected).
+  function enrichTableRows(rows: readonly TableRowProjection[]): TableRowProjection[] {
+    const cache = new Map<string, string>();
+    return rows.map((r) => {
+      const { frameId, fieldId } = splitDataItemId(r.dataItemId);
+      const fieldName = resolveFieldName(frameId, fieldId, cache);
+      return { ...r, fieldName };
+    });
+  }
+
   function refresh(): void {
-    table1Rows.value = service.getTable1Rows();
-    table2Rows.value = service.getTable2Rows();
+    table1Rows.value = enrichTableRows(service.getTable1Rows());
+    table2Rows.value = enrichTableRows(service.getTable2Rows());
     scatter.value = service.getScatterProjection();
     availability.value = service.getAvailability();
     preferences.value = service.getPreferences();
@@ -80,20 +121,9 @@ export function useDisplayRefresh(
     }
 
     // fieldName cache per refresh; sourced from frameReader (static metadata, R19)
-    // If frameReader doesn't have the field, return placeholder '[Unknown Field]' (V5/R19: never show raw fieldId/UUID).
     const fieldNameCache = new Map<string, string>();
     function getFieldName(frameId: string, fieldId: string): string {
-      const cacheKey = `${frameId}:${fieldId}`;
-      const cached = fieldNameCache.get(cacheKey);
-      if (cached !== undefined) return cached;
-      const refs = frameReader.listFieldReferences({ frameId });
-      const match = refs.find((r) => r.fieldId === fieldId);
-      const resolved = match ? match.fieldName : '[Unknown Field]';
-      if (!match) {
-        console.warn('[display] chart selected item resolved to placeholder: field not found in frameReader', { frameId, fieldId });
-      }
-      fieldNameCache.set(cacheKey, resolved);
-      return resolved;
+      return resolveFieldName(frameId, fieldId, fieldNameCache);
     }
 
     // Collect global maxPoints across charts (shared buffer constraint)
@@ -163,13 +193,13 @@ export function useDisplayRefresh(
   });
 
   return {
-    table1Rows: readonly(table1Rows),
-    table2Rows: readonly(table2Rows),
     chartInstances: readonly(chartInstances),
     chartSeries: readonly(chartSeries),
     scatter: readonly(scatter),
     availability: readonly(availability),
     preferences: readonly(preferences),
+    getTable1Rows: () => table1Rows.value.map((r) => ({ ...r })),
+    getTable2Rows: () => table2Rows.value.map((r) => ({ ...r })),
     start,
     stop,
   };

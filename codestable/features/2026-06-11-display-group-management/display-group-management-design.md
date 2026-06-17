@@ -418,9 +418,17 @@ function chartItemKey(item: ChartSelectedItem): string {
 - **groups 配置变更**（用户增删分组或改帧分配）：清空整个 chartBuffer（key 可能失效）
 - **frameReader 刷新**（帧定义热更新）：清空整个 chartBuffer（fieldName/frameName 可能变更）
 
-#### DisplayPage chart1/chart2 computed 重写
+#### DisplayPage chart1/chart2 + panel1Rows/panel2Rows computed 重写
 
-不再需要 enrich（方案 A），因为 composable 已用 frameReader 静态解析。chart preference selectedItems 直接传结构化对象给 DisplayPanel。
+**chart 侧**：不再需要 enrich（方案 A），因为 composable 已用 frameReader 静态解析。chart preference selectedItems 直接传结构化对象给 DisplayPanel。
+
+**table 侧**：同样通过 composable，**不在 page 层 enrich**。composable 新增 `getTable1Rows()` / `getTable2Rows()` 方法（返回 `readonly TableRowProjection[]` + 深拷贝），内部用 frameReader 静态 lookup fieldName 填充。DisplayPage 的 `panel1Rows` / `panel2Rows` computed 直接消费 composable 输出，叠加 placeholder 后传出。
+
+**禁止 page 层 enrich**：禁止在 DisplayPage 内构造 `fieldNameLookup` computed 或 `enrichRows` 函数从 frameReader 解析 fieldName。理由：
+- R19 要求静态元数据从 frameReader lookup，但 lookup **位置归 composable**，不归 page
+- page 层 enrich 引入响应式依赖问题（fieldNameLookup 依赖 receiveFrames，frameReader 刷新时不重建）
+- chart 已在 composable 处理，table 走同一通道保持一致，避免两套 enrich 逻辑
+- 数据流清晰：bridge → service buffer → projection（不含 fieldName）→ composable（enrich）→ UI，单向不覆盖
 
 ### 5.6 验收契约新增场景
 
@@ -443,14 +451,14 @@ function chartItemKey(item: ChartSelectedItem): string {
 |---------|------|--------|
 | `display/core/types.ts` | 新增 ChartSelectedItem + 改 selectedItems 类型 + schemaVersion=2 | blocker |
 | `display/core/normalize.ts` | selectedItems normalize 改用结构化对象 + 帧定义/分组 validate 函数 | blocker |
-| `display/composables/use-display-refresh.ts` | 签名注入 frameReader + refreshCharts 重写 + buffer 清空时机 | blocker |
+| `display/composables/use-display-refresh.ts` | 签名注入 frameReader + refreshCharts 重写 + buffer 清空时机 + **新增 getTable1Rows()/getTable2Rows() 方法（内部 frameReader lookup fieldName，返回 readonly 深拷贝）** | blocker |
 | `runtime/bridges/receive-display-bridge.ts` | 不再透传 fieldName 依赖（保留 material.fieldName 作为运行时冗余，UI 不信任） | major |
-| `display/core/projection.ts` | toRow 不信任 material.fieldName，加注释 | major |
+| `display/core/projection.ts` | toRow 不信任 material.fieldName（fieldName optional），加注释 | major |
 | `display/services/display-service.ts` | getSourceFields 语义说明（运行时冗余）+ 返回 readonly 深拷贝 | major |
 | `display/components/ChartConfigDialog.vue` | 字段勾选构造 ChartSelectedItem | blocker |
-| `display/components/DisplayPanel.vue` | 图表区空状态占位 | blocker |
+| `display/components/DisplayPanel.vue` | 图表区空状态占位 + **fieldName optional 处理（空状态 slot 不依赖 fieldName）** | blocker |
 | `widgets/WaveformChart.vue` | series 空状态占位 | blocker |
-| `pages/DisplayPage.vue` | chart1/chart2 computed 重写，selectedItems 直接传 + 注入 frameReader 给 composable | blocker |
+| `pages/DisplayPage.vue` | chart1/chart2 + panel1Rows/panel2Rows computed 重写，直接消费 composable 输出；**删除 fieldNameLookup + enrichRows**（page 层不做 enrich）；注入 frameReader 给 composable | blocker |
 | `runtime/persistence.ts` | migration 函数（schemaVersion 1→2） | blocker |
 | `pages/history/useHistoryData.ts` | history 自行修复字符串分割（不提取 shared） | minor |
 | `pages/history/CSVExportDialog.vue` | history 自行修复字符串分割（不提取 shared） | minor |

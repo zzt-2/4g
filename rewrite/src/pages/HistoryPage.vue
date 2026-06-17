@@ -142,7 +142,11 @@ onMounted(() => {
                 <q-btn flat dense no-caps size="xs" label="配置" color="primary" @click="configChartId = chart.id" />
               </div>
               <div class="p-2">
-                <WaveformChart :series="chart.series" :height="chartHeight()" />
+                <WaveformChart
+                  :series="chart.series"
+                  :height="chartHeight()"
+                  :empty-variant="chart.series.length > 0 ? 'no-data' : 'no-selection'"
+                />
               </div>
               <!-- Statistics overlay -->
               <div v-if="chart.series.length > 0" class="px-4 pb-2">
