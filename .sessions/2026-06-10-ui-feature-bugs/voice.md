@@ -39,3 +39,7 @@
 ### H008 实施对话:accumulation 路径拍板
 
 - [选 AskUserQuestion 推荐项]"复用帧侧 self-ref + task 补 writeback (推荐)" → D002（accumulation 不在 task 层重造递推,复用帧侧 isSelfReferencing + Phase2/4,task 只补 writeback;偏离 H008 v2 原设计但语义一致工程更优）
+
+### accumulation 进一步简化:从 resolver 改为自动 writeback
+
+- "不过我想问一下，为啥字段可变参数 / 累积会需要填呢？按理说步进这种，表达式自己的递增，不需要任务里填啊？" → D002 续接（核查确认用户直觉正确,accumulation 从"用户填的 resolver"彻底改为"task 自动 writeback",删 FieldValueResolver union,fieldResolvers → fieldVariations 只剩离散值列表;用户零配置）

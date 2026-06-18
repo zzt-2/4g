@@ -3,6 +3,7 @@
 > 2026-06-18 | 实施阶段 | 状态: 实施完成,待独立审查
 > 来源: 执行 H008 v2 交接文档(字段级可变参数 + 表达式连续累积,合一实施)
 > 2026-06-18 续接: 独立审查 pass-with-known-gaps,补清 console.info + accumulation 端到端集成测试
+> 2026-06-18 再续接: 简化 —— accumulation 从 resolver 改为自动 writeback(fieldResolvers → fieldVariations,只剩离散值列表)
 
 ## 目标
 
@@ -102,3 +103,21 @@
 - task + command-ingress + send **546 tests 全过**(含新增 2 个 e2e,send 原 158 个未受影响)。
 - lint **0 新增 error**(本任务文件,3 个预先 error 仍在 display/storage-highspeed)。
 - console.info 清理未破坏任何测试。
+
+## 再续接(2026-06-18):accumulation 从 resolver 简化为自动 writeback
+
+主对话讨论时用户指出"步进这种表达式自己递增,不需要任务里填"。核查帧侧 frame-resolver.ts 确认用户的直觉完全正确:isSelfReferencing 识别 + Phase2 用 defaultValue 种子 + Phase4 evaluate 全部帧侧自给自足,task 唯一要做的是 writeback。之前把 accumulation 做成"用户填的 resolver"(fieldId + initial)是过度设计。
+
+**做了减法改造**(详见 D002 续接段):
+- 删 FieldValueResolver union 的 accumulation 分支;`fieldResolvers` 改名 **`fieldVariations`**,只剩离散值列表 `{ fieldId, values }`(用户真要填的)。
+- writeback 改自动:executeRepeatableSend / executeStepCore 内,发送成功后无条件把整个 `resolvedFieldValues` 写回 stepContext.lastValues。下次 buildSendRequest 合进 userFieldValues 当帧侧 seed。非自引用字段回写也无害(被覆盖)。
+- initial 不再由 task 填,帧侧 defaultValue 是种子。
+- UI 删 accumulation 面板/类型切换,只留 variation 面板。task-labels 删 FIELD_RESOLVER_KIND_*。
+- 单发 send step(无 repeat)也走 writeback:executeStepCore 加 stepExecCtx 参数,所有 send step 都有 stepContext(跨 iteration 自动累积)。
+
+影响:只要帧有自引用表达式 + step 重复发送,就自动连续累积,**用户零配置**。彻底落实"公式归帧、task 只搬运"。
+
+### 再续接验证
+
+- task+command-ingress+send **543 tests 全过**(accumulation 用例改为"自动行为"验证:不声明 resolver,mock send 返回 resolvedFieldValues 验证 writeback;e2e 用真实 frame-resolver 验证 `speed = speed + step` 闭环)。
+- lint **0 新增 error**。

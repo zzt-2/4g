@@ -313,7 +313,7 @@ describe('[dongfanghong-tasks] defaultTargetId fallback', () => {
       | Extract<TaskStepDefinition, { kind: 'send' }>;
     expect(sendStep, 'laserInitTask 应至少有一个 send step').toBeDefined();
     if (!sendStep) return;
-    const req = buildSendRequest(sendStep, task, 0, 0);
+    const req = buildSendRequest(sendStep, task, 0, 0, 1, new Map());
     expect(req.targetId).toBe('dongfanghong-device-1');
   });
 

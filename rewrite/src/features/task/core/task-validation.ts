@@ -74,35 +74,33 @@ function validateSendStepConfig(stepId: string, config: SendStepConfig): TaskVal
   if (!config.frameId) {
     issues.push({ severity: 'error', code: 'task.step.send.missingFrameId', message: `Send step "${stepId}" must have a frameId.`, stepId });
   }
-  // fieldResolvers:同一 fieldId 不能重复(避免同一字段既 variation 又 accumulation 或重复定义)
-  if (config.fieldResolvers && config.fieldResolvers.length > 0) {
+  // fieldVariations:同一 fieldId 不能重复
+  if (config.fieldVariations && config.fieldVariations.length > 0) {
     const seen = new Set<string>();
-    for (const r of config.fieldResolvers) {
-      if (!r.fieldId) {
-        issues.push({ severity: 'error', code: 'task.step.send.resolverMissingFieldId', message: `Send step "${stepId}" has a fieldResolver without fieldId.`, stepId });
+    for (const v of config.fieldVariations) {
+      if (!v.fieldId) {
+        issues.push({ severity: 'error', code: 'task.step.send.variationMissingFieldId', message: `Send step "${stepId}" has a fieldVariation without fieldId.`, stepId });
         continue;
       }
-      if (seen.has(r.fieldId)) {
+      if (seen.has(v.fieldId)) {
         issues.push({
           severity: 'error',
-          code: 'task.step.send.duplicateResolverFieldId',
-          message: `Send step "${stepId}" has duplicate fieldResolver for field "${r.fieldId}". A field can only have one resolver (variation or accumulation).`,
+          code: 'task.step.send.duplicateVariationFieldId',
+          message: `Send step "${stepId}" has duplicate fieldVariation for field "${v.fieldId}".`,
           stepId,
         });
       } else {
-        seen.add(r.fieldId);
+        seen.add(v.fieldId);
       }
-      if (r.kind === 'variation' && r.values.length === 0) {
+      if (v.values.length === 0) {
         issues.push({
           severity: 'warning',
           code: 'task.step.send.emptyVariationValues',
-          message: `Send step "${stepId}" variation resolver for field "${r.fieldId}" has empty values list.`,
+          message: `Send step "${stepId}" fieldVariation for field "${v.fieldId}" has empty values list.`,
           stepId,
         });
       }
     }
-    // accumulation 字段需要帧侧有对应的 self-referencing expressionConfig,
-    // 但 task 层无法校验帧定义(帧归 frame feature),故只在此提示,运行时帧侧自然处理。
   }
   return issues;
 }

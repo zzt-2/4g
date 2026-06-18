@@ -13,7 +13,7 @@
 - **H006** Display 页面表格改进 (06-11)：用户反馈接收显示页表格不好用。7 项改进已实现 — 删帧列、删更新时间列、加原始Hex列（float/double→'-'）、加字段排序按钮（可切换）、加值 tooltip、加点击复制、加列可见性切换。含自检修复（双触发 bug、clipboard 错误处理、dataType 过滤提到 bridge 层、SCSS token 化）
 - **S002** task 参数变化机制拍板 (06-17)：纠正 H007 误判（线 A 速度模拟早于 4375857 修复，非当前活）；扫归档 53 会话确认 S010 三问题从未拍板；用户拍板"两个都要"。**v2 转折**：主对话讨论问题一时发现两机制共用 step 内执行骨架，改"分开决策、合一实施"。详见 D001 + S002 + voice.md
 - **H008** task step 级参数变化机制 (06-17 交接, 06-18 实施完成)：**两个问题合一实施**(共用 FieldValueResolver 骨架)。问题一表达式连续累积(单 step 边界 / repeat×iteration 全局递增 / 公式归帧 / step 级临时上下文 / **accumulation 复用帧侧 self-ref + task 补 writeback**) + 问题二字段级可变参数(响应式联动一次性触发 / clamp) + 顺手修两 bug(progress 爆表 / maxIterations 覆盖)。v1（分开做）已废弃。**实施形状见 D002**。
-- **S003** H008 实施对话 (06-18)：落地 6 个设计待决点 + accumulation 复用帧侧 self-ref + task 补 writeback。task+command-ingress 386 tests 全过。**续接**:独立审查 pass-with-known-gaps(无 revise-required),补清 4 处 [task-debug] console.info + 新增 accumulation 端到端集成测试(真实 frame-resolver 递推 + writeback 闭环,2 tests 全过)。task+command-ingress+send 546 tests 全过,lint 0 新增 error。详见 D002 + S003 + voice.md 2026-06-18
+- **S003** H008 实施对话 (06-18)：落地 6 个设计待决点 + accumulation 复用帧侧 self-ref + task 补 writeback。**续接1**:独立审查 pass-with-known-gaps,补清 console.info + accumulation 端到端集成测试。**续接2(简化)**:用户指出"步进表达式自己递增不需要填",accumulation 从"用户填的 resolver"彻底改为"task 自动 writeback"——删 FieldValueResolver union,fieldResolvers → fieldVariations(只剩离散值列表),writeback 无条件写所有 resolvedFieldValues。用户零配置。task+command-ingress+send 543 tests 全过,lint 0 新增。详见 D002 + S003 + voice.md 2026-06-18
 
 ## 已确认结论
 

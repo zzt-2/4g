@@ -40,16 +40,16 @@ export type ScheduleDriver =
   | { readonly kind: 'timer'; readonly intervalMs: number }
   | { readonly kind: 'event'; readonly conditions: readonly ConditionTerm[]; readonly cooldownMs?: number };
 
-// --- FieldValueResolver (step 级字段取值策略) ---
-// 两机制独立 step 级二选一(同一字段不能同时是两种),底层共用 step 内 counter 骨架。
-// - variation:手填值列表,按 step 内 counter 索引取,clamp 到最后一个值。
-// - accumulation:公式归帧管(写帧 expressionConfig),task 只声明 initial;
-//   递推由 send 链路 frame-resolver 的 isSelfReferencing + Phase2/4 完成,
-//   task 层只负责把上次 resolvedFieldValues 回写 stepContext.lastValues 喂下次。
+// --- FieldVariation (step 级离散值列表) ---
+// 按步骤内 counter 索引取值(step 内 repeat×iteration 全局递增),取完 clamp 到最后一个。
+// 连续累积(accumulation)不是用户声明的 resolver——只要帧有自引用表达式 expressionConfig,
+// task 链路发送后自动把 resolvedFieldValues writeback 回 step 级 lastValues,下次喂回帧侧 seed,
+// 帧侧 isSelfReferencing + Phase2/4 完成递推。用户零配置。
 
-export type FieldValueResolver =
-  | { readonly kind: 'variation'; readonly fieldId: string; readonly values: readonly (string | number)[] }
-  | { readonly kind: 'accumulation'; readonly fieldId: string; readonly initial: number | string };
+export interface FieldVariation {
+  readonly fieldId: string;
+  readonly values: readonly (string | number)[];
+}
 
 // --- StepRepeat ---
 
@@ -68,7 +68,7 @@ export interface SendStepConfig {
   readonly variables?: VariableMap;
   readonly intervalAfterMs?: number;
   readonly repeat?: StepRepeat;
-  readonly fieldResolvers?: readonly FieldValueResolver[]; // step 级字段取值(variation/accumulation)
+  readonly fieldVariations?: readonly FieldVariation[]; // step 级离散值列表
 }
 
 export interface WaitConditionConfig {

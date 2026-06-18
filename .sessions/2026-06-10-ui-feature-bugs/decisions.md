@@ -98,6 +98,21 @@ task 层只做一件事:**executeSendStep 成功后把 `sendResult.resolvedField
 - accumulation resolver 退化成"声明 + initial + 回写开关",不存 formula,无 lastValues 求值逻辑。task 层零表达式求值代码,不违反 D6。
 - 语义完全一致:单 step 边界 / repeat×iteration 全局递增 / 公式归帧。
 
+### 续接(2026-06-18):进一步简化 —— accumulation 从 resolver 改为自动 writeback
+
+主对话讨论时用户指出"步进这种表达式自己递增,不需要任务里填"。核查帧侧 frame-resolver.ts 确认:isSelfReferencing 识别 + Phase2 用 defaultValue 种子 + Phase4 evaluate 全部帧侧自给自足,task 唯一要做的是 writeback。
+
+**accumulation 从"用户声明的 resolver"彻底改为"task 自动行为"**:
+- 删 FieldValueResolver union 的 accumulation 分支;fieldResolvers 改名 **fieldVariations**,只剩离散值列表(用户真要填的)。类型从 union 退化回单一 interface `{ fieldId, values }`。
+- writeback 改自动:executeRepeatableSend / executeStepCore 内,发送成功后无条件把整个 `resolvedFieldValues` 写回 stepContext.lastValues(下次 buildSendRequest 合进 userFieldValues 当帧侧 seed)。非自引用字段回写也无害(被覆盖)。
+- initial 不再由 task 填,帧侧 defaultValue 是种子(Phase2 已这么做)。
+- UI 删 accumulation 面板/类型切换,只留 variation 面板。
+- 单发 send step(无 repeat)也走 writeback(跨 iteration 自动累积):executeStepCore 加 stepExecCtx 参数,所有 send step 都有 stepContext。
+
+这彻底落实"公式归帧、task 只搬运"的职责切分——task 层连 fieldId 声明都不需要了。只要帧有自引用表达式 + step 重复发送,就自动连续累积。用户零配置。
+
+验证:task+command-ingress+send **543 tests 全过**(accumulation 用例改为"自动行为"验证:不声明 resolver,mock send 返回 resolvedFieldValues 验证 writeback;e2e 用真实 frame-resolver 验证 `speed = speed + step` 闭环)。lint 0 新增 error。
+
 ### 排除的替代方案
 
 - ❌ **task 层自建递推 + formula 复制(H008 v2 原设计)**:否决。重复帧侧机制 + 两份 formula 真理源。

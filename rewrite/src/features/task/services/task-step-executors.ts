@@ -25,14 +25,19 @@ export function buildSendRequest(
   lastValues: Map<string, string | number | boolean>,
 ): SendRequest {
   const resolvedTargetId = resolveSendTargetId(stepConfig.config, definition);
+  // baseValues = 用户原始值 ← writeback 回写的上次结果(累积自动行为:帧有自引用表达式时
+  // 上次 resolvedFieldValues 喂回这里当 seed,帧侧 Phase2 取用)。variation 取值会覆盖 baseValues。
+  const baseValues: Record<string, string | number | boolean> = { ...(stepConfig.config.userFieldValues ?? {}) };
+  for (const [k, v] of lastValues) {
+    baseValues[k] = v;
+  }
   return {
     frameId: stepConfig.config.frameId,
     targetId: resolvedTargetId ?? '',
     userFieldValues: resolveFieldValues(
-      stepConfig.config.userFieldValues,
-      stepConfig.config.fieldResolvers,  // step 级 resolver(取代任务级 fieldVariations)
+      baseValues,
+      stepConfig.config.fieldVariations,  // step 级离散值列表
       counter,
-      lastValues,
     ),
     variables: stepConfig.config.variables,
     context: { source: 'task', taskId: definition.id, stepIndex },

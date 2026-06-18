@@ -2,7 +2,7 @@ import type {
   TaskDefinition,
   TaskStepDefinition,
   ConditionTerm,
-  FieldValueResolver,
+  FieldVariation,
 } from '@/features/task';
 import type { ParsedCommand } from './protocol-adapter';
 import type {
@@ -128,9 +128,9 @@ export function buildReadFileAndSendTask(
   const waitConditions = buildWaitConditions(command, config.completionConditions);
   const steps: TaskStepDefinition[] = [];
 
-  // 文件行作为字段级 variation resolver 挂到 send step(取代任务级 fieldVariations)
-  const fieldResolvers: FieldValueResolver[] = fileFieldMapping
-    ? [{ kind: 'variation', fieldId: fileFieldMapping.fieldId, values: [...fileLines] }]
+  // 文件行作为字段级离散值列表挂到 send step
+  const fieldVariations: FieldVariation[] = fileFieldMapping
+    ? [{ fieldId: fileFieldMapping.fieldId, values: [...fileLines] }]
     : [];
 
   steps.push({
@@ -141,7 +141,7 @@ export function buildReadFileAndSendTask(
       targetId: mapping.targetId,
       userFieldValues: {},
       // 文件行作为离散值列表,按 step 内 counter 取值,clamp 到最后一个
-      ...(fieldResolvers.length > 0 ? { fieldResolvers } : {}),
+      ...(fieldVariations.length > 0 ? { fieldVariations } : {}),
     },
   });
 

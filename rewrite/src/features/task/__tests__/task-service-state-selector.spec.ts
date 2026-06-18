@@ -918,24 +918,24 @@ describe('TaskService - step repeat', () => {
 });
 
 // ========================================================================
-// step 级 fieldResolvers(variation / accumulation)
+// step 级 fieldVariations(离散值列表)+ accumulation 自动 writeback
 // ========================================================================
 
-describe('TaskService - step-level fieldResolvers', () => {
-  it('variation resolver: injects values by step-internal counter (cross-iteration persistent)', async () => {
-    // step 级 variation:counter 跨 iteration 持久,每次发送取下一个值。
-    // 这里用 timer schedule,maxIterations=3,repeat.maxCount=1(每 iteration 发 1 次),
+describe('TaskService - step-level fieldVariations + accumulation auto-writeback', () => {
+  it('fieldVariations: injects values by step-internal counter (cross-iteration persistent)', async () => {
+    // counter 跨 iteration 持久,每次发送取下一个值。
+    // timer schedule,maxIterations=3,repeat.maxCount=1(每 iteration 发 1 次),
     // counter 在 step 内累积:iter0 counter=1→CMD_A,iter1 counter=2→CMD_B,iter2 counter=3→CMD_C。
     const def: TaskDefinition = {
-      id: 'fr-timed',
-      name: 'FieldResolver Timed',
+      id: 'fv-timed',
+      name: 'FieldVariation Timed',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
           userFieldValues: { cmd: 'BASE' },
-          fieldResolvers: [{ kind: 'variation', fieldId: 'cmd', values: ['CMD_A', 'CMD_B', 'CMD_C'] }],
+          fieldVariations: [{ fieldId: 'cmd', values: ['CMD_A', 'CMD_B', 'CMD_C'] }],
           repeat: { intervalMs: 10, maxCount: 1 },
         },
       }],
@@ -956,18 +956,17 @@ describe('TaskService - step-level fieldResolvers', () => {
     expect(fakeSend.calls[2]!.request.userFieldValues).toEqual({ cmd: 'CMD_C' });
   });
 
-  it('variation resolver: clamps to last value when counter exceeds length', async () => {
+  it('fieldVariations: clamps to last value when counter exceeds length', async () => {
     // counter 超过 values.length 时保留最后一个值(不停止、不报错)。
-    // maxIterations=5 但 values 只有 2 个:前两次取 CMD_A/CMD_B,后三次 clamp 到 CMD_B。
     const def: TaskDefinition = {
-      id: 'fr-clamp',
-      name: 'FieldResolver Clamp',
+      id: 'fv-clamp',
+      name: 'FieldVariation Clamp',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
-          fieldResolvers: [{ kind: 'variation', fieldId: 'cmd', values: ['CMD_A', 'CMD_B'] }],
+          fieldVariations: [{ fieldId: 'cmd', values: ['CMD_A', 'CMD_B'] }],
           repeat: { intervalMs: 10, maxCount: 1 },
         },
       }],
@@ -988,17 +987,17 @@ describe('TaskService - step-level fieldResolvers', () => {
     expect(fakeSend.calls[4]!.request.userFieldValues).toEqual({ cmd: 'CMD_B' });
   });
 
-  it('variation resolver: preserves base values for non-varied fields', async () => {
+  it('fieldVariations: preserves base values for non-varied fields', async () => {
     const def: TaskDefinition = {
-      id: 'fr-preserve',
-      name: 'FieldResolver Preserve',
+      id: 'fv-preserve',
+      name: 'FieldVariation Preserve',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
           userFieldValues: { fixed: 99 },
-          fieldResolvers: [{ kind: 'variation', fieldId: 'varied', values: [10, 20] }],
+          fieldVariations: [{ fieldId: 'varied', values: [10, 20] }],
           repeat: { intervalMs: 10, maxCount: 1 },
         },
       }],
@@ -1015,18 +1014,18 @@ describe('TaskService - step-level fieldResolvers', () => {
     expect(fakeSend.calls[1]!.request.userFieldValues).toEqual({ fixed: 99, varied: 20 });
   });
 
-  it('stopCondition.maxIterations is respected (no auto-derive from resolvers)', async () => {
-    // 修复 maxIterations 静默覆盖 bug:fieldResolvers 不再自动推导 maxIterations,
+  it('stopCondition.maxIterations is respected (no auto-derive from variations)', async () => {
+    // 修复 maxIterations 静默覆盖 bug:fieldVariations 不自动推导 maxIterations,
     // 用户设的 stopCondition.maxIterations 被尊重。
     const def: TaskDefinition = {
-      id: 'fr-stop',
-      name: 'FieldResolver StopCondition',
+      id: 'fv-stop',
+      name: 'FieldVariation StopCondition',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
-          fieldResolvers: [{ kind: 'variation', fieldId: 'v', values: [1, 2, 3] }],
+          fieldVariations: [{ fieldId: 'v', values: [1, 2, 3] }],
           repeat: { intervalMs: 10, maxCount: 1 },
         },
       }],
@@ -1042,18 +1041,19 @@ describe('TaskService - step-level fieldResolvers', () => {
     expect(fakeSend.calls.length).toBe(2);
   });
 
-  it('accumulation resolver: writeback feeds next counter (cross-iteration persistent)', async () => {
-    // accumulation:首次用 initial,之后帧侧 resolvedFieldValues 回写 lastValues,下次取回。
-    // 这里 mock sendResult 带 resolvedFieldValues 模拟帧侧递推结果。
+  it('accumulation auto-writeback: 帧有自引用表达式时 task 自动累积(无需声明 resolver)', async () => {
+    // accumulation 不再是用户声明的 resolver——只要帧侧返回 resolvedFieldValues,
+    // task 自动 writeback 到 stepContext.lastValues,下次合进 userFieldValues 喂帧侧 seed。
+    // 这里 mock sendResult 带 resolvedFieldValues 模拟帧侧递推结果(真实递推见 e2e 测试)。
     const def: TaskDefinition = {
-      id: 'fr-acc',
-      name: 'FieldResolver Accumulation',
+      id: 'acc-auto',
+      name: 'Accumulation Auto',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
-          fieldResolvers: [{ kind: 'accumulation', fieldId: 'speed', initial: 0 }],
+          // 无 fieldResolvers/fieldVariations——accumulation 是 task 自动行为
           repeat: { intervalMs: 10, maxCount: 1 },
         },
       }],
@@ -1072,33 +1072,28 @@ describe('TaskService - step-level fieldResolvers', () => {
     await settle(service, instance.instanceId, 2000);
 
     expect(fakeSend.calls.length).toBe(3);
-    // iter0(counter=1):lastValues 空 → initial=0
-    expect(fakeSend.calls[0]!.request.userFieldValues).toEqual({ speed: 0 });
-    // iter1(counter=2):lastValues 有 writeback 的 speed=1 → 取 1
+    // iter0(counter=1):lastValues 空 → userFieldValues 空(帧侧 Phase2 用 defaultValue 种子)
+    expect(fakeSend.calls[0]!.request.userFieldValues).toEqual({});
+    // iter1(counter=2):writeback 把 speed=1 合进 baseValues → 帧侧 seed=1
     expect(fakeSend.calls[1]!.request.userFieldValues).toEqual({ speed: 1 });
-    // iter2(counter=3):lastValues 有 writeback 的 speed=2 → 取 2
+    // iter2(counter=3):writeback 把 speed=2 合进 → 帧侧 seed=2
     expect(fakeSend.calls[2]!.request.userFieldValues).toEqual({ speed: 2 });
   });
 
   // ===== 用户拍板的核心验收场景 =====
 
-  it('USER CASE: variation 4 scenarios (fill 15 / maxCount=5+iter=3 / maxCount=5+iter=1 / maxCount=20>15)', async () => {
-    // 用户原话数值驱动举例(场景浓缩为一个测试,验证 counter 跨 iteration 全局递增 + clamp):
-    //   - 填 15 个值 + maxCount=15 + iter=1 → 发前 15 个(1-15)
-    //   - maxCount=5 + iter=3 → 3 轮×5 次=15 次,counter 1-15 全局递增,刚好发完
-    //   - maxCount=5 + iter=1 → 只发前 5 个
-    //   - maxCount=20(>15) + iter=1 → 发 15 次后剩 5 次重复用第 15 个值(clamp)
-    // 这里测第二个场景(maxCount=5 + iter=3),它最全面:验证 counter 跨 iteration 全局递增。
+  it('USER CASE: variation counter 跨 iteration 全局递增 (maxCount=5+iter=3=15次)', async () => {
+    // 用户原话数值驱动举例:maxCount=5 + iter=3 → 3 轮×5 次=15 次,counter 1-15 全局递增,刚好发完
     const fifteen = Array.from({ length: 15 }, (_, i) => i + 1);
     const def: TaskDefinition = {
-      id: 'fr-user-15',
+      id: 'fv-user-15',
       name: 'User 15 values',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
-          fieldResolvers: [{ kind: 'variation', fieldId: 'v', values: fifteen }],
+          fieldVariations: [{ fieldId: 'v', values: fifteen }],
           repeat: { intervalMs: 10, maxCount: 5 },  // 每 iteration 发 5 次
         },
       }],
@@ -1118,19 +1113,18 @@ describe('TaskService - step-level fieldResolvers', () => {
     }
   });
 
-  it('USER CASE: variation clamp when maxCount*iter > values length', async () => {
+  it('USER CASE: variation clamp when maxCount > values length (maxCount=20>15)', async () => {
     // 用户场景:重复改 20(>15)→ 发完 15 次后,剩 5 次重复用第 15 个值(clamp)
-    // 这里用 maxCount=20 + iter=1 → 20 次发送,前 15 取 values[0..14],后 5 clamp 到 values[14]=15
     const fifteen = Array.from({ length: 15 }, (_, i) => i + 1);
     const def: TaskDefinition = {
-      id: 'fr-user-clamp20',
+      id: 'fv-user-clamp20',
       name: 'User maxCount=20 > 15',
       schedule: { kind: 'timer', intervalMs: 10 },
       steps: [{
         id: 's1', kind: 'send',
         config: {
           frameId: 'f1', targetId: 't1',
-          fieldResolvers: [{ kind: 'variation', fieldId: 'v', values: fifteen }],
+          fieldVariations: [{ fieldId: 'v', values: fifteen }],
           repeat: { intervalMs: 10, maxCount: 20 },
         },
       }],
@@ -1144,7 +1138,6 @@ describe('TaskService - step-level fieldResolvers', () => {
     await settle(service, instance.instanceId, 2000);
 
     expect(fakeSend.calls.length).toBe(20);
-    // 前 15 次取 values[0..14] = 1..15
     for (let i = 0; i < 15; i++) {
       expect(fakeSend.calls[i]!.request.userFieldValues).toEqual({ v: i + 1 });
     }
@@ -1154,44 +1147,39 @@ describe('TaskService - step-level fieldResolvers', () => {
     }
   });
 
-  it('USER CASE: accumulation step-boundary reset (a-b-a task)', async () => {
-    // 用户原话核心场景:任务发 a-b-a,各重复5次,迭代2次,每次加1 →
-    //   第一个 a:迭代1 = 1-5,迭代2 = 6-10
-    //   第二个 a:迭代1 = 1-5,迭代2 = 6-10(重置!不接第一个 a 的 10)
-    // 验证:accumulation 的 lastValues 是 step 级临时,step 边界(step 切换)重置。
-    //
-    // 构造:steps = [a(accumulation), b(普通单发), a'(accumulation 同 fieldId)]
-    // a 和 a' 是不同 stepIndex,各自独立 stepContext → a' 的 accumulation 从 initial 重新开始。
-    // 用 timer schedule,1 个 iteration(简化),repeat.maxCount=5(repeat 5 次)。
-    // mock sendResult.resolvedFieldValues 模拟帧侧"每次加 1"递推。
+  it('USER CASE: accumulation step-boundary reset (a-b-a, 自动 writeback, 无需声明)', async () => {
+    // 用户原话核心场景:任务发 a-b-a,各重复5次,每次加1 →
+    //   第一个 a:counter 1-5 递推 0→1→2→3→4
+    //   第二个 a:counter 1-5 重新从 0 开始(重置!不接第一个 a 的 4)
+    // 验证:writeback 的 lastValues 是 step 级临时,step 边界(step 切换)重置。
+    // accumulation 自动行为——a1/a2 都不声明 resolver,只配 repeat。
     const makeAccStep = (id: string) => ({
       id, kind: 'send' as const,
       config: {
         frameId: 'f1', targetId: 't1',
-        fieldResolvers: [{ kind: 'accumulation' as const, fieldId: 'speed', initial: 0 }],
         repeat: { intervalMs: 10, maxCount: 5 },
       },
     });
     const def: TaskDefinition = {
-      id: 'fr-aba',
+      id: 'acc-aba',
       name: 'A-B-A accumulation reset',
       schedule: { kind: 'immediate' },
       steps: [
         makeAccStep('a1'),
-        { id: 'b', kind: 'send', config: { frameId: 'f1', targetId: 't1' } },
+        { id: 'b', kind: 'send' as const, config: { frameId: 'f1', targetId: 't1' } },
         makeAccStep('a2'),
       ],
       errorPolicy: { onFailure: 'stop' },
     };
-    // mock:模拟帧侧"每次加 1"递推。每个 accumulation step 独立递推(step 边界重置)。
-    // a1 发送 speed=0(initial) → 返回 1;发送 1 → 返回 2;...;发送 4 → 返回 5。
-    // b 单发(无 resolver,无 resolvedFieldValues)。
-    // a2(新 step,独立递推)发送 0 → 返回 1;发送 1 → 返回 2;...;发送 4 → 返回 5。
+    // mock:每个 accumulation step 独立递推(step 边界重置)。
+    // a1 发送空 → 返回 speed=1;发送 speed=1 → 返回 2;...;发送 4 → 返回 5。
+    // b 单发(无 resolvedFieldValues)。
+    // a2(新 step,独立递推)发送空 → 返回 1;...
     const accResult = (speed: number) => ({ ...makeSentResult(), resolvedFieldValues: { speed } });
     const accResults = [
       // a1 的 5 次:帧侧递推结果 1,2,3,4,5
       accResult(1), accResult(2), accResult(3), accResult(4), accResult(5),
-      // b 单发(无 resolver,返回普通结果即可)
+      // b 单发(无 resolvedFieldValues)
       makeSentResult(),
       // a2 的 5 次:独立递推结果 1,2,3,4,5(不接 a1 的 5)
       accResult(1), accResult(2), accResult(3), accResult(4), accResult(5),
@@ -1203,13 +1191,13 @@ describe('TaskService - step-level fieldResolvers', () => {
 
     // 发送顺序:a1×5, b×1, a2×5 = 11 次
     expect(fakeSend.calls.length).toBe(11);
-    // a1(counter 1-5):speed = 0(initial), 1, 2, 3, 4(writeback 喂回)
-    const a1Speeds = fakeSend.calls.slice(0, 5).map((c) => (c.request.userFieldValues as { speed: number }).speed);
-    expect(a1Speeds).toEqual([0, 1, 2, 3, 4]);
+    // a1(counter 1-5):首次空 seed → writeback 1/2/3/4 喂回
+    const a1Speeds = fakeSend.calls.slice(0, 5).map((c) => (c.request.userFieldValues as { speed?: number }).speed);
+    expect(a1Speeds).toEqual([undefined, 1, 2, 3, 4]);
     // b:单发,无 speed
-    // a2(counter 1-5,新 step 重新从 initial=0 开始):speed = 0, 1, 2, 3, 4
-    const a2Speeds = fakeSend.calls.slice(6, 11).map((c) => (c.request.userFieldValues as { speed: number }).speed);
-    expect(a2Speeds).toEqual([0, 1, 2, 3, 4]);
+    // a2(新 step,lastValues 空):首次空 seed → writeback 1/2/3/4 喂回
+    const a2Speeds = fakeSend.calls.slice(6, 11).map((c) => (c.request.userFieldValues as { speed?: number }).speed);
+    expect(a2Speeds).toEqual([undefined, 1, 2, 3, 4]);
   });
 });
 

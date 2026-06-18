@@ -130,10 +130,11 @@ async function settle(service: TaskService, instanceId: string, timeoutMs = 2000
 }
 
 describe('Task accumulation E2E (task + send frame-resolver)', () => {
-  it('accumulation field continuously accumulates across sends via real frame-resolver + writeback', async () => {
-    // step=1 固定(每次发送都是 1),speed 走 accumulation(initial=0)。
+  it('accumulation auto-writeback: 帧有自引用表达式时跨发送自动累积(无需声明 resolver)', async () => {
+    // accumulation 不再是用户声明的 resolver——帧有自引用表达式 + step 重复发送,
+    // task 自动 writeback resolvedFieldValues,下次喂回帧侧 seed,帧侧完成递推。
+    // step=1 固定(用户填),speed 首次由帧侧 defaultValue=0 种子,之后 writeback 喂回。
     // 帧 expressionConfig:speed = speed + step。
-    // 期望跨 3 次发送:speed 递推 0 → 1 → 2 → 3(writeback 闭环)
     const fields = createAccumulationFields();
     const sendService = createFrameResolverSendService({ 'acc-frame': fields });
 
@@ -145,9 +146,8 @@ describe('Task accumulation E2E (task + send frame-resolver)', () => {
         id: 's1', kind: 'send',
         config: {
           frameId: 'acc-frame', targetId: 't1',
-          // step 固定 1(每次发送都带),speed 由 accumulation resolver 注入(首次 initial=0)
+          // step 固定 1;speed 不声明——accumulation 是 task 自动行为
           userFieldValues: { step: 1 },
-          fieldResolvers: [{ kind: 'accumulation', fieldId: 'speed', initial: 0 }],
           repeat: { intervalMs: 10, maxCount: 1 },
         },
       }],
@@ -169,17 +169,18 @@ describe('Task accumulation E2E (task + send frame-resolver)', () => {
     expect(sendService.calls.length).toBe(3);
 
     // 验证每次发送的 userFieldValues.speed(即注入帧侧的 seed):
-    // iter0(counter=1):lastValues 空 → resolveFieldValues 注入 speed=initial=0;帧侧 0+1=1 → writeback lastValues.speed=1
-    // iter1(counter=2):lastValues.speed=1 → 注入 1;帧侧 1+1=2 → writeback 2
-    // iter2(counter=3):lastValues.speed=2 → 注入 2;帧侧 2+1=3 → writeback 3
+    // iter0(counter=1):lastValues 空 → userFieldValues 无 speed;帧侧 Phase2 用 defaultValue=0 种子 → 0+1=1 → writeback speed=1
+    // iter1(counter=2):writeback speed=1 合进 baseValues → 帧侧 seed=1 → 1+1=2 → writeback 2
+    // iter2(counter=3):writeback speed=2 → seed=2 → 2+1=3 → writeback 3
     const injectedSpeeds = sendService.calls.map(
       (c) => (c.request.userFieldValues as { speed?: number }).speed,
     );
-    expect(injectedSpeeds).toEqual([0, 1, 2]);
+    expect(injectedSpeeds).toEqual([undefined, 1, 2]);
   });
 
-  it('accumulation resets at step boundary (a-b-a, second a restarts from initial)', async () => {
-    // 验证 step 边界重置用真实帧侧递推:a1 累积后,b(普通单发)不打断,a2 从 initial 重新累积。
+  it('accumulation auto-writeback resets at step boundary (a-b-a)', async () => {
+    // 验证 step 边界重置用真实帧侧递推:a1 累积后,b(普通单发)不打断,a2 从 defaultValue 重新累积。
+    // accumulation 自动行为——a1/a2 都不声明 resolver。
     const fields = createAccumulationFields();
     const sendService = createFrameResolverSendService({ 'acc-frame': fields });
 
@@ -188,7 +189,6 @@ describe('Task accumulation E2E (task + send frame-resolver)', () => {
       config: {
         frameId: 'acc-frame', targetId: 't1',
         userFieldValues: { step: 1 },
-        fieldResolvers: [{ kind: 'accumulation' as const, fieldId: 'speed', initial: 0 }],
         repeat: { intervalMs: 10, maxCount: 3 },  // 每个 a 发 3 次
       },
     });
@@ -198,7 +198,7 @@ describe('Task accumulation E2E (task + send frame-resolver)', () => {
       schedule: { kind: 'immediate' },
       steps: [
         makeAccStep('a1'),
-        { id: 'b', kind: 'send', config: { frameId: 'acc-frame', targetId: 't1', userFieldValues: { step: 1, speed: 0 } } },
+        { id: 'b', kind: 'send' as const, config: { frameId: 'acc-frame', targetId: 't1', userFieldValues: { step: 1, speed: 0 } } },
         makeAccStep('a2'),
       ],
       errorPolicy: { onFailure: 'stop' },
@@ -216,17 +216,18 @@ describe('Task accumulation E2E (task + send frame-resolver)', () => {
     // a1 ×3, b ×1, a2 ×3 = 7 次
     expect(sendService.calls.length).toBe(7);
 
-    // a1(counter 1-3):注入 speed = 0, 1, 2(每次 writeback 喂回,帧侧 0+1=1, 1+1=2, 2+1=3)
+    // a1(counter 1-3):首次无 speed(lastValues 空,帧侧用 defaultValue=0 种子 → 0+1=1 writeback),
+    // 之后 writeback 喂回 1, 2(帧侧 1+1=2, 2+1=3)
     const a1Speeds = sendService.calls.slice(0, 3).map(
       (c) => (c.request.userFieldValues as { speed?: number }).speed,
     );
-    expect(a1Speeds).toEqual([0, 1, 2]);
+    expect(a1Speeds).toEqual([undefined, 1, 2]);
 
-    // b:单发,无 resolver,speed 来自 userFieldValues(0)。不影响 a2 的 lastValues。
-    // a2(新 step,counter 1-3,独立 lastValues):注入 speed = 0, 1, 2(从 initial 重新累积)
+    // b:单发,speed 来自 userFieldValues(0)。不影响 a2 的 lastValues(b 是不同 step)。
+    // a2(新 step,独立 lastValues 空):首次无 speed → 帧侧 defaultValue 种子 → writeback 喂回 1, 2
     const a2Speeds = sendService.calls.slice(4, 7).map(
       (c) => (c.request.userFieldValues as { speed?: number }).speed,
     );
-    expect(a2Speeds).toEqual([0, 1, 2]);
+    expect(a2Speeds).toEqual([undefined, 1, 2]);
   });
 });

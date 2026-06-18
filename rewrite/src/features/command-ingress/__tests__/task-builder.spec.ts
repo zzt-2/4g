@@ -232,12 +232,12 @@ describe('buildReadFileAndSendTask', () => {
     expect(taskDef.stopCondition).toEqual({ maxIterations: 3 });
     expect(taskDef.id).toMatch(/^scoe-rfs-/);
     expect(taskDef.name).toContain('READ_FILE_AND_SEND');
-    // 文件行下沉到 send step 的 fieldResolvers(variation),取代任务级 fieldVariations
+    // 文件行下沉到 send step 的 fieldVariations(离散值列表)
     const sendStep = taskDef.steps[0]!;
     expect(sendStep.kind).toBe('send');
     if (sendStep.kind === 'send') {
-      expect(sendStep.config.fieldResolvers).toEqual([
-        { kind: 'variation', fieldId: 'field-data', values: ['data1', 'data2', 'data3'] },
+      expect(sendStep.config.fieldVariations).toEqual([
+        { fieldId: 'field-data', values: ['data1', 'data2', 'data3'] },
       ]);
     }
   });
@@ -282,7 +282,7 @@ describe('buildReadFileAndSendTask', () => {
     const sendStep = taskDef.steps[0]!;
     expect(sendStep.kind).toBe('send');
     if (sendStep.kind === 'send') {
-      expect(sendStep.config.fieldResolvers).toBeUndefined();
+      expect(sendStep.config.fieldVariations).toBeUndefined();
     }
   });
 });
