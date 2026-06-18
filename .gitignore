@@ -39,3 +39,13 @@ yarn-error.log*
 # Local-only Claude/OMC archives (not version controlled)
 /.sessions/_wsl-claude-archive/
 /.sessions/_archive_helpers/
+
+# 误提交的大文件:停止跟踪,本地保留(本地归档性质,不进版本库)
+/.sessions/_collection/conversations/
+/.sessions/_collection.zip
+/public.zip
+/public/test-data/
+
+# Windows 保留名误建
+/nul
+/codestable/features/nul
