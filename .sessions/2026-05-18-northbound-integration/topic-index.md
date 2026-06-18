@@ -188,9 +188,9 @@
 **S008 + H005 完成（中心对接 UI + TaskManagePage 重构）。**
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
 **S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
-**H008 + R001 完成（粒度调研:基于 0531 HAR 厘清甲方四层概念 + 确认 caseTemplate↔TaskTemplate 映射 D001）。**
+**H008 + R001 + R002 完成（粒度调研 + setTestTask 协议层二次核对 + 代码 UI 残留清理 + 对接工程量评估:中等工程,核心缺 parId→frameId 翻译层）。**
 **联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 收到但用例同步卡点。**
-**已知未做:UI 配置页面美化、getTestCaseAll 响应真实化(方向已定 D001,待 H009 实施)、真实设备对接、真实用例执行、preHandle/afterHandle 翻译层、报告生成。**
+**已知未做:UI 配置页面美化、getTestCaseAll 真实化(方向已定 D001+D002:模板加上报标记同步,待 H009 实施)、真实设备对接、真实用例执行、**parId→frameId/fieldId 翻译层(inbound-translator.ts TODO,现为 mock)、**报告生成。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -290,4 +290,15 @@
 ### R001 — 粒度调研结论(基于 0531 HAR)
 - 证据: `rewrite/docs/10.15.5.53.har` 53 条甲方前端真实流量,反推甲方 caseMenu/caseTemplate/caseTemplateParam/caseSet/task/taskFlowchart/taskMonitor/taskResult 全套数据模型
 - 结论: 四层概念厘清 + 映射方案 + 4 个凑合方案可行性,详见 R001 正文与证据索引表
+- **2026-06-17 二次核对**: 用户提醒 setTestTask 结论可疑,通读 04-任务管理.md 发现初版误把甲方 UI 模型当协议格式。已重写 Q3,代码 3 处 UI 残留(caseSets/ExecutionPlanNode/必填字段)已修复,northbound-service.spec 39/39 过
 - 驱动决策: D001
+
+### R002 — task 系统 ↔ 甲方协议 对接工程量评估(+ UI/UX 鸿沟 + 本地关联)
+- 调研问题: 对接是不是"大工程"? UI 会不会兜不住? 和本地 task 咋关联?
+- 核心结论: **中等工程,非大工程**。地基 70% 就绪,缺两块:① parId→frameId 翻译层 ② northbound UI 可见性
+- **与本地 task 关联(已验证)**: 实例层已打通(feature-wiring 同一 taskService 注入本地+northbound,ExecutionListPage 天然能展示甲方实例);**模板层是断点**(getTestCaseAll 上传 configuredTestCases 而非本地 TaskTemplate,D001 映射数据层没接)
+- **H009 数据源已定 D002**: getTestCaseAll 从 `listTemplates()` 序列化 + TaskTemplate 加"上报"标记(选择性同步)。打通 D001 数据层。废弃 configuredTestCases 数据源。字段填充策略见 D002 表
+- 翻译层鸿沟: inputPars→steps,有 mock 占位。UI 现状: northbound 0 个 .vue,step 编辑器完整可复用
+- frontend-design skill 暂不适用(工业软件需功能 UI 非视觉创新)
+- 建议推进: H009(getTestCaseAll,按 D002 实施)→ H010(parId 映射调研)→ H011(翻译层)→ H012(northbound UI,含实例来源标识 + 模板上报开关)
+- 关联: inbound-translator.ts:25-30 TODO / feature-wiring.ts:141,169,184

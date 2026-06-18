@@ -16,3 +16,7 @@
 - [决定] caseTemplate 缺失字段填空/默认值,只保证结构合规 → D001
 - [决定] caseSet 暂不支持,只在 task 接收侧处理 → D001
 - "setTestTask这个,要不你让子agent去看看文档?我还是有点感觉怪怪的。这块很关键,别太草率" → R001 Q3 二次核对(纠正了把 taskFlowchart UI 模型当协议格式的错误)
+- "不仅如此,ui、ux都得考虑。别到时候逻辑通了发现没法做成ui。顺便我记得我加了个frontend-design的skill?也许用的上?我不知道,没细看" → R002 追加 UI/UX 鸿沟评估;判断 frontend-design 当前不适用(工业软件需功能 UI 非视觉创新)
+- "顺便,这块和我自己的任务那边咋关联,你也考虑了吧?" → R002 验证本地关联(实例层已通/模板层断点)
+- "定吧?" → D002(getTestCaseAll 数据源 = TaskTemplate 带上报标记)
+- [决定] getTestCaseAll 数据源: TaskTemplate 加"上报"标记,选择性同步给甲方 → D002

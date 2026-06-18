@@ -329,6 +329,23 @@ HAR 没抓到 setTestTask 的请求体(只抓到甲方调我们时 404 的错误
 
 协议层结构以 04-任务管理.md 原文为准。
 
+### 代码差距已修复(2026-06-17)
+
+二次核对后发现现有代码(`northbound/core/types.ts` + `services/northbound-service.ts`)有 3 处 UI 残留,**已全部修复**:
+
+| 差距 | 性质 | 修复 |
+|------|------|------|
+| `ExecutionPlan.caseSets` + `CaseSet` interface | 🔴 协议层无此概念(UI 残留) | 删除字段 + interface + 整段 caseSet 展开逻辑(`resolveNode` 退化) |
+| `ExecutionPlanNode` 对象 + `nodes: ExecutionPlanNode[]` | 🟡 文档 nodes 是纯字符串数组 | 删 interface,`nodes: readonly string[]`,`resolveNode(node)` 改成直接查表 |
+| `TestCaseInfo` 6 个字段强必填 | 🟢 文档标注可选 | `deviceIds/masterTest/testMode/ephMode/orbitInfo/inputPars` 改 `?` 可选 |
+
+**验证**:
+- northbound-service.spec.ts 39/39 全过(含改写的 caseSet 展开测试 → 改为纯字符串 nodes 测试)
+- 5 个 heartbeat-timer.spec.ts 失败为**预存问题**(git stash 到干净代码后同样 5 failed),与本轮无关
+- 改动文件:`types.ts` / `northbound-service.ts` / `index.ts` / `northbound-service.spec.ts`
+
+**结论修正**: 现有代码当初作者其实**基本是照文档协议层写的**(只是注释写"HAR-aligned"造成误导),3 处 UI 残留已清。代码现与 04-任务管理.md 100% 对齐。
+
 ## 证据索引(便于后续引用)
 
 | 证据 | 位置 | 用途 | 可靠度 |
