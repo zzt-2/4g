@@ -103,35 +103,46 @@ export interface GenerateTestReportInput {
   readonly taskId: string;
   readonly config: EnvelopeConfig;
   readonly mockConfig?: TestReportMockConfig;
+  /** 真实采集的校验点(优先于 mockConfig) */
+  readonly collectedCheckPoints?: readonly TestReportCheckPoint[];
+  /** 真实采集的执行步骤数据(优先于 mockConfig) */
+  readonly collectedProcessSteps?: readonly TestReportProcessAndData[];
+  /** 真实设备ID(优先于 mockConfig) */
+  readonly collectedDeviceIds?: readonly string[];
 }
 
 export function generateTestReport(input: GenerateTestReportInput): string {
   const { instance, verdict, testCaseId, taskId, config } = input;
   const mock = input.mockConfig ?? DEFAULT_MOCK_CONFIG;
 
+  const checkPoints = input.collectedCheckPoints ?? mock.checkPointDefs;
+  const processSteps = input.collectedProcessSteps ?? mock.processSteps;
+  const deviceIds = input.collectedDeviceIds ?? mock.deviceIds;
+
   const startTime = instance.startedAt ?? verdict.startedAt;
   const endTime = instance.completedAt ?? instance.failedAt ?? instance.stoppedAt ?? verdict.finishedAt;
 
   const isPassed = verdict.verdict === 'passed';
+  const usingCollected = input.collectedCheckPoints !== undefined || input.collectedProcessSteps !== undefined;
 
   const testCase: TestReportTestCase = {
     testCaseId,
     resources: [],
-    deviceIds: mock.deviceIds,
+    deviceIds,
     startTime,
     endTime,
-    checkPoints: mock.checkPointDefs.map(cp =>
-      isPassed ? cp : { ...cp, result: '未通过' as const },
-    ),
+    checkPoints: usingCollected
+      ? checkPoints.map(cp => isPassed ? cp : { ...cp, result: '未通过' as const })
+      : checkPoints.map(cp => isPassed ? cp : { ...cp, result: '未通过' as const }),
     statisticsItems: [],
     attachItems: [],
     result: isPassed ? 'success' : 'fail',
     msg: isPassed ? 'ok' : verdict.verdict,
     judgmentMsg: '',
-    processAndDatas: mock.processSteps.map(step => ({
+    processAndDatas: processSteps.map(step => ({
       ...step,
-      startTime,
-      endTime,
+      startTime: step.startTime || startTime,
+      endTime: step.endTime || endTime,
     })),
     testParsInfo: [],
   };

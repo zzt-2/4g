@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-18
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-19
 
 ## 子系统架构认知(D003,2026-06-18 确立)
 
@@ -198,8 +198,9 @@
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
 **S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
 **H008 + R001 + R002 + D001/D002/D003 完成（粒度调研 + setTestTask 协议层对齐 + 代码清理 + 工程量评估 + 子系统认知纠正:我们是 LAS,翻译是双向同源简单工程）。**
-**联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 收到但用例同步卡点。**
-**已知未做:UI 美化、getTestCaseAll 真实化(方向 D001+D002,模板加上报标记,待实施)、真实设备对接、真实用例执行、**翻译层(双向同源,D003 定方向,parId 命名规范待定)**、报告生成。**
+**对接闭环实施完成(2026-06-19,分支 feat/northbound-task-integration,8 commit)：翻译器 encode/decode(白名单+参数覆盖) + getTestCaseAll 接 listTemplates + setTestTask 接 decode + 报告数据收集器 + 模板上报开关 UI。spec `docs/superpowers/specs/`、plan `docs/superpowers/plans/`。375/380 测试通过(5 失败为预存 heartbeat-timer)。**
+**联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 已实现真实化(从 listTemplates 序列化)；setTestTask 已实现 decode+参数覆盖。**
+**已知未做:UI 美化、真实设备对接(send/receive 仍为 fake adapter)、ExecutionListPage 来源标识完整展示、controlTestTask action 联调实测、8800/80 端口确认。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）

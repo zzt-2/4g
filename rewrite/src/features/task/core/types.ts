@@ -181,9 +181,26 @@ export interface TaskInstanceState {
   readonly error?: string;
   /** 实例追溯：若从模板创建，记录 templateId，不影响运行。 */
   readonly templateId?: string;
+  /** 来源标识：本地启动 / 甲方下发。用于 ExecutionListPage 区分显示。 */
+  readonly source?: 'local' | 'northbound';
+  /** 若为甲方下发，关联的 customerTaskId（T_xxx）。 */
+  readonly customerTaskId?: string;
 }
 
 // --- Template (template / instance 分离) ---
+
+// --- Customer sync metadata (上报给甲方的标记) ---
+
+export interface CustomerSyncMeta {
+  /** 是否上报给甲方 */
+  readonly enabled: boolean;
+  /** 上次上报时间戳(ms)。上报后由系统回填 */
+  readonly reportedAt?: number;
+  /** 上报后甲方侧的用例外部ID。上报后由系统回填,下发时反查快照 */
+  readonly outCaseId?: string;
+  /** 可被甲方覆盖的字段路径白名单。未列入的字段,甲方下发时无法覆盖 */
+  readonly overridablePaths?: readonly string[];
+}
 
 export interface TaskTemplate {
   readonly templateId: string;
@@ -192,12 +209,14 @@ export interface TaskTemplate {
   readonly definition: TaskDefinition;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly customerSync?: CustomerSyncMeta;
 }
 
 export interface TemplateUpdates {
   readonly name?: string;
   readonly tags?: readonly string[];
   readonly definition?: TaskDefinition;
+  readonly customerSync?: CustomerSyncMeta;
 }
 
 // --- Event subscription (hook mechanism) ---

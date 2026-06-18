@@ -4,7 +4,6 @@ import type { HttpFacade, HttpRequest, HttpResponse } from '@/platform';
 import type { NorthboundSessionSnapshot } from '../state/northbound-state';
 import { createNorthboundState } from '../state/northbound-state';
 import type { NorthboundStateContainer } from '../state/northbound-state';
-import { translateTestCaseToMockTaskDefinition } from '../core/inbound-translator';
 import {
   translateTaskResult,
   translateStepResult,
@@ -35,6 +34,14 @@ import type {
   SetParsRequest,
 } from '../core/types';
 import { generateTestReport } from '../core/test-report-generator';
+import { encodeTaskTemplateToTestCase, decodeTestCaseToTaskDefinition, createPlaceholderFailDefinition } from '../core/testcase-sync-translator';
+import type {
+  NorthboundTestCaseConfig,
+  ReportedSnapshot,
+  OverrideWarning,
+} from '../core/types';
+import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
+import type { ReportDataCollector } from './report-data-collector';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
 import { createHeartbeatTimer, type HeartbeatTimer } from './heartbeat-timer';
 
@@ -73,6 +80,9 @@ export interface NorthboundServiceOptions {
   readonly httpFacade: HttpFacade;
   readonly ftpFacade?: FtpFacade;
   readonly connectionSnapshot: () => { readonly status: string };
+  readonly testCaseConfig?: NorthboundTestCaseConfig;
+  readonly reportedSnapshotStorage?: ReportedSnapshotStorage;
+  readonly reportDataCollector?: ReportDataCollector;
 }
 
 export interface NorthboundService {
@@ -164,12 +174,17 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const ftp = options.ftpFacade;
     if (!config?.ftp || !ftp) return;
 
+    // 取真实采集数据(若有 collector);无 collector 则 fallback mockConfig
+    const collected = options.reportDataCollector?.collect(instance.instanceId);
+
     const reportJson = generateTestReport({
       instance,
       verdict,
       testCaseId,
       taskId,
       config: envelopeConfig(),
+      collectedCheckPoints: collected?.checkPoints,
+      collectedProcessSteps: collected?.processSteps,
     });
 
     const remotePath = `${config.ftp.basePath.replace(/\/$/, '')}/TestReport_${taskId}.json`;
@@ -208,6 +223,9 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
     const report = translateStepResult(instance, result, testCaseId, instanceId, envelopeConfig());
     postToCustomer('/admin/report/msgReport', report);
+
+    // 累积执行数据供 TestReport.json 使用
+    options.reportDataCollector?.onStepResult(instanceId, result);
   }
 
   // --- Task settled event handler (事件驱动替代 await onSettled) ---
@@ -232,7 +250,12 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     };
   }
 
-  function buildResponse(envelope: InboundEnvelope, statusCode: 1 | 2, msg: string): CustomerResponse {
+  function buildResponse(
+    envelope: InboundEnvelope,
+    statusCode: 1 | 2,
+    msg: string,
+    extra?: Record<string, unknown>,
+  ): CustomerResponse {
     return {
       method: `${envelope.method}Response`,
       requestId: envelope.requestId,
@@ -241,6 +264,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       sessionId: envelope.sessionId ?? 0,
       statusCode,
       msg,
+      ...extra,
     };
   }
 
@@ -324,7 +348,19 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     tc: TestCaseInfo,
     customerTaskId: string,
   ): Promise<{ readonly instanceId: string }> {
-    const def = translateTestCaseToMockTaskDefinition(tc);
+    // 按 testCaseId(=outCaseId)反查上报快照;有则 decode(支持参数覆盖),无则占位 fail
+    const snapshot = options.reportedSnapshotStorage?.load(tc.testCaseId);
+    let def;
+    if (snapshot) {
+      const { definition, warnings } = decodeTestCaseToTaskDefinition(tc, snapshot);
+      def = definition;
+      if (warnings.length > 0) {
+        console.warn('[northbound] override warnings for', tc.testCaseId, warnings);
+      }
+    } else {
+      def = createPlaceholderFailDefinition(tc.testCaseId);
+      console.error('[northbound] snapshot missing for', tc.testCaseId, '- using placeholder (will not execute real task)');
+    }
     const instance = options.taskService.createTask(def);
     state.mapTestCase(tc.testCaseId, instance.instanceId);
     if (customerTaskId) {
@@ -478,6 +514,16 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const parsed = body as GetTestCaseAllRequest;
     const ftpInfo = parsed.ftpInfo;
 
+    // 从 taskService 取 enabled 模板,encode 成 CustomerTestCase
+    const allTemplates = options.taskService.listTemplates();
+    const enabledTemplates = allTemplates.filter(t => t.customerSync?.enabled === true);
+    const testCases = enabledTemplates.map(t => {
+      if (!options.testCaseConfig) return null;
+      const { testCase, snapshot } = encodeTaskTemplateToTestCase(t, options.testCaseConfig);
+      options.reportedSnapshotStorage?.save(snapshot);
+      return testCase;
+    }).filter((tc): tc is NonNullable<typeof tc> => tc !== null);
+
     if (ftpInfo?.ip && options.ftpFacade) {
       try {
         await options.ftpFacade.uploadFile({
@@ -486,14 +532,14 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
           username: ftpInfo.username ?? 'anonymous',
           password: ftpInfo.password ?? '',
           remotePath: `${(ftpInfo.dir ?? '/').replace(/\/$/, '')}/testcase_all.json`,
-          content: JSON.stringify(configuredTestCases),
+          content: JSON.stringify(testCases),
         });
       } catch {
         return buildResponse(envelope, 2, 'FTP upload failed');
       }
     }
 
-    return buildResponse(envelope, 1, 'ok');
+    return buildResponse(envelope, 1, 'ok', testCases.length > 0 ? { datas: testCases } : undefined);
   }
 
   // --- Request router ---

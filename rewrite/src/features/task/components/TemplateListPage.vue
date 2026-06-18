@@ -540,6 +540,28 @@ function onToggleTagFilter(tag: string): void {
                 @update:error-policy="editor.errorPolicy.value = $event"
               />
 
+              <q-separator />
+
+              <!-- 上报给甲方 -->
+              <div class="flex flex-col gap-2">
+                <q-toggle
+                  :model-value="editor.syncEnabled.value"
+                  @update:model-value="editor.syncEnabled.value = $event"
+                  label="上报给甲方"
+                  color="primary"
+                />
+                <q-input
+                  v-if="editor.syncEnabled.value"
+                  :model-value="editor.overridablePathsText.value"
+                  @update:model-value="editor.overridablePathsText.value = $event ?? ''"
+                  type="textarea"
+                  label="可覆盖字段路径（每行一个，如 step-send.send.userFieldValues.power）"
+                  autogrow
+                  input-class="text-xs font-mono"
+                  hint="甲方下发时可覆盖这些字段值；未列出的字段不可修改"
+                />
+              </div>
+
               <template v-if="editor.validationIssues.value.length > 0">
                 <q-separator />
                 <div class="flex flex-col gap-1">

@@ -1,5 +1,7 @@
 // --- Envelope types ---
 
+import type { TaskDefinition } from '@/features/task/core';
+
 export interface OutboundEnvelope {
   readonly method: string;
   readonly requestId: number;
@@ -24,6 +26,8 @@ export interface CustomerResponse {
   readonly sessionId: number;
   readonly statusCode: 1 | 2;
   readonly msg: string;
+  /** getTestCaseAll 等接口返回的用例数据 */
+  readonly datas?: readonly unknown[];
 }
 
 export interface EnvelopeConfig {
@@ -322,4 +326,53 @@ export interface SigLogEntry {
   readonly destination: string;
   readonly protocol: 'NRRRC' | 'NRNAS' | 'SIP';
   readonly sig: string;
+}
+
+// --- testcase-sync 相关类型 ---
+
+/** 上报给甲方的用例(caseTemplate 结构,对齐 04-任务管理.md) */
+export interface CustomerTestCase {
+  readonly outCaseId: string;
+  readonly caseName: string;
+  readonly caseType: string;
+  readonly subSysId: string;
+  readonly subSysName: string;
+  readonly menuId: string;
+  readonly menuName: string;
+  readonly depSubSys?: string;
+  readonly depSubNe?: string;
+  readonly durate: number;
+  readonly satelliteCount: number;
+  readonly stationCount: number;
+  readonly isParent: boolean;
+  readonly inputPars: readonly InputPar[];
+  readonly execSteps?: string;
+  readonly remark?: string;
+}
+
+/** laser 子系统的全局配置(subSysId/menuId 等) */
+export interface NorthboundTestCaseConfig {
+  readonly subSysId: string;
+  readonly subSysName: string;
+  readonly menuId: string;
+  readonly menuName: string;
+  readonly caseType: string;
+  readonly depSubSys?: string;
+  readonly depSubNe?: string;
+}
+
+/** 上报快照(decode 时按 outCaseId 反查) */
+export interface ReportedSnapshot {
+  readonly outCaseId: string;
+  readonly templateId: string;
+  readonly definition: TaskDefinition;
+  readonly overridablePaths: readonly string[];
+  readonly reportedAt: number;
+}
+
+/** 覆盖警告 */
+export interface OverrideWarning {
+  readonly parId: string;
+  readonly reason: 'not-in-whitelist' | 'path-not-found' | 'type-mismatch';
+  readonly detail: string;
 }
