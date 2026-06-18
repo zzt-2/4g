@@ -41,6 +41,7 @@ import type {
   OverrideWarning,
 } from '../core/types';
 import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
+import type { ReportDataCollector } from './report-data-collector';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
 import { createHeartbeatTimer, type HeartbeatTimer } from './heartbeat-timer';
 
@@ -81,6 +82,7 @@ export interface NorthboundServiceOptions {
   readonly connectionSnapshot: () => { readonly status: string };
   readonly testCaseConfig?: NorthboundTestCaseConfig;
   readonly reportedSnapshotStorage?: ReportedSnapshotStorage;
+  readonly reportDataCollector?: ReportDataCollector;
 }
 
 export interface NorthboundService {
@@ -172,12 +174,17 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const ftp = options.ftpFacade;
     if (!config?.ftp || !ftp) return;
 
+    // 取真实采集数据(若有 collector);无 collector 则 fallback mockConfig
+    const collected = options.reportDataCollector?.collect(instance.instanceId);
+
     const reportJson = generateTestReport({
       instance,
       verdict,
       testCaseId,
       taskId,
       config: envelopeConfig(),
+      collectedCheckPoints: collected?.checkPoints,
+      collectedProcessSteps: collected?.processSteps,
     });
 
     const remotePath = `${config.ftp.basePath.replace(/\/$/, '')}/TestReport_${taskId}.json`;
@@ -216,6 +223,9 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
     const report = translateStepResult(instance, result, testCaseId, instanceId, envelopeConfig());
     postToCustomer('/admin/report/msgReport', report);
+
+    // 累积执行数据供 TestReport.json 使用
+    options.reportDataCollector?.onStepResult(instanceId, result);
   }
 
   // --- Task settled event handler (事件驱动替代 await onSettled) ---
