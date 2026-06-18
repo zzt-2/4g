@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-18 H008 实施完成(task step 级参数变化机制:字段级可变参数 + 表达式连续累积 + 顺手修两 bug)
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-19 S003 续接:可变参数值列表输入后被清空 bug 修复(根因 Vue props 异步回流 + 两次 emit 之间 stale 覆盖)
 
 ## 进展线索
 
@@ -14,6 +14,7 @@
 - **S002** task 参数变化机制拍板 (06-17)：纠正 H007 误判（线 A 速度模拟早于 4375857 修复，非当前活）；扫归档 53 会话确认 S010 三问题从未拍板；用户拍板"两个都要"。**v2 转折**：主对话讨论问题一时发现两机制共用 step 内执行骨架，改"分开决策、合一实施"。详见 D001 + S002 + voice.md
 - **H008** task step 级参数变化机制 (06-17 交接, 06-18 实施完成)：**两个问题合一实施**(共用 FieldValueResolver 骨架)。问题一表达式连续累积(单 step 边界 / repeat×iteration 全局递增 / 公式归帧 / step 级临时上下文 / **accumulation 复用帧侧 self-ref + task 补 writeback**) + 问题二字段级可变参数(响应式联动一次性触发 / clamp) + 顺手修两 bug(progress 爆表 / maxIterations 覆盖)。v1（分开做）已废弃。**实施形状见 D002**。
 - **S003** H008 实施对话 (06-18)：落地 6 个设计待决点 + accumulation 复用帧侧 self-ref + task 补 writeback。**续接1**:独立审查 pass-with-known-gaps,补清 console.info + accumulation 端到端集成测试。**续接2(简化)**:用户指出"步进表达式自己递增不需要填",accumulation 从"用户填的 resolver"彻底改为"task 自动 writeback"——删 FieldValueResolver union,fieldResolvers → fieldVariations(只剩离散值列表),writeback 无条件写所有 resolvedFieldValues。用户零配置。task+command-ingress+send 543 tests 全过,lint 0 新增。详见 D002 + S003 + voice.md 2026-06-18
+- **S003 续接(可变参数输入清空 bug)** (06-19)：H008 简化后用户发现"可变参数值列表输入后被清空"。排查耗时较长,走过两个误判(派生 model-value 重算 / blur 不可靠),最终根因是 **Vue props 异步回流 + `onVariationValuesInput` 内两次链接 emit 之间 stale 覆盖**:`updateFieldVariation`(emit1 带 fv)→ `patchRepeat`(emit2 不带 fv,读 `props.step.fv` 仍是旧值 `[]`)→ `{...props.step, repeat}` 把 fv 又写成 `[]` 覆盖第一次。修复:fv + repeat 联动合并到同一次 patchConfig emit,单次原子更新。详见 D003 + S003 + voice.md 2026-06-19。用户另提三个新问题(发送失败错误提示 / 保存按钮 disable / 进度计数回退),待处理。
 
 ## 已确认结论
 

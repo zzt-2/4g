@@ -146,6 +146,91 @@ task 层只做一件事:**executeSendStep 成功后把 `sendResult.resolvedField
 
 ---
 
-## 待记录的决策
+## D003: 子组件 patchConfig 单次 emit 原则 —— 链式 emit 之间 props 异步回流导致 stale 覆盖
 
-- 无(D002 已补全 resolver 挂载形状 + step 骨架最终形状)
+> status: active
+> date: 2026-06-19
+> 取代：无(记录 S003 可变参数输入清空 bug 的根因与教训,确立 Vue 受控组件 emit 编码原则)
+> 被取代：无
+
+### 决策
+
+**在受控子组件(用 `emit('update:xxx')` 把改动上报父组件的组件)里,一次用户操作产生的多个字段变更必须合并到同一次 emit。** 严禁在同一 handler 里连续两次 emit 再让父组件分别接收——Vue 的 props 是**异步回流**的(同一 tick 内多次 emit,props.step 不会同步更新到第二次 emit 时还是旧快照)。
+
+确立编码契约:`patchConfig({ ...props.step, ...patch })` 这类"以 props 为 base 做 spread"的写法,**只安全于单次 emit**。多次链接调用时,第二次的 `props.step` 是 stale 的,会把第一次刚 emit 的正确值又 spread 回旧值,**静默覆盖**。
+
+### 核心失败机制
+
+S003 可变参数值列表输入后被清空,根因不是输入解析、不是 blur 不可靠、不是 save 链路丢字段(均已用集成测试排除),而是:
+
+```ts
+// ❌ 失败写法(原 onVariationValuesInput)
+function onVariationValuesInput(index, raw) {
+  variationInputs.value = { ...variationInputs.value, [index]: raw };
+  const values = parseVariationValues(raw);
+  const current = fieldVariations.value[index];
+  if (current) {
+    updateFieldVariation(index, { ...current, values });   // emit 1: patchConfig({ fieldVariations: [正确值] })
+  }
+  if (!userEditedMaxCount.value && values.length > 0) {
+    patchRepeat({ maxCount: values.length });              // emit 2: patchConfig({ repeat: {...} })
+    //  ↑ patchConfig 内部 { ...props.step, ...patch }
+    //    此时 props.step.fieldVariations 还是 [] (emit1 的回流未到)
+    //    → next.fieldVariations = [] → 覆盖 emit1 的正确值
+  }
+}
+```
+
+emit 链路本身全通(日志证明 patchConfig → onStepUpdate → updateStep 全部到达,steps.value 写入正确)。但 emit2 读 `props.step` 时,Vue 还没把 emit1 的结果回流到 props(props 更新是异步的,要等 next tick)。所以 emit2 的 `{ ...props.step, repeat }` 里 `props.step.fieldVariations` 还是 `[]`,发出后把 emit1 的 `[1,2,3]` 覆盖成 `[]`。
+
+### 否决了什么
+
+- ❌ **在同一 handler 里多次链接 emit 再各自 patchConfig**:否决。props 异步回流保证不了第二次读到的 props 是第一次 emit 后的最新值。
+- ❌ **用 blur-only 写 step 绕过**(S003 第一轮误判的修复方向):否决。blur 不可靠 + 治标不治本,真正问题是 emit 链不是 props 链。
+- ❌ **派生 `:model-value="variation.values.join(',')"` 直接绑**:否决(S003 初始根因)。输入中重算会吞末尾逗号/空格、光标跳。这个用本地 ref 缓存解决,与 D003 的 emit 合并是两个独立修复。
+
+### 可复用部分(教训)
+
+1. **受控组件多字段联动 = 单次合并 emit**。修复后的正确写法:
+   ```ts
+   // ✅ 合并到同一次 emit
+   function onVariationValuesInput(index, raw) {
+     variationInputs.value = { ...variationInputs.value, [index]: raw };
+     const values = parseVariationValues(raw);
+     const current = fieldVariations.value[index];
+     if (!current) return;
+     const patch: Partial<SendStepConfig> = {
+       fieldVariations: fieldVariations.value.map((v, i) => (i === index ? { ...current, values } : v)),
+     };
+     if (!userEditedMaxCount.value && values.length > 0) {
+       patch.repeat = { ...(repeat.value ?? { intervalMs: 1000 }), maxCount: values.length };
+     }
+     patchConfig(patch);  // 一次 emit,带齐 fv + repeat
+   }
+   ```
+2. **诊断要先确认代码真的生效**。本轮排查走过两个弯路:(a) 第一轮修复后"没变化"——实际是 Vite HMR 未真正加载新代码(日志行号对不上文件),应先确认运行版本;(b) 诊断日志加错文件(use-task-editor vs use-template-editor,TemplateListPage 用后者),导致 updateStep 日志不输出,误判事件链断。
+3. **HMR 对 defineEmits/props 改动不可靠,需完全重启 dev server**。
+
+### 具体数据(诊断日志铁证)
+
+```
+1. patchConfig emit fv=[1,2]   props.step.fv=[]          ← emit1 正确,但 props 还是旧值
+2. onStepUpdate updated.fv=[1,2]                          ← 父组件收到 ✓
+3. updateStep AFTER write fv=[1,2]                         ← steps.value 写入 ✓
+4. patchConfig emit (no fv) next.fv=[] props.step.fv=[]    ← emit2 读 stale props,覆盖!
+5. onStepUpdate updated.fv=[]                              ← 最终写成 []
+```
+step 4 是关键:emit2 的 patch 不含 fieldVariations,但 `{ ...props.step }` 把 stale 的 `[]` 带进了 next。
+
+### 影响范围
+
+- **编码契约(全项目受控组件)**:凡 `emit('update:xxx')` 上报 + handler 内多处字段变更,必须合并到单次 emit。审查现有受控组件(SendStepEditor / WaitConditionStepEditor / DelayStepEditor 等)是否有同类链接 emit。
+- **本次修复**:仅 `SendStepEditor.vue` 的 `onVariationValuesInput` 改为合并 emit。task 257 tests 全过,tsc 0 错。
+- **不碰**:core types / service / state / selector(全链路保留 fieldVariations 已证)。
+
+### 来源
+
+- S003 续接(2026-06-19,可变参数输入清空 bug 排查)
+- 用户反馈"可变参数在我鼠标点别的地方之后,直接变空了"+"保存后还是空的"
+- 诊断日志铁证(见具体数据)
+- 触发原话:见 voice.md 2026-06-19
