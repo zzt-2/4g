@@ -26,6 +26,8 @@ export interface CustomerResponse {
   readonly sessionId: number;
   readonly statusCode: 1 | 2;
   readonly msg: string;
+  /** getTestCaseAll 等接口返回的用例数据 */
+  readonly datas?: readonly unknown[];
 }
 
 export interface EnvelopeConfig {

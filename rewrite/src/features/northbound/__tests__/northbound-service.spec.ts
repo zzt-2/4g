@@ -820,8 +820,9 @@ describe('createNorthboundService — inbound stub handlers', () => {
     expect(ftpCall.username).toBe('ftpuser');
     expect(ftpCall.remotePath).toBe('/data/testcase_all.json');
     const content = JSON.parse(ftpCall.content);
-    expect(content.datas).toHaveLength(1);
-    expect(content.datas[0].isParent).toBe(true);
+    // 数据源已改为 listTemplates(默认空),FTP 上传空用例数组
+    expect(Array.isArray(content)).toBe(true);
+    expect(content).toHaveLength(0);
   });
 
   it('getTestCaseAll FTP failure returns error envelope', async () => {
@@ -838,6 +839,35 @@ describe('createNorthboundService — inbound stub handlers', () => {
     const parsed = JSON.parse(resp.body as string);
     expect(parsed.statusCode).toBe(2);
     expect(parsed.msg).toBe('FTP upload failed');
+  });
+
+  it('getTestCaseAll returns datas from listTemplates with customerSync enabled', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const { createReportedSnapshotStorage } = await import('../services/reported-snapshot-storage');
+    const reportedSnapshotStorage = createReportedSnapshotStorage(makeMemStorage());
+    // 注入一个 enabled 模板 + 一个 disabled 模板
+    taskService.listTemplates = vi.fn().mockReturnValue([
+      { templateId: 'tpl-on', name: 'On', tags: [], definition: { id:'d', name:'n', steps:[{ kind:'delay', id:'s', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'', customerSync:{ enabled:true, overridablePaths:[] } },
+      { templateId: 'tpl-off', name: 'Off', tags: [], definition: { id:'d2', name:'n2', steps:[{ kind:'delay', id:'s2', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'', customerSync:{ enabled:false } },
+    ]);
+    const service = createNorthboundService(makeOptions({
+      httpFacade,
+      taskService,
+      testCaseConfig: { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit' },
+      reportedSnapshotStorage,
+    }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
+      method: 'getTestCaseAll', requestId: 5012, subSysType: 'LAS', subSysId: 'LAS_001',
+    }) });
+    const parsed = JSON.parse(resp.body as string);
+
+    expect(parsed.datas).toBeDefined();
+    expect(parsed.datas).toHaveLength(1);
+    expect(parsed.datas[0].caseName).toBe('On');
+    expect(parsed.datas[0].subSysName).toBe('激光');
   });
 
   it('POST-required stubs reject GET requests', async () => {
@@ -959,3 +989,16 @@ describe('createNorthboundService — setPars heartbeat + customerTaskId echo', 
     expect(body.testCaseId).toBe('tc-result');
   });
 });
+
+// 内存 Storage(给快照存储测试用)
+function makeMemStorage(): Storage {
+  const mem: Record<string, string> = {};
+  return {
+    getItem: (k: string) => mem[k] ?? null,
+    setItem: (k: string, v: string) => { mem[k] = v; },
+    removeItem: (k: string) => { delete mem[k]; },
+    clear: () => { for (const k of Object.keys(mem)) delete mem[k]; },
+    key: (i: number) => Object.keys(mem)[i] ?? null,
+    length: 0,
+  } as Storage;
+}

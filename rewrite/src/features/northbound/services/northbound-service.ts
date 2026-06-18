@@ -35,6 +35,13 @@ import type {
   SetParsRequest,
 } from '../core/types';
 import { generateTestReport } from '../core/test-report-generator';
+import { encodeTaskTemplateToTestCase, decodeTestCaseToTaskDefinition, createPlaceholderFailDefinition } from '../core/testcase-sync-translator';
+import type {
+  NorthboundTestCaseConfig,
+  ReportedSnapshot,
+  OverrideWarning,
+} from '../core/types';
+import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
 import { createHeartbeatTimer, type HeartbeatTimer } from './heartbeat-timer';
 
@@ -73,6 +80,8 @@ export interface NorthboundServiceOptions {
   readonly httpFacade: HttpFacade;
   readonly ftpFacade?: FtpFacade;
   readonly connectionSnapshot: () => { readonly status: string };
+  readonly testCaseConfig?: NorthboundTestCaseConfig;
+  readonly reportedSnapshotStorage?: ReportedSnapshotStorage;
 }
 
 export interface NorthboundService {
@@ -232,7 +241,12 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     };
   }
 
-  function buildResponse(envelope: InboundEnvelope, statusCode: 1 | 2, msg: string): CustomerResponse {
+  function buildResponse(
+    envelope: InboundEnvelope,
+    statusCode: 1 | 2,
+    msg: string,
+    extra?: Record<string, unknown>,
+  ): CustomerResponse {
     return {
       method: `${envelope.method}Response`,
       requestId: envelope.requestId,
@@ -241,6 +255,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       sessionId: envelope.sessionId ?? 0,
       statusCode,
       msg,
+      ...extra,
     };
   }
 
@@ -478,6 +493,16 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const parsed = body as GetTestCaseAllRequest;
     const ftpInfo = parsed.ftpInfo;
 
+    // 从 taskService 取 enabled 模板,encode 成 CustomerTestCase
+    const allTemplates = options.taskService.listTemplates();
+    const enabledTemplates = allTemplates.filter(t => t.customerSync?.enabled === true);
+    const testCases = enabledTemplates.map(t => {
+      if (!options.testCaseConfig) return null;
+      const { testCase, snapshot } = encodeTaskTemplateToTestCase(t, options.testCaseConfig);
+      options.reportedSnapshotStorage?.save(snapshot);
+      return testCase;
+    }).filter((tc): tc is NonNullable<typeof tc> => tc !== null);
+
     if (ftpInfo?.ip && options.ftpFacade) {
       try {
         await options.ftpFacade.uploadFile({
@@ -486,14 +511,14 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
           username: ftpInfo.username ?? 'anonymous',
           password: ftpInfo.password ?? '',
           remotePath: `${(ftpInfo.dir ?? '/').replace(/\/$/, '')}/testcase_all.json`,
-          content: JSON.stringify(configuredTestCases),
+          content: JSON.stringify(testCases),
         });
       } catch {
         return buildResponse(envelope, 2, 'FTP upload failed');
       }
     }
 
-    return buildResponse(envelope, 1, 'ok');
+    return buildResponse(envelope, 1, 'ok', testCases.length > 0 ? { datas: testCases } : undefined);
   }
 
   // --- Request router ---
