@@ -279,34 +279,29 @@ describe('resolveStopCondition', () => {
     expect(resolveStopCondition(def)).toEqual({ maxIterations: 1 });
   });
 
-  it('returns stopCondition as-is when no fieldVariations', () => {
+  it('returns stopCondition as-is when present', () => {
     const def = timedTaskDef();
     const result = resolveStopCondition(def);
     expect(result.maxIterations).toBe(5);
   });
 
-  it('derives maxIterations from fieldVariations when present', () => {
+  it('respects user-set stopCondition.maxIterations (fieldVariations removed, no auto-derive)', () => {
+    // fieldVariations 已下沉到 step 级(fieldResolvers),不再在任务级推导 maxIterations。
+    // 用户设的 stopCondition.maxIterations 必须被尊重(修复原 maxIterations 静默覆盖 bug)。
     const def: TaskDefinition = {
       ...sequenceTaskDef(),
-      fieldVariations: [
-        { fieldId: 'v1', values: [1, 2, 3] },
-        { fieldId: 'v2', values: [10, 20] },
-      ],
+      stopCondition: { maxIterations: 7 },
     };
     const result = resolveStopCondition(def);
-    expect(result.maxIterations).toBe(3);
+    expect(result.maxIterations).toBe(7);
   });
 
-  it('merges fieldVariations-derived maxIterations with existing stopCondition', () => {
+  it('preserves stopCondition fields other than maxIterations', () => {
     const def: TaskDefinition = {
       ...sequenceTaskDef(),
       stopCondition: { maxDurationMs: 60000 },
-      fieldVariations: [
-        { fieldId: 'v1', values: [1, 2, 3, 4] },
-      ],
     };
     const result = resolveStopCondition(def);
-    expect(result.maxIterations).toBe(4);
     expect(result.maxDurationMs).toBe(60000);
   });
 });
@@ -538,56 +533,72 @@ describe('Fixtures', () => {
 // ============================================================
 
 describe('resolveFieldValues', () => {
-  it('returns empty object when no base and no variations', () => {
-    expect(resolveFieldValues(undefined, undefined, 0)).toEqual({});
-  });
+  // 新签名:resolveFieldValues(baseValues, resolvers, counter, lastValues)
+  // counter 是 step 内第几次发送(1-based),跨 iteration 持久。
+  // variation 按 counter 索引取值(counter-1),clamp 到最后一个。
+  // accumulation 从 lastValues 取上次值,无则用 initial(递推由帧侧完成,这里不测公式)。
 
-  it('returns base values when no variations', () => {
-    const base = { field1: 100, field2: 'hello' };
-    expect(resolveFieldValues(base, undefined, 0)).toEqual(base);
-  });
-
-  it('returns base values when variations is empty', () => {
+  it('returns shallow copy of base values when no resolvers', () => {
+    expect(resolveFieldValues(undefined, undefined, 1, new Map())).toEqual({});
     const base = { field1: 100 };
-    expect(resolveFieldValues(base, [], 0)).toEqual(base);
+    expect(resolveFieldValues(base, undefined, 1, new Map())).toEqual(base);
+    expect(resolveFieldValues(base, [], 1, new Map())).toEqual(base);
   });
 
-  it('overrides base field with variation value at iteration 0', () => {
+  it('variation: takes value at counter index (counter=1 → values[0])', () => {
     const base = { field1: 100 };
-    const variations = [{ fieldId: 'field1', values: [10, 20, 30] as const }];
-    expect(resolveFieldValues(base, variations, 0)).toEqual({ field1: 10 });
+    const resolvers = [{ kind: 'variation' as const, fieldId: 'field1', values: [10, 20, 30] as const }];
+    expect(resolveFieldValues(base, resolvers, 1, new Map())).toEqual({ field1: 10 });
+    expect(resolveFieldValues(base, resolvers, 2, new Map())).toEqual({ field1: 20 });
+    expect(resolveFieldValues(base, resolvers, 3, new Map())).toEqual({ field1: 30 });
   });
 
-  it('uses different variation values per iteration', () => {
+  it('variation: clamps to last value when counter exceeds length', () => {
+    // 用户语义:取完保留最后一个值(不停止、不报错、不回退到 base)
     const base = { field1: 100 };
-    const variations = [{ fieldId: 'field1', values: [10, 20, 30] as const }];
-    expect(resolveFieldValues(base, variations, 0)).toEqual({ field1: 10 });
-    expect(resolveFieldValues(base, variations, 1)).toEqual({ field1: 20 });
-    expect(resolveFieldValues(base, variations, 2)).toEqual({ field1: 30 });
+    const resolvers = [{ kind: 'variation' as const, fieldId: 'field1', values: [10, 20] as const }];
+    expect(resolveFieldValues(base, resolvers, 1, new Map())).toEqual({ field1: 10 });
+    expect(resolveFieldValues(base, resolvers, 2, new Map())).toEqual({ field1: 20 });
+    // counter=5 超过 length=2 → clamp 到 values[1]=20(不是 base 的 100)
+    expect(resolveFieldValues(base, resolvers, 5, new Map())).toEqual({ field1: 20 });
   });
 
-  it('keeps base value when iteration exceeds variation length', () => {
-    const base = { field1: 100 };
-    const variations = [{ fieldId: 'field1', values: [10, 20] as const }];
-    expect(resolveFieldValues(base, variations, 5)).toEqual({ field1: 100 });
-  });
-
-  it('handles multiple field variations simultaneously', () => {
-    const base = { f1: 0, f2: 0 };
-    const variations = [
-      { fieldId: 'f1', values: [1, 2, 3] as const },
-      { fieldId: 'f2', values: ['a', 'b'] as const },
+  it('variation: cross-field length mismatch clamps per-field', () => {
+    // 字段A 15 值、字段B 3 值,counter=10 时 A 取 values[9]、B clamp 到 values[2]
+    const base = { a: 0, b: 0 };
+    const resolvers = [
+      { kind: 'variation' as const, fieldId: 'a', values: Array.from({ length: 15 }, (_, i) => i + 1) },
+      { kind: 'variation' as const, fieldId: 'b', values: [100, 200, 300] as const },
     ];
-    expect(resolveFieldValues(base, variations, 0)).toEqual({ f1: 1, f2: 'a' });
-    expect(resolveFieldValues(base, variations, 1)).toEqual({ f1: 2, f2: 'b' });
-    // f2 exceeds its length, keeps base
-    expect(resolveFieldValues(base, variations, 2)).toEqual({ f1: 3, f2: 0 });
+    expect(resolveFieldValues(base, resolvers, 10, new Map())).toEqual({ a: 10, b: 300 });
   });
 
-  it('preserves non-varied base fields', () => {
+  it('variation: preserves non-varied base fields', () => {
     const base = { field1: 100, field2: 200, field3: true };
-    const variations = [{ fieldId: 'field1', values: [10] as const }];
-    expect(resolveFieldValues(base, variations, 0)).toEqual({ field1: 10, field2: 200, field3: true });
+    const resolvers = [{ kind: 'variation' as const, fieldId: 'field1', values: [10] as const }];
+    expect(resolveFieldValues(base, resolvers, 1, new Map())).toEqual({ field1: 10, field2: 200, field3: true });
+  });
+
+  it('accumulation: uses initial when lastValues empty', () => {
+    const resolvers = [{ kind: 'accumulation' as const, fieldId: 'speed', initial: 0 }];
+    expect(resolveFieldValues({}, resolvers, 1, new Map())).toEqual({ speed: 0 });
+  });
+
+  it('accumulation: uses lastValues when present (writeback feeds next)', () => {
+    // 模拟 writeback 后:帧侧算出 speed=5 回写 lastValues,下次 resolveFieldValues 取 5
+    const resolvers = [{ kind: 'accumulation' as const, fieldId: 'speed', initial: 0 }];
+    const lastValues = new Map<string, string | number | boolean>([['speed', 5]]);
+    expect(resolveFieldValues({}, resolvers, 2, lastValues)).toEqual({ speed: 5 });
+  });
+
+  it('accumulation + variation coexist (different fields)', () => {
+    // step 级字段混用:字段A variation、字段B accumulation 合法
+    const resolvers = [
+      { kind: 'variation' as const, fieldId: 'a', values: [1, 2, 3] as const },
+      { kind: 'accumulation' as const, fieldId: 'b', initial: 10 },
+    ];
+    const lastValues = new Map<string, string | number | boolean>([['b', 25]]);
+    expect(resolveFieldValues({}, resolvers, 2, lastValues)).toEqual({ a: 2, b: 25 });
   });
 });
 
@@ -603,13 +614,14 @@ describe('buildSendRequest', () => {
     steps: [],
     errorPolicy: { onFailure: 'stop' },
   };
+  const emptyLastValues = new Map<string, string | number | boolean>();
 
   it('maps frameId, targetId, userFieldValues', () => {
     const step = {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'frame-X', targetId: 'target-Y', userFieldValues: { f: 42 } },
     };
-    const req = buildSendRequest(step, baseDef, 0, 0);
+    const req = buildSendRequest(step, baseDef, 0, 0, 1, emptyLastValues);
     expect(req.frameId).toBe('frame-X');
     expect(req.targetId).toBe('target-Y');
     expect(req.userFieldValues).toEqual({ f: 42 });
@@ -621,7 +633,7 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1', targetId: 't1', variables: vars },
     };
-    const req = buildSendRequest(step, baseDef, 2, 3);
+    const req = buildSendRequest(step, baseDef, 2, 3, 1, emptyLastValues);
     expect(req.variables).toBe(vars);
   });
 
@@ -630,7 +642,7 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1', targetId: 't1' },
     };
-    const req = buildSendRequest(step, baseDef, 5, 3);
+    const req = buildSendRequest(step, baseDef, 5, 3, 1, emptyLastValues);
     expect(req.context).toEqual({ source: 'task', taskId: 'build-test', stepIndex: 5 });
   });
 
@@ -639,7 +651,7 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1', targetId: 't1' },
     };
-    const req = buildSendRequest(step, baseDef, 0, 0);
+    const req = buildSendRequest(step, baseDef, 0, 0, 1, emptyLastValues);
     expect((req as Record<string, unknown>).options).toBeUndefined();
   });
 
@@ -648,7 +660,7 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1', targetId: 'explicit-target' },
     };
-    const req = buildSendRequest(step, baseDef, 0, 0);
+    const req = buildSendRequest(step, baseDef, 0, 0, 1, emptyLastValues);
     expect(req.targetId).toBe('explicit-target');
   });
 
@@ -658,7 +670,7 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1' },
     };
-    const req = buildSendRequest(step, def, 0, 0);
+    const req = buildSendRequest(step, def, 0, 0, 1, emptyLastValues);
     expect(req.targetId).toBe('task-default-target');
   });
 
@@ -668,7 +680,7 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1', targetId: 'step-override' },
     };
-    const req = buildSendRequest(step, def, 0, 0);
+    const req = buildSendRequest(step, def, 0, 0, 1, emptyLastValues);
     expect(req.targetId).toBe('step-override');
   });
 
@@ -677,21 +689,39 @@ describe('buildSendRequest', () => {
       id: 's1', kind: 'send' as const,
       config: { frameId: 'f1' },
     };
-    const req = buildSendRequest(step, baseDef, 0, 0);
+    const req = buildSendRequest(step, baseDef, 0, 0, 1, emptyLastValues);
     expect(req.targetId).toBe('');
   });
 
-  it('merges fieldVariations into userFieldValues at given iteration', () => {
-    const def: TaskDefinition = {
-      ...baseDef,
-      fieldVariations: [{ fieldId: 'v', values: [10, 20, 30] as const }],
-    };
+  it('merges step-level fieldResolvers (variation) into userFieldValues by counter', () => {
+    // fieldResolvers 下沉到 step 级,按 counter 取值,clamp 到最后一个
     const step = {
       id: 's1', kind: 'send' as const,
-      config: { frameId: 'f1', targetId: 't1', userFieldValues: { v: 0, other: 99 } },
+      config: {
+        frameId: 'f1', targetId: 't1',
+        userFieldValues: { other: 99 },
+        fieldResolvers: [{ kind: 'variation' as const, fieldId: 'v', values: [10, 20, 30] }],
+      },
     };
-    expect(buildSendRequest(step, def, 0, 0).userFieldValues).toEqual({ v: 10, other: 99 });
-    expect(buildSendRequest(step, def, 0, 1).userFieldValues).toEqual({ v: 20, other: 99 });
-    expect(buildSendRequest(step, def, 0, 2).userFieldValues).toEqual({ v: 30, other: 99 });
+    expect(buildSendRequest(step, baseDef, 0, 0, 1, emptyLastValues).userFieldValues).toEqual({ v: 10, other: 99 });
+    expect(buildSendRequest(step, baseDef, 0, 1, 2, emptyLastValues).userFieldValues).toEqual({ v: 20, other: 99 });
+    expect(buildSendRequest(step, baseDef, 0, 2, 3, emptyLastValues).userFieldValues).toEqual({ v: 30, other: 99 });
+    // counter=5 超过 length=3 → clamp 到 30
+    expect(buildSendRequest(step, baseDef, 0, 3, 5, emptyLastValues).userFieldValues).toEqual({ v: 30, other: 99 });
+  });
+
+  it('uses accumulation initial/lastValues from step-level resolver', () => {
+    const step = {
+      id: 's1', kind: 'send' as const,
+      config: {
+        frameId: 'f1', targetId: 't1',
+        fieldResolvers: [{ kind: 'accumulation' as const, fieldId: 'speed', initial: 0 }],
+      },
+    };
+    // 首次:lastValues 空 → initial=0
+    expect(buildSendRequest(step, baseDef, 0, 0, 1, emptyLastValues).userFieldValues).toEqual({ speed: 0 });
+    // writeback 后:lastValues 有 speed=5 → 取 5(帧侧递推结果的回写)
+    const lastValues = new Map<string, string | number | boolean>([['speed', 5]]);
+    expect(buildSendRequest(step, baseDef, 0, 1, 2, lastValues).userFieldValues).toEqual({ speed: 5 });
   });
 });

@@ -7,11 +7,29 @@ export function calculateProgress(instance: TaskInstanceState): TaskProgress {
 
   const currentIterResults = stepResults.filter((r) => r.iteration === currentIteration);
 
+  // 按 stepIndex 去重:repeat 会让单个 step 产生多个 stepResult,
+  // 进度按"完成的 step 数"计,而非"stepResult 数"。一个 step 多次 repeat 只算一次。
+  // 一个 step 的多次 repeat 结果取"最差"状态:有失败算失败,有 skip 算 skip,否则成功。
+  const stepIndexToResult = new Map<number, TaskStepResult>();
+  for (const result of currentIterResults) {
+    const existing = stepIndexToResult.get(result.stepIndex);
+    if (!existing) {
+      stepIndexToResult.set(result.stepIndex, result);
+    } else {
+      // 已有结果:取最差状态(失败 > skip > 成功)
+      const existingFailed = isStepResultFailed(existing);
+      const existingSkipped = existing.appliedPolicy === 'skip-step';
+      if (!existingFailed && !existingSkipped) {
+        // 现有是成功,可能被新结果覆盖成失败/skip
+        stepIndexToResult.set(result.stepIndex, result);
+      }
+    }
+  }
+
   let stepsCompleted = 0;
   let stepsFailed = 0;
   let stepsSkipped = 0;
-
-  for (const result of currentIterResults) {
+  for (const result of stepIndexToResult.values()) {
     if (result.appliedPolicy === 'skip-step') {
       stepsSkipped++;
     } else if (isStepResultFailed(result)) {
@@ -53,11 +71,15 @@ export function isStepResultFailed(result: TaskStepResult): boolean {
 }
 
 function countCompletedIterations(instance: TaskInstanceState, stepsPerIteration: number): number {
+  // 按 iteration 分组,每组按 stepIndex 去重(repeat 会让单 step 产生多个 result),
+  // 去重后 stepIndex 数 >= stepsPerIteration 才算该 iteration 完成。
   const iterationIndices = new Set(instance.stepResults.map((r) => r.iteration));
   let count = 0;
   for (const iter of iterationIndices) {
-    const iterResults = instance.stepResults.filter((r) => r.iteration === iter);
-    if (iterResults.length >= stepsPerIteration) {
+    const iterStepIndices = new Set(
+      instance.stepResults.filter((r) => r.iteration === iter).map((r) => r.stepIndex),
+    );
+    if (iterStepIndices.size >= stepsPerIteration) {
       count++;
     }
   }

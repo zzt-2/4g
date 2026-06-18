@@ -40,12 +40,16 @@ export type ScheduleDriver =
   | { readonly kind: 'timer'; readonly intervalMs: number }
   | { readonly kind: 'event'; readonly conditions: readonly ConditionTerm[]; readonly cooldownMs?: number };
 
-// --- FieldVariation ---
+// --- FieldValueResolver (step 级字段取值策略) ---
+// 两机制独立 step 级二选一(同一字段不能同时是两种),底层共用 step 内 counter 骨架。
+// - variation:手填值列表,按 step 内 counter 索引取,clamp 到最后一个值。
+// - accumulation:公式归帧管(写帧 expressionConfig),task 只声明 initial;
+//   递推由 send 链路 frame-resolver 的 isSelfReferencing + Phase2/4 完成,
+//   task 层只负责把上次 resolvedFieldValues 回写 stepContext.lastValues 喂下次。
 
-export interface FieldVariation {
-  readonly fieldId: string;
-  readonly values: readonly (string | number)[];
-}
+export type FieldValueResolver =
+  | { readonly kind: 'variation'; readonly fieldId: string; readonly values: readonly (string | number)[] }
+  | { readonly kind: 'accumulation'; readonly fieldId: string; readonly initial: number | string };
 
 // --- StepRepeat ---
 
@@ -64,6 +68,7 @@ export interface SendStepConfig {
   readonly variables?: VariableMap;
   readonly intervalAfterMs?: number;
   readonly repeat?: StepRepeat;
+  readonly fieldResolvers?: readonly FieldValueResolver[]; // step 级字段取值(variation/accumulation)
 }
 
 export interface WaitConditionConfig {
@@ -110,7 +115,6 @@ export interface TaskDefinition {
   readonly steps: readonly TaskStepDefinition[];
   readonly schedule: ScheduleDriver; // replaces schedulingMode + flat scheduling fields
   readonly stopCondition?: TaskStopCondition;
-  readonly fieldVariations?: readonly FieldVariation[];
   readonly errorPolicy: TaskErrorPolicy;
   readonly defaultTargetId?: string; // task-wide fallback for send steps that omit targetId
 }
@@ -259,10 +263,8 @@ export interface ConditionMatchInput {
 export type ResolvedStopCondition = TaskStopCondition;
 
 export function resolveStopCondition(def: TaskDefinition): ResolvedStopCondition {
-  if (def.fieldVariations && def.fieldVariations.length > 0) {
-    const maxLen = Math.max(...def.fieldVariations.map(v => v.values.length));
-    return { ...def.stopCondition, maxIterations: maxLen };
-  }
+  // fieldVariations 已下沉到 step 级(fieldResolvers),不再在任务级推导 maxIterations。
+  // 用户设的 stopCondition.maxIterations 被尊重,不再被静默覆盖。
   // Immediate schedule defaults to 1 iteration
   if (def.schedule.kind === 'immediate' && !def.stopCondition?.maxIterations) {
     return { ...def.stopCondition, maxIterations: 1 };

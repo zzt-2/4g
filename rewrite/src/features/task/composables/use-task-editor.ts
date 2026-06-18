@@ -9,7 +9,6 @@ import type {
   SendStepConfig,
   ConditionTerm,
   StepRepeat,
-  FieldVariation,
 } from '../core';
 import { validateTaskDefinition, createTaskDefinition, cloneStepDefinition } from '../core';
 import type { TaskValidationIssue } from '../core/task-validation';
@@ -72,18 +71,8 @@ export function useTaskEditor(taskService: TaskService) {
       steps: steps.value,
       errorPolicy: errorPolicy.value,
       stopCondition: buildStopCondition(),
-      fieldVariations: fieldVariations.value.length > 0 ? fieldVariations.value : undefined,
       ...(defaultTargetId.value ? { defaultTargetId: defaultTargetId.value } : {}),
     });
-    // [task-debug] inspect what is being saved into the instance
-    console.info(
-      '[task-debug] buildDefinition id=', def.id,
-      'defaultTargetId=', def.defaultTargetId,
-      'sendSteps=', def.steps.map((s) => s.kind === 'send'
-        ? { id: s.id, targetId: s.config.targetId }
-        : null,
-      ),
-    );
     return deepToRaw(def);
   }
 
@@ -106,7 +95,6 @@ export function useTaskEditor(taskService: TaskService) {
     steps.value = [];
     stopCondition.value = {};
     errorPolicy.value = { onFailure: 'stop' };
-    fieldVariations.value = [];
     defaultTargetId.value = null;
     validationIssues.value = [];
     isEditing.value = true;
@@ -133,10 +121,6 @@ export function useTaskEditor(taskService: TaskService) {
     steps.value = def.steps.map(cloneStepDefinition);
     stopCondition.value = def.stopCondition ? { ...def.stopCondition } : {};
     errorPolicy.value = { ...def.errorPolicy };
-
-    fieldVariations.value = def.fieldVariations
-      ? def.fieldVariations.map((v) => ({ ...v }))
-      : [];
 
     defaultTargetId.value = def.defaultTargetId ?? null;
 
@@ -241,8 +225,6 @@ export function useTaskEditor(taskService: TaskService) {
     updateStep(index, { ...step, config });
   }
 
-  const fieldVariations = ref<FieldVariation[]>([]);
-
   function addExitCondition(): void {
     const sc = { ...stopCondition.value };
     const conds = [...(sc.exitCondition ?? []), { frameId: '', fieldId: '', operator: 'eq' as const, threshold: '' }];
@@ -253,18 +235,6 @@ export function useTaskEditor(taskService: TaskService) {
     const sc = { ...stopCondition.value };
     const conds = (sc.exitCondition ?? []).filter((_, i) => i !== index);
     stopCondition.value = { ...sc, exitCondition: conds };
-  }
-
-  function addFieldVariation(): void {
-    fieldVariations.value = [...fieldVariations.value, { fieldId: '', values: [] }];
-  }
-
-  function removeFieldVariation(index: number): void {
-    fieldVariations.value = fieldVariations.value.filter((_, i) => i !== index);
-  }
-
-  function updateFieldVariation(index: number, variation: FieldVariation): void {
-    fieldVariations.value = fieldVariations.value.map((v, i) => (i === index ? variation : v));
   }
 
   return {
@@ -298,11 +268,7 @@ export function useTaskEditor(taskService: TaskService) {
     duplicateStepValuesFromPrevious,
     clearAllStepTargetOverrides,
     updateStepRepeat,
-    fieldVariations,
     addExitCondition,
     removeExitCondition,
-    addFieldVariation,
-    removeFieldVariation,
-    updateFieldVariation,
   };
 }

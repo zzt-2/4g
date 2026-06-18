@@ -6,7 +6,6 @@ import type {
   ScheduleDriver,
   TaskErrorPolicy,
   TaskStopCondition,
-  FieldVariation,
 } from './types';
 
 let nextStepId = 1;
@@ -55,7 +54,6 @@ export function createTaskDefinition(
     readonly steps: readonly TaskStepDefinition[];
     readonly errorPolicy: TaskErrorPolicy;
     readonly stopCondition?: TaskStopCondition;
-    readonly fieldVariations?: readonly FieldVariation[];
     readonly defaultTargetId?: string;
   },
 ): TaskDefinition {

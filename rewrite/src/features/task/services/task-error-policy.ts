@@ -58,10 +58,13 @@ export function createErrorPolicyHandler(ctx: ErrorPolicyContext) {
           if (!inst || inst.lifecycle !== 'running') return null;
 
           // Re-execute raw step without re-entering error policy
+          // retry 是"重试同一次发送",counter 不推进(单发语义);lastValues 空(retry 不参与 accumulation 累积)
           let retryResult: TaskStepResult;
           switch (step.kind) {
             case 'send':
-              retryResult = await ctx.stepExecutors.executeSendStep(instanceId, step, iteration, stepIndex, definition);
+              retryResult = await ctx.stepExecutors.executeSendStep(
+                instanceId, step, iteration, stepIndex, definition, 1, new Map(),
+              );
               break;
             case 'wait-condition': {
               const wc = await ctx.stepExecutors.executeWaitConditionStep(instanceId, step, iteration, stepIndex, signal);

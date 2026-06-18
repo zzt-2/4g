@@ -838,11 +838,9 @@ function hasPreviousSendStep(si: number): boolean {
               <AdvancedConfigPanel
                 :stop-condition="editor.stopCondition.value"
                 :error-policy="editor.errorPolicy.value"
-                :field-variations="editor.fieldVariations.value"
                 :frame-service="frameService"
                 @update:stop-condition="editor.stopCondition.value = $event ?? {}"
                 @update:error-policy="editor.errorPolicy.value = $event"
-                @update:field-variations="editor.fieldVariations.value = $event"
               />
 
               <template v-if="editor.validationIssues.value.length > 0">

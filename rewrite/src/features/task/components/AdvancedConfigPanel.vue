@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { FrameAssetService } from '@/features/frame';
-import type { TaskStopCondition, TaskErrorPolicy, FieldVariation, ConditionTerm } from '../core';
+import type { TaskStopCondition, TaskErrorPolicy, ConditionTerm } from '../core';
 import ConditionTermEditor from '@/widgets/ConditionTermEditor.vue';
 import { ERROR_ACTION_OPTIONS } from './task-labels';
 
 const props = defineProps<{
   readonly stopCondition?: TaskStopCondition;
   readonly errorPolicy: TaskErrorPolicy;
-  readonly fieldVariations?: readonly FieldVariation[];
   readonly frameService: FrameAssetService;
   readonly disable?: boolean;
 }>();
@@ -16,7 +15,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:stopCondition': [value: TaskStopCondition | undefined];
   'update:errorPolicy': [value: TaskErrorPolicy];
-  'update:fieldVariations': [value: FieldVariation[]];
 }>();
 
 const exitConditions = computed(() => props.stopCondition?.exitCondition ?? []);
@@ -44,25 +42,6 @@ function removeExitCondition(index: number): void {
 function updateExitCondition(index: number, term: ConditionTerm): void {
   const conds = exitConditions.value.map((c, i) => (i === index ? term : c));
   patchStopCondition({ exitCondition: conds });
-}
-
-function addFieldVariation(): void {
-  const vars = [...(props.fieldVariations ?? []), { fieldId: '', values: [] }];
-  emit('update:fieldVariations', vars);
-}
-
-function removeFieldVariation(index: number): void {
-  const vars = (props.fieldVariations ?? []).filter((_, i) => i !== index);
-  emit('update:fieldVariations', vars);
-}
-
-function updateFieldVariation(index: number, var_: FieldVariation): void {
-  const vars = (props.fieldVariations ?? []).map((v, i) => (i === index ? var_ : v));
-  emit('update:fieldVariations', vars);
-}
-
-function parseVariationValues(raw: string): (string | number)[] {
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 </script>
 
@@ -156,48 +135,6 @@ function parseVariationValues(raw: string): (string | number)[] {
         :disable="disable || errorPolicy.onFailure !== 'retry'"
         @update:model-value="patchErrorPolicy({ retryDelayMs: Number($event) || undefined })"
       />
-
-      <q-separator />
-
-      <!-- Field variations -->
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span class="rw-text-label text-xs">可变参数</span>
-          <q-btn
-            flat dense no-caps icon="o_add" label="添加"
-            size="sm" color="primary"
-            :disable="disable"
-            @click="addFieldVariation"
-          />
-        </div>
-        <div
-          v-for="(var_, vi) in (fieldVariations ?? [])"
-          :key="vi"
-          class="flex items-center gap-2"
-        >
-          <q-input
-            :model-value="var_.fieldId"
-            dense
-            outlined
-            placeholder="字段 ID"
-            class="w-40"
-            @update:model-value="updateFieldVariation(vi, { ...var_, fieldId: $event ?? '' })"
-          />
-          <q-input
-            :model-value="var_.values.join(', ')"
-            dense
-            outlined
-            placeholder="值列表（逗号分隔）"
-            class="flex-1"
-            @update:model-value="updateFieldVariation(vi, { ...var_, values: parseVariationValues($event ?? '') })"
-          />
-          <q-btn
-            flat round dense icon="o_close" size="xs" color="negative"
-            :disable="disable"
-            @click="removeFieldVariation(vi)"
-          />
-        </div>
-      </div>
     </div>
   </q-expansion-item>
 </template>

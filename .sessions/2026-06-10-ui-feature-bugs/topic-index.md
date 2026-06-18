@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-17 H007 表达式累加 handoff
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-18 H008 实施完成(task step 级参数变化机制:字段级可变参数 + 表达式连续累积 + 顺手修两 bug)
 
 ## 进展线索
 
@@ -11,6 +11,9 @@
 - **H004** 速度模拟帧调试交接 (06-11)：H002 代码修复完成（单测通过），但运行时速度累加仍不生效。需确认实际帧数据配置和运行时链路。详见 H003-speed-simulation-debug.md
 - **H005** 接收管线调试 (06-11)：根因定位 — `refreshFrameReferences()` 运行时从未被调用，导致 refFrames=0，所有帧 config-error。已修复 3 处。字节序、expressionCache、帧列表问题待讨论
 - **H006** Display 页面表格改进 (06-11)：用户反馈接收显示页表格不好用。7 项改进已实现 — 删帧列、删更新时间列、加原始Hex列（float/double→'-'）、加字段排序按钮（可切换）、加值 tooltip、加点击复制、加列可见性切换。含自检修复（双触发 bug、clipboard 错误处理、dataType 过滤提到 bridge 层、SCSS token 化）
+- **S002** task 参数变化机制拍板 (06-17)：纠正 H007 误判（线 A 速度模拟早于 4375857 修复，非当前活）；扫归档 53 会话确认 S010 三问题从未拍板；用户拍板"两个都要"。**v2 转折**：主对话讨论问题一时发现两机制共用 step 内执行骨架，改"分开决策、合一实施"。详见 D001 + S002 + voice.md
+- **H008** task step 级参数变化机制 (06-17 交接, 06-18 实施完成)：**两个问题合一实施**(共用 FieldValueResolver 骨架)。问题一表达式连续累积(单 step 边界 / repeat×iteration 全局递增 / 公式归帧 / step 级临时上下文 / **accumulation 复用帧侧 self-ref + task 补 writeback**) + 问题二字段级可变参数(响应式联动一次性触发 / clamp) + 顺手修两 bug(progress 爆表 / maxIterations 覆盖)。v1（分开做）已废弃。**实施形状见 D002**。
+- **S003** H008 实施对话 (06-18)：落地 6 个设计待决点 + accumulation 复用帧侧 self-ref + task 补 writeback。task+command-ingress 386 tests 全过。**续接**:独立审查 pass-with-known-gaps(无 revise-required),补清 4 处 [task-debug] console.info + 新增 accumulation 端到端集成测试(真实 frame-resolver 递推 + writeback 闭环,2 tests 全过)。task+command-ingress+send 546 tests 全过,lint 0 新增 error。详见 D002 + S003 + voice.md 2026-06-18
 
 ## 已确认结论
 
@@ -97,11 +100,24 @@
 
 ## 当前位置
 
-H006 Display 表格改进已完成。**表达式累加问题(两条线)转 H007**:线 A(send 速度模拟运行时调试)可立即开对话;线 B(task 字段累加)需用户先拍板业务决策(连续累积 vs 离散值列表)。
+**H008 task step 级参数变化机制实施完成 + 独立审查通过(2026-06-18)**。两个问题合一实施完成:字段级可变参数 + 表达式连续累积(共用 FieldValueResolver 骨架),顺手修 progress 爆表 + maxIterations 覆盖两 bug。accumulation 采用"复用帧侧 self-ref + task 补 writeback"路径(用户拍板,偏离 H008 v2 原设计但语义一致)。
 
-## H007 表达式累加问题(2026-06-17)
+**独立审查结论:pass-with-known-gaps**(无 revise-required 问题,架构零违规,核心语义全部正确且有 USER CASE 测试覆盖)。审查指出的两个 known gap 已补清:4 处 [task-debug] console.info 清理 + accumulation 端到端集成测试(真实 frame-resolver 递推 + writeback 闭环)。
 
-详见 `H007-expression-accumulation-handoff.md`。核心:
-- **两条线**:A=send 链路(代码写了运行时不生效,需加日志调试);B=task 链路(完全没动,依赖业务决策)
-- **业务决策点(阻塞)**:连续累积 vs 离散值列表?S010 推荐"离散值",旧系统也不支持连续累积
-- 线 A 不依赖决策,可先做;线 B 拍板后做(选项2=小修 / 选项1=大改需建 D### 修订 D6)
+验证状态:task+command-ingress+send **546 tests 全过**(含 3 USER CASE + 2 e2e),tsc 源码 0 错,lint 0 新增 error。build 未跑通(electron 打包 EBUSY 文件锁,环境问题非代码)。预先存在的 6 个失败(heartbeat-timer/connection-core)与本任务无关。
+
+待用户确认:build 环境锁解除后跑一次完整 build(验证 .vue script 编译);以及是否需要真实硬件运行时验证(速度模拟帧 S-FPGA-004 在 task 下实际连续累积)。
+
+### H007 表达式累加问题(2026-06-17, 已部分作废)
+
+详见 `H007-expression-accumulation-handoff.md`。⚠️ **2026-06-17 用户纠正**:H007 把"线 A = send 速度模拟运行时调试"当当前待办是定性错误——该 bug 已于 commit 4375857(2026-06-11)修复。H007 描述的"线 A 当前待办"作废。真正当前活是线 B(task 参数变化),已由 S002/D001 落实拍板,H008 v2 合一实施。H007 文档保留可追溯,不再作为执行依据。
+
+## H008 task step 级参数变化机制（2026-06-18 实施完成）
+
+详见 `H008-field-level-variable-parameters-handoff.md`。**两个问题合一实施完成**(共用 FieldValueResolver 骨架):问题二字段级可变参数 + 问题一表达式连续累积 + 顺手修两个 bug(progress 爆表 / maxIterations 覆盖)。**实施形状见 D002**(resolver 挂 SendStepConfig.fieldResolvers / accumulation 复用帧侧 self-ref + task 补 writeback / counter 穿透 / 联动 flag / iteration-counter 协同)。
+
+## 决策与原话
+
+- **D001**(decisions.md):task 参数变化机制——两个需求都要,分开决策、合一实施。详细语义 + 理由 + 排除方案 + 影响范围。
+- **D002**(decisions.md):H008 实施形状落地 —— resolver 挂 SendStepConfig + accumulation 复用帧侧 self-ref + 6 个设计待决点最终方案 + accumulation 路径偏离记录。
+- **voice.md**:2026-06-17 用户拍板原话(连续累积语义 / 字段级可变参数语义 / 纠正线 A 误判) + 2026-06-18 accumulation 路径拍板。

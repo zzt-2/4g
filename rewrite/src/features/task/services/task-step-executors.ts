@@ -21,23 +21,18 @@ export function buildSendRequest(
   definition: TaskDefinition,
   stepIndex: number,
   iteration: number,
+  counter: number,
+  lastValues: Map<string, string | number | boolean>,
 ): SendRequest {
   const resolvedTargetId = resolveSendTargetId(stepConfig.config, definition);
-  // [task-debug] inspect target resolution at runtime
-  console.info(
-    '[task-debug] buildSendRequest taskId=', definition.id,
-    'stepId=', stepConfig.id,
-    'stepTargetId=', stepConfig.config.targetId,
-    'defDefaultTargetId=', definition.defaultTargetId,
-    'resolved=', resolvedTargetId,
-  );
   return {
     frameId: stepConfig.config.frameId,
     targetId: resolvedTargetId ?? '',
     userFieldValues: resolveFieldValues(
       stepConfig.config.userFieldValues,
-      definition.fieldVariations,
-      iteration,
+      stepConfig.config.fieldResolvers,  // step 级 resolver(取代任务级 fieldVariations)
+      counter,
+      lastValues,
     ),
     variables: stepConfig.config.variables,
     context: { source: 'task', taskId: definition.id, stepIndex },
@@ -61,16 +56,11 @@ export function createStepExecutors(ctx: StepExecutorContext) {
     iteration: number,
     stepIndex: number,
     definition: TaskDefinition,
+    counter: number,
+    lastValues: Map<string, string | number | boolean>,
   ): Promise<TaskStepResult> {
-    const request = buildSendRequest(step, definition, stepIndex, iteration);
+    const request = buildSendRequest(step, definition, stepIndex, iteration, counter, lastValues);
     const sendResult = await ctx.sendService.execute(request);
-    // [task-debug] inspect send outcome (kind anything other than 'sent' indicates failure)
-    console.info(
-      '[task-debug] executeSendStep instanceId=', instanceId,
-      'stepId=', step.id,
-      'resultKind=', sendResult.kind,
-      sendResult.kind !== 'sent' ? sendResult : '',
-    );
     return { kind: 'send', stepIndex, iteration, sendResult };
   }
 

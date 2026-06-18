@@ -2,7 +2,7 @@ import type {
   TaskDefinition,
   TaskStepDefinition,
   ConditionTerm,
-  FieldVariation,
+  FieldValueResolver,
 } from '@/features/task';
 import type { ParsedCommand } from './protocol-adapter';
 import type {
@@ -128,6 +128,11 @@ export function buildReadFileAndSendTask(
   const waitConditions = buildWaitConditions(command, config.completionConditions);
   const steps: TaskStepDefinition[] = [];
 
+  // 文件行作为字段级 variation resolver 挂到 send step(取代任务级 fieldVariations)
+  const fieldResolvers: FieldValueResolver[] = fileFieldMapping
+    ? [{ kind: 'variation', fieldId: fileFieldMapping.fieldId, values: [...fileLines] }]
+    : [];
+
   steps.push({
     id: 'send-rfs',
     kind: 'send',
@@ -135,6 +140,8 @@ export function buildReadFileAndSendTask(
       frameId: mapping.frameId,
       targetId: mapping.targetId,
       userFieldValues: {},
+      // 文件行作为离散值列表,按 step 内 counter 取值,clamp 到最后一个
+      ...(fieldResolvers.length > 0 ? { fieldResolvers } : {}),
     },
   });
 
@@ -150,16 +157,11 @@ export function buildReadFileAndSendTask(
     });
   }
 
-  const fieldVariations: FieldVariation[] = fileFieldMapping
-    ? [{ fieldId: fileFieldMapping.fieldId, values: [...fileLines] }]
-    : [];
-
   return {
     id: `scoe-rfs-${command.commandId}`,
     name: `SCOE READ_FILE_AND_SEND: ${config.label}`,
     schedule: { kind: 'timer', intervalMs: config.sendInterval ?? 1000 },
     steps,
-    fieldVariations: fieldVariations.length > 0 ? fieldVariations : undefined,
     stopCondition: { maxIterations: fileLines.length },
     errorPolicy: { onFailure: 'stop' },
   };

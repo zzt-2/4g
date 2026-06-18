@@ -197,7 +197,7 @@ describe('buildReadFileAndSendTask', () => {
     expect(() => buildReadFileAndSendTask(cmd, ['line1'])).toThrow('No frame mapping');
   });
 
-  it('builds TaskDefinition with timer schedule and fieldVariations', () => {
+  it('builds TaskDefinition with timer schedule and step-level fieldResolvers', () => {
     const cmd = buildParsedCommand({
       commandConfig: {
         ...sendFrameCommandConfig,
@@ -230,11 +230,16 @@ describe('buildReadFileAndSendTask', () => {
 
     expect(taskDef.schedule).toEqual({ kind: 'timer', intervalMs: 100 });
     expect(taskDef.stopCondition).toEqual({ maxIterations: 3 });
-    expect(taskDef.fieldVariations).toEqual([
-      { fieldId: 'field-data', values: ['data1', 'data2', 'data3'] },
-    ]);
     expect(taskDef.id).toMatch(/^scoe-rfs-/);
     expect(taskDef.name).toContain('READ_FILE_AND_SEND');
+    // 文件行下沉到 send step 的 fieldResolvers(variation),取代任务级 fieldVariations
+    const sendStep = taskDef.steps[0]!;
+    expect(sendStep.kind).toBe('send');
+    if (sendStep.kind === 'send') {
+      expect(sendStep.config.fieldResolvers).toEqual([
+        { kind: 'variation', fieldId: 'field-data', values: ['data1', 'data2', 'data3'] },
+      ]);
+    }
   });
 
   it('uses default intervalMs when sendInterval is undefined', () => {
@@ -257,7 +262,7 @@ describe('buildReadFileAndSendTask', () => {
     expect(taskDef.schedule).toEqual({ kind: 'timer', intervalMs: 1000 });
   });
 
-  it('omits fieldVariations when no file param mapping found', () => {
+  it('omits fieldResolvers when no file param mapping found', () => {
     const cmd = buildParsedCommand({
       commandConfig: {
         ...sendFrameCommandConfig,
@@ -274,6 +279,10 @@ describe('buildReadFileAndSendTask', () => {
     });
 
     const taskDef = buildReadFileAndSendTask(cmd, ['line1']);
-    expect(taskDef.fieldVariations).toBeUndefined();
+    const sendStep = taskDef.steps[0]!;
+    expect(sendStep.kind).toBe('send');
+    if (sendStep.kind === 'send') {
+      expect(sendStep.config.fieldResolvers).toBeUndefined();
+    }
   });
 });

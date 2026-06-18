@@ -17,8 +17,8 @@ sessions:
     title: 甲方对接闭环分析
     status: active
     created: 2026-05-18
-    last_updated: 2026-06-17
-    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项。H008+R001 完成:基于 0531 HAR 厘清甲方四层概念(caseMenu/caseTemplate/caseSet/task),确认 caseTemplate↔TaskTemplate 映射(D001)。
+    last_updated: 2026-06-18
+    description: 基于甲方 V1.0.1 接口文档（31 接口），分析 northbound 对接闭环、拍板决策、gap 清单、待甲方确认项。D001(caseTemplate↔TaskTemplate)+D002(getTestCaseAll 数据源=模板加上报标记)+D003(我们是 LAS 子系统,翻译双向同源)确立。setTestTask 协议层对齐+代码清理完成。HAR 是 ka 数据,翻译层方向已正(简单工程非领域密集)。
 
   - slug: 2026-05-19-integration-testing
     title: 集成测试体系建立
@@ -38,8 +38,8 @@ sessions:
     title: UI 与 Feature Bug 集中修复
     status: active
     created: 2026-06-10
-    last_updated: 2026-06-10
-    description: 发送帧页面状态丢失、UDP 发送失败、IP 显示错误等多功能交叉 bug 的根因分析和修复。
+    last_updated: 2026-06-18
+    description: 发送帧页面状态丢失、UDP 发送失败、IP 显示错误等多功能交叉 bug 的根因分析和修复。S002/D001 拍板 task 参数变化机制(连续累积+字段级可变参数分开做),H008 交接字段级可变参数实施。H008 实施完成(D002):两问题合一,字段级可变参数 + 表达式连续累积(复用帧侧 self-ref + task 补 writeback) + 顺手修 progress/maxIterations 两 bug。386 tests 全过。
 
   - slug: 2026-06-11-display-group-management
     title: 接收帧分组管理 Feature 实施与修复

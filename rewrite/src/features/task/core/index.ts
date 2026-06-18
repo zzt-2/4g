@@ -9,7 +9,7 @@ export type {
   ComparisonOperator,
   ConditionTerm,
   ScheduleDriver,
-  FieldVariation,
+  FieldValueResolver,
   StepRepeat,
   SendStepConfig,
   WaitConditionConfig,

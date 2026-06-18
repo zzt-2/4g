@@ -44,6 +44,18 @@ export const ON_TIMEOUT_OPTIONS = [
   { value: 'fail', label: '失败' },
 ] as const;
 
+// 字段取值策略(variation 离散值列表 / accumulation 连续累积)。
+// 两机制 step 级二选一,同一字段不能同时是两种。
+export const FIELD_RESOLVER_KIND_LABELS = {
+  variation: '离散值列表',
+  accumulation: '连续累积',
+} as const;
+
+export const FIELD_RESOLVER_KIND_OPTIONS = [
+  { value: 'variation' as const, label: FIELD_RESOLVER_KIND_LABELS.variation },
+  { value: 'accumulation' as const, label: FIELD_RESOLVER_KIND_LABELS.accumulation },
+];
+
 export const ADD_STEP_OPTIONS: readonly { value: TaskStepKind; label: string }[] = [
   { value: 'send', label: '发送步骤' },
   { value: 'wait-condition', label: '等待条件步骤' },
