@@ -870,6 +870,50 @@ describe('createNorthboundService — inbound stub handlers', () => {
     expect(parsed.datas[0].subSysName).toBe('激光');
   });
 
+  it('setTestTask decodes testCase with parameter override from snapshot', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const { createReportedSnapshotStorage } = await import('../services/reported-snapshot-storage');
+    const reportedSnapshotStorage = createReportedSnapshotStorage(makeMemStorage());
+
+    // 先 encode 一个带可覆盖字段的模板,存快照
+    const { encodeTaskTemplateToTestCase } = await import('../core/testcase-sync-translator');
+    const tpl = {
+      templateId: 'tpl-x',
+      name: 'X',
+      tags: [],
+      definition: {
+        id: 'd', name: 'n',
+        steps: [{ kind: 'send' as const, id: 'step-send', config: { frameId: 'rc-laser-on', userFieldValues: { power: 50 } } }],
+        schedule: { kind: 'immediate' as const },
+        errorPolicy: { onFailure: 'stop' as const },
+      },
+      createdAt: '', updatedAt: '',
+      customerSync: { enabled: true, overridablePaths: ['step-send.send.userFieldValues.power'] },
+    };
+    const { snapshot } = encodeTaskTemplateToTestCase(tpl as any, { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit' });
+    reportedSnapshotStorage.save(snapshot);
+
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, reportedSnapshotStorage }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 1, subSysType: 'LAS', subSysId: 'LAS_001',
+      taskId: 'T1', immediate: true, repeatCount: 1, isEnd: true, resources: [],
+      testCaseInfo: [{ testCaseId: snapshot.outCaseId, inputPars: [{ parId: 'step-send.send.userFieldValues.power', value: '99' }] }],
+      executionPlan: { layers: [{ layer: 1, parallel: false, nodes: [snapshot.outCaseId] }] },
+    }) });
+
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalled());
+    const createdDef = (taskService.createTask as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const sendStep = createdDef.steps[0];
+    expect(sendStep.kind).toBe('send');
+    if (sendStep.kind === 'send') {
+      expect(sendStep.config.userFieldValues?.power).toBe(99); // 被覆盖
+      expect(sendStep.config.frameId).toBe('rc-laser-on');     // frameId 保持
+    }
+  });
+
   it('POST-required stubs reject GET requests', async () => {
     const httpFacade = makeMockHttpFacade();
     const service = createNorthboundService(makeOptions({ httpFacade }));

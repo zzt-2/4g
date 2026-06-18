@@ -4,7 +4,6 @@ import type { HttpFacade, HttpRequest, HttpResponse } from '@/platform';
 import type { NorthboundSessionSnapshot } from '../state/northbound-state';
 import { createNorthboundState } from '../state/northbound-state';
 import type { NorthboundStateContainer } from '../state/northbound-state';
-import { translateTestCaseToMockTaskDefinition } from '../core/inbound-translator';
 import {
   translateTaskResult,
   translateStepResult,
@@ -339,7 +338,19 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     tc: TestCaseInfo,
     customerTaskId: string,
   ): Promise<{ readonly instanceId: string }> {
-    const def = translateTestCaseToMockTaskDefinition(tc);
+    // 按 testCaseId(=outCaseId)反查上报快照;有则 decode(支持参数覆盖),无则占位 fail
+    const snapshot = options.reportedSnapshotStorage?.load(tc.testCaseId);
+    let def;
+    if (snapshot) {
+      const { definition, warnings } = decodeTestCaseToTaskDefinition(tc, snapshot);
+      def = definition;
+      if (warnings.length > 0) {
+        console.warn('[northbound] override warnings for', tc.testCaseId, warnings);
+      }
+    } else {
+      def = createPlaceholderFailDefinition(tc.testCaseId);
+      console.error('[northbound] snapshot missing for', tc.testCaseId, '- using placeholder (will not execute real task)');
+    }
     const instance = options.taskService.createTask(def);
     state.mapTestCase(tc.testCaseId, instance.instanceId);
     if (customerTaskId) {
