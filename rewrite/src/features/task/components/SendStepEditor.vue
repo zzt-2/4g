@@ -47,6 +47,19 @@ const fieldOptions = computed(() => {
 // 只在本编辑会话有效(组件局部状态,不持久化),符合"一次性触发"语义。
 const userEditedMaxCount = ref(false);
 
+// 可变参数值列表的本地输入缓存(按 variation 索引存原始文本)。
+// 显示优先取缓存(保留末尾逗号/空格,光标不跳),不直接绑派生 :model-value(values.join)。
+// 输入时既更新缓存又立即把 parsed 值写回 step——这样不依赖 @blur,
+// 用户输入后直接点"保存"也能持久化(blur 在某些情况下不会先于 click 触发)。
+// 缓存是显示源,step 是持久化源,两者并行,显示永远读缓存不被 parse 重算干扰。
+const variationInputs = ref<Record<number, string>>({});
+
+function getVariationInput(index: number): string {
+  if (index in variationInputs.value) return variationInputs.value[index]!;
+  const v = fieldVariations.value[index];
+  return v ? v.values.join(', ') : '';
+}
+
 function patchConfig(patch: Partial<SendStepConfig>): void {
   emit('update:step', { ...props.step, ...patch });
 }
@@ -102,16 +115,26 @@ function parseVariationValues(raw: string): (string | number)[] {
   });
 }
 
-// 编辑可变参数值列表:同步联动 maxCount(一次性,flag 控制是否覆盖)
+// 编辑可变参数值列表:每次输入都 (1) 更新本地缓存(显示源,保留末尾逗号/空格)
+// (2) parse 后写回 step(持久化源)。不依赖 @blur——用户输入后直接点保存,
+// blur 可能不先于 click 触发,导致 step 仍是旧值、保存成空。
+// 关键:fieldVariations + repeat 联动必须在**同一次 emit** 里完成——否则
+// 第二次 patchConfig 读 props.step 时,props 还没回流第一次的 fv,会把 fv 又写成 []。
+// (Vue props 异步回流:两次同步 emit 之间 props.step 是 stale 的旧快照)
 function onVariationValuesInput(index: number, raw: string): void {
+  // 1) 本地缓存:显示源,不被 parse 重算干扰(保留末尾逗号/空格,光标不跳)
+  variationInputs.value = { ...variationInputs.value, [index]: raw };
+  // 2) parse 写回 + repeat 联动:合并到同一次 patchConfig,避免两次 emit 之间 props.stale 覆盖
   const values = parseVariationValues(raw);
   const current = fieldVariations.value[index];
   if (!current) return;
-  updateFieldVariation(index, { ...current, values });
-  // 联动:用户未手动改过 maxCount 时,同步把 maxCount 设为 values 长度
+  const nextFieldVariations = fieldVariations.value.map((v, i) => (i === index ? { ...current, values } : v));
+  const patch: Partial<SendStepConfig> = { fieldVariations: nextFieldVariations };
   if (!userEditedMaxCount.value && values.length > 0) {
-    patchRepeat({ maxCount: values.length });
+    const cur = repeat.value ?? { intervalMs: 1000 };
+    patch.repeat = { ...cur, maxCount: values.length };
   }
+  patchConfig(patch);
 }
 </script>
 
@@ -281,7 +304,7 @@ function onVariationValuesInput(index: number, raw: string): void {
           </div>
 
           <q-input
-            :model-value="variation.values.join(', ')"
+            :model-value="getVariationInput(vi)"
             :disable="disable"
             outlined
             dense
