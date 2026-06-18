@@ -181,6 +181,10 @@ export interface TaskInstanceState {
   readonly error?: string;
   /** 实例追溯：若从模板创建，记录 templateId，不影响运行。 */
   readonly templateId?: string;
+  /** 来源标识：本地启动 / 甲方下发。用于 ExecutionListPage 区分显示。 */
+  readonly source?: 'local' | 'northbound';
+  /** 若为甲方下发，关联的 customerTaskId（T_xxx）。 */
+  readonly customerTaskId?: string;
 }
 
 // --- Template (template / instance 分离) ---
