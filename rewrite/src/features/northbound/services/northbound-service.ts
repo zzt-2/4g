@@ -21,8 +21,6 @@ import type {
   ControlTestTaskResponse,
   CustomerResponse,
   ExecutionPlanLayer,
-  ExecutionPlanNode,
-  CaseSet,
   TestCaseInfo,
   InboundEnvelope,
   EnvelopeConfig,
@@ -289,55 +287,34 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     request: SetTestTaskRequest,
     customerTaskId: string,
   ): Promise<void> {
-    // HAR-aligned: testCaseInfo lives at the request top level (not inside layers).
-    // Build an id index once per setTestTask so node lookups stay O(1).
+    // 04-任务管理.md: testCaseInfo lives at the request top level (not inside layers);
+    // layer.nodes is a plain testCaseId string list. Build an id index once per setTestTask.
     const tcById = new Map<string, TestCaseInfo>();
     for (const tc of request.testCaseInfo ?? []) {
       tcById.set(tc.testCaseId, tc);
     }
-    const caseSetById = new Map<string, CaseSet>();
-    for (const cs of request.executionPlan?.caseSets ?? []) {
-      caseSetById.set(cs.id, cs);
-    }
 
-    // Expand a layer node into the concrete TestCaseInfo list it resolves to.
-    // type='case'    → look up the testCase directly.
-    // type='caseSet' → look up the caseSet, then each member case in testCaseInfo.
-    const resolveNode = (node: ExecutionPlanNode): TestCaseInfo[] => {
-      if (node.type === 'case') {
-        const tc = tcById.get(node.id);
-        return tc ? [tc] : [];
-      }
-      const cs = caseSetById.get(node.id);
-      if (!cs) return [];
-      const resolved: TestCaseInfo[] = [];
-      for (const member of cs.cases) {
-        const tc = tcById.get(member.id);
-        if (tc) resolved.push(tc);
-      }
-      return resolved;
-    };
+    // Resolve a layer node (a testCaseId string) into its TestCaseInfo, if present.
+    const resolveNode = (node: string): TestCaseInfo | undefined => tcById.get(node);
 
     for (const layer of layers) {
       if (layer.parallel) {
         // 并发启动；reportTaskResult 由 onTaskSettled 事件触发
         const tasks: Promise<{ readonly instanceId: string }>[] = [];
         for (const node of layer.nodes) {
-          for (const tc of resolveNode(node)) {
-            if (state.hasTestCase(tc.testCaseId)) continue;
-            tasks.push(createAndStartTask(tc, customerTaskId));
-          }
+          const tc = resolveNode(node);
+          if (!tc || state.hasTestCase(tc.testCaseId)) continue;
+          tasks.push(createAndStartTask(tc, customerTaskId));
         }
         await Promise.all(tasks);
       } else {
         // 顺序：等前一个终态才启动下一个；reportTaskResult 由 onTaskSettled 事件触发
         for (const node of layer.nodes) {
-          for (const tc of resolveNode(node)) {
-            if (state.hasTestCase(tc.testCaseId)) continue;
+          const tc = resolveNode(node);
+          if (!tc || state.hasTestCase(tc.testCaseId)) continue;
 
-            const { instanceId } = await createAndStartTask(tc, customerTaskId);
-            await options.taskService.onSettled(instanceId);
-          }
+          const { instanceId } = await createAndStartTask(tc, customerTaskId);
+          await options.taskService.onSettled(instanceId);
         }
       }
     }

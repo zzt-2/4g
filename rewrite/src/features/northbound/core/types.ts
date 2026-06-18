@@ -58,12 +58,12 @@ export interface TestTaskResource {
 
 export interface TestCaseInfo {
   readonly testCaseId: string;
-  readonly deviceIds: readonly string[];   // ['KPS_UE_202']
-  readonly masterTest: boolean;
-  readonly testMode: 1 | 2;
-  readonly ephMode: 1 | 2;
-  readonly orbitInfo: readonly OrbitInfo[] | null;
-  readonly inputPars: readonly InputPar[];
+  readonly deviceIds?: readonly string[];   // ['KPS_UE_202']  (optional per 04-任务管理.md)
+  readonly masterTest?: boolean;
+  readonly testMode?: 1 | 2;
+  readonly ephMode?: 1 | 2;
+  readonly orbitInfo?: readonly OrbitInfo[] | null;
+  readonly inputPars?: readonly InputPar[];
 }
 
 export interface OrbitInfo {
@@ -85,25 +85,12 @@ export interface InputPar {
 
 export interface ExecutionPlan {
   readonly layers: readonly ExecutionPlanLayer[];
-  readonly caseSets: readonly CaseSet[];
 }
 
 export interface ExecutionPlanLayer {
   readonly layer: number;                  // NOTE: 'layer' not 'layerNo'
   readonly parallel: boolean;
-  readonly nodes: readonly ExecutionPlanNode[];  // NOTE: 'nodes' not 'testCaseInfoList'
-}
-
-export interface ExecutionPlanNode {
-  readonly id: string;
-  readonly name: string;
-  readonly type: 'case' | 'caseSet';
-}
-
-export interface CaseSet {
-  readonly id: string;
-  readonly name: string;
-  readonly cases: readonly { readonly id: string; readonly name: string }[];
+  readonly nodes: readonly string[];  // testCaseId strings (04-任务管理.md: nodes is plain id list)
 }
 
 // V1.0.4 controlTestTask: single taskId + action (not testCaseIdList[] + controlType).

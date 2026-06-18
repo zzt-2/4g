@@ -239,9 +239,8 @@ describe('createNorthboundService — inbound routes', () => {
         layers: [{
           layer: 1,
           parallel: true,
-          nodes: [{ id: 'tc-001', name: 'Test case 1', type: 'case' }],
+          nodes: ['tc-001'],
         }],
-        caseSets: [],
       },
     });
 
@@ -276,7 +275,7 @@ describe('createNorthboundService — inbound routes', () => {
     expect(parsed.requestId).toBe(1002);
   });
 
-  it('setTestTask expands caseSet nodes into member cases', async () => {
+  it('setTestTask expands layer nodes (testCaseId strings) into tasks', async () => {
     const httpFacade = makeMockHttpFacade();
     const taskService = makeMockTaskService();
     const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
@@ -300,18 +299,11 @@ describe('createNorthboundService — inbound routes', () => {
       ],
       ftpInfo: null,
       executionPlan: {
+        // 04-任务管理.md: nodes is a plain testCaseId string list.
         layers: [{
           layer: 1,
           parallel: false,
-          nodes: [{ id: 'cs-1', name: 'Set one', type: 'caseSet' }],
-        }],
-        caseSets: [{
-          id: 'cs-1',
-          name: 'Set one',
-          cases: [
-            { id: 'tc-a', name: 'A' },
-            { id: 'tc-b', name: 'B' },
-          ],
+          nodes: ['tc-a', 'tc-b'],
         }],
       },
     });
@@ -337,8 +329,7 @@ describe('createNorthboundService — inbound routes', () => {
       testCaseInfo: [{ testCaseId: 'tc-ctrl', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
       ftpInfo: null,
       executionPlan: {
-        layers: [{ layer: 1, parallel: true, nodes: [{ id: 'tc-ctrl', name: 'Ctrl test', type: 'case' }] }],
-        caseSets: [],
+        layers: [{ layer: 1, parallel: true, nodes: ['tc-ctrl'] }],
       },
     });
     await handler({ method: 'POST', url: '/setTestTask', body: setBody });
@@ -373,8 +364,7 @@ describe('createNorthboundService — inbound routes', () => {
       testCaseInfo: [{ testCaseId: 'tc-p', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
       ftpInfo: null,
       executionPlan: {
-        layers: [{ layer: 1, parallel: true, nodes: [{ id: 'tc-p', name: 'Pause', type: 'case' }] }],
-        caseSets: [],
+        layers: [{ layer: 1, parallel: true, nodes: ['tc-p'] }],
       },
     }) });
 
@@ -516,8 +506,7 @@ describe('createNorthboundService — handleStepResult positive path', () => {
       testCaseInfo: [{ testCaseId: 'tc-step', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
       ftpInfo: null,
       executionPlan: {
-        layers: [{ layer: 1, parallel: true, nodes: [{ id: 'tc-step', name: 'Step test', type: 'case' }] }],
-        caseSets: [],
+        layers: [{ layer: 1, parallel: true, nodes: ['tc-step'] }],
       },
     }) });
 
@@ -951,8 +940,7 @@ describe('createNorthboundService — setPars heartbeat + customerTaskId echo', 
       testCaseInfo: [{ testCaseId: 'tc-result', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] }],
       ftpInfo: null,
       executionPlan: {
-        layers: [{ layer: 1, parallel: false, nodes: [{ id: 'tc-result', name: 'Result test', type: 'case' }] }],
-        caseSets: [],
+        layers: [{ layer: 1, parallel: false, nodes: ['tc-result'] }],
       },
     }) });
 

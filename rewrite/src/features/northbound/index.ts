@@ -11,8 +11,6 @@ export type {
   InputPar,
   ExecutionPlan,
   ExecutionPlanLayer,
-  ExecutionPlanNode,
-  CaseSet,
   ControlTestTaskRequest,
   ControlTestTaskResponse,
   HeartbeatRequest,
