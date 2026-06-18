@@ -111,15 +111,17 @@ H009 实施时定方案 A/B/C,本决策只锁定"数据源 = listTemplates + 选
 | outCaseId | templateId | "tpl-xxx" |
 | caseName | name | "整机复位" |
 | caseType | 固定 | "orbit"(或按业务定) |
-| subSysId/subSysName/menuId/menuName | 全局配置(NorthboundConfig) | "2054..."/"ka子系统"/... |
-| depSubSys/depSubNe | 全局配置 | "KPS"/"UE:1" |
+| subSysId/subSysName/menuId/menuName | 全局配置(NorthboundConfig,**我们 laser 的**) | laser 的 subSysId/"激光载荷"/... |
+| depSubSys/depSubNe | 全局配置(laser 域) | 按实际填 |
 | durate/satelliteCount/stationCount | 默认值 | 600/1/1 |
 | isParent/children | 固定 | false/[] |
 | sortOrder/remark | 模板元数据或默认 | 序号/空 |
 | priority/relationCaseId/relationCaseSubSysType/parentId | null/空 | — |
 | **caseId**(甲方内部ID) | **不填,甲方自生成** | — |
-| **execSteps** | 模板 steps 序列化或空 | 待 H011 翻译层定 |
+| **execSteps** | 模板 steps 序列化(见 D003 同源映射) | 按 parId 命名规范生成 |
 | **checkPoints** | null(暂不支持) | — |
+
+> 注: 上方示例值原误用 ka 子系统样本("ka子系统"/"KPS"/"UE:1"),2026-06-18 D003 纠正:那些是兄弟子系统 ka 的数据,与我们 laser 无关。laser 的 subSysId/menuName 等用我们自己的全局配置。
 
 ### 影响范围
 
@@ -136,3 +138,76 @@ H009 实施时定方案 A/B/C,本决策只锁定"数据源 = listTemplates + 选
 - D001(caseTemplate↔TaskTemplate 映射,数据层需打通)
 - 用户决定(2026-06-17): 选 C"模板加上报标记"
 - 触发原话: 见 voice.md 2026-06-17
+
+---
+
+## D003: 翻译层模型 = 双向同源映射(推翻 R002 "翻译层站不住")
+
+> status: active
+> date: 2026-06-18
+> 取代：无(推翻 R002 的错误结论 + 派生 agent 的核查报告)
+> 被取代：无
+
+### 决策
+
+northbound↔task 的翻译层采用**双向同源映射**模型:parId↔frameId 的映射**由我们单方面定义**,上报(getTestCaseAll)和下发(setTestTask)两端共享同一份映射。
+
+```
+上报方向(getTestCaseAll):
+  我们的 TaskTemplate.steps → 序列化成 caseTemplate
+  parId 由我们命名,直接对应我们的 frameId/fieldId(如 "LAS.<frameId>.<fieldId>")
+
+下发方向(setTestTask):
+  甲方下发的 testCaseId = 我们当初上报的 outCaseId
+  inputPars[].parId = 我们当初命名的 parId
+  → 反查回 frameId/fieldId,重建 TaskInstance
+```
+
+两端同源,不存在"猜甲方语义"的问题。
+
+### 核心认知纠正(推翻前序错误)
+
+**事实(用户 2026-06-18 确认 + 附录 10-附录.md:141-156 系统分类表)**:
+- 甲方 = 集成控制子系统(SOCC-CQ-CCS),下挂 5 个平级二级子系统
+- 我们 = **激光载荷测试子系统(SOCC-CQ-LAS)**,是 5 个之一
+- HAR 里的 ka 子系统(SOCC-CQ-KPS)是**另一个平级兄弟**,不是我们
+- HAR 91 处 subSysName 全是 "ka子系统",**laser 数据一份都没有**
+- 用例同步是**甲方前端点"用例同步"按钮 → 调我们的 getTestCaseAll → 我们发过去**;不是甲方填的
+
+**被推翻的结论**:
+- ❌ R002 "parId→frameId 翻译层站不住,88% 对不上" —— **错误**。错在拿 ka 的 parId(`NR_Parameters.px_*`/FTP/Ping)去对 laser 的 frame 库,两个子系统的命名空间本来就不互通。
+- ❌ 派生 agent 核查报告 "直接映射可行性 0%" —— **基于错误前提,结论无效**。
+- ❌ R002 建议"按用例类型整批映射,放弃逐参数翻译" —— **不再必要**。逐参数映射天然成立,因为两端都由我们定义。
+
+**正确的理解**:
+- parId 是**各子系统自定义、中心只透传不解析**的(07-参数配置与查询.md:117)
+- ka 的 parId 是 ka 自己定义给自己用的,永远不会出现在 laser 的 frame 库里 —— **对不上是正常的、应该的**
+- laser 的 parId 由我们定义,自然对应 laser 的 frame/field —— **翻译是自洽的**
+
+### 理由
+
+1. **同源保证**: 上报和下发用的是同一套我们定义的 parId 命名,映射表在我们手里,不存在外部依赖。
+2. **文档印证**: 07-参数配置与查询.md:117 明确 parId 由子系统自定义、中心不解析。这是甲方设计的命名空间隔离机制。
+3. **闭环验证**: 甲方下发的 testCaseId 就是我们上报的 outCaseId(用户确认),不存在甲方凭空造 laser 用例的情况。
+
+### 排除的替代方案
+
+- ❌ **按用例类型整批映射(R002 的建议)**: 基于 ka 数据对不上的错误判断。同源模型下逐参数映射天然成立,无需降级。否决。
+- ❌ **扩展 frame 库补 ka 业务帧**: 我们根本不需要执行 ka 的业务(Ping/FTP/流媒体),那是 ka 子系统的事。否决。
+- ❌ **硬写 parId→frameId 对照表(外部知识驱动)**: 映射不应来自"调研甲方语义",而应来自"我们上报时自己建立"。否决,改用命名规范自动生成。
+
+### 影响范围
+
+- **R002**: 翻译层部分需重写(从"站不住/中等工程"改为"同源映射/简单工程")
+- **R001**: 标注 HAR 是 ka 数据,对 laser 仅有结构参考价值(caseTemplate 字段结构),无字段值参考价值
+- **翻译层实施方向**: parId 命名规范 + 上报序列化器 + 下发反查器(两端共享映射),不再是"领域知识密集型调研"
+- **D001/D002 不受影响**: caseTemplate↔TaskTemplate 映射 + 数据源(模板加上报标记)仍成立
+- **本轮代码清理不受影响**: setTestTask 协议层结构(caseSet 删除/nodes 改字符串)与子系统无关,仍正确
+
+### 来源
+
+- 用户纠正(2026-06-18): "甲方那边有三个子系统,我们是其中一个,ka是另一个" + "用例是甲方那边前端点击用例同步按钮,我们这边给发过去的,不是他们填的" + "testCaseId 是我们当初上报的 outCaseId"(确认)
+- 附录 10-附录.md:141-156 系统分类表(5 个子系统,LAS 是我们)
+- HAR 证据: 91 处 subSysName 全是 ka,laser 0 处
+- 07-参数配置与查询.md:117(parId 由子系统自定义,中心只转发不解析)
+- 触发原话: 见 voice.md 2026-06-18

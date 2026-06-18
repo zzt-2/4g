@@ -1,6 +1,15 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-17
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-18
+
+## 子系统架构认知(D003,2026-06-18 确立)
+
+- **甲方 = 集成控制子系统(SOCC-CQ-CCS)**,下挂 5 个平级二级子系统(附录 10-附录.md:141-156):
+  Ka载荷(KPS) / 路由交换(WER) / 馈电(FPS) / **激光载荷(LAS,我们)** / 载荷测试
+- **我们 = 激光载荷测试子系统(SOCC-CQ-LAS)**,是 5 个之一,与 ka 平级
+- HAR(`rewrite/docs/10.15.5.53.har`)**全是 ka 子系统数据**(91 处 subSysName = "ka子系统",laser 0 处)
+- ⚠️ 因此 HAR 的**字段值**(ka 的 Ping/FTP/流媒体参数)对我们无参考;**结构**(caseTemplate/task 四层模型)仍通用
+- **用例同步方向**: 甲方前端点"用例同步"→ 调我们的 getTestCaseAll → 我们发过去(不是甲方填的)。parId 由我们定义,自然对应 laser frame(双向同源,见 D003)
 
 ## 专题目标
 
@@ -188,9 +197,9 @@
 **S008 + H005 完成（中心对接 UI + TaskManagePage 重构）。**
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
 **S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
-**H008 + R001 + R002 完成（粒度调研 + setTestTask 协议层二次核对 + 代码 UI 残留清理 + 对接工程量评估:中等工程,核心缺 parId→frameId 翻译层）。**
+**H008 + R001 + R002 + D001/D002/D003 完成（粒度调研 + setTestTask 协议层对齐 + 代码清理 + 工程量评估 + 子系统认知纠正:我们是 LAS,翻译是双向同源简单工程）。**
 **联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 收到但用例同步卡点。**
-**已知未做:UI 配置页面美化、getTestCaseAll 真实化(方向已定 D001+D002:模板加上报标记同步,待 H009 实施)、真实设备对接、真实用例执行、**parId→frameId/fieldId 翻译层(inbound-translator.ts TODO,现为 mock)、**报告生成。**
+**已知未做:UI 美化、getTestCaseAll 真实化(方向 D001+D002,模板加上报标记,待实施)、真实设备对接、真实用例执行、**翻译层(双向同源,D003 定方向,parId 命名规范待定)**、报告生成。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -288,17 +297,24 @@
 - 后续: H009 实施 getTestCaseAll 真实化(替换 mock)
 
 ### R001 — 粒度调研结论(基于 0531 HAR)
-- 证据: `rewrite/docs/10.15.5.53.har` 53 条甲方前端真实流量,反推甲方 caseMenu/caseTemplate/caseTemplateParam/caseSet/task/taskFlowchart/taskMonitor/taskResult 全套数据模型
-- 结论: 四层概念厘清 + 映射方案 + 4 个凑合方案可行性,详见 R001 正文与证据索引表
-- **2026-06-17 二次核对**: 用户提醒 setTestTask 结论可疑,通读 04-任务管理.md 发现初版误把甲方 UI 模型当协议格式。已重写 Q3,代码 3 处 UI 残留(caseSets/ExecutionPlanNode/必填字段)已修复,northbound-service.spec 39/39 过
+- 证据: `rewrite/docs/10.15.5.53.har` 53 条**ka 子系统**前端流量(⚠️ 非 laser,见 D003),反推甲方 caseMenu/caseTemplate/caseTemplateParam/caseSet/task/taskFlowchart/taskMonitor/taskResult 数据模型
+- 结论: 四层概念厘清(caseTemplate/task 结构通用,有效)+ 映射方案。详见 R001 正文与证据索引表
+- **2026-06-17 二次核对**: 用户提醒 setTestTask 结论可疑,通读 04-任务管理.md 发现初版误把甲方 UI 模型当协议格式。已重写 Q3,代码 3 处 UI 残留已修复,northbound-service.spec 39/39 过
+- **2026-06-18 D003 纠正**: HAR 字段值是 ka 的,对 laser 无参考(仅结构通用)
 - 驱动决策: D001
 
 ### R002 — task 系统 ↔ 甲方协议 对接工程量评估(+ UI/UX 鸿沟 + 本地关联)
 - 调研问题: 对接是不是"大工程"? UI 会不会兜不住? 和本地 task 咋关联?
-- 核心结论: **中等工程,非大工程**。地基 70% 就绪,缺两块:① parId→frameId 翻译层 ② northbound UI 可见性
-- **与本地 task 关联(已验证)**: 实例层已打通(feature-wiring 同一 taskService 注入本地+northbound,ExecutionListPage 天然能展示甲方实例);**模板层是断点**(getTestCaseAll 上传 configuredTestCases 而非本地 TaskTemplate,D001 映射数据层没接)
-- **H009 数据源已定 D002**: getTestCaseAll 从 `listTemplates()` 序列化 + TaskTemplate 加"上报"标记(选择性同步)。打通 D001 数据层。废弃 configuredTestCases 数据源。字段填充策略见 D002 表
-- 翻译层鸿沟: inputPars→steps,有 mock 占位。UI 现状: northbound 0 个 .vue,step 编辑器完整可复用
-- frontend-design skill 暂不适用(工业软件需功能 UI 非视觉创新)
-- 建议推进: H009(getTestCaseAll,按 D002 实施)→ H010(parId 映射调研)→ H011(翻译层)→ H012(northbound UI,含实例来源标识 + 模板上报开关)
+- **⚠️ 2026-06-18 D003 推翻**: 翻译层"parId→frameId 站不住/中等工程"结论**错误**(基于 ka 数据对不上 laser frame)。正确: parId 由我们定义,双向同源,翻译天然成立(简单工程)
+- **仍有效**: 与本地 task 关联验证(实例层已通/模板层断点)、UI/UX 鸿沟(northbound 0 个 .vue)、工程量拆块结构
+- **与本地 task 关联(已验证)**: 实例层已打通(feature-wiring 同一 taskService);模板层断点(getTestCaseAll 用 configuredTestCases 非 TaskTemplate)
+- **H009 数据源已定 D002**: getTestCaseAll 从 `listTemplates()` 序列化 + 上报标记
+- UI 现状: northbound 0 个 .vue,step 编辑器完整可复用。frontend-design skill 暂不适用
 - 关联: inbound-translator.ts:25-30 TODO / feature-wiring.ts:141,169,184
+
+### D003 — 翻译层模型 = 双向同源映射(推翻 R002 翻译层结论)
+- 核心认知: 我们是 5 个子系统之一(laser LAS),HAR 是 ka(KPS)兄弟的数据。用例由我们 getTestCaseAll 主动上报,parId 我们定义
+- 翻译模型: 上报(TaskTemplate→caseTemplate,parId 按规范生成)↔ 下发(caseTemplate→TaskInstance,parId 反查),两端同源
+- 推翻: R002 "翻译层站不住/领域知识密集" → "同源映射/简单工程"
+- 不受影响: D001(映射方向)/D002(数据源)/本轮代码清理(setTestTask 协议层)
+- 待 NAT 恢复后补: laser 的真实 caseTemplate 样本(HAR 只有 ka 的)
