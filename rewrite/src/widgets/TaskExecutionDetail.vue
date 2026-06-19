@@ -5,6 +5,7 @@ import { STEP_KIND_LABELS } from '@/features/task/components/task-labels';
 import StatusBadge from './StatusBadge.vue';
 import { TASK_STATUS_MAP } from '@/features/task/components/taskStatusMap';
 import { isStepResultFailed } from '@/features/task';
+import { SEND_RESULT_STATUS_MAP } from '@/features/send/components/sendStatusMap';
 import { formatElapsed } from '@/shared/utils/format';
 
 const props = defineProps<{
@@ -77,6 +78,19 @@ function formatStepResult(step: TaskStepDefinition, result: TaskStepResult | und
         ? result.completed ? '完成' : '中断'
         : '';
   }
+}
+
+/**
+ * 失败步骤的悬停提示文本:优先取 sendResult.error.message(具体报错),
+ * 缺失时回退到 SEND_RESULT_STATUS_MAP 的失败 kind 标签(如"传输错误")。
+ * 仅 send 失败有具体 message;wait-condition/delay 失败返回空(由 formatStepResult 兜底)。
+ */
+function failureTooltipText(result: TaskStepResult | undefined): string {
+  if (!result || result.kind !== 'send') return '';
+  if (result.sendResult.kind === 'sent') return '';
+  const msg = result.sendResult.error?.message;
+  if (msg) return msg;
+  return SEND_RESULT_STATUS_MAP[result.sendResult.kind]?.label ?? '发送失败';
 }
 
 const isRunning = computed(() => props.instance.lifecycle === 'running');
@@ -167,6 +181,9 @@ const progressLabel = computed(() => {
         </span>
         <span v-if="item.result" class="rw-text-desc text-xs">
           {{ formatStepResult(item.step, item.result) }}
+          <q-tooltip v-if="failureTooltipText(item.result)" :delay="300" max-width="320px">
+            {{ failureTooltipText(item.result) }}
+          </q-tooltip>
         </span>
         <span v-else-if="item.status === 'running' && delayRemainingText(item.index)" class="rw-text-desc text-xs">
           {{ delayRemainingText(item.index) }}
