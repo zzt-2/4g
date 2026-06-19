@@ -82,6 +82,11 @@ function isNumericField(field: FrameFieldDefinition): boolean {
   return NUMERIC_DATA_TYPES.has(field.dataType);
 }
 
+/** bytes type: a hex byte stream stored as a '0x..' string. Renders as a single hex box. */
+function isBytesField(field: FrameFieldDefinition): boolean {
+  return field.dataType === 'bytes';
+}
+
 function hasNonTrivialFactor(field: FrameFieldDefinition): boolean {
   return field.factor !== undefined && field.factor !== 1;
 }
@@ -115,6 +120,31 @@ function hexBoxValue(field: FrameFieldDefinition): string {
   if (v === undefined || v === null || v === '') return '';
   const display = valueToDisplayString(v, field, true); // e.g. '0x1ACFFC1D'
   return display.startsWith('0x') ? display.slice(2) : display;
+}
+
+/** bytes hex box display WITHOUT the 0x prefix (stored as '0x..' string). */
+function bytesHexBoxValue(field: FrameFieldDefinition): string {
+  const v = resolveFieldInputValue(field);
+  if (v === undefined || v === null || v === '') return '';
+  const s = String(v);
+  return s.startsWith('0x') || s.startsWith('0X') ? s.slice(2) : s;
+}
+
+/** Parse bytes hex input into stored '0x..' string. Accepts with or without 0x prefix. */
+function onBytesHexInput(field: FrameFieldDefinition, raw: string | number | null): void {
+  const text = (raw === null ? '' : String(raw)).trim();
+  if (text === '') {
+    emit('field-error', { fieldId: field.id, error: undefined });
+    onFieldChange(field.id, '');
+    return;
+  }
+  const body = text.startsWith('0x') || text.startsWith('0X') ? text.slice(2) : text;
+  if (!/^[0-9a-fA-F]*$/.test(body)) {
+    emit('field-error', { fieldId: field.id, error: '字节流需为十六进制字符' });
+    return;
+  }
+  emit('field-error', { fieldId: field.id, error: undefined });
+  onFieldChange(field.id, `0x${body.toUpperCase()}`);
 }
 
 /** Tooltip text: full field name + description (if any). */
@@ -209,10 +239,30 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
                 class="field-row__hex"
                 @update:model-value="onHexInput(field, $event)"
               />
+              <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
+                {{ tooltipText(field) }}
+              </q-tooltip>
             </div>
-            <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
-              {{ tooltipText(field) }}
-            </q-tooltip>
+          </template>
+
+          <!-- ===== Configurable — bytes input (单 Hex 框,占满右侧) ===== -->
+          <template v-else-if="section.key === 'configurable' && field.inputType === 'input' && isBytesField(field)">
+            <div class="field-row">
+              <span class="field-row__label">{{ field.name }}</span>
+              <q-input
+                outlined dense
+                prefix="0x"
+                placeholder=".."
+                :model-value="bytesHexBoxValue(field)"
+                :error="!!props.fieldErrors?.[field.id]"
+                :error-message="props.fieldErrors?.[field.id]"
+                class="field-row__input field-row__input--span2 font-mono"
+                @update:model-value="onBytesHexInput(field, $event)"
+              />
+              <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
+                {{ tooltipText(field) }}
+              </q-tooltip>
+            </div>
           </template>
 
           <!-- ===== Configurable — non-hex input (float/double/string) 单框占满 ===== -->
@@ -230,10 +280,10 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
                 class="field-row__input field-row__input--span2"
                 @update:model-value="onDecInput(field, $event)"
               />
+              <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
+                {{ tooltipText(field) }}
+              </q-tooltip>
             </div>
-            <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
-              {{ tooltipText(field) }}
-            </q-tooltip>
           </template>
 
           <!-- ===== Configurable — select ===== -->
@@ -247,10 +297,10 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
                 class="field-row__input field-row__input--span2"
                 @update:model-value="onFieldChange(field.id, $event)"
               />
+              <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
+                {{ tooltipText(field) }}
+              </q-tooltip>
             </div>
-            <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
-              {{ tooltipText(field) }}
-            </q-tooltip>
           </template>
 
           <!-- ===== Configurable — radio ===== -->
@@ -265,10 +315,10 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
                   @update:model-value="onFieldChange(field.id, $event)"
                 />
               </div>
+              <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
+                {{ tooltipText(field) }}
+              </q-tooltip>
             </div>
-            <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
-              {{ tooltipText(field) }}
-            </q-tooltip>
           </template>
 
           <!-- ===== Read-only: expression or fixed ===== -->
@@ -281,10 +331,10 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
               <span v-if="expressionFormula(field)" class="field-row__formula font-mono">
                 = {{ expressionFormula(field) }}
               </span>
+              <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
+                {{ tooltipText(field) }}
+              </q-tooltip>
             </div>
-            <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
-              {{ tooltipText(field) }}
-            </q-tooltip>
           </template>
 
         </template>
