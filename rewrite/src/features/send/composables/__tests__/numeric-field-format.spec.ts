@@ -4,6 +4,7 @@ import {
   valueToDisplayString,
   formatCounterpart,
   parseFieldInput,
+  fieldExpressionLabel,
 } from '../numeric-field-format';
 import type { FrameFieldDefinition } from '@/features/frame';
 
@@ -96,6 +97,62 @@ describe('numeric-field-format', () => {
     });
     it('empty input -> ok:true, value empty string', () => {
       expect(parseFieldInput('', false, field('uint8'))).toEqual({ ok: true, value: '' });
+    });
+  });
+
+  describe('fieldExpressionLabel', () => {
+    const sourceField: FrameFieldDefinition = {
+      id: 'field-source', name: '源字段', dataType: 'uint8',
+      length: 1, inputType: 'input', configurable: true, options: [],
+    } as unknown as FrameFieldDefinition;
+    const exprField: FrameFieldDefinition = {
+      id: 'field-expr', name: '表达式字段', dataType: 'uint8',
+      length: 1, inputType: 'expression', configurable: false, options: [],
+      expressionConfig: {
+        expressions: [
+          { condition: 'var1 > 0', expression: 'var1 + 1' },
+          { condition: 'true', expression: '0' },
+        ],
+        variables: [{ identifier: 'var1', sourceType: 'current_field', fieldId: 'field-source' }],
+      },
+    } as unknown as FrameFieldDefinition;
+    const allFields: FrameFieldDefinition[] = [sourceField, exprField];
+
+    it('hit branch 0: variable translated to source field name', () => {
+      expect(fieldExpressionLabel(exprField, allFields, 0)).toBe('源字段 + 1');
+    });
+    it('hit branch 1: no variable, expression as-is', () => {
+      expect(fieldExpressionLabel(exprField, allFields, 1)).toBe('0');
+    });
+    it('matchedIndex -1 (fallback) with multiple branches: annotate', () => {
+      expect(fieldExpressionLabel(exprField, allFields, -1)).toBe('源字段 + 1 (可能多分支)');
+    });
+    it('no expressionConfig: empty string', () => {
+      expect(fieldExpressionLabel(sourceField, allFields, 0)).toBe('');
+    });
+    it('variable fieldId maps to no field: keep original identifier', () => {
+      const f: FrameFieldDefinition = {
+        ...exprField,
+        expressionConfig: {
+          expressions: [{ condition: 'true', expression: 'varX * 2' }],
+          variables: [{ identifier: 'varX', sourceType: 'current_field', fieldId: 'no-such-field' }],
+        },
+      } as unknown as FrameFieldDefinition;
+      expect(fieldExpressionLabel(f, allFields, 0)).toBe('varX * 2');
+    });
+    it('whole-word replace: var1 does not corrupt var10', () => {
+      const f: FrameFieldDefinition = {
+        ...exprField,
+        expressionConfig: {
+          expressions: [{ condition: 'true', expression: 'var1 + var10' }],
+          variables: [
+            { identifier: 'var1', sourceType: 'current_field', fieldId: 'field-source' },
+            { identifier: 'var10', sourceType: 'external' },
+          ],
+        },
+      } as unknown as FrameFieldDefinition;
+      // var1 -> 源字段, var10 has no fieldId mapping -> kept as var10
+      expect(fieldExpressionLabel(f, allFields, 0)).toBe('源字段 + var10');
     });
   });
 });

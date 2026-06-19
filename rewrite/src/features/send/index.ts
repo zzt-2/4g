@@ -49,6 +49,7 @@ export {
   valueToDisplayString,
   formatCounterpart,
   parseFieldInput,
+  fieldExpressionLabel,
 } from './composables/numeric-field-format';
 export type { ParseResult, ParsedInput, ParsedError } from './composables/numeric-field-format';
 

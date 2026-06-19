@@ -187,3 +187,40 @@ export function parseFieldInput(
   }
   return { ok: true, value: num };
 }
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 构造表达式字段的公式显示文本(翻译后人话)。
+ * 把命中分支 expression 串里的变量 identifier 替换为来源字段名;
+ * 映射不到则保留原 identifier。使用全词边界避免 var1 破坏 var10。
+ * @param matchedIndex 命中分支索引(-1 = fallback/未知)
+ * @returns 公式文本,如 "源字段 + 1";无 expressionConfig 返回 ''
+ */
+export function fieldExpressionLabel(
+  field: FrameFieldDefinition,
+  allFields: readonly FrameFieldDefinition[],
+  matchedIndex: number,
+): string {
+  const cfg = field.expressionConfig;
+  if (!cfg || cfg.expressions.length === 0) return '';
+
+  const branches = cfg.expressions;
+  const idx = matchedIndex >= 0 && matchedIndex < branches.length ? matchedIndex : 0;
+  const branch = branches[idx]!;
+  let expr = branch.expression;
+
+  for (const v of cfg.variables) {
+    if (!v.identifier) continue;
+    const srcField = allFields.find((f) => f.id === v.fieldId);
+    const replacement = srcField?.name ?? v.identifier;
+    expr = expr.replace(new RegExp(`\\b${escapeRegExp(v.identifier)}\\b`, 'g'), replacement);
+  }
+
+  if (matchedIndex < 0 && branches.length > 1) {
+    return `${expr} (可能多分支)`;
+  }
+  return expr;
+}
