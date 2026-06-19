@@ -342,9 +342,9 @@ const editPreviewValues = computed(() => {
 
 <template>
   <q-page class="send-page flex flex-col h-full">
-    <div class="flex flex-1 min-h-0">
+    <div class="send-page__columns">
       <!-- Left column: frame format list (240px) -->
-      <div class="w-[240px] flex-shrink-0 flex flex-col min-h-0 overflow-hidden">
+      <div class="send-page__col-left">
         <div class="p-3 flex-shrink-0">
           <q-input
             v-model="searchText"
@@ -372,7 +372,7 @@ const editPreviewValues = computed(() => {
           <span class="rw-text-label text-xs">仅收藏</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto min-h-0">
+        <div class="send-page__scroll">
           <!-- Favorite section -->
           <template v-if="favoriteFrames.length > 0">
             <div class="px-3 pt-2 pb-1">
@@ -460,7 +460,7 @@ const editPreviewValues = computed(() => {
       </div>
 
       <!-- Middle column: instance table (flex:1) -->
-      <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="send-page__col-mid">
         <!-- Batch mode toolbar -->
         <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
           <q-btn flat dense no-caps icon="o_delete" label="批量删除" color="negative" size="sm" :disable="batchSelectedRows.length === 0" @click="onBatchDelete" />
@@ -472,7 +472,7 @@ const editPreviewValues = computed(() => {
           <q-btn flat dense no-caps icon="o_checklist" label="批量管理" size="sm" @click="batchMode = true" />
         </div>
 
-        <div class="flex-1 min-h-0 overflow-hidden">
+        <div class="send-page__table-wrap">
           <DataTable
             :columns="instanceColumns"
             :rows="tableRows"
@@ -531,10 +531,10 @@ const editPreviewValues = computed(() => {
       </div>
 
       <!-- Right column: preview + send (300px) -->
-      <div class="w-[300px] flex-shrink-0 flex flex-col min-h-0 rw-divider-l">
+      <div class="send-page__col-right">
         <template v-if="selectedInstance">
           <!-- Scrollable content area -->
-          <div class="flex-1 overflow-y-auto min-h-0 p-3">
+          <div class="send-page__scroll p-3">
             <!-- Instance info -->
             <div class="send-panel">
               <div class="mb-2">
@@ -690,8 +690,55 @@ const editPreviewValues = computed(() => {
 <style scoped lang="scss">
 .send-page {
   background: var(--rw-color-surface-app);
+}
+
+// Three-column container — mirrors DisplayPage's __panels pattern:
+// flex:1 1 0 + min-height:0 so children can scroll independently.
+.send-page__columns {
+  display: flex;
+  flex: 1 1 0;
   min-height: 0;
-  height: 100%;
+}
+
+.send-page__col-left {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.send-page__col-mid {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.send-page__col-right {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+}
+
+// Shared scroll region for left list and right panel content.
+.send-page__scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+// DataTable wrapper — must clamp q-table (virtual-scroll renders all rows,
+// maxHeight:100% alone cannot stop it from stretching the flex parent).
+.send-page__table-wrap {
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -707,6 +754,11 @@ const editPreviewValues = computed(() => {
 }
 .frame-item__main {
   min-width: 0;
+}
+.frame-item__main :deep(.q-item__label) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .frame-item:hover {
   background: var(--rw-color-surface-selected);
