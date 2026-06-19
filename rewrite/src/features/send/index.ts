@@ -43,6 +43,15 @@ export {
   applyBuildPostPatch,
 } from './core';
 
+// Field formatting helpers (hex/dec display + input parse)
+export {
+  isHexCapableField,
+  valueToDisplayString,
+  formatCounterpart,
+  parseFieldInput,
+} from './composables/numeric-field-format';
+export type { ParseResult, ParsedInput, ParsedError } from './composables/numeric-field-format';
+
 // Services
 export { createSendReader, createSendService } from './services';
 export type { CreateSendServiceOptions, SendReader, SendService } from './services';
