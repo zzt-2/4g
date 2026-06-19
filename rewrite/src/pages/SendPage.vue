@@ -392,7 +392,7 @@ const editPreviewValues = computed(() => {
                 <q-item-section avatar class="frame-item__avatar">
                   <q-icon name="o_star" size="xs" color="warning" />
                 </q-item-section>
-                <q-item-section>
+                <q-item-section class="frame-item__main">
                   <q-item-label class="frame-item__name">{{ frame.name }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
@@ -427,16 +427,16 @@ const editPreviewValues = computed(() => {
               @click="onFrameClick(frame)"
               @dblclick="onFrameDblClick(frame)"
             >
-              <q-item-section avatar class="frame-item__avatar">
-                <q-icon
+                <q-item-section avatar class="frame-item__avatar">
+                  <q-icon
                   :name="frame.isFavorite ? 'o_star' : 'o_bookmark_border'"
                   size="xs"
                   :color="frame.isFavorite ? 'warning' : 'grey'"
                 />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label class="frame-item__name">{{ frame.name }}</q-item-label>
-              </q-item-section>
+                </q-item-section>
+                <q-item-section class="frame-item__main">
+                  <q-item-label class="frame-item__name">{{ frame.name }}</q-item-label>
+                </q-item-section>
               <q-item-section side>
                 <q-btn
                   flat
@@ -472,7 +472,7 @@ const editPreviewValues = computed(() => {
           <q-btn flat dense no-caps icon="o_checklist" label="批量管理" size="sm" @click="batchMode = true" />
         </div>
 
-        <div class="flex-1 min-h-0">
+        <div class="flex-1 min-h-0 overflow-hidden">
           <DataTable
             :columns="instanceColumns"
             :rows="tableRows"
@@ -691,6 +691,8 @@ const editPreviewValues = computed(() => {
 .send-page {
   background: var(--rw-color-surface-app);
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .frame-item__name {
@@ -702,6 +704,9 @@ const editPreviewValues = computed(() => {
 }
 .frame-item__avatar {
   min-width: 24px;
+}
+.frame-item__main {
+  min-width: 0;
 }
 .frame-item:hover {
   background: var(--rw-color-surface-selected);
