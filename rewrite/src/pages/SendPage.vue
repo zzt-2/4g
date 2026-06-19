@@ -14,6 +14,7 @@ import type { ReadonlyFrameAsset, FrameAssetSummary } from '@/features/frame';
 import { useToggleFavorite } from '@/features/frame/composables';
 import type { SendFieldValue, SendFrameInstance } from '@/features/send';
 import { resolveFieldValues, applyFactor, frameToBuildInput } from '@/features/send';
+import { valueToDisplayString, isHexCapableField } from '@/features/send';
 import { NOOP_VARIABLE_PROVIDER } from '@/features/send/adapters';
 
 const $q = useQuasar();
@@ -123,6 +124,7 @@ const selectedRows = computed(() => {
 });
 
 // ===== Batch delete mode =====
+
 const batchMode = ref(false);
 const batchSelectedRows = ref<InstanceTableRow[]>([]);
 
@@ -264,8 +266,10 @@ const editingInstanceId = ref<string | null>(null);
 const editValues = ref<Record<string, SendFieldValue>>({});
 const editDescription = ref('');
 const editName = ref('');
+const editHexMode = ref(false);
+const editFieldErrors = ref<Record<string, string>>({});
 const isValid = computed(() => {
-  return editName.value.trim().length > 0;
+  return editName.value.trim().length > 0 && Object.keys(editFieldErrors.value).length === 0;
 });
 
 function onEditDialogHide(): void {
@@ -273,6 +277,18 @@ function onEditDialogHide(): void {
   editValues.value = {};
   editDescription.value = '';
   editName.value = '';
+  editHexMode.value = false;
+  editFieldErrors.value = {};
+}
+
+function onFieldError(payload: { fieldId: string; error: string | undefined }): void {
+  if (payload.error) {
+    editFieldErrors.value = { ...editFieldErrors.value, [payload.fieldId]: payload.error };
+  } else {
+    const next = { ...editFieldErrors.value };
+    delete next[payload.fieldId];
+    editFieldErrors.value = next;
+  }
 }
 
 async function onEditConfirm(): Promise<void> {
@@ -290,10 +306,10 @@ async function onEditConfirm(): Promise<void> {
 
 // Configurable fields of selected frame for right panel display
 
-function fieldToHex(_field: { id: string }, value: SendFieldValue | undefined): string {
-  if (value === undefined || value === null) return '--';
-  if (typeof value === 'number') {
-    return `0x${value.toString(16).toUpperCase().padStart(2, '0')}`;
+function fieldDisplayValue(field: { id: string; dataType: string }, value: SendFieldValue | undefined): string {
+  if (value === undefined || value === null || value === '') return '--';
+  if (isHexCapableField(field as never)) {
+    return valueToDisplayString(value, field as never, true);
   }
   return String(value);
 }
@@ -325,11 +341,11 @@ const editPreviewValues = computed(() => {
 </script>
 
 <template>
-  <q-page class="send-page min-h-full">
-    <div class="flex h-full">
+  <q-page class="send-page flex flex-col h-full">
+    <div class="flex flex-1 min-h-0">
       <!-- Left column: frame format list (240px) -->
-      <div class="w-[240px] flex-shrink-0 flex flex-col overflow-hidden">
-        <div class="p-3">
+      <div class="w-[240px] flex-shrink-0 flex flex-col min-h-0 overflow-hidden">
+        <div class="p-3 flex-shrink-0">
           <q-input
             v-model="searchText"
             dense
@@ -343,7 +359,7 @@ const editPreviewValues = computed(() => {
           </q-input>
         </div>
 
-        <div class="flex items-center gap-1 px-3 pb-2">
+        <div class="flex items-center gap-1 px-3 pb-2 flex-shrink-0">
           <q-btn
             flat
             dense
@@ -356,7 +372,7 @@ const editPreviewValues = computed(() => {
           <span class="rw-text-label text-xs">仅收藏</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto min-h-0">
           <!-- Favorite section -->
           <template v-if="favoriteFrames.length > 0">
             <div class="px-3 pt-2 pb-1">
@@ -368,13 +384,16 @@ const editPreviewValues = computed(() => {
                 :key="frame.id"
                 clickable
                 dense
-                class="py-1 px-2"
+                class="frame-item py-1 px-2"
+                :title="frame.name"
                 @click="onFrameClick(frame)"
                 @dblclick="onFrameDblClick(frame)"
               >
+                <q-item-section avatar class="frame-item__avatar">
+                  <q-icon name="o_star" size="xs" color="warning" />
+                </q-item-section>
                 <q-item-section>
-                  <q-item-label class="rw-text-value text-sm">{{ frame.name }}</q-item-label>
-                  <q-item-label caption class="rw-text-desc text-xs">{{ frame.fieldCount }} 个字段</q-item-label>
+                  <q-item-label class="frame-item__name">{{ frame.name }}</q-item-label>
                 </q-item-section>
                 <q-item-section side>
                   <q-btn
@@ -403,13 +422,20 @@ const editPreviewValues = computed(() => {
               :key="frame.id"
               clickable
               dense
-              class="py-1 px-2"
+              class="frame-item py-1 px-2"
+              :title="frame.name"
               @click="onFrameClick(frame)"
               @dblclick="onFrameDblClick(frame)"
             >
+              <q-item-section avatar class="frame-item__avatar">
+                <q-icon
+                  :name="frame.isFavorite ? 'o_star' : 'o_bookmark_border'"
+                  size="xs"
+                  :color="frame.isFavorite ? 'warning' : 'grey'"
+                />
+              </q-item-section>
               <q-item-section>
-                <q-item-label class="rw-text-value text-sm">{{ frame.name }}</q-item-label>
-                <q-item-label caption class="rw-text-desc text-xs">{{ frame.fieldCount }} 个字段</q-item-label>
+                <q-item-label class="frame-item__name">{{ frame.name }}</q-item-label>
               </q-item-section>
               <q-item-section side>
                 <q-btn
@@ -434,117 +460,132 @@ const editPreviewValues = computed(() => {
       </div>
 
       <!-- Middle column: instance table (flex:1) -->
-      <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
         <!-- Batch mode toolbar -->
-        <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b">
+        <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
           <q-btn flat dense no-caps icon="o_delete" label="批量删除" color="negative" size="sm" :disable="batchSelectedRows.length === 0" @click="onBatchDelete" />
           <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
           <div class="flex-1" />
           <q-btn flat dense no-caps label="退出批量模式" size="sm" @click="batchMode = false; batchSelectedRows = []" />
         </div>
-        <div v-else class="flex items-center justify-end px-4 py-1">
+        <div v-else class="flex items-center justify-end px-4 py-1 flex-shrink-0">
           <q-btn flat dense no-caps icon="o_checklist" label="批量管理" size="sm" @click="batchMode = true" />
         </div>
 
-        <DataTable
-          :columns="instanceColumns"
-          :rows="tableRows"
-          row-key="instanceId"
-          :selection="batchMode ? 'multiple' : 'single'"
-          :selected="batchMode ? batchSelectedRows : selectedRows"
-          container-height="calc(100vh - 100px)"
-          @row-click="(_row: InstanceTableRow) => { if (!batchMode) onRowClick(_row) }"
-          @update:selected="batchMode ? (batchSelectedRows = $event as InstanceTableRow[]) : onSelectionChange($event as InstanceTableRow[])"
-        >
-          <template #no-data>
-            <div class="text-center w-full p-4 rw-text-label">
-              暂无帧实例，从左侧选择帧格式创建
-            </div>
-          </template>
-
-          <template #body-cell-_index="props">
-            <q-td :props="props">
-              {{ props.row._index }}
-            </q-td>
-          </template>
-
-          <template #body-cell-_actions="props">
-            <q-td :props="props">
-              <div class="flex items-center justify-center gap-1">
-                <template v-if="!batchMode">
-                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditInstance(props.row)" />
-                  <q-btn flat round dense icon="o_content_copy" size="sm" color="primary" @click.stop="onCloneInstance(props.row)" />
-                  <q-btn flat round dense icon="o_delete" size="sm" color="negative" @click.stop="onRemoveInstance(props.row)" />
-                  <q-btn flat round dense icon="o_arrow_upward" size="sm" color="grey" :disable="props.row._index <= 1" @click.stop="onMoveUp(props.row)" />
-                  <q-btn flat round dense icon="o_arrow_downward" size="sm" color="grey" :disable="props.row._index >= tableRows.length" @click.stop="onMoveDown(props.row)" />
-                </template>
-                <template v-else>
-                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" :disable="true" />
-                </template>
+        <div class="flex-1 min-h-0">
+          <DataTable
+            :columns="instanceColumns"
+            :rows="tableRows"
+            row-key="instanceId"
+            :selection="batchMode ? 'multiple' : 'single'"
+            :selected="batchMode ? batchSelectedRows : selectedRows"
+            container-height="100%"
+            @row-click="(_row: InstanceTableRow) => { if (!batchMode) onRowClick(_row) }"
+            @update:selected="batchMode ? (batchSelectedRows = $event as InstanceTableRow[]) : onSelectionChange($event as InstanceTableRow[])"
+          >
+            <template #no-data>
+              <div class="text-center w-full p-4 rw-text-label">
+                暂无帧实例，从左侧选择帧格式创建
               </div>
-            </q-td>
-          </template>
-        </DataTable>
+            </template>
+
+            <template #body-cell-_index="props">
+              <q-td :props="props">
+                {{ props.row._index }}
+              </q-td>
+            </template>
+
+            <template #body-cell-_actions="props">
+              <q-td :props="props">
+                <div v-if="!batchMode" class="flex items-center justify-center">
+                  <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditInstance(props.row)" />
+                  <q-btn flat round dense icon="o_more_vert" size="sm" color="grey">
+                    <q-menu anchor="bottom right" self="top right">
+                      <q-list dense style="min-width: 120px">
+                        <q-item clickable v-close-popup @click="onCloneInstance(props.row)">
+                          <q-item-section avatar><q-icon name="o_content_copy" size="xs" /></q-item-section>
+                          <q-item-section>复制</q-item-section>
+                        </q-item>
+                        <q-item clickable v-close-popup :disable="props.row._index <= 1" @click="onMoveUp(props.row)">
+                          <q-item-section avatar><q-icon name="o_arrow_upward" size="xs" /></q-item-section>
+                          <q-item-section>上移</q-item-section>
+                        </q-item>
+                        <q-item clickable v-close-popup :disable="props.row._index >= tableRows.length" @click="onMoveDown(props.row)">
+                          <q-item-section avatar><q-icon name="o_arrow_downward" size="xs" /></q-item-section>
+                          <q-item-section>下移</q-item-section>
+                        </q-item>
+                        <q-separator />
+                        <q-item clickable v-close-popup class="text-negative" @click="onRemoveInstance(props.row)">
+                          <q-item-section avatar><q-icon name="o_delete" size="xs" /></q-item-section>
+                          <q-item-section>删除</q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-menu>
+                  </q-btn>
+                </div>
+                <q-btn v-else flat round dense icon="o_edit" size="sm" color="primary" :disable="true" />
+              </q-td>
+            </template>
+          </DataTable>
+        </div>
       </div>
 
       <!-- Right column: preview + send (300px) -->
-      <div class="w-[300px] flex-shrink-0 flex flex-col overflow-y-auto rw-divider-l">
+      <div class="w-[300px] flex-shrink-0 flex flex-col min-h-0 rw-divider-l">
         <template v-if="selectedInstance">
-          <!-- Instance info -->
-          <div class="p-4 rw-divider-b">
-            <div class="mb-2">
-              <span class="rw-text-label">名称</span>
-              <div class="rw-text-value">{{ selectedInstance.name }}</div>
+          <!-- Scrollable content area -->
+          <div class="flex-1 overflow-y-auto min-h-0 p-3">
+            <!-- Instance info -->
+            <div class="send-panel">
+              <div class="mb-2">
+                <span class="rw-text-label">名称</span>
+                <div class="rw-text-value">{{ selectedInstance.name }}</div>
+              </div>
+              <div class="mb-2">
+                <span class="rw-text-label">创建时间</span>
+                <div class="rw-text-value text-sm">{{ selectedInstance.createdAt }}</div>
+              </div>
+              <div v-if="selectedInstance.description">
+                <span class="rw-text-label">备注</span>
+                <div class="rw-text-desc text-sm">{{ selectedInstance.description }}</div>
+              </div>
             </div>
-            <div class="mb-2">
-              <span class="rw-text-label">创建时间</span>
-              <div class="rw-text-value text-sm">{{ selectedInstance.createdAt }}</div>
-            </div>
-            <div v-if="selectedInstance.description">
-              <span class="rw-text-label">备注</span>
-              <div class="rw-text-desc text-sm">{{ selectedInstance.description }}</div>
-            </div>
-          </div>
 
-          <!-- Hex preview -->
-          <div class="p-4 rw-divider-b">
-            <span class="rw-text-label">帧预览 (Hex)</span>
-            <pre v-if="fullPreview.hexPreview" class="hex-preview font-mono rw-text-value text-xs mt-1 p-2 rounded">{{ fullPreview.hexPreview }}</pre>
-            <div v-else class="rw-text-desc text-xs mt-1">无预览数据</div>
-          </div>
+            <!-- Hex preview -->
+            <div class="send-panel">
+              <span class="rw-text-label">帧预览 (Hex)</span>
+              <pre v-if="fullPreview.hexPreview" class="hex-preview font-mono rw-text-value text-xs mt-1 p-2 rounded">{{ fullPreview.hexPreview }}</pre>
+              <div v-else class="rw-text-desc text-xs mt-1">无预览数据</div>
+            </div>
 
-          <!-- Configurable fields -->
-          <div v-if="configurableFields.length > 0" class="p-4 rw-divider-b">
-            <span class="rw-text-label">参数值</span>
-            <div class="mt-2 flex flex-col gap-1">
-              <div
-                v-for="field in configurableFields"
-                :key="field.id"
-                class="flex items-center justify-between"
-              >
-                <span class="rw-text-label text-xs">{{ field.name }}</span>
-                <span class="rw-text-value text-xs font-mono">{{ fieldToHex(field, selectedInstance.userFieldValues[field.id]) }}</span>
+            <!-- Configurable fields + merged build issues -->
+            <div v-if="configurableFields.length > 0 || fullPreview.issues.length > 0" class="send-panel">
+              <span class="rw-text-label">参数值</span>
+              <div class="mt-2 flex flex-col gap-1">
+                <div
+                  v-for="field in configurableFields"
+                  :key="field.id"
+                  class="flex items-center justify-between"
+                >
+                  <span class="rw-text-label text-xs">{{ field.name }}</span>
+                  <span class="rw-text-value text-xs font-mono">{{ fieldDisplayValue(field, selectedInstance.userFieldValues[field.id]) }}</span>
+                </div>
+              </div>
+              <div v-if="fullPreview.issues.length > 0" class="mt-2">
+                <div
+                  v-for="(issue, idx) in fullPreview.issues"
+                  :key="issueKeys[idx]"
+                  class="text-xs"
+                  :class="issue.severity === 'o_error' ? 'text-negative' : 'text-warning'"
+                >
+                  {{ issue.message }}
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Preview issues -->
-          <div v-if="fullPreview.issues.length > 0" class="p-4 rw-divider-b">
-            <span class="rw-text-label">构建问题</span>
-            <div class="mt-1 flex flex-col gap-1">
-              <div
-                v-for="(issue, idx) in fullPreview.issues"
-                :key="issueKeys[idx]"
-                class="rw-text-desc text-xs"
-                :class="issue.severity === 'o_error' ? 'text-negative' : 'text-warning'"
-              >
-                {{ issue.message }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Send section -->
-          <div class="p-4 mt-auto">
+          <!-- Send section (pinned to bottom) -->
+          <div class="flex-shrink-0 p-4 rw-divider-t">
             <div class="mb-3">
               <span class="rw-text-label">发送目标</span>
               <SendTargetSelector
@@ -601,14 +642,28 @@ const editPreviewValues = computed(() => {
                 autogrow
               />
 
-              <!-- Field values editor (D-S7: uses FieldEditWidget) -->
-              <div v-if="editFrameFields.length > 0" class="rw-dialog-scroll-body">
+              <!-- Field values editor -->
+              <div v-if="editFrameFields.length > 0" class="flex-1 min-h-0 overflow-y-auto mt-2">
+                <div class="flex items-center justify-end mb-2">
+                  <q-btn-toggle
+                    v-model="editHexMode"
+                    no-caps
+                    dense
+                    unelevated
+                    toggle-color="primary"
+                    :options="[{label:'Dec', value:false},{label:'Hex', value:true}]"
+                    size="sm"
+                  />
+                </div>
                 <FieldEditWidget
                   :fields="editFrameFields"
                   :values="editValues"
                   :preview-values="editPreviewValues"
+                  :hex-mode="editHexMode"
+                  :field-errors="editFieldErrors"
                   direction="send"
                   @update:values="editValues = $event"
+                  @field-error="onFieldError"
                 />
               </div>
             </div>
@@ -635,10 +690,36 @@ const editPreviewValues = computed(() => {
 <style scoped lang="scss">
 .send-page {
   background: var(--rw-color-surface-app);
+  min-height: 0;
+}
+
+.frame-item__name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--rw-font-size-body);
+  color: var(--rw-color-text-primary);
+}
+.frame-item__avatar {
+  min-width: 24px;
+}
+.frame-item:hover {
+  background: var(--rw-color-surface-selected);
+}
+
+.send-panel {
+  background: var(--rw-color-surface-base);
+  border: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
+  border-radius: var(--rw-radius-panel);
+  padding: var(--rw-space-3);
+  margin-bottom: var(--rw-space-2);
+}
+.send-panel :first-child {
+  margin-top: 0;
 }
 
 .hex-preview {
-  background: var(--rw-color-surface-elevated);
+  background: var(--rw-color-surface-app);
   white-space: pre-wrap;
   word-break: break-all;
 }

@@ -70,7 +70,7 @@ export const instanceColumns: QTableColumn[] = [
     field: '_actions',
     align: 'center',
     sortable: false,
-    style: 'width: 200px',
-    headerStyle: 'width: 200px',
+    style: 'width: 80px',
+    headerStyle: 'width: 80px',
   },
 ];
