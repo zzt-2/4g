@@ -17,6 +17,7 @@ export interface FramePreviewResult {
     readonly fieldId: string;
     readonly fieldName: string;
     readonly value: SendFieldValue;
+    readonly matchedBranchIndex: number;
   }>;
   readonly issues: ReadonlyArray<{ readonly severity: string; readonly message: string }>;
 }
@@ -73,6 +74,7 @@ export function useFramePreview(
           fieldId: field.id,
           fieldName: field.name,
           value: preview.value,
+          matchedBranchIndex: preview.matchedBranchIndex,
         };
       });
 

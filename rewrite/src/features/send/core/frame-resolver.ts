@@ -321,9 +321,30 @@ export function evaluateFieldPreviewForUI(
   userFieldValues: Readonly<Record<string, SendFieldValue>>,
   variableProvider: SendVariableProvider,
   variables?: VariableMap,
-): { value: SendFieldValue; issues: SendBuildIssue[] } {
+): { value: SendFieldValue; matchedBranchIndex: number; issues: SendBuildIssue[] } {
   const { fields } = frameToBuildInput(frame);
   const field = fields.find((f) => f.id === fieldId);
-  if (!field) return { value: 0, issues: [] };
-  return evaluateFieldPreview(field, userFieldValues, variableProvider, variables);
+  if (!field) return { value: 0, matchedBranchIndex: -1, issues: [] };
+
+  const base = evaluateFieldPreview(field, userFieldValues, variableProvider, variables);
+
+  // For expression fields, independently re-evaluate to expose the matched
+  // branch index (UI 公式显示用). mergedVars = provider vars + caller vars +
+  // known field values (user values + resolved peer values for current_field refs).
+  let matchedBranchIndex = -1;
+  if (field.expressionConfig) {
+    const mergedVars: Map<string, number | string | boolean> = new Map(variableProvider.getVariables());
+    if (variables) {
+      for (const [k, v] of variables) mergedVars.set(k, v);
+    }
+    // Seed all peer field values so current_field references can resolve.
+    for (const f of fields) {
+      const v = userFieldValues[f.id];
+      if (v !== undefined) mergedVars.set(f.id, v as number | string | boolean);
+    }
+    const exprResult = evaluateFieldExpressions(field, mergedVars);
+    matchedBranchIndex = exprResult.matchedBranchIndex;
+  }
+
+  return { value: base.value, matchedBranchIndex, issues: base.issues };
 }
