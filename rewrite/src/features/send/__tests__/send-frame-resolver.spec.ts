@@ -425,6 +425,70 @@ describe('send frame-resolver: evaluateFieldExpressions', () => {
     expect(issues[0]!.severity).toBe('error');
     expect(issues[0]!.code).toBe('send.resolve.expressionEval');
   });
+
+  it('exposes matchedBranchIndex — first branch hit', () => {
+    const field = baseField({
+      id: 'multiExpr',
+      expressionConfig: {
+        expressions: [
+          { condition: 'var1 > 0', expression: 'var1 + 1' },
+          { condition: 'true', expression: '0' },
+        ],
+        variables: [{ identifier: 'var1', sourceType: 'external' }],
+      },
+    });
+    const vars = new Map<string, number | string | boolean>([['var1', 5]]);
+
+    const result = evaluateFieldExpressions(field, vars);
+
+    expect(result.value).toBe(6);
+    expect(result.matchedBranchIndex).toBe(0);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it('exposes matchedBranchIndex — second branch (fallback) hit', () => {
+    const field = baseField({
+      id: 'multiExpr',
+      expressionConfig: {
+        expressions: [
+          { condition: 'var1 > 0', expression: 'var1 + 1' },
+          { condition: 'true', expression: '0' },
+        ],
+        variables: [{ identifier: 'var1', sourceType: 'external' }],
+      },
+    });
+    const vars = new Map<string, number | string | boolean>([['var1', -1]]);
+
+    const result = evaluateFieldExpressions(field, vars);
+
+    expect(result.value).toBe(0);
+    expect(result.matchedBranchIndex).toBe(1);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it('matchedBranchIndex is -1 when field has no expressionConfig', () => {
+    const field = baseField({ id: 'noExpr' });
+    const vars = new Map<string, number | string | boolean>();
+
+    const result = evaluateFieldExpressions(field, vars);
+
+    expect(result.matchedBranchIndex).toBe(-1);
+  });
+
+  it('matchedBranchIndex is -1 on compile failure', () => {
+    const field = baseField({
+      id: 'badExpr',
+      expressionConfig: {
+        expressions: [{ condition: 'true', expression: '1 +' }],
+        variables: [],
+      },
+    });
+    const vars = new Map<string, number | string | boolean>();
+
+    const result = evaluateFieldExpressions(field, vars);
+
+    expect(result.matchedBranchIndex).toBe(-1);
+  });
 });
 
 describe('send frame-resolver: applyFactor', () => {

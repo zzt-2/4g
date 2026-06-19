@@ -210,11 +210,11 @@ function resolveExpressionVariables(
 export function evaluateFieldExpressions(
   field: SendFieldEncodingDef,
   mergedVariables: VariableMap,
-): { value: SendFieldValue | null; issues: SendBuildIssue[] } {
+): { value: SendFieldValue | null; matchedBranchIndex: number; issues: SendBuildIssue[] } {
   const issues: SendBuildIssue[] = [];
 
   if (!field.expressionConfig) {
-    return { value: null, issues };
+    return { value: null, matchedBranchIndex: -1, issues };
   }
 
   const { variables: evalVars, issues: resolveIssues } = resolveExpressionVariables(
@@ -232,7 +232,7 @@ export function evaluateFieldExpressions(
       fieldId: field.id,
       message: `Expression compile failed for field "${field.id}": ${compileResult.error}`,
     });
-    return { value: null, issues };
+    return { value: null, matchedBranchIndex: -1, issues };
   }
 
   const evalResult = evaluateConditional(compileResult.compiled, evalVars);
@@ -243,10 +243,10 @@ export function evaluateFieldExpressions(
       fieldId: field.id,
       message: `Expression eval failed for field "${field.id}": ${evalResult.error}`,
     });
-    return { value: null, issues };
+    return { value: null, matchedBranchIndex: -1, issues };
   }
 
-  return { value: evalResult.value, issues };
+  return { value: evalResult.value, matchedBranchIndex: evalResult.matchedIndex, issues };
 }
 
 export function applyFactor(
