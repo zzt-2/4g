@@ -659,7 +659,6 @@ const editPreviewValues = computed(() => {
                   :fields="editFrameFields"
                   :values="editValues"
                   :preview-values="editPreviewValues"
-                  :hex-mode="editHexMode"
                   :field-errors="editFieldErrors"
                   direction="send"
                   @update:values="editValues = $event"
