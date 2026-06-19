@@ -13,7 +13,7 @@ import { listFrameAssetSummaries } from '@/features/frame';
 import type { ReadonlyFrameAsset, FrameAssetSummary } from '@/features/frame';
 import { useToggleFavorite } from '@/features/frame/composables';
 import type { SendFieldValue, SendFrameInstance } from '@/features/send';
-import { resolveFieldValues, applyFactor, frameToBuildInput } from '@/features/send';
+import { resolveFieldValues, applyFactor, frameToBuildInput, evaluateFieldPreviewForUI } from '@/features/send';
 import { valueToDisplayString, isHexCapableField } from '@/features/send';
 import { NOOP_VARIABLE_PROVIDER } from '@/features/send/adapters';
 
@@ -159,7 +159,9 @@ function onEditInstance(row: InstanceTableRow): void {
   const inst = sendInstances.instances.value.find(i => i.instanceId === row.instanceId);
   if (!inst) return;
   editingInstanceId.value = inst.instanceId;
-  editValues.value = JSON.parse(JSON.stringify(inst.userFieldValues));
+  const snapshot = JSON.parse(JSON.stringify(inst.userFieldValues));
+  editValues.value = snapshot;
+  committedValues.value = JSON.parse(JSON.stringify(snapshot));
   editDescription.value = inst.description ?? '';
   editName.value = inst.name;
   showEditDialog.value = true;
@@ -264,20 +266,30 @@ async function onSend(): Promise<void> {
 const showEditDialog = ref(false);
 const editingInstanceId = ref<string | null>(null);
 const editValues = ref<Record<string, SendFieldValue>>({});
+const committedValues = ref<Record<string, SendFieldValue>>({});
 const editDescription = ref('');
 const editName = ref('');
-const editHexMode = ref(false);
 const editFieldErrors = ref<Record<string, string>>({});
 const isValid = computed(() => {
   return editName.value.trim().length > 0 && Object.keys(editFieldErrors.value).length === 0;
 });
 
+// Stale: editable values differ from last committed snapshot (only-read sections
+// show committed results until the user clicks 计算).
+const isStale = computed(() => {
+  return JSON.stringify(editValues.value) !== JSON.stringify(committedValues.value);
+});
+
+function onRecalculate(): void {
+  committedValues.value = JSON.parse(JSON.stringify(editValues.value));
+}
+
 function onEditDialogHide(): void {
   editingInstanceId.value = null;
   editValues.value = {};
+  committedValues.value = {};
   editDescription.value = '';
   editName.value = '';
-  editHexMode.value = false;
   editFieldErrors.value = {};
 }
 
@@ -334,9 +346,23 @@ const editPreviewValues = computed(() => {
   const frame = editFrame.value;
   if (!frame) return {};
   const { fields } = frameToBuildInput(frame);
-  const resolved = resolveFieldValues(fields, editValues.value, NOOP_VARIABLE_PROVIDER);
+  const resolved = resolveFieldValues(fields, committedValues.value, NOOP_VARIABLE_PROVIDER);
   const factored = applyFactor(fields, resolved.values);
   return factored.values;
+});
+
+// Per-expression-field matched branch index (供 FieldEditWidget 公式显示用真实命中分支).
+const editPreviewMeta = computed<Record<string, { matchedBranchIndex: number }>>(() => {
+  const frame = editFrame.value;
+  if (!frame) return {};
+  const meta: Record<string, { matchedBranchIndex: number }> = {};
+  for (const field of frame.fields) {
+    if (field.expressionConfig) {
+      const preview = evaluateFieldPreviewForUI(frame, field.id, committedValues.value, NOOP_VARIABLE_PROVIDER);
+      meta[field.id] = { matchedBranchIndex: preview.matchedBranchIndex };
+    }
+  }
+  return meta;
 });
 </script>
 
@@ -644,25 +670,17 @@ const editPreviewValues = computed(() => {
 
               <!-- Field values editor -->
               <div v-if="editFrameFields.length > 0" class="flex-1 min-h-0 overflow-y-auto mt-2">
-                <div class="flex items-center justify-end mb-2">
-                  <q-btn-toggle
-                    v-model="editHexMode"
-                    no-caps
-                    dense
-                    unelevated
-                    toggle-color="primary"
-                    :options="[{label:'Dec', value:false},{label:'Hex', value:true}]"
-                    size="sm"
-                  />
-                </div>
                 <FieldEditWidget
                   :fields="editFrameFields"
                   :values="editValues"
                   :preview-values="editPreviewValues"
+                  :preview-meta="editPreviewMeta"
                   :field-errors="editFieldErrors"
+                  :stale="isStale"
                   direction="send"
                   @update:values="editValues = $event"
                   @field-error="onFieldError"
+                  @recalculate="onRecalculate"
                 />
               </div>
             </div>
