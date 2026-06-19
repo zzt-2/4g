@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-19 S004 三个 UI 修复完成(进度计数按发送次数计 / 保存按钮去 disable / 发送失败错误提示 tooltip)
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-19 S006 SendPage UI 重设计:三栏高度链(scoped CSS 钳制 q-table)+左栏单行 ellipsis+编辑弹窗 hex 双显卡片化+右栏卡片化+操作列收纳;flex max-height 撑开陷阱见 D007。编辑弹窗深度讨论留待压缩上下文后
 
 ## 进展线索
 
@@ -16,6 +16,8 @@
 - **S003** H008 实施对话 (06-18)：落地 6 个设计待决点 + accumulation 复用帧侧 self-ref + task 补 writeback。**续接1**:独立审查 pass-with-known-gaps,补清 console.info + accumulation 端到端集成测试。**续接2(简化)**:用户指出"步进表达式自己递增不需要填",accumulation 从"用户填的 resolver"彻底改为"task 自动 writeback"——删 FieldValueResolver union,fieldResolvers → fieldVariations(只剩离散值列表),writeback 无条件写所有 resolvedFieldValues。用户零配置。task+command-ingress+send 543 tests 全过,lint 0 新增。详见 D002 + S003 + voice.md 2026-06-18
 - **S003 续接(可变参数输入清空 bug)** (06-19)：H008 简化后用户发现"可变参数值列表输入后被清空"。排查耗时较长,走过两个误判(派生 model-value 重算 / blur 不可靠),最终根因是 **Vue props 异步回流 + `onVariationValuesInput` 内两次链接 emit 之间 stale 覆盖**:`updateFieldVariation`(emit1 带 fv)→ `patchRepeat`(emit2 不带 fv,读 `props.step.fv` 仍是旧值 `[]`)→ `{...props.step, repeat}` 把 fv 又写成 `[]` 覆盖第一次。修复:fv + repeat 联动合并到同一次 patchConfig emit,单次原子更新。详见 D003 + S003 + voice.md 2026-06-19。用户另提三个新问题(发送失败错误提示 / 保存按钮 disable / 进度计数回退),待处理。
 - **S004** 三个 UI 修复 (06-19)：①进度计数按发送次数计(双维度:保留 steps,新增 sends;sendsTotal=iteration×ΣmaxCount;非 repeat 用例仍走 steps)②保存按钮去 disable(hasErrors 响应式滞后,save() 已有 validate 拦截)③发送失败悬停显示具体报错(sendResult.error.message,回退 SEND_RESULT_STATUS_MAP 标签)。task+command-ingress+send 422 tests 全过,tsc 0 错,lint 0 新增。详见 D004 + S004 + voice.md 2026-06-19
+- **S005** 串口两个问题 (06-19,主对话子任务)：①配置项写死——9d35a5f 只做了类型+Settings UI 半截,**透传链断 3 处**(platform-bridge SerialConnectConfig 缺字段/real-serial-adapter 丢字段/serial-handlers 没传参),本次补全 + NewConnectionDialog 加 4 个 q-select。flowControl 语义层(none/hardware/software)→main 转 serialport v13 布尔(rtscts/xon/xoff)。dataBits 不加 9(serialport v13 不接受)。②打包后检测不到——根因方向 `npmRebuild:false` 导致原生模块未用 electron ABI,改 true + postinstall 加 electron-rebuild;枚举失败从静默 return[] 改 throw 透传到 renderer devtool(throw+catch 路线,签名不变)。connection 65/65 过,tsc 0 错,lint 0 错。**待用户目标机验证打包**。详见 D005/D006 + S005 + voice.md 2026-06-19
+- **S006** SendPage(帧发送页)UI 重设计 (06-19,讨论型任务转实施)：brainstorming→spec→plan→executing-plans 全流程。保留帧模板库+帧实例模型(点帧建实例)。实现:①三栏高度链 ②左栏单行 ellipsis+去 fieldCount+收藏图标区分 ③编辑弹窗 Dec/Hex 全局切换+数值字段双显+badge→分组卡片+flex 滚动(不写死 60vh) ④右栏四块分隔线→卡片化+发送区钉底+构建问题并入参数卡 ⑤表格操作列 5 图标→编辑+菜单。**flex max-height 撑开陷阱**(两次误判 page 高度链方向,最终对比 DisplayPage 定位真因:q-table 全量渲染撑破 flex,需 overflow:hidden 钳制)见 **D007**。新增 numeric-field-format util(18 测试)。send 176 + task/command-ingress 392 测试全过,tsc 0 错,样式 0 硬编码,lint 0 新增。**编辑弹窗深度讨论留待压缩上下文后**。spec/plan 归档 docs/superpowers/。详见 D007 + S006 + voice.md 2026-06-19
 
 ## 已确认结论
 
@@ -122,4 +124,9 @@
 
 - **D001**(decisions.md):task 参数变化机制——两个需求都要,分开决策、合一实施。详细语义 + 理由 + 排除方案 + 影响范围。
 - **D002**(decisions.md):H008 实施形状落地 —— resolver 挂 SendStepConfig + accumulation 复用帧侧 self-ref + 6 个设计待决点最终方案 + accumulation 路径偏离记录。
-- **voice.md**:2026-06-17 用户拍板原话(连续累积语义 / 字段级可变参数语义 / 纠正线 A 误判) + 2026-06-18 accumulation 路径拍板。
+- **D003**(decisions.md):子组件 patchConfig 单次 emit 原则 —— 链式 emit 间 props 异步回流导致 stale 覆盖。
+- **D004**(decisions.md):进度双维度语义 —— steps(step 完成数)+ sends(发送次数)。
+- **D005**(decisions.md):串口 4 参数透传链补全 —— 语义层 flowControl 抽象 + dataBits 不加 9。
+- **D006**(decisions.md):打包串口检测修复 —— npmRebuild:true + 枚举失败 throw 透传 renderer devtool。
+- **D007**(decisions.md):flex `max-height:100%` 撑开陷阱(失败路线记录)—— 全屏列表/表格布局正确解法,含两次误判 ruled out。
+- **voice.md**:2026-06-17 用户拍板原话(连续累积语义 / 字段级可变参数语义 / 纠正线 A 误判) + 2026-06-18 accumulation 路径拍板 + 2026-06-19 SendPage UI 重设计反馈与两次"完全没用"。
