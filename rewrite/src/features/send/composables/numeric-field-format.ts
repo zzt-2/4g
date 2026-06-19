@@ -90,9 +90,18 @@ export function valueToDisplayString(
   if (hexMode) {
     const neg = num < 0;
     const mag = Math.abs(num);
-    return (neg ? '-0x' : '0x') + mag.toString(16).toUpperCase();
+    // Round to guard against float tail artifacts before hex conversion.
+    return (neg ? '-0x' : '0x') + Math.round(mag).toString(16).toUpperCase();
   }
-  return String(num);
+  // Dec branch: never use scientific notation. Integer types fall within safe
+  // integer range (uint8-32 / int8-32), but guard anyway: safe int -> toString,
+  // beyond -> BigInt fallback to force a plain decimal digit string.
+  if (Number.isSafeInteger(num)) return num.toString();
+  try {
+    return BigInt(Math.trunc(num)).toString(10);
+  } catch {
+    return num.toString();
+  }
 }
 
 /** Render the "other side" hint, e.g. Dec value -> "Hex=0xFF". Empty if not numeric. */

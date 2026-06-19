@@ -45,6 +45,16 @@ describe('numeric-field-format', () => {
     it('undefined returns empty', () => {
       expect(valueToDisplayString(undefined, field('uint8'), false)).toBe('');
     });
+    it('uint32 large value Dec shows plain digit string (no scientific notation)', () => {
+      expect(valueToDisplayString(4000000000, field('uint32'), false)).toBe('4000000000');
+    });
+    it('uint64 beyond safe int Dec shows plain digit string via bigint', () => {
+      expect(valueToDisplayString('18446744073709551615', field('uint64'), false)).toBe('18446744073709551615');
+    });
+    it('super-large value Dec never uses scientific notation (1e21)', () => {
+      // Number(1e21).toString() yields '1e+21'; must be plain digit string
+      expect(valueToDisplayString(1e21, field('uint64'), false)).toBe('1000000000000000000000');
+    });
   });
 
   describe('formatCounterpart', () => {
