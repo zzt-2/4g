@@ -251,6 +251,10 @@ export interface TaskProgress {
   readonly elapsedMs: number;
   readonly estimatedRemainingMs: number | null;
   readonly lastStepResult: TaskStepResult | null;
+  /** 已成功发送次数。repeat 每次都算一次(stepResults 中 send 且 sent 的行数,不去重)。 */
+  readonly sendsCompleted: number;
+  /** 总发送次数预算 = iteration 总数 × Σ(各 send step 每迭代发送次数)。null = 无法计算(maxCount 未定义/until/iteration 无限)。 */
+  readonly sendsTotal: number | null;
 }
 
 // --- Execution summary ---

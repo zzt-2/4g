@@ -11,8 +11,11 @@ import type { HistoryTableRow } from '../components/history-columns';
 export function toTaskRow(inst: ReadonlyTaskInstanceState): TaskTableRow {
   const displayStatus = resolveDisplayStatus(inst.lifecycle, inst.definitionRef);
   const progress = calculateProgress(inst);
-  const total = progress.stepsTotal || 1;
-  const pct = Math.round((progress.stepsCompleted / total) * 100);
+  // 优先按"发送次数"(sendsTotal 非 null 时反映 repeat 细粒度),回退 step 完成维度。
+  const useSends = progress.sendsTotal !== null;
+  const total = useSends ? (progress.sendsTotal || 1) : (progress.stepsTotal || 1);
+  const completed = useSends ? progress.sendsCompleted : progress.stepsCompleted;
+  const pct = Math.round((completed / total) * 100);
   const kind = inst.definitionRef.schedule.kind;
   const base: TaskTableRow = {
     instanceId: inst.instanceId,
@@ -22,7 +25,9 @@ export function toTaskRow(inst: ReadonlyTaskInstanceState): TaskTableRow {
     lifecycle: inst.lifecycle,
     displayStatus,
     progressPercent: pct,
-    progressLabel: `${progress.stepsCompleted}/${progress.stepsTotal}`,
+    progressLabel: useSends
+      ? `${progress.sendsCompleted}/${progress.sendsTotal}`
+      : `${progress.stepsCompleted}/${progress.stepsTotal}`,
     _original: inst,
   };
   if (inst.templateId !== undefined) {

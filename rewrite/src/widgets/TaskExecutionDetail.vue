@@ -99,8 +99,21 @@ function delayRemainingText(stepIndex: number): string | null {
 
 const progressPct = computed(() => {
   if (!props.progress) return 0;
+  // 优先按"发送次数"(sendsTotal 非 null 时反映 repeat 细粒度),回退 step 完成维度。
+  if (props.progress.sendsTotal !== null && props.progress.sendsTotal > 0) {
+    return Math.round((props.progress.sendsCompleted / props.progress.sendsTotal) * 100);
+  }
   const total = props.progress.stepsTotal || 1;
   return Math.round((props.progress.stepsCompleted / total) * 100);
+});
+
+// 进度 n/m 标签:优先 sends(发送次数),回退 steps(step 完成数)。
+const progressLabel = computed(() => {
+  if (!props.progress) return '';
+  if (props.progress.sendsTotal !== null) {
+    return `${props.progress.sendsCompleted}/${props.progress.sendsTotal}`;
+  }
+  return `${props.progress.stepsCompleted}/${props.progress.stepsTotal}`;
 });
 </script>
 
@@ -118,7 +131,7 @@ const progressPct = computed(() => {
     <div v-if="progress" class="flex flex-col gap-1">
       <div class="flex items-center justify-between">
         <span class="rw-text-label text-xs">进度</span>
-        <span class="rw-text-value text-xs">{{ progress.stepsCompleted }}/{{ progress.stepsTotal }} ({{ progressPct }}%)</span>
+        <span class="rw-text-value text-xs">{{ progressLabel }} ({{ progressPct }}%)</span>
       </div>
       <q-linear-progress :value="progressPct / 100" color="primary" size="6px" rounded />
     </div>

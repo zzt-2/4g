@@ -46,6 +46,13 @@ export function calculateProgress(instance: TaskInstanceState): TaskProgress {
   const estimatedRemainingMs = estimateRemainingMs(instance, iterationsCompleted, iterationsTotal, elapsedMs);
   const lastStepResult = stepResults.length > 0 ? stepResults[stepResults.length - 1] : null;
 
+  // sends 维度:按"实际发送次数"计,反映 repeat 细粒度。
+  // sendsCompleted = stepResults 中 send 且成功的行数(repeat 每次都是独立行,直接计数,不去重)。
+  const sendsCompleted = stepResults.filter(
+    (r) => r.kind === 'send' && r.sendResult.kind === 'sent',
+  ).length;
+  const sendsTotal = resolveSendsTotal(instance, iterationsTotal);
+
   return {
     stepsTotal: stepsPerIteration,
     stepsCompleted,
@@ -56,6 +63,8 @@ export function calculateProgress(instance: TaskInstanceState): TaskProgress {
     elapsedMs,
     estimatedRemainingMs,
     lastStepResult,
+    sendsCompleted,
+    sendsTotal,
   };
 }
 
@@ -97,6 +106,28 @@ function resolveIterationsTotal(instance: TaskInstanceState): number | null {
     return 1;
   }
   return null;
+}
+
+/**
+ * 总发送次数预算 = iteration 总数 × Σ(各 send step 每迭代发送次数)。
+ * 各 send step 每迭代发送次数:无 repeat 的单发=1;repeat 有 maxCount=maxCount;
+ * repeat 无 maxCount(until 条件/unbounded)= 无法预算 → 整个 sendsTotal 返回 null。
+ * iteration 总数为 null(无限)或任一 send step 贡献 null 时,返回 null。
+ *
+ * 用户语义(D001 原话:"各重复5次迭代2次每次加1 → 共15次"):
+ * sendsTotal = iteration 总数 × Σ 各 step maxCount。
+ */
+function resolveSendsTotal(instance: TaskInstanceState, iterationsTotal: number | null): number | null {
+  if (iterationsTotal === null) return null;
+  let sumPerIteration = 0;
+  for (const step of instance.definitionRef.steps) {
+    if (step.kind !== 'send') continue;
+    const { repeat } = step.config;
+    const perIter = repeat ? (repeat.maxCount ?? null) : 1;
+    if (perIter === null) return null;  // until 条件/unbounded,无法预算
+    sumPerIteration += perIter;
+  }
+  return iterationsTotal * sumPerIteration;
 }
 
 function calculateElapsedMs(instance: TaskInstanceState): number {

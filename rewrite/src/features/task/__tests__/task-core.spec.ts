@@ -481,6 +481,147 @@ describe('Progress', () => {
       expect(calculateProgress(instance).iterationsTotal).toBeNull();
     });
   });
+
+  describe('sends dimension (发送次数,反映 repeat 细粒度)', () => {
+    // 构建 1 个 send step 带 repeat 的 immediate task(默认单 iteration)
+    function repeatTaskDef(maxCount?: number, until?: unknown): TaskDefinition {
+      return {
+        id: 'repeat-task',
+        name: 'Repeat Task',
+        schedule: { kind: 'immediate' },
+        steps: [{
+          id: 'step-1',
+          kind: 'send',
+          config: {
+            frameId: 'frame-1',
+            targetId: 'target-1',
+            ...(maxCount !== undefined || until
+              ? { repeat: { intervalMs: 10, ...(maxCount !== undefined ? { maxCount } : {}), ...(until ? { until: until as never } : {}) } }
+              : {}),
+          },
+        }],
+        errorPolicy: { onFailure: 'stop' },
+      };
+    }
+
+    it('单发 step(immediate,1 iteration):sendsTotal=1, sendsCompleted 随发送递增', () => {
+      const instance = makeInstance({
+        lifecycle: 'running',
+        startedAt: '2026-05-06T12:00:00.000Z',
+        currentIteration: 0,
+        definitionRef: repeatTaskDef(),
+        stepResults: [],
+      });
+      const before = calculateProgress(instance);
+      expect(before.sendsTotal).toBe(1);
+      expect(before.sendsCompleted).toBe(0);
+
+      const after = makeInstance({
+        lifecycle: 'completed',
+        startedAt: '2026-05-06T12:00:00.000Z',
+        completedAt: '2026-05-06T12:00:01.000Z',
+        currentIteration: 0,
+        definitionRef: repeatTaskDef(),
+        stepResults: [makeSendStepResult({ stepIndex: 0, iteration: 0 })],
+      });
+      const afterProg = calculateProgress(after);
+      expect(afterProg.sendsCompleted).toBe(1);
+      expect(afterProg.sendsTotal).toBe(1);
+    });
+
+    it('repeat maxCount=5 iteration=3:sendsTotal=15(用户 D001 语义)', () => {
+      const def: TaskDefinition = {
+        ...repeatTaskDef(5),
+        schedule: { kind: 'timer', intervalMs: 10 },
+        stopCondition: { maxIterations: 3 },
+      };
+      const instance = makeInstance({ definitionRef: def });
+      const progress = calculateProgress(instance);
+      expect(progress.sendsTotal).toBe(15);
+      expect(progress.sendsCompleted).toBe(0);
+    });
+
+    it('repeat 已发 7 次(maxCount=5 iteration=3):sendsCompleted=7', () => {
+      const def: TaskDefinition = {
+        ...repeatTaskDef(5),
+        schedule: { kind: 'timer', intervalMs: 10 },
+        stopCondition: { maxIterations: 3 },
+      };
+      // iter0 发 5 次 + iter1 发 2 次 = 7 次成功
+      const sent7 = Array.from({ length: 7 }, (_, i) =>
+        makeSendStepResult({ stepIndex: 0, iteration: i < 5 ? 0 : 1 }),
+      );
+      const instance = makeInstance({
+        lifecycle: 'running',
+        startedAt: '2026-05-06T12:00:00.000Z',
+        currentIteration: 1,
+        definitionRef: def,
+        stepResults: sent7,
+      });
+      const progress = calculateProgress(instance);
+      expect(progress.sendsCompleted).toBe(7);
+      expect(progress.sendsTotal).toBe(15);
+    });
+
+    it('repeat 无 maxCount(until 条件):sendsTotal=null(无法预算)', () => {
+      const instance = makeInstance({
+        definitionRef: repeatTaskDef(undefined, [{ frameId: 'f', fieldId: 'x', operator: 'eq', threshold: 1 }]),
+      });
+      expect(calculateProgress(instance).sendsTotal).toBeNull();
+    });
+
+    it('timer 无 maxIterations(无限迭代):sendsTotal=null', () => {
+      const def: TaskDefinition = {
+        ...repeatTaskDef(5),
+        schedule: { kind: 'timer', intervalMs: 10 },
+      };
+      const instance = makeInstance({ definitionRef: def });
+      expect(calculateProgress(instance).sendsTotal).toBeNull();
+    });
+
+    it('多个 send step 累加 maxCount:sendsTotal = iteration × Σ maxCount', () => {
+      const def: TaskDefinition = {
+        id: 'multi-task',
+        name: 'Multi',
+        schedule: { kind: 'immediate' },
+        steps: [
+          { id: 's1', kind: 'send', config: { frameId: 'f1', targetId: 't', repeat: { intervalMs: 10, maxCount: 3 } } },
+          { id: 's2', kind: 'send', config: { frameId: 'f2', targetId: 't', repeat: { intervalMs: 10, maxCount: 2 } } },
+        ],
+        errorPolicy: { onFailure: 'stop' },
+      };
+      const instance = makeInstance({ definitionRef: def });
+      // immediate = 1 iteration, Σ maxCount = 3+2 = 5
+      expect(calculateProgress(instance).sendsTotal).toBe(5);
+    });
+
+    it('failed send 不计入 sendsCompleted(只数 sent 成功)', () => {
+      const def: TaskDefinition = {
+        ...repeatTaskDef(5),
+        schedule: { kind: 'timer', intervalMs: 10 },
+        stopCondition: { maxIterations: 3 },
+      };
+      const sent2Fail1 = [
+        makeSendStepResult({ stepIndex: 0, iteration: 0 }),
+        makeSendStepResult({ stepIndex: 0, iteration: 0 }),
+        {
+          ...makeSendStepResult({ stepIndex: 0, iteration: 0 }),
+          sendResult: { ...makeSendResult(), kind: 'transport-error' as never } as never,
+        },
+      ];
+      const instance = makeInstance({
+        lifecycle: 'stopped',
+        startedAt: '2026-05-06T12:00:00.000Z',
+        stoppedAt: '2026-05-06T12:00:01.000Z',
+        currentIteration: 0,
+        definitionRef: def,
+        stepResults: sent2Fail1,
+      });
+      const progress = calculateProgress(instance);
+      expect(progress.sendsCompleted).toBe(2);  // 只数 sent 成功,失败那 1 次不计
+      expect(progress.sendsTotal).toBe(15);
+    });
+  });
 });
 
 // ============================================================

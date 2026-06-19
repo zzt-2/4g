@@ -162,7 +162,12 @@ export function useCentralDocking(
         instanceId,
         name: instance?.definitionRef.name ?? testCaseId,
         lifecycle: instance?.lifecycle ?? 'unknown',
-        progress: progress ? `${progress.stepsCompleted}/${progress.stepsTotal}` : '—',
+        // 优先按"发送次数"(sendsTotal 非 null 时反映 repeat 细粒度),回退 step 完成维度。
+        progress: progress
+          ? (progress.sendsTotal !== null
+            ? `${progress.sendsCompleted}/${progress.sendsTotal}`
+            : `${progress.stepsCompleted}/${progress.stepsTotal}`)
+          : '—',
         startedAt: instance?.startedAt ?? '',
       });
 
