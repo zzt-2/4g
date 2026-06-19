@@ -591,10 +591,10 @@ const editPreviewMeta = computed<Record<string, { matchedBranchIndex: number }>>
                 <div
                   v-for="field in configurableFields"
                   :key="field.id"
-                  class="flex items-center justify-between"
+                  class="send-page__param-row"
                 >
-                  <span class="rw-text-label text-xs">{{ field.name }}</span>
-                  <span class="rw-text-value text-xs font-mono">{{ fieldDisplayValue(field, selectedInstance.userFieldValues[field.id]) }}</span>
+                  <span class="send-page__param-name">{{ field.name }}</span>
+                  <span class="send-page__param-value font-mono">{{ fieldDisplayValue(field, selectedInstance.userFieldValues[field.id]) }}</span>
                 </div>
               </div>
               <div v-if="fullPreview.issues.length > 0" class="mt-2">
@@ -749,6 +749,24 @@ const editPreviewMeta = computed<Record<string, { matchedBranchIndex: number }>>
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+}
+
+// Right-panel param value rows: label + value stacked vertically so long hex
+// values (e.g. bytes streams) wrap instead of overflowing the 300px column.
+.send-page__param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.send-page__param-name {
+  font-size: var(--rw-font-size-caption);
+  color: var(--rw-color-text-muted);
+}
+.send-page__param-value {
+  font-size: var(--rw-font-size-caption);
+  color: var(--rw-color-text-primary);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 // DataTable wrapper — must clamp q-table (virtual-scroll renders all rows,
