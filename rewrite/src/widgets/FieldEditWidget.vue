@@ -6,6 +6,7 @@ import {
   isHexCapableField,
   valueToDisplayString,
   parseFieldInput,
+  fieldExpressionLabel,
 } from '@/features/send';
 
 // --- Types ---
@@ -120,6 +121,13 @@ function hexBoxValue(field: FrameFieldDefinition): string {
 function tooltipText(field: FrameFieldDefinition): string {
   if (field.description) return `${field.name}\n${field.description}`;
   return field.name;
+}
+
+/** Expression formula display (translated to field names). Empty if not an expression field. */
+function expressionFormula(field: FrameFieldDefinition): string {
+  if (!field.expressionConfig) return '';
+  const idx = props.previewMeta?.[field.id]?.matchedBranchIndex ?? -1;
+  return fieldExpressionLabel(field, props.fields, idx);
 }
 
 // --- Mutation ---
@@ -270,6 +278,9 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
                 {{ field.name }}<template v-if="hasNonTrivialFactor(field)">&nbsp;(x{{ field.factor }})</template>
               </span>
               <span class="field-row__value font-mono">{{ getDisplayValue(field) }}</span>
+              <span v-if="expressionFormula(field)" class="field-row__formula font-mono">
+                = {{ expressionFormula(field) }}
+              </span>
             </div>
             <q-tooltip v-if="field.description || field.name" max-width="280px" class="field-row__tooltip">
               {{ tooltipText(field) }}
@@ -347,6 +358,14 @@ function onHexInput(field: FrameFieldDefinition, raw: string | number | null): v
   grid-column: 2;
   font-size: var(--rw-font-size-body);
   color: var(--rw-color-text-primary);
+}
+.field-row__formula {
+  grid-column: 3;
+  font-size: var(--rw-font-size-caption);
+  color: var(--rw-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .field-row--readonly .field-row__value {
   background: var(--rw-color-surface-app);
