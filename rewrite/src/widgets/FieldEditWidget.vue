@@ -264,7 +264,7 @@ function onNumericInput(field: FrameFieldDefinition, raw: string | number | null
 }
 .field-row--readonly .field-row__value {
   background: var(--rw-color-surface-app);
-  padding: 2px var(--rw-space-2);
+  padding: var(--rw-space-0-5) var(--rw-space-2);
   border-radius: var(--rw-radius-control);
 }
 </style>
