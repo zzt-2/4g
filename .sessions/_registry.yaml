@@ -38,8 +38,8 @@ sessions:
     title: UI 与 Feature Bug 集中修复
     status: active
     created: 2026-06-10
-    last_updated: 2026-06-18
-    description: 发送帧页面状态丢失、UDP 发送失败、IP 显示错误等多功能交叉 bug 的根因分析和修复。S002/D001 拍板 task 参数变化机制(连续累积+字段级可变参数分开做),H008 交接字段级可变参数实施。H008 实施完成(D002):两问题合一,字段级可变参数 + 表达式连续累积(复用帧侧 self-ref + task 补 writeback) + 顺手修 progress/maxIterations 两 bug。386 tests 全过。
+    last_updated: 2026-06-19
+    description: 发送帧页面状态丢失、UDP 发送失败、IP 显示错误等多功能交叉 bug 的根因分析和修复。S002/D001 拍板 task 参数变化机制(连续累积+字段级可变参数分开做),H008 交接字段级可变参数实施。H008 实施完成(D002):两问题合一,字段级可变参数 + 表达式连续累积(复用帧侧 self-ref + task 补 writeback) + 顺手修 progress/maxIterations 两 bug。S003 续接(D003):可变参数输入清空 bug 根因 Vue props 异步回流 + 链式 emit stale 覆盖,确立子组件单次 emit 原则。S004(D004):三个 UI 修复——进度计数按发送次数计(双维度 steps+sends)、保存按钮去 disable、发送失败悬停显示具体报错。422 tests 全过。
 
   - slug: 2026-06-11-display-group-management
     title: 接收帧分组管理 Feature 实施与修复

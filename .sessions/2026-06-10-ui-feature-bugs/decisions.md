@@ -234,3 +234,57 @@ step 4 是关键:emit2 的 patch 不含 fieldVariations,但 `{ ...props.step }` 
 - 用户反馈"可变参数在我鼠标点别的地方之后,直接变空了"+"保存后还是空的"
 - 诊断日志铁证(见具体数据)
 - 触发原话:见 voice.md 2026-06-19
+
+---
+
+## D004: 进度双维度语义 —— steps(step 完成数)+ sends(发送次数)
+
+> status: active
+> date: 2026-06-19
+> 取代：无(与 D002 的 progress 去重修复并存——D002 修爆表用的是 step 维度去重,D004 新增独立 sends 维度,两者互不干扰)
+> 被取代：无
+
+### 决策
+
+`TaskProgress` 采用**双维度**而非替换:
+
+- **steps 维度(保留)**:`stepsTotal/stepsCompleted` = step 完成数(按 stepIndex 去重,repeat 只算一次)。给"3 个 step 跑完 2 个"这类视图用。D002 的去重逻辑不变。
+- **sends 维度(新增)**:`sendsTotal/sendsCompleted` = 实际发送次数。`sendsCompleted` = stepResults 中 send 且 sent 成功的行数(不去重,repeat 每次都算)。`sendsTotal` = `iteration 总数 × Σ(各 send step 每迭代发送次数)`。
+
+### sendsTotal 计算规则(契约)
+
+```
+sendsTotal = (iteration 总数) × Σ(各 send step 的 per-iteration 发送次数)
+```
+- 各 send step 每迭代发送次数:`repeat ? (repeat.maxCount ?? null) : 1`
+  - 无 repeat 单发 = 1
+  - repeat 有 maxCount = maxCount
+  - repeat 无 maxCount(until 条件/unbounded)= null → 该 step 贡献 null → **sendsTotal = null**
+- iteration 总数 = `resolveIterationsTotal()`(immediate=1, timer/event 取 maxIterations, 无限=null)
+- 任一因子为 null → sendsTotal = null
+
+**UI 优先级契约**:消费方(TaskExecutionDetail / use-task-list / use-central-docking)优先显示 sends(sendsTotal 非 null 时),回退 steps。这样 repeat 任务显示"7/15",非 repeat 任务仍显示 step 完成数,两者都不丢信息。
+
+### 用户语义验证
+
+D001 原话"各重复5次迭代2次每次加1 → 共15次":1 个 send step repeat=5、iteration=3 → sendsTotal = 3 × 5 = 15 ✓。
+
+### 否决了什么
+
+- ❌ **替换 steps 维度为 sends**:否决。steps 维度对"几个 step 跑完"的视图有用(如 wait-condition/delay step 不发数据,sends 维度不覆盖它们)。双维度并存更准确。
+- ❌ **给 TaskStepResult 加 repeatIndex/counter 字段来数 sends**:否决。sendsCompleted 直接数 stepResults 行数就够(repeat 每次已是独立行),不必改持久化结构。TaskProgress 不持久化(computed-on-read),改字段零迁移风险。
+
+### 影响范围
+
+- **core/types.ts**:TaskProgress +2 字段(sendsTotal: number|null, sendsCompleted: number)。
+- **core/progress.ts**:新增 resolveSendsTotal() + sendsCompleted 计数。
+- **UI 消费方(3 处)**:TaskExecutionDetail.vue(progressPct + progressLabel computed)、use-task-list.ts(toTaskRow)、use-central-docking.ts(docking 行)。
+- **不改**:TaskStepResult / task-iteration-loops / 持久化序列化 / steps 维度逻辑。
+- **测试**:task-core.spec.ts 新增 7 个 sends 维度用例(单发/repeat×iteration/until null/无限 null/多 step 累加/failed 不计)。现有 progress 断言(无 repeat 用例)steps 维度语义未变,保留。
+
+### 来源
+
+- S004(2026-06-19,进度计数改造)
+- 用户反馈"重复好几次,但进度只有 1/1"
+- D001 原话语义("各重复5次迭代2次每次加1 → 共15次")
+- 触发原话:见 voice.md 2026-06-19
