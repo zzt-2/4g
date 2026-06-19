@@ -866,7 +866,6 @@ function hasPreviousSendStep(si: number): boolean {
             unelevated no-caps color="primary"
             label="保存"
             :loading="editor.isSaving.value"
-            :disable="editor.hasErrors.value"
             @click="onSave"
           />
           <q-btn

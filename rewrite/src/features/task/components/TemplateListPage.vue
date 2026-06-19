@@ -585,7 +585,6 @@ function onToggleTagFilter(tag: string): void {
             unelevated no-caps color="primary"
             label="保存"
             :loading="editor.isSaving.value"
-            :disable="editor.hasErrors.value"
             @click="onSave"
           />
         </q-card-actions>
