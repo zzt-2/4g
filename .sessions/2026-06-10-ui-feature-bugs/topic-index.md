@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接2 TaskExecutionDetail 步骤状态不滚根因(D007 同款):ExecutionListPage:701 运行态右栏包 widget 的父 div `flex-1 min-h-0 p-4` 缺 `flex flex-col`,widget h-full 无法可靠解析 flex-basis 高度→内部 overflow-y-auto 不触发,步骤多被静默裁。修复:加 flex flex-col。SettingsPage 不滚待用户确认(可能内容没超高)。前次 S009 续接 修滚动条盖标题栏 bug(base.scss 加 height:100% 锁视口 + page-container overflow-y:auto)。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接3 **真根因**:Quasar `.q-layout/.q-page-container/.q-page` 全链无确定 height(只 min-height),内容撑开被 body overflow:hidden 裁 = "顶层总被顶起来,后面咋弄都不对"(用户原话)。修复:`<q-layout>` 加 class + `.app-shell__layout { height:100% }` 钉视口,page-container overflow-y:auto 才真生效。一并解 TaskExecutionDetail 不滚 + SettingsPage 等 min-h-full 页面不滚。前次续接2 修 ExecutionListPage:701 父 div 补 flex flex-col。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
 
 ## 进展线索
 

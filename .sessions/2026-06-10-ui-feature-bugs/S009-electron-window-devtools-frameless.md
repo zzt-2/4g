@@ -179,3 +179,48 @@ SettingsPage 是 `min-h-full`(内容少不滚、多则该滚)。滚动修复后 
 - ExecutionListPage eslint 0 error
 - 纯 class 加 `flex flex-col`,无 TS/逻辑改动
 - **待用户实测**:运行一个多步骤任务,步骤状态区应占满右栏剩余空间并在内部滚动(不出 page 级滚动条)
+
+## 续接3(2026-06-22):真根因——q-layout 没钉视口高度,整条链无确定高度
+
+### 用户反馈(决定性)
+
+> "但依然没有任何变化。要不最顶层别用 q-page 了?或者高度弄成 100vh-标题栏?不然这顶层总被顶起来,后面咋弄都不对"
+
+用户洞察直指真根因:"**顶层总被顶起来,后面咋弄都不对**" —— 我前面修的 flex 链全在 q-page **内部**,但 q-page 本身高度不对,内部修再对也没用。
+
+### 真根因(读 Quasar 源 CSS 铁证)
+
+Quasar 的实际高度模型(从 node_modules/quasar/dist/quasar.css 直读):
+```
+.q-page          { position: relative }                    /* 无 height! */
+.q-page-container { transition: padding ... }              /* 无 height/overflow! */
+.q-layout        { width:100%; min-height:100% }           /* 无 height,只 min-height! */
+.q-layout-container { position:relative; height:100% }     /* 有 height,但要父级也有 */
+```
+
+**整条链 `.q-layout → .q-page-container → .q-page` 全是 min-height 或无 height,没有任何一层钉死在视口高度**。内容一高就把三层一起撑过视口。
+
+- 续接1 修法(base.scss 锁 body height:100%+overflow:hidden + page-container overflow-y:auto)**不够**:body overflow:hidden 锁住了 body 滚动,但 page-container 的 height:100% 父级是 .q-layout(min-height:100% 无 height)→ 退化 auto → page-container 自己也被内容撑开 → overflow-y:auto **无确定高度可裁,不触发滚动** → 撑开的内容被 body overflow:hidden **直接裁掉**(既不滚也看不见)= 用户看到的"override-hidden 不出滚动条"。
+
+**漏锁的一层:`.q-layout` 没有 height:100%**。
+
+### 修复(用户方案"高度弄成 100vh"的正确实现)
+
+`AppShell.vue`:`<q-layout>` 加 class `app-shell__layout` + scoped `.app-shell__layout { height:100% }`。
+
+这样高度链全通:`html → body(height:100%,base.scss)→ #q-app(=.q-layout-container,height:100% Quasar 默认)→ .q-layout(本次 height:100%)→ .q-page-container(height:100%+overflow-y:auto,续接1)→ .q-page`。page-container 的 overflow-y:auto 真正生效,滚动发生在 header 下方内容区(Quasar 按 view 自动给 page-container 加 padding-top=header 高度,滚动条在 header 下而非盖住)。
+
+**用户方案评估**:
+- "别用 q-page":否决。Quasar 路由约定就是 q-page,改动大且无收益
+- "100vh-标题栏":方向对但不必算 header 高度——Quasar 已用 padding-top 处理 header 占位,只需把 q-layout 钉 100%(=100vh),page-container 自然在 header(padding-top)下方滚
+
+### 一并修复的连带问题
+
+- **SettingsPage/Home/Connection 等 min-h-full 页面**:q-page min-height:100%=视口,内容高时 page-container overflow-y:auto 触发滚动(续接2 待确认的 SettingsPage 不滚,本修复后应自然解决)
+- **TaskExecutionDetail**:整条 flex 链通到 q-page 都有确定高度,内部 flex-1 min-h-0 overflow-y-auto 真触发滚动(配合续接2 的父 div flex flex-col)
+
+### 续接3验证
+
+- AppShell eslint 0 error,SCSS 编译 OK
+- 纯 CSS 改动(q-layout 加 class + scoped height),无 TS/逻辑改动
+- **待用户实测**:重启 dev server 后,(a)滚动条在 header 下方不盖 header;(b)TaskExecutionDetail 步骤状态区占满剩余并内部滚;(c)SettingsPage 等内容超高时 page-container 出滚动条

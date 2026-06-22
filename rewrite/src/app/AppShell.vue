@@ -93,7 +93,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 
 <template>
-  <q-layout view="hHh Lpr fFf">
+  <q-layout view="hHh Lpr fFf" class="app-shell__layout">
     <q-header bordered class="app-shell__header">
       <!-- 标题栏可拖动区(frame:false 无系统标题栏,靠 -webkit-app-region:drag 移动窗口);
            按钮和 menu 标 no-drag 否则点不到。 -->
@@ -143,6 +143,17 @@ window.addEventListener('beforeunload', () => {
 </template>
 
 <style scoped>
+/* 把视口高度钉死在 q-layout 根。
+   Quasar 的 .q-layout 默认只有 min-height:100%(无 height),.q-page-container 也无 height,
+   .q-page 只有 position:relative —— 整条链无确定高度,内容一高就把 q-layout/q-page-container/
+   q-page 一起撑过视口。base.scss 锁了 body overflow:hidden 后,撑开的内容直接被裁
+   (既不滚也看不见)。这里 height:100% 给 .q-layout 一个=视口的确定高度
+   (父级 .q-layout-container=#q-app 已 height:100%=body=100vh),.q-page-container 的
+   height:100%+overflow-y:auto 才真正生效,滚动发生在 header 下方内容区。 */
+.app-shell__layout {
+  height: 100%;
+}
+
 .app-shell__header {
   background: var(--rw-color-surface-header);
   color: var(--rw-color-text-primary);
