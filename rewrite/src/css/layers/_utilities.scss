@@ -75,3 +75,58 @@
   max-height: 60vh;
   overflow-y: auto;
 }
+
+// --- Segmented control (convention C4/O3: tab 切换的复用视觉模式) ---
+// 一级分段控件：主导航（指令接入页一级 tab）。整组用 .rw-segmented 包一层 inline-flex
+// 容器，每个选项是 .rw-segmented__btn，选中加 .rw-segmented__btn--active。
+// 选中格底色填充 surface-selected，未选中透明，hover 浅化。颜色/圆角/字号全走 token。
+.rw-segmented {
+  display: inline-flex;
+  gap: var(--rw-space-1);
+  background: var(--rw-color-surface-app);
+  border-radius: var(--rw-radius-control);
+  padding: var(--rw-space-0-5);
+
+  &__btn {
+    border: none;
+    background: transparent;
+    color: var(--rw-color-text-secondary);
+    font-size: var(--rw-font-size-body);
+    line-height: var(--rw-line-height-body);
+    font-weight: var(--rw-font-weight-regular);
+    padding: var(--rw-space-1) var(--rw-space-3);
+    border-radius: var(--rw-radius-control);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &:hover:not(.rw-segmented__btn--active) {
+      background: var(--rw-color-surface-base);
+      color: var(--rw-color-text-primary);
+    }
+
+    &--active {
+      background: var(--rw-color-surface-base);
+      color: var(--rw-color-text-primary);
+      font-weight: var(--rw-font-weight-semibold);
+      // 浅阴影区分选中格浮起（走 shadow token，不硬编码）
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  // 二级分段控件：嵌套二级 tab（中心对接页内部），视觉重量弱于一级。
+  // 更小字号 caption + 更紧 padding + 去阴影，避免和一级混淆层级。
+  &--sub {
+    gap: var(--rw-space-0-5);
+    padding: var(--rw-space-0-5);
+
+    .rw-segmented__btn {
+      font-size: var(--rw-font-size-caption);
+      line-height: var(--rw-line-height-caption);
+      padding: var(--rw-space-0-5) var(--rw-space-2);
+
+      &--active {
+        box-shadow: none;
+      }
+    }
+  }
+}
