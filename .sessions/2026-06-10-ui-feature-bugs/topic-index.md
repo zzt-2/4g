@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接 修滚动条盖标题栏 bug(早存,frameless 后暴露):根因 base.scss `html,body,#q-app { min-height:100% }` 无 height + .q-layout 无 height → page-container `height:100%` 退化为 auto → 内容撑开冒泡到 body → body 滚动条盖住 fixed header(浏览器滚动条在最顶层 z-index 无效)。b40e2b8 此前修过半截。修复:base.scss 加 `height:100%`+body `overflow:hidden` 锁视口 + AppShell page-container 改 `overflow-y:auto` 在 header 下滚。前次 2026-06-22 S009 Electron 主窗口壳层改造:devTools 默认开(dev) + 无边框窗口(frame:false) + 自定义窗口控制三按钮(minimize/maximize-toggle/close)。见 D009。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接2 TaskExecutionDetail 步骤状态不滚根因(D007 同款):ExecutionListPage:701 运行态右栏包 widget 的父 div `flex-1 min-h-0 p-4` 缺 `flex flex-col`,widget h-full 无法可靠解析 flex-basis 高度→内部 overflow-y-auto 不触发,步骤多被静默裁。修复:加 flex flex-col。SettingsPage 不滚待用户确认(可能内容没超高)。前次 S009 续接 修滚动条盖标题栏 bug(base.scss 加 height:100% 锁视口 + page-container overflow-y:auto)。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
 
 ## 进展线索
 

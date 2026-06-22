@@ -698,7 +698,7 @@ function hasPreviousSendStep(si: number): boolean {
         </template>
 
         <template v-else>
-          <div class="flex-1 min-h-0 p-4">
+          <div class="flex-1 min-h-0 p-4 flex flex-col">
             <TaskExecutionDetail
               :instance="selectedInstance"
               :progress="selectedProgress"
