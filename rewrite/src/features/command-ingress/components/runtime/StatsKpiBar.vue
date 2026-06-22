@@ -27,45 +27,39 @@ function formatCount(n: number): string {
 </script>
 
 <template>
-  <div class="stats-kpi-bar flex flex-col gap-2 px-6 py-3 rw-divider-b">
-    <!-- 第一行：计数器类（5 项均分） -->
-    <div class="flex items-baseline gap-6">
-      <div class="stats-kpi-bar__item">
-        <span class="rw-text-label">累计</span>
-        <strong class="rw-text-value">{{ formatSeconds(props.statistics.runtimeSeconds) }}</strong>
-      </div>
-      <div class="stats-kpi-bar__item">
-        <span class="rw-text-label">卫星运行</span>
-        <strong class="rw-text-value">{{ formatSeconds(props.statistics.satelliteIdRuntimeSeconds) }}</strong>
-      </div>
-      <div class="stats-kpi-bar__item">
-        <span class="rw-text-label">接收总数</span>
-        <strong class="rw-text-value">{{ formatCount(props.statistics.commandReceiveCount) }}</strong>
-      </div>
-      <div class="stats-kpi-bar__item">
-        <span class="rw-text-label">成功总数</span>
-        <strong class="rw-text-value">{{ formatCount(props.statistics.commandSuccessCount) }}</strong>
-      </div>
-      <div class="stats-kpi-bar__item">
-        <span class="rw-text-label">出错数</span>
-        <strong class="rw-text-value">{{ formatCount(props.statistics.commandErrorCount) }}</strong>
-      </div>
+  <div class="stats-kpi-bar flex items-center flex-wrap gap-x-6 gap-y-2 px-6 py-2 rw-divider-b">
+    <!-- 全部 8 项压一行（窄屏 flex-wrap 兜底，不挤碎） -->
+    <div class="stats-kpi-bar__item">
+      <span class="rw-text-label">累计</span>
+      <strong class="rw-text-value">{{ formatSeconds(props.statistics.runtimeSeconds) }}</strong>
     </div>
-
-    <!-- 第二行：状态类（卫星ID + 健康 + 链路自检） -->
-    <div class="flex items-center gap-6">
-      <div class="stats-kpi-bar__item">
-        <span class="rw-text-label">已加载卫星ID</span>
-        <strong class="rw-text-value">{{ props.runtimeStatus.loadedSatelliteId || '—' }}</strong>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="rw-text-label">健康状态</span>
-        <StatusBadge :status="props.runtimeStatus.healthStatus" :status-map="healthStatusMap" />
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="rw-text-label">链路自检</span>
-        <StatusBadge :status="props.runtimeStatus.linkTestResult" :status-map="linkTestStatusMap" />
-      </div>
+    <div class="stats-kpi-bar__item">
+      <span class="rw-text-label">卫星运行</span>
+      <strong class="rw-text-value">{{ formatSeconds(props.statistics.satelliteIdRuntimeSeconds) }}</strong>
+    </div>
+    <div class="stats-kpi-bar__item">
+      <span class="rw-text-label">接收总数</span>
+      <strong class="rw-text-value">{{ formatCount(props.statistics.commandReceiveCount) }}</strong>
+    </div>
+    <div class="stats-kpi-bar__item">
+      <span class="rw-text-label">成功总数</span>
+      <strong class="rw-text-value">{{ formatCount(props.statistics.commandSuccessCount) }}</strong>
+    </div>
+    <div class="stats-kpi-bar__item">
+      <span class="rw-text-label">出错数</span>
+      <strong class="rw-text-value">{{ formatCount(props.statistics.commandErrorCount) }}</strong>
+    </div>
+    <div class="stats-kpi-bar__item">
+      <span class="rw-text-label">已加载卫星ID</span>
+      <strong class="rw-text-value">{{ props.runtimeStatus.loadedSatelliteId || '—' }}</strong>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="rw-text-label">健康状态</span>
+      <StatusBadge :status="props.runtimeStatus.healthStatus" :status-map="healthStatusMap" />
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="rw-text-label">链路自检</span>
+      <StatusBadge :status="props.runtimeStatus.linkTestResult" :status-map="linkTestStatusMap" />
     </div>
   </div>
 </template>

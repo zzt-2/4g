@@ -458,47 +458,28 @@ onBeforeUnmount(() => {
 <template>
   <q-page class="command-ingress-page flex flex-col h-full">
     <!-- 顶部 toolbar：分段控件 + 按 tab 动态按钮 -->
-    <CiToolbar
-      v-model="activeTab"
-      :scoe-connected="false"
-      :frames-loaded="service.isScoeFramesLoaded()"
-      :is-connect-loading="isOperating('connect')"
-      :is-disconnect-loading="isOperating('disconnect')"
-      :is-load-loading="isOperating('load')"
-      :is-unload-loading="isOperating('unload')"
+    <CiToolbar v-model="activeTab" :scoe-connected="false" :frames-loaded="service.isScoeFramesLoaded()"
+      :is-connect-loading="isOperating('connect')" :is-disconnect-loading="isOperating('disconnect')"
+      :is-load-loading="isOperating('load')" :is-unload-loading="isOperating('unload')"
       :is-save-loading="scoeConfig.isSaving.value"
       :can-load-unload="!!scoeConfig.selectedConfigId.value || service.isScoeFramesLoaded()"
-      :docking-active="docking.isActive.value"
-      :is-docking-connect-loading="docking.isConnecting.value"
+      :docking-active="docking.isActive.value" :is-docking-connect-loading="docking.isConnecting.value"
       :is-docking-disconnect-loading="docking.isDisconnecting.value"
-      :has-report-records="docking.reportRecords.value.length > 0"
-      @scoe-connect="handleConnect"
-      @scoe-disconnect="handleDisconnect"
-      @scoe-load="handleLoadSatellite"
-      @scoe-unload="handleUnloadSatellite"
-      @scoe-save-config="handleSaveFromToolbar"
-      @docking-open-config="docking.showConfigDialog.value = true"
-      @docking-disconnect="docking.disconnect()"
-      @docking-open-report="docking.showReportDialog.value = true"
-    />
+      :has-report-records="docking.reportRecords.value.length > 0" @scoe-connect="handleConnect"
+      @scoe-disconnect="handleDisconnect" @scoe-load="handleLoadSatellite" @scoe-unload="handleUnloadSatellite"
+      @scoe-save-config="handleSaveFromToolbar" @docking-open-config="docking.showConfigDialog.value = true"
+      @docking-disconnect="docking.disconnect()" @docking-open-report="docking.showReportDialog.value = true" />
 
     <!-- tab 内容区（flex 撑满剩余高度） -->
     <div class="flex-1 min-h-0 overflow-hidden">
       <!-- Tab 1: SCOE 运行与测试 -->
       <div v-show="activeTab === 'monitor'" class="flex flex-col h-full">
-        <StatsKpiBar
-          :statistics="monitor.statistics.value"
-          :runtime-status="monitor.runtimeStatus.value"
-        />
-        <div class="flex flex-1 min-h-0">
+        <StatsKpiBar :statistics="monitor.statistics.value" :runtime-status="monitor.runtimeStatus.value" />
+        <div class="flex flex-1 min-h-0 gap-6">
           <!-- 左：命令日志表 -->
-          <CommandLogTable
-            class="flex-1 min-w-0 rw-divider-r"
-            :rows="monitor.commandLog.value"
+          <CommandLogTable class="flex-1 min-w-0" :rows="monitor.commandLog.value"
             :last-command-code="monitor.runtimeStatus.value.lastCommandCode"
-            :last-error-reason="monitor.statistics.value.lastErrorReason"
-            @clear-log="handleClearCommandLog"
-          />
+            :last-error-reason="monitor.statistics.value.lastErrorReason" @clear-log="handleClearCommandLog" />
           <!-- 右：测试工具栏（320px，内联） -->
           <div class="ci-test-tool flex flex-col w-80 min-w-80 flex-shrink-0">
             <!-- 接收区 -->
@@ -509,10 +490,12 @@ onBeforeUnmount(() => {
                   <q-btn flat dense icon="o_highlight" color="grey" size="sm" @click="openHighlightDialog">
                     <q-tooltip>高亮配置</q-tooltip>
                   </q-btn>
-                  <q-btn flat dense icon="o_play_arrow" color="positive" size="sm" :disable="isTestRecording" @click="startTestRecording">
+                  <q-btn flat dense icon="o_play_arrow" color="positive" size="sm" :disable="isTestRecording"
+                    @click="startTestRecording">
                     <q-tooltip>开始</q-tooltip>
                   </q-btn>
-                  <q-btn flat dense icon="o_stop" color="warning" size="sm" :disable="!isTestRecording" @click="stopTestRecording">
+                  <q-btn flat dense icon="o_stop" color="warning" size="sm" :disable="!isTestRecording"
+                    @click="stopTestRecording">
                     <q-tooltip>停止</q-tooltip>
                   </q-btn>
                   <q-btn flat dense icon="o_delete_sweep" color="grey" size="sm" @click="handleClearTestRecords">
@@ -520,21 +503,16 @@ onBeforeUnmount(() => {
                   </q-btn>
                 </div>
               </div>
-              <div
-                v-if="testTool.records.value.length === 0"
-                class="text-center p-4 rw-text-label flex-1 flex items-center justify-center"
-              >
+              <div v-if="testTool.records.value.length === 0"
+                class="text-center p-4 rw-text-label flex-1 flex items-center justify-center">
                 暂无接收数据
               </div>
-              <q-virtual-scroll
-                v-else
-                :items="testTool.records.value"
-                virtual-scroll-item-size="28"
-                class="flex-1 min-h-0"
-              >
+              <q-virtual-scroll v-else :items="testTool.records.value" virtual-scroll-item-size="28"
+                class="flex-1 min-h-0">
                 <template #default="{ item: record, index }">
                   <div :key="index" class="flex items-center py-1 rw-divider-b font-mono text-xs">
-                    <span class="rw-text-label w-[100px] flex-shrink-0">{{ formatDateTime(new Date(record.timestamp).toISOString()) }}</span>
+                    <span class="rw-text-label w-[100px] flex-shrink-0">{{ formatDateTime(new
+                      Date(record.timestamp).toISOString()) }}</span>
                     <span class="rw-text-value flex-1 truncate">{{ String(record.data) }}</span>
                   </div>
                 </template>
@@ -543,103 +521,48 @@ onBeforeUnmount(() => {
             <!-- 发送区 -->
             <div class="rw-panel-base mx-3 mb-3 p-3 flex-shrink-0">
               <span class="rw-text-label text-sm">发送数据</span>
-              <q-input
-                v-model="testTool.hexInput.value"
-                type="textarea"
-                dense
-                rows="3"
-                placeholder="输入 HEX 数据"
-                class="font-mono mt-2"
-              />
-              <q-btn
-                unelevated color="primary" label="发送"
-                class="full-width mt-2"
-                :loading="testTool.isSending.value"
-                :disable="!testTool.hexInput.value.trim()"
-                @click="handleSendHex"
-              />
+              <q-input v-model="testTool.hexInput.value" type="textarea" dense rows="3" placeholder="输入 HEX 数据"
+                class="font-mono mt-2" />
+              <q-btn unelevated color="primary" label="发送" class="full-width mt-2" :loading="testTool.isSending.value"
+                :disable="!testTool.hexInput.value.trim()" @click="handleSendHex" />
             </div>
           </div>
         </div>
       </div>
 
       <!-- Tab 2: SCOE 配置 -->
-      <div v-show="activeTab === 'config'" class="flex h-full">
-        <SatelliteList
-          class="w-60 min-w-60 flex-shrink-0 rw-divider-r"
-          :rows="scoeConfig.satelliteConfigs.value"
-          :selected-id="scoeConfig.selectedConfigId.value"
-          @update:selected="scoeConfig.selectSatellite"
-          @add="handleAddSatellite"
-          @duplicate="handleDuplicateSatellite"
-          @delete="handleDeleteSatellite"
-          @import="handleImportConfig"
-          @export="handleExportConfig"
-        />
-        <SatelliteEditPanel
-          :config="scoeConfig.selectedConfig.value"
-          :edit-form="editForm"
-          @update:edit-form="(f) => editForm = f"
-          @add-command="handleAddCommand"
-        />
+      <div v-show="activeTab === 'config'" class="flex h-full gap-2">
+        <SatelliteList class="w-72 min-w-72 flex-shrink-0" :rows="scoeConfig.satelliteConfigs.value"
+          :selected-id="scoeConfig.selectedConfigId.value" @update:selected="scoeConfig.selectSatellite"
+          @add="handleAddSatellite" @duplicate="handleDuplicateSatellite" @delete="handleDeleteSatellite"
+          @import="handleImportConfig" @export="handleExportConfig" />
+        <SatelliteEditPanel :config="scoeConfig.selectedConfig.value" :edit-form="editForm"
+          @update:edit-form="(f) => editForm = f" @add-command="handleAddCommand" />
       </div>
 
       <!-- Tab 3: 中心对接 -->
       <div v-show="activeTab === 'docking'" class="flex flex-col h-full">
-        <DockingToolbar
-          v-model="dockingInnerTab"
-          :connection-state="docking.connectionState.value"
-        />
+        <DockingToolbar v-model="dockingInnerTab" :connection-state="docking.connectionState.value" />
         <div class="flex-1 min-h-0 overflow-hidden">
-          <TaskListPanel
-            v-if="dockingInnerTab === 'tasks'"
-            :rows="docking.dockingTasks.value"
-            @stop-task="handleStopDockingTask"
-          />
-          <DeviceListPanel
-            v-else-if="dockingInnerTab === 'devices'"
-            :rows="docking.devices.value"
-            @add="handleAddDevice"
-            @edit="handleEditDevice"
-            @delete="handleDeleteDevice"
-          />
-          <CatalogMappingPanel
-            v-else
-            :mappings="docking.catalogMappings.value"
-            :all-templates="allTemplates"
-            :field-groups-of="fieldGroupsOf"
-            :template-name-of="mappingTemplateName"
-            :is-field-checked="isFieldChecked"
-            :is-mapped="isMapped"
-            @toggle-enabled="toggleMappingEnabled"
-            @toggle-field="toggleField"
-            @add-mapping="refreshTemplates"
-            @toggle-mapping="toggleMapping"
-            @delete-mapping="handleDeleteMapping"
-          />
+          <TaskListPanel v-if="dockingInnerTab === 'tasks'" :rows="docking.dockingTasks.value"
+            @stop-task="handleStopDockingTask" />
+          <DeviceListPanel v-else-if="dockingInnerTab === 'devices'" :rows="docking.devices.value"
+            @add="handleAddDevice" @edit="handleEditDevice" @delete="handleDeleteDevice" />
+          <CatalogMappingPanel v-else :mappings="docking.catalogMappings.value" :all-templates="allTemplates"
+            :field-groups-of="fieldGroupsOf" :template-name-of="mappingTemplateName" :is-field-checked="isFieldChecked"
+            :is-mapped="isMapped" @toggle-enabled="toggleMappingEnabled" @toggle-field="toggleField"
+            @add-mapping="refreshTemplates" @toggle-mapping="toggleMapping" @delete-mapping="handleDeleteMapping" />
         </div>
       </div>
     </div>
 
     <!-- 中心对接 3 个弹窗（逻辑零改动，触发按钮在 CiToolbar） -->
-    <DockingConfigDialog
-      v-model="docking.showConfigDialog.value"
-      :config="docking.config"
-      :is-connecting="docking.isConnecting.value"
-      @update:config="(c) => Object.assign(docking.config, c)"
-      @save-connect="docking.saveConfigAndConnect()"
-    />
-    <DeviceEditDialog
-      v-model="showDeviceEditDialog"
-      :is-new="deviceEditIsNew"
-      :form="deviceEditForm"
-      @update:form="(f) => deviceEditForm = f"
-      @confirm="handleSaveDevice"
-    />
-    <ReportRecordDialog
-      v-model="docking.showReportDialog.value"
-      :rows="docking.reportRecords.value"
-    />
+    <DockingConfigDialog v-model="docking.showConfigDialog.value" :config="docking.config"
+      :is-connecting="docking.isConnecting.value" @update:config="(c) => Object.assign(docking.config, c)"
+      @save-connect="docking.saveConfigAndConnect()" />
+    <DeviceEditDialog v-model="showDeviceEditDialog" :is-new="deviceEditIsNew" :form="deviceEditForm"
+      @update:form="(f) => deviceEditForm = f" @confirm="handleSaveDevice" />
+    <ReportRecordDialog v-model="docking.showReportDialog.value" :rows="docking.reportRecords.value" />
 
     <!-- 高亮规则配置 dialog（测试工具栏内联） -->
     <q-dialog v-model="testTool.showHighlightDialog.value" @hide="editingHighlightRules = []">
@@ -648,59 +571,40 @@ onBeforeUnmount(() => {
           <div class="text-h6">高亮规则配置</div>
         </q-card-section>
         <q-card-section class="rw-dialog-scroll-body">
-          <div
-            v-for="rule in editingHighlightRules"
-            :key="rule.id"
-            class="flex items-center gap-2 mb-2"
-          >
-            <q-input
-              :model-value="String(rule.offset)"
-              dense label="起始" type="number" class="w-20"
-              @update:model-value="(val: string | number | null) => {
-                const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
-                if (idx >= 0) {
-                  const next = [...editingHighlightRules];
-                  next[idx] = { ...next[idx], offset: Number(val) || 0 };
-                  editingHighlightRules = next;
-                }
-              }"
-            />
-            <q-input
-              :model-value="String(rule.length)"
-              dense label="长度" type="number" class="w-20"
-              @update:model-value="(val: string | number | null) => {
-                const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
-                if (idx >= 0) {
-                  const next = [...editingHighlightRules];
-                  next[idx] = { ...next[idx], length: Number(val) || 1 };
-                  editingHighlightRules = next;
-                }
-              }"
-            />
-            <q-select
-              :model-value="rule.severity"
-              :options="(['info', 'warning', 'negative', 'positive'] as const)"
-              dense label="颜色" emit-value class="w-25"
-              @update:model-value="(val) => {
+          <div v-for="rule in editingHighlightRules" :key="rule.id" class="flex items-center gap-2 mb-2">
+            <q-input :model-value="String(rule.offset)" dense label="起始" type="number" class="w-20" @update:model-value="(val: string | number | null) => {
+              const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
+              if (idx >= 0) {
+                const next = [...editingHighlightRules];
+                next[idx] = { ...next[idx], offset: Number(val) || 0 };
+                editingHighlightRules = next;
+              }
+            }" />
+            <q-input :model-value="String(rule.length)" dense label="长度" type="number" class="w-20" @update:model-value="(val: string | number | null) => {
+              const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
+              if (idx >= 0) {
+                const next = [...editingHighlightRules];
+                next[idx] = { ...next[idx], length: Number(val) || 1 };
+                editingHighlightRules = next;
+              }
+            }" />
+            <q-select :model-value="rule.severity" :options="(['info', 'warning', 'negative', 'positive'] as const)"
+              dense label="颜色" emit-value class="w-25" @update:model-value="(val) => {
                 const idx = editingHighlightRules.findIndex((r) => r.id === rule.id);
                 if (idx >= 0) {
                   const next = [...editingHighlightRules];
                   next[idx] = { ...next[idx], severity: val as HighlightRuleConfig['severity'] };
                   editingHighlightRules = next;
                 }
-              }"
-            />
+              }" />
             <q-btn flat dense icon="o_delete" color="grey" size="sm" @click="handleDeleteHighlightRule(rule.id)" />
           </div>
           <q-btn flat dense icon="o_add" color="primary" label="添加规则" @click="addHighlightRule" />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="取消" @click="testTool.showHighlightDialog.value = false" />
-          <q-btn
-            unelevated color="primary" label="保存"
-            :loading="isOperating('save-highlight')"
-            @click="handleSaveHighlightRules(editingHighlightRules)"
-          />
+          <q-btn unelevated color="primary" label="保存" :loading="isOperating('save-highlight')"
+            @click="handleSaveHighlightRules(editingHighlightRules)" />
         </q-card-actions>
       </q-card>
     </q-dialog>
