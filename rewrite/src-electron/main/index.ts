@@ -8,6 +8,7 @@ import { registerFileHandlers, cleanupFileHandlers } from './file-handlers';
 import { registerHttpHandlers, cleanupHttpHandlers } from './http-handlers';
 import { registerFtpHandlers, cleanupFtpHandlers } from './ftp-handlers';
 import { registerStorageHandlers, cleanupStorageHandlers } from './storage-handlers';
+import { registerWindowHandlers, cleanupWindowHandlers } from './window-handlers';
 import { storageFilter } from './storage-filter';
 
 const platform = process.platform || os.platform();
@@ -30,6 +31,9 @@ async function createWindow() {
     minHeight: 640,
     useContentSize: true,
     show: false,
+    // 无边框窗口:去掉系统标题栏(图标/标题/三按钮),改由 AppShell 的 q-header
+    // 自画最小化/最大化/关闭按钮 + drag 区(见 D009 取舍:frame:false 全自定义)。
+    frame: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -44,6 +48,7 @@ async function createWindow() {
   registerHttpHandlers();
   registerFtpHandlers();
   registerStorageHandlers();
+  registerWindowHandlers(mainWindow);
 
   const appUrl = process.env.APP_URL;
   mainWindow.once('ready-to-show', () => {
@@ -58,11 +63,17 @@ async function createWindow() {
 
   if (process.env.DEV && appUrl) {
     await mainWindow.loadURL(appUrl);
+    // dev 默认开 DevTools(detach:独立窗口不遮应用界面)。
+    // prod 不开——最终用户不需要;要 prod 开走单独"调试模式"开关,本次不做。
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     await mainWindow.loadFile('index.html');
   }
 
   mainWindow.on('closed', () => {
+    if (mainWindow) {
+      cleanupWindowHandlers(mainWindow);
+    }
     cleanupSerialHandlers();
     cleanupNetworkHandlers();
     cleanupFileHandlers();

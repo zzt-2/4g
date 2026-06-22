@@ -20,6 +20,7 @@ import {
   type StorageBridge,
   type StorageActivateRequest,
   type StorageConfigUpdate,
+  type WindowControlBridge,
 } from '../../src/shared/platform-bridge';
 
 const IPC_ENUMERATE = 'transport:enumerate-serial-ports';
@@ -53,6 +54,12 @@ const IPC_STORAGE_DEACTIVATE = 'storage:deactivate';
 const IPC_STORAGE_GET_STATS = 'storage:get-stats';
 const IPC_STORAGE_RESET = 'storage:reset';
 const IPC_STORAGE_UPDATE_CONFIG = 'storage:update-config';
+
+const IPC_WINDOW_MINIMIZE = 'window:minimize';
+const IPC_WINDOW_MAXIMIZE_TOGGLE = 'window:maximize-toggle';
+const IPC_WINDOW_IS_MAXIMIZED = 'window:is-maximized';
+const IPC_WINDOW_CLOSE = 'window:close';
+const IPC_WINDOW_MAXIMIZE_CHANGED = 'window:maximize-changed';
 
 const eventBuffer: TransportBridgeEvent[] = [];
 const eventCallbacks: ((event: TransportBridgeEvent) => void)[] = [];
@@ -226,6 +233,41 @@ const storageBridge: StorageBridge = {
   },
 };
 
+// --- Window control bridge ---
+// 最大化状态订阅:主进程在 maximize/unmaximize 时推送一次,renderer 图标跟着切。
+const maximizeChangeCallbacks: ((maximized: boolean) => void)[] = [];
+ipcRenderer.on(IPC_WINDOW_MAXIMIZE_CHANGED, (_e, maximized: boolean) => {
+  for (const cb of maximizeChangeCallbacks) {
+    try {
+      cb(maximized);
+    } catch {
+      // ignore callback errors
+    }
+  }
+});
+
+const windowControlBridge: WindowControlBridge = {
+  async minimize(): Promise<void> {
+    return ipcRenderer.invoke(IPC_WINDOW_MINIMIZE);
+  },
+  async toggleMaximize(): Promise<boolean> {
+    return ipcRenderer.invoke(IPC_WINDOW_MAXIMIZE_TOGGLE);
+  },
+  async isMaximized(): Promise<boolean> {
+    return ipcRenderer.invoke(IPC_WINDOW_IS_MAXIMIZED);
+  },
+  async close(): Promise<void> {
+    return ipcRenderer.invoke(IPC_WINDOW_CLOSE);
+  },
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void {
+    maximizeChangeCallbacks.push(callback);
+    return () => {
+      const idx = maximizeChangeCallbacks.indexOf(callback);
+      if (idx >= 0) maximizeChangeCallbacks.splice(idx, 1);
+    };
+  },
+};
+
 const rewriteBridge = Object.freeze({
   getBridgeInfo: () => createRewriteBridgeInfo('0.0.0'),
   transport: transportBridge,
@@ -233,6 +275,7 @@ const rewriteBridge = Object.freeze({
   http: httpBridge,
   ftp: ftpBridge,
   storage: storageBridge,
+  windowControl: windowControlBridge,
 });
 
 contextBridge.exposeInMainWorld(REWRITE_PLATFORM_BRIDGE_KEY, rewriteBridge);

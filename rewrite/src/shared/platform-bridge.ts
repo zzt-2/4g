@@ -220,6 +220,21 @@ export interface StorageBridge {
   updateConfig(config: StorageConfigUpdate): Promise<{ readonly ok: boolean; readonly error?: string }>;
 }
 
+// --- Window control bridge types ---
+// 无边框窗口(frame:false)的最小化/最大化/关闭控制 + 最大化状态同步。
+// renderer 侧自画三按钮,点击调本接口;最大化图标随 onMaximizeChange 事件切换。
+
+export interface WindowControlBridge {
+  minimize(): Promise<void>;
+  /** 切换最大化/还原,返回切换后的最大化状态(供点击时即时反馈)。 */
+  toggleMaximize(): Promise<boolean>;
+  /** 当前是否最大化(组件初始化时取初始图标态)。 */
+  isMaximized(): Promise<boolean>;
+  close(): Promise<void>;
+  /** 订阅最大化状态变化(系统 Snap/双击标题栏或按钮触发都推送),返回取消订阅。 */
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void;
+}
+
 // --- Bridge root ---
 
 export interface RewritePlatformBridge {
@@ -229,6 +244,7 @@ export interface RewritePlatformBridge {
   readonly http?: HttpBridge;
   readonly ftp?: FtpBridge;
   readonly storage?: StorageBridge;
+  readonly windowControl?: WindowControlBridge;
 }
 
 export function createRewriteBridgeInfo(
