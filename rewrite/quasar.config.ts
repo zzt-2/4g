@@ -72,6 +72,12 @@ export default defineConfig(() => ({
 		builder: {
 			appId: 'com.lct.commander',
 			productName: '激光模拟器',
+			// serialport v13 的 @serialport/bindings-cpp 是 NAPI v8 模块(binary.napi_versions:[8]),
+			// prebuild 二进制 ABI 无关,electron 35 可直接加载(已在 dev 机实测枚举 COM1-3)。
+			// 因此跳过 electron ABI 重编,同时绕开 pnpm+app-builder-bin 在 Windows 上
+			// fork/exec npm_execpath(pnpm.cjs) 报 "%1 is not a valid Win32 application" 的缺陷。
+			// 注意:若将来升/降 serialport 主版本,需重新确认 prebuild 是否仍为 NAPI;
+			// 非 NAPI 的原生模块必须改回 true 并修好 rebuild 链路,否则目标机串口检测不到。
 			npmRebuild: false,
 			asar: true,
 			asarUnpack: ['**/*.node', '**/@serialport/**'],

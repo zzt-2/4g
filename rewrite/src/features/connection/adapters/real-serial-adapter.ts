@@ -49,6 +49,10 @@ export function createRealSerialAdapter(
         id: config.id,
         portPath: config.portPath,
         baudRate: config.baudRate,
+        dataBits: config.dataBits,
+        stopBits: config.stopBits,
+        parity: config.parity,
+        flowControl: config.flowControl,
       });
 
       const events = result.events.map(mapBridgeEvent);

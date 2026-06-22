@@ -4,7 +4,7 @@ import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useAsyncAction, useNotify } from '@/shared/composables';
 import type { SerialTransportConfig } from '@/features/connection';
 
-const BAUD_RATE_OPTIONS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+const BAUD_RATE_OPTIONS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000];
 const DATA_BITS_OPTIONS: readonly (5 | 6 | 7 | 8)[] = [5, 6, 7, 8];
 const STOP_BITS_OPTIONS: readonly (1 | 1.5 | 2)[] = [1, 1.5, 2];
 const PARITY_OPTIONS: readonly ('none' | 'even' | 'odd' | 'mark' | 'space')[] = ['none', 'even', 'odd', 'mark', 'space'];

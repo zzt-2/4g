@@ -60,6 +60,10 @@ export interface SerialConnectConfig {
   readonly id: string;
   readonly portPath: string;
   readonly baudRate: number;
+  readonly dataBits?: 5 | 6 | 7 | 8;
+  readonly stopBits?: 1 | 1.5 | 2;
+  readonly parity?: 'none' | 'even' | 'odd' | 'mark' | 'space';
+  readonly flowControl?: 'none' | 'hardware' | 'software';
 }
 
 export interface TcpClientConnectConfig {

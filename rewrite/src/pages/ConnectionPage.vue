@@ -103,7 +103,17 @@ async function handleCreate(config: TransportConfig): Promise<void> {
 }
 
 async function refreshResources(): Promise<void> {
-  resources.value = await service.discoverResources();
+  try {
+    resources.value = await service.discoverResources();
+  } catch (err) {
+    // 原生模块加载失败(serialport/bindings-cpp ABI 不匹配等)会从 main 冒泡到这里。
+    // 打包后用户在目标机看不到 main console,这里打到 renderer DevTools console + Notify,
+    // 让用户能拿到具体错误(如 "Cannot find module .../serialport.node")。
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[serial] 资源发现失败:', err);
+    notify.error('串口检测失败', msg);
+    resources.value = [];
+  }
 }
 
 const resources = ref<readonly { kind: string; id: string; label: string }[]>([]);

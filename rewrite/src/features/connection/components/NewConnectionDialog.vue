@@ -28,6 +28,10 @@ const serialRefreshing = ref(false);
 const label = ref('');
 const portPath = ref('');
 const baudRate = ref(115200);
+const dataBits = ref<5 | 6 | 7 | 8>(8);
+const stopBits = ref<1 | 1.5 | 2>(1);
+const parity = ref<'none' | 'even' | 'odd' | 'mark' | 'space'>('none');
+const flowControl = ref<'none' | 'hardware' | 'software'>('none');
 
 // TCP Client fields
 const tcpClientHost = ref('');
@@ -51,7 +55,27 @@ const show = computed({
   set: (val: boolean) => emit('update:modelValue', val),
 });
 
-const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000];
+
+// serialport v13 dataBits 仅支持 5-8(不支持 9);选项与 ConnectionSettings.vue / validation.ts 对齐。
+const DATA_BITS_OPTIONS: readonly (5 | 6 | 7 | 8)[] = [5, 6, 7, 8];
+const STOP_BITS_OPTIONS: readonly (1 | 1.5 | 2)[] = [1, 1.5, 2];
+const PARITY_OPTIONS: readonly ('none' | 'even' | 'odd' | 'mark' | 'space')[] = ['none', 'even', 'odd', 'mark', 'space'];
+const FLOW_CONTROL_OPTIONS: readonly ('none' | 'hardware' | 'software')[] = ['none', 'hardware', 'software'];
+
+const PARITY_LABELS: Record<string, string> = {
+  none: '无校验',
+  even: '偶校验',
+  odd: '奇校验',
+  mark: '标记校验',
+  space: '空格校验',
+};
+
+const FLOW_CONTROL_LABELS: Record<string, string> = {
+  none: '无流控',
+  hardware: '硬件流控',
+  software: '软件流控',
+};
 
 const serialPortOptions = computed(() =>
   props.resources
@@ -80,6 +104,10 @@ function resetForm(): void {
   label.value = '';
   portPath.value = '';
   baudRate.value = 115200;
+  dataBits.value = 8;
+  stopBits.value = 1;
+  parity.value = 'none';
+  flowControl.value = 'none';
   tcpClientHost.value = '';
   tcpClientPort.value = 8080;
   tcpServerHost.value = '0.0.0.0';
@@ -121,6 +149,10 @@ function onSubmit(): void {
           kind: 'serial',
           portPath: portPath.value,
           baudRate: baudRate.value,
+          dataBits: dataBits.value,
+          stopBits: stopBits.value,
+          parity: parity.value,
+          flowControl: flowControl.value,
         };
         break;
       case 'tcp-client':
@@ -269,6 +301,64 @@ watch(
               outlined
               emit-value
             />
+            <q-select
+              v-model="dataBits"
+              :options="DATA_BITS_OPTIONS"
+              label="数据位"
+              dense
+              outlined
+              emit-value
+              map-options
+            />
+            <q-select
+              v-model="stopBits"
+              :options="STOP_BITS_OPTIONS"
+              label="停止位"
+              dense
+              outlined
+              emit-value
+              map-options
+            />
+            <q-select
+              v-model="parity"
+              :options="PARITY_OPTIONS"
+              label="校验位"
+              dense
+              outlined
+              emit-value
+              map-options
+            >
+              <template #option="{ itemProps, opt }">
+                <q-item v-bind="itemProps">
+                  <q-item-section>
+                    <q-item-label>{{ PARITY_LABELS[opt] ?? opt }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template #selected-item="{ opt }">
+                {{ PARITY_LABELS[opt] ?? opt }}
+              </template>
+            </q-select>
+            <q-select
+              v-model="flowControl"
+              :options="FLOW_CONTROL_OPTIONS"
+              label="流控制"
+              dense
+              outlined
+              emit-value
+              map-options
+            >
+              <template #option="{ itemProps, opt }">
+                <q-item v-bind="itemProps">
+                  <q-item-section>
+                    <q-item-label>{{ FLOW_CONTROL_LABELS[opt] ?? opt }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template #selected-item="{ opt }">
+                {{ FLOW_CONTROL_LABELS[opt] ?? opt }}
+              </template>
+            </q-select>
           </template>
 
           <!-- TCP Client -->

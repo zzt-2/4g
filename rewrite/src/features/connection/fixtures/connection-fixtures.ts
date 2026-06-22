@@ -7,6 +7,12 @@ export const serialTransportConfigFixture: TransportConfig = {
   label: 'Main serial',
   portPath: 'COM3',
   baudRate: 115200,
+  // normalizeTransportConfig 对 serial 无条件输出 4 字段(默认 8/1/none/none),
+  // fixture 需带上,否则 connection-core.spec 的 toEqual(config) 不成立。
+  dataBits: 8,
+  stopBits: 1,
+  parity: 'none',
+  flowControl: 'none',
 };
 
 export const tcpClientTransportConfigFixture: TransportConfig = {
