@@ -68,7 +68,7 @@ function navigate(to: string): void {
       <AppNavigation :items="navigationItems" :active-path="activePath" @navigate="navigate" />
     </q-drawer>
 
-    <q-page-container>
+    <q-page-container class="app-shell__page-container">
       <router-view />
     </q-page-container>
   </q-layout>
@@ -89,5 +89,15 @@ function navigate(to: string): void {
 
 .app-shell__drawer {
   background: var(--rw-color-surface-base);
+}
+
+// Lock q-page-container height so q-page's h-full has a valid height to reference.
+// Without this, the container only has Quasar's computed min-height, and tall page
+// content (e.g. step status lists) stretches it — producing a body scrollbar and
+// pushing the whole layout up. overflow:hidden + height:100% (= q-layout = 100vh)
+// forces the page region to scroll internally instead of growing the document.
+.app-shell__page-container {
+  height: 100%;
+  overflow: hidden;
 }
 </style>
