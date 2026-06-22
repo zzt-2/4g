@@ -43,6 +43,31 @@ const selectedRow = shallowRef<TemplateTableRow[]>([]);
 const editorFormRef = ref<QForm | null>(null);
 const importInputRef = ref<HTMLInputElement | null>(null);
 
+// ===== Batch delete mode =====
+const batchMode = ref(false);
+const batchSelectedRows = shallowRef<TemplateTableRow[]>([]);
+
+function onBatchDelete(): void {
+  if (batchSelectedRows.value.length === 0) return;
+  const count = batchSelectedRows.value.length;
+  $q.dialog({
+    title: '确认批量删除',
+    message: `确定要删除选中的 ${count} 个模板吗？此操作不可撤销。`,
+    cancel: true,
+    persistent: false,
+  }).onOk(() => {
+    let removed = 0;
+    for (const row of batchSelectedRows.value) {
+      const result = taskService.deleteTemplate(row.templateId);
+      if (result) removed++;
+    }
+    batchSelectedRows.value = [];
+    selectedRow.value = [];
+    refresh();
+    notify.success(`已删除 ${removed} 个模板`);
+  });
+}
+
 const allTags = computed<readonly string[]>(() => {
   const set = new Set<string>();
   for (const tpl of taskService.listTemplates()) {
@@ -222,17 +247,30 @@ function onToggleTagFilter(tag: string): void {
       @update:search-model-value="onSearchChange"
     >
       <template #filters>
-        <q-chip
-          v-for="tag in allTags"
-          :key="tag"
+        <q-btn-dropdown
+          v-if="allTags.length > 0"
+          flat
           dense
-          clickable
-          :color="selectedTagFilters.includes(tag) ? 'primary' : 'grey-4'"
-          :text-color="selectedTagFilters.includes(tag) ? 'white' : 'grey-7'"
-          @click="onToggleTagFilter(tag)"
+          no-caps
+          :label="selectedTagFilters.length > 0 ? `标签 (${selectedTagFilters.length})` : '标签筛选'"
+          :color="selectedTagFilters.length > 0 ? 'primary' : 'grey'"
+          class="q-ml-sm"
         >
-          {{ tag }}
-        </q-chip>
+          <q-list dense style="min-width: 180px; max-height: 320px" class="scroll">
+            <q-item tag="label" v-for="tag in allTags" :key="tag" dense>
+              <q-item-section avatar>
+                <q-checkbox
+                  dense
+                  :model-value="selectedTagFilters.includes(tag)"
+                  @update:model-value="onToggleTagFilter(tag)"
+                />
+              </q-item-section>
+              <q-item-section>
+                <span class="rw-text-value text-sm">{{ tag }}</span>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
       </template>
 
       <template #actions>
@@ -240,6 +278,13 @@ function onToggleTagFilter(tag: string): void {
         <q-btn flat no-caps icon="o_edit" label="编辑" :disable="selectedRow.length === 0" @click="onEditTemplate" />
         <q-btn flat no-caps icon="o_file_upload" label="导入" :loading="isOperating('import-templates')" @click="triggerImport" />
         <q-btn flat no-caps icon="o_file_download" label="导出" :loading="isOperating('export-templates')" @click="onExport" />
+        <q-btn
+          flat no-caps
+          :icon="batchMode ? 'o_close' : 'o_checklist'"
+          :label="batchMode ? '退出批量' : '批量管理'"
+          :color="batchMode ? 'negative' : 'grey'"
+          @click="batchMode = !batchMode; batchSelectedRows = []; selectedRow = []"
+        />
         <input
           ref="importInputRef"
           type="file"
@@ -250,16 +295,37 @@ function onToggleTagFilter(tag: string): void {
       </template>
     </TableToolbar>
 
+    <!-- Batch mode toolbar -->
+    <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
+      <q-btn
+        flat dense no-caps
+        icon="o_delete"
+        label="删除选中"
+        color="negative"
+        size="sm"
+        :disable="batchSelectedRows.length === 0"
+        @click="onBatchDelete"
+      />
+      <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
+      <div class="flex-1" />
+      <q-btn
+        flat dense no-caps
+        label="退出批量模式"
+        size="sm"
+        @click="batchMode = false; batchSelectedRows = []"
+      />
+    </div>
+
     <!-- Template list -->
     <DataTable
       :columns="templateColumns"
       :rows="rows"
       row-key="templateId"
-      selection="single"
-      :selected="selectedRow"
+      :selection="batchMode ? 'multiple' : 'none'"
+      :selected="batchMode ? batchSelectedRows : selectedRow"
       container-height="calc(100vh - 200px)"
-      @row-click="(_row: TemplateTableRow) => onRowClick(_row)"
-      @update:selected="onSelectionChange"
+      @row-click="(_row: TemplateTableRow) => { if (!batchMode) onRowClick(_row) }"
+      @update:selected="batchMode ? (batchSelectedRows = $event as TemplateTableRow[]) : onSelectionChange($event as TemplateTableRow[])"
     >
       <template #no-data>
         <div class="text-center w-full p-4 rw-text-label">暂无模板，点击"新建模板"开始</div>
@@ -302,7 +368,7 @@ function onToggleTagFilter(tag: string): void {
 
       <template #body-cell-_actions="props">
         <q-td :props="props">
-          <div class="flex items-center justify-center gap-1">
+          <div v-if="!batchMode" class="flex items-center justify-center gap-1">
             <q-btn
               flat round dense icon="o_play_arrow" size="sm" color="positive"
               @click.stop="onInstantiate(props.row._original)"

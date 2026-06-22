@@ -6,7 +6,7 @@ import DataTable from '@/widgets/DataTable.vue';
 import FieldEditWidget from '@/widgets/FieldEditWidget.vue';
 import SendTargetSelector from '@/features/send/components/SendTargetSelector.vue';
 import { instanceColumns, type InstanceTableRow } from '@/features/send/components/instance-columns';
-import { useSendInstances } from '@/features/send/composables/use-send-instances';
+import { useSendInstances, getSendInstancesSnapshot } from '@/features/send/composables/use-send-instances';
 import { useFramePreview } from '@/features/send/composables/use-frame-preview';
 import { useAsyncAction, useNotify, useStableKeys } from '@/shared/composables';
 import { listFrameAssetSummaries } from '@/features/frame';
@@ -16,6 +16,8 @@ import type { SendFieldValue, SendFrameInstance } from '@/features/send';
 import { resolveFieldValues, applyFactor, frameToBuildInput, evaluateFieldPreviewForUI } from '@/features/send';
 import { valueToDisplayString, isHexCapableField } from '@/features/send';
 import { NOOP_VARIABLE_PROVIDER } from '@/features/send/adapters';
+import { deserializeSendInstances, serializeSendInstances } from '@/features/send/services/send-instances-io';
+import { getFileFacade } from '@/platform';
 
 const $q = useQuasar();
 const notify = useNotify();
@@ -127,6 +129,7 @@ const selectedRows = computed(() => {
 
 const batchMode = ref(false);
 const batchSelectedRows = ref<InstanceTableRow[]>([]);
+const importInputRef = ref<HTMLInputElement | null>(null);
 
 function onBatchDelete(): void {
   if (batchSelectedRows.value.length === 0) return;
@@ -140,6 +143,75 @@ function onBatchDelete(): void {
       sendInstances.removeInstance(row.instanceId);
     }
     batchSelectedRows.value = [];
+  });
+}
+
+// ===== Import / Export (append semantics) =====
+
+function triggerImport(): void {
+  importInputRef.value?.click();
+}
+
+async function onImportFilePicked(event: Event): Promise<void> {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  await executeAction('import-instances', async () => {
+    const text = await file.text();
+    const result = deserializeSendInstances(text);
+    if (!result.ok || result.instances.length === 0) {
+      notify.error('导入失败', result.issues[0]?.message ?? '文件格式无效');
+      return;
+    }
+
+    // 追加语义:逐条校验 frameId 对应帧是否存在,缺失则跳过。
+    // instanceId 重新生成,不存在 id 冲突。
+    const valid: SendFrameInstance[] = [];
+    let missingFrame = 0;
+    for (const inst of result.instances) {
+      if (!frameService.getFrame(inst.frameId)) {
+        missingFrame++;
+        continue;
+      }
+      valid.push(inst);
+    }
+    const added = sendInstances.appendInstances(valid);
+    const parts = [`新增 ${added} 个实例`];
+    if (missingFrame > 0) parts.push(`跳过 ${missingFrame} 个（帧不存在）`);
+    notify.success(parts.join('，'));
+  });
+  target.value = '';
+}
+
+async function onExportInstances(): Promise<void> {
+  const all = getSendInstancesSnapshot();
+  if (all.length === 0) {
+    notify.warning('当前没有实例可导出');
+    return;
+  }
+  await executeAction('export-instances', async () => {
+    const json = serializeSendInstances(all);
+    const fileFacade = getFileFacade();
+    if (fileFacade) {
+      const path = await fileFacade.showSaveDialog({
+        title: '导出发送实例',
+        defaultPath: 'send-instances.json',
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (path) {
+        await fileFacade.writeTextFile(path, json);
+        notify.success('导出成功');
+      }
+    } else {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'send-instances.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      notify.success('已下载');
+    }
   });
 }
 
@@ -494,8 +566,17 @@ const editPreviewMeta = computed<Record<string, { matchedBranchIndex: number }>>
           <div class="flex-1" />
           <q-btn flat dense no-caps label="退出批量模式" size="sm" @click="batchMode = false; batchSelectedRows = []" />
         </div>
-        <div v-else class="flex items-center justify-end px-4 py-1 flex-shrink-0">
+        <div v-else class="flex items-center justify-end gap-1 px-4 py-1 flex-shrink-0">
+          <q-btn flat dense no-caps icon="o_upload" label="导入" size="sm" color="primary" :loading="isOperating('import-instances')" @click="triggerImport" />
+          <q-btn flat dense no-caps icon="o_download" label="导出" size="sm" color="primary" :loading="isOperating('export-instances')" @click="onExportInstances" />
           <q-btn flat dense no-caps icon="o_checklist" label="批量管理" size="sm" @click="batchMode = true" />
+          <input
+            ref="importInputRef"
+            type="file"
+            accept=".json,application/json"
+            class="hidden"
+            @change="onImportFilePicked"
+          />
         </div>
 
         <div class="send-page__table-wrap">
@@ -503,7 +584,7 @@ const editPreviewMeta = computed<Record<string, { matchedBranchIndex: number }>>
             :columns="instanceColumns"
             :rows="tableRows"
             row-key="instanceId"
-            :selection="batchMode ? 'multiple' : 'single'"
+            :selection="batchMode ? 'multiple' : 'none'"
             :selected="batchMode ? batchSelectedRows : selectedRows"
             container-height="100%"
             @row-click="(_row: InstanceTableRow) => { if (!batchMode) onRowClick(_row) }"

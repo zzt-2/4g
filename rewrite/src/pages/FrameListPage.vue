@@ -47,6 +47,32 @@ const selectedFrameIds = ref<string[]>([]);
 const showDetailPanel = ref(false);
 const showImportDialog = ref(false);
 
+// ===== Batch delete mode =====
+const batchMode = ref(false);
+const batchSelectedRows = shallowRef<TableRow[]>([]);
+
+function onBatchDelete(): void {
+  if (batchSelectedRows.value.length === 0) return;
+  const count = batchSelectedRows.value.length;
+  $q.dialog({
+    title: '确认批量删除',
+    message: `确定要删除选中的 ${count} 个帧定义吗？此操作不可撤销。`,
+    cancel: true,
+    persistent: true,
+  }).onOk(() => {
+    let removed = 0;
+    for (const row of batchSelectedRows.value) {
+      const result = frameService.removeFrame(row.id);
+      if (result.ok) removed++;
+    }
+    batchSelectedRows.value = [];
+    selectedFrameIds.value = [];
+    refreshList();
+    onFrameMutation();
+    notify.success(`已删除 ${removed} 个帧定义`);
+  });
+}
+
 // Derived data
 const frameList = computed<FrameAssetSummary[]>(() => {
   void refreshKey.value;
@@ -135,11 +161,33 @@ function removeFrame(frameId: string): void {
 }
 
 function onImportConfirm(frames: FrameAsset[]): void {
-  const result = frameService.replaceFrames(frames);
-  if (result.ok) {
-    refreshList();
-    onFrameMutation();
-    notify.success(`成功导入 ${frames.length} 个帧定义`);
+  // 追加语义:逐条 upsert,已存在的 id 跳过(不覆盖本地修改),完成后提示。
+  const existingIds = new Set(frameService.findFrames().map((f) => f.id));
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+  for (const frame of frames) {
+    if (existingIds.has(frame.id)) {
+      skipped++;
+      continue;
+    }
+    const result = frameService.upsertFrame(frame);
+    if (result.ok) {
+      added++;
+    } else {
+      failed++;
+    }
+  }
+  refreshList();
+  onFrameMutation();
+
+  if (added > 0) {
+    const parts = [`新增 ${added} 个`];
+    if (skipped > 0) parts.push(`跳过 ${skipped} 个重复`);
+    if (failed > 0) parts.push(`${failed} 个失败`);
+    notify.success(parts.join('，'));
+  } else if (skipped > 0) {
+    notify.warning(`全部 ${skipped} 个帧已存在，已跳过`);
   } else {
     notify.error('导入失败');
   }
@@ -250,6 +298,16 @@ function onEditFrame(frameId: string): void {
               :disable="frameList.length === 0"
               @click="onExport"
             />
+            <q-btn
+              flat
+              dense
+              no-caps
+              size="sm"
+              :icon="batchMode ? 'o_close' : 'o_checklist'"
+              :label="batchMode ? '退出批量' : '批量管理'"
+              :color="batchMode ? 'negative' : 'grey'"
+              @click="batchMode = !batchMode; batchSelectedRows = []; selectedFrameIds = []"
+            />
           </template>
         </TableToolbar>
       </div>
@@ -257,16 +315,37 @@ function onEditFrame(frameId: string): void {
       <!-- Content: table + detail panel -->
       <div class="flex flex-1 overflow-hidden">
         <!-- Data table -->
-        <div class="flex-1">
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <!-- Batch mode toolbar -->
+          <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
+            <q-btn
+              flat dense no-caps
+              icon="o_delete"
+              label="删除选中"
+              color="negative"
+              size="sm"
+              :disable="batchSelectedRows.length === 0"
+              @click="onBatchDelete"
+            />
+            <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
+            <div class="flex-1" />
+            <q-btn
+              flat dense no-caps
+              label="退出批量模式"
+              size="sm"
+              @click="batchMode = false; batchSelectedRows = []"
+            />
+          </div>
+
           <DataTable
             :columns="frameListColumns"
             :rows="tableRows"
             row-key="id"
-            selection="single"
-            :selected="selectedRows"
+            :selection="batchMode ? 'multiple' : 'none'"
+            :selected="batchMode ? batchSelectedRows : selectedRows"
             container-height="calc(100vh - 160px)"
-            @row-click="(_row: TableRow, _index: number) => onRowClick(_row)"
-            @update:selected="onSelectionChange"
+            @row-click="(_row: TableRow, _index: number) => { if (!batchMode) onRowClick(_row) }"
+            @update:selected="batchMode ? (batchSelectedRows = $event as TableRow[]) : onSelectionChange($event as TableRow[])"
           >
             <template #body-cell-_index="props">
               <q-td :props="props">
@@ -307,7 +386,7 @@ function onEditFrame(frameId: string): void {
 
             <template #body-cell-_actions="props">
               <q-td :props="props">
-                <div class="flex items-center justify-center gap-1">
+                <div v-if="!batchMode" class="flex items-center justify-center gap-1">
                   <q-btn flat round dense icon="o_edit" size="sm" color="primary" @click.stop="onEditFrame(props.row.id)" />
                   <q-btn flat round dense icon="o_content_copy" size="sm" color="primary" @click.stop="cloneFrame(props.row)" />
                   <q-btn flat round dense icon="o_delete" size="sm" color="negative" @click.stop="removeFrame(props.row.id)" />

@@ -93,6 +93,29 @@ export function useSendInstances() {
     return cloned;
   }
 
+  /**
+   * 批量追加实例（导入用）。每条重新生成 instanceId 避免冲突，
+   * 重置 sendCount / 时间戳；保留 frameId / name / userFieldValues / description。
+   * 返回新增的数量。
+   */
+  function appendInstances(items: readonly SendFrameInstance[]): number {
+    if (items.length === 0) return 0;
+    const now = defaultNow();
+    const normalized: SendFrameInstance[] = items.map((item) => ({
+      instanceId: generateInstanceId(),
+      frameId: item.frameId,
+      name: item.name,
+      description: item.description,
+      userFieldValues: { ...item.userFieldValues },
+      sendCount: 0,
+      lastSendAt: undefined,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    instances.value = [...instances.value, ...normalized];
+    return normalized.length;
+  }
+
   function incrementSendCount(instanceId: string): void {
     const idx = instances.value.findIndex((i) => i.instanceId === instanceId);
     if (idx === -1) return;
@@ -136,6 +159,7 @@ export function useSendInstances() {
     updateInstance,
     removeInstance,
     cloneInstance,
+    appendInstances,
     incrementSendCount,
     moveInstanceUp,
     moveInstanceDown,
