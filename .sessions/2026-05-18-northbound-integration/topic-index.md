@@ -198,9 +198,10 @@
 **S009 + H006 完成（task 模板/实例分离 + 钩子机制 + 持久化 + UI 双 tab）。**
 **S011 完成（甲方真实联调双向连通 + 2 个 bug 修复 + RuoYi Plus 认证机制 + 防火墙诊断）。**
 **H008 + R001 + R002 + D001/D002/D003 完成（粒度调研 + setTestTask 协议层对齐 + 代码清理 + 工程量评估 + 子系统认知纠正:我们是 LAS,翻译是双向同源简单工程）。**
-**对接闭环实施完成(2026-06-19,分支 feat/northbound-task-integration,8 commit)：翻译器 encode/decode(白名单+参数覆盖) + getTestCaseAll 接 listTemplates + setTestTask 接 decode + 报告数据收集器 + 模板上报开关 UI。spec `docs/superpowers/specs/`、plan `docs/superpowers/plans/`。375/380 测试通过(5 失败为预存 heartbeat-timer)。**
-**联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll 已实现真实化(从 listTemplates 序列化)；setTestTask 已实现 decode+参数覆盖。**
-**已知未做:UI 美化、真实设备对接(send/receive 仍为 fake adapter)、ExecutionListPage 来源标识完整展示、controlTestTask action 联调实测、8800/80 端口确认。**
+**对接闭环实施完成(2026-06-19,分支 feat/northbound-task-integration,8 commit,已合 main)：翻译器 encode/decode + getTestCaseAll + setTestTask decode + 报告收集器 + 模板上报开关 UI。375/380 测试通过。**
+**⚠️ 2026-06-19 方向调整(H009):用户指出"上报标记挂 TaskTemplate"是错误耦合。正确方向:task 模板保持纯粹,command-ingress 维护"模板→用例"映射表(B 方案)。本轮 CustomerSyncMeta + 模板 UI 开关需回滚;翻译器/快照/路径/报告收集器保留。详见 H009。**
+**联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll/setTestTask 已实现(方向待按 H009 调整)。**
+**已知未做:command-ingress 映射表(H009,B方案)、UI 美化、真实设备对接、ExecutionListPage 来源标识、controlTestTask action 联调实测、8800/80 端口确认。**
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -319,3 +320,11 @@
 - 推翻: R002 "翻译层站不住/领域知识密集" → "同源映射/简单工程"
 - 不受影响: D001(映射方向)/D002(数据源)/本轮代码清理(setTestTask 协议层)
 - 待 NAT 恢复后补: laser 的真实 caseTemplate 样本(HAR 只有 ka 的)
+
+### H009 — 对接方向调整:映射表归 command-ingress(推翻 D002 耦合设计)
+- 起因:用户指出"上报标记挂 TaskTemplate"是跨职责耦合,任务系统应纯粹
+- 方向(B 方案):task 模板不带甲方字段;command-ingress 维护"模板→用例"映射表(enabled/overridablePaths/outCaseId);northbound 做 encode/decode
+- 现状:command-ingress 已有中心对接 UI + 用例目录(S008),缺的是和 task 模板接起来
+- 本轮已合 main 的代码:翻译器/快照/路径/报告收集器**保留**;CustomerSyncMeta + 模板 UI 开关**需回滚**
+- 推翻 D002 的"挂 TaskTemplate"部分;D001/D003 不变
+- 详见 H009-catalog-mapping-refactor-handoff.md
