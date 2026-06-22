@@ -202,13 +202,17 @@ window.addEventListener('beforeunload', () => {
   background: var(--rw-color-surface-base);
 }
 
-/* q-page-container 是唯一的滚动容器:body 锁视口(base.scss height:100%+overflow:hidden),
-   这里 height:100%(= q-layout = 视口) + overflow-y:auto 让页面内容在 header 下方滚动。
-   Quasar 按 view="hHh" 给本容器自动加 padding-top = header 高度,所以滚动条出现在 header
-   下方而非盖住 header。h-full 页面(Display/Send/TaskManage)内容恰好 100% 不溢出不滚;
-   min-h-full 页面(Home/Connection 等)超高时在此容器内滚动。 */
+/* q-page-container 是唯一的滚动容器。
+   关键:padding-top:50px 显式给 header(q-toolbar min-height:50px)留位 —— 不依赖 Quasar
+   按 view 字符串 JS 注入 padding-top(实测不可靠,会出现 header 遮顶)。配合 box-sizing
+   border-box(Quasar 默认),height:100% 包含 padding,内容区=100%-50px 正好在 header 下方。
+   overflow-y:auto 让超高内容在本容器滚(滚动条在 header 下,不盖 header)。
+   h-full 页面(Display/Send/TaskManage)内容恰 100% 不溢出不滚;min-h-full 页面
+   (Home/Connection/Settings 等)超高时在此容器内滚动。
+   50px 来自 q-toolbar 的 min-height(Quasar 源 .q-toolbar { min-height:50px })。 */
 .app-shell__page-container {
   height: 100%;
+  padding-top: 50px;
   overflow-y: auto;
 }
 </style>

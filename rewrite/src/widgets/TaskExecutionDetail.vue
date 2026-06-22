@@ -132,7 +132,7 @@ const progressLabel = computed(() => {
 </script>
 
 <template>
-  <div class="task-detail flex flex-col gap-3 h-full min-h-0">
+  <div class="task-detail flex flex-col gap-3 flex-1 min-h-0">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">

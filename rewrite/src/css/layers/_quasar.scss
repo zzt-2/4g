@@ -1,3 +1,10 @@
 .q-layout {
   background: var(--rw-color-surface-app);
 }
+
+/* q-page-container 的 header 占位由我们显式管(padding-top:50px = q-toolbar min-height),
+   不依赖 Quasar 按 view 字符串 JS 注入 padding-top(实测不可靠,会 header 遮顶或双重 padding)。
+   这里 padding:0 清掉 Quasar 默认/JS 注入的 padding,具体值在 AppShell .app-shell__page-container 给。 */
+.q-page-container {
+  padding: 0;
+}

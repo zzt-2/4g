@@ -224,3 +224,42 @@ Quasar 的实际高度模型(从 node_modules/quasar/dist/quasar.css 直读):
 - AppShell eslint 0 error,SCSS 编译 OK
 - 纯 CSS 改动(q-layout 加 class + scoped height),无 TS/逻辑改动
 - **待用户实测**:重启 dev server 后,(a)滚动条在 header 下方不盖 header;(b)TaskExecutionDetail 步骤状态区占满剩余并内部滚;(c)SettingsPage 等内容超高时 page-container 出滚动条
+
+## 续接4(2026-06-22):header 遮顶 + TaskExecutionDetail 仍不滚——旧代码范式定案
+
+### 用户反馈
+
+> "高度没减去标题栏,而且系统设置那块好了,任务那边依然不行。你要不让子 agent 看看旧代码是咋搞的?应该有不少相关的"
+
+两个问题:(a) header 仍遮内容顶(高度没减 header)(b) 系统设置好了(滚动对了)但 task 那边 TaskExecutionDetail 还是不滚。**用户建议查旧代码**。
+
+### 子 agent 调研 _archive-legacy/(决定性证据)
+
+派 Explore 子 agent 查旧代码布局范式,亲自核对 `_archive-legacy/src/layouts/MainLayout.vue`(子 agent 报告准确)。旧代码范式:
+
+1. **q-layout 根 `h-screen flex flex-col`**(100vh 钉死 + flex 列),不依赖 Quasar 高度链
+2. **header 与内容区做 flex 兄弟**(header `h-[48px]`,内容区 `flex-1`),**不依赖 Quasar 的 absolute header + padding-top 机制** → 内容天然在 header 下,根治遮顶
+3. **`.q-layout, .q-page-container { padding:0 }`** 清掉 Quasar 默认 padding
+4. 滚动三件套:外层 `flex-1 min-h-0 overflow-hidden` + 内层 `flex-1 overflow-auto`
+5. 全局 CSS **不写** `html/body/#q-app { height }`,高度源头是 `h-screen`(100vh)
+
+**关键洞察**:Quasar 的 `view="hHh"` padding-top 是 **JS 运行时动态注入**(静态 CSS 里搜不到 `.q-header--fixed` 等类),实测不可靠——这就是"高度没减标题栏"的根因。我续接3 靠这个机制留 header 位,但它没正确生效。
+
+### 修复(转向旧代码范式,显式管 padding)
+
+**(a) header 遮顶**:
+- `src/css/layers/_quasar.scss`:加全局 `.q-page-container { padding:0 }`(清 Quasar JS 注入的 padding,对齐旧代码 MainLayout.vue:50-55)
+- `src/app/AppShell.vue`:`.app-shell__page-container` 显式 `padding-top:50px`(= q-toolbar min-height,Quasar 源 `.q-toolbar { min-height:50px }`)+ `height:100%` + `overflow-y:auto`。box-sizing border-box(Quasar 默认)下 height:100% 含 padding,内容区=100%-50px 正好在 header 下。**不依赖 Quasar view JS 注入**。
+
+**(b) TaskExecutionDetail 仍不滚**:
+- `src/widgets/TaskExecutionDetail.vue`:根 `h-full min-h-0` → **`flex-1 min-h-0`**(D007 同款:flex item 用 flex-1 显式定大小,比 h-full=height:100% 解析可靠)。配合续接2 已修的父 div(ExecutionListPage:701 `flex-1 min-h-0 p-4 flex flex-col`),整条 flex 链通,内部 `flex-1 min-h-0 overflow-y-auto` 步骤列表滚。
+
+### 为何转向旧代码范式而非纯 Quasar view 机制
+
+旧代码 MainLayout 实测跑通(frameless + 自画三按钮 + 左列表右详情滚动 + header 不遮顶),是项目内**唯一经过验证的完整布局范式**。Quasar view 字符串的 padding-top 注入是黑盒(JS 运行时 + 静态 CSS 不可见),在我续接3 的 height:100% 干扰下失效。旧代码"显式管 padding + flex 兄弟"是白盒、可调试、已验证。本次没全盘照搬旧代码(它的 calc(100vh-28px) 是经验值不健壮,子 agent 也建议改 flex-1),只取其**显式管 header 占位 + 清 Quasar padding + flex item 用 flex-1** 三个核心招数。
+
+### 续接4验证
+
+- AppShell.vue + TaskExecutionDetail.vue eslint 0 error,SCSS 编译 OK
+- 纯 CSS/class 改动,无 TS/逻辑改动
+- **待用户实测**(重启 dev server):(a) header 不遮内容顶(内容从 header 下方 50px 处开始);(b) TaskExecutionDetail 步骤状态区占满右栏剩余空间并在内部滚;(c) 滚动条在 header 下方不盖 header

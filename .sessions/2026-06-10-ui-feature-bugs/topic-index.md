@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接3 **真根因**:Quasar `.q-layout/.q-page-container/.q-page` 全链无确定 height(只 min-height),内容撑开被 body overflow:hidden 裁 = "顶层总被顶起来,后面咋弄都不对"(用户原话)。修复:`<q-layout>` 加 class + `.app-shell__layout { height:100% }` 钉视口,page-container overflow-y:auto 才真生效。一并解 TaskExecutionDetail 不滚 + SettingsPage 等 min-h-full 页面不滚。前次续接2 修 ExecutionListPage:701 父 div 补 flex flex-col。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接4 转向旧代码范式(子 agent 调研 _archive-legacy/MainLayout 决定性证据):(a) header 遮顶根因是 Quasar view=hHh 的 padding-top 是 JS 运行时注入实测不可靠 → 改显式 `.app-shell__page-container { padding-top:50px }`(=q-toolbar min-height)+ 全局 `.q-page-container{padding:0}` 清 Quasar padding;(b) TaskExecutionDetail 根 h-full→flex-1 min-h-0(D007 同款 flex item 显式定大小)。前次续接3 q-layout height:100% 钉视口。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
 
 ## 进展线索
 
