@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-19 S006 SendPage UI 重设计:三栏高度链(scoped CSS 钳制 q-table)+左栏单行 ellipsis+编辑弹窗 hex 双显卡片化+右栏卡片化+操作列收纳;flex max-height 撑开陷阱见 D007。编辑弹窗深度讨论留待压缩上下文后
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-21 S007 接收帧匹配计数到 48 卡死:根因 collectEventsAfter 用数组下标取 EVENT_LIMIT=50 滚动窗口增量,满后 slice(50) 恒 []→routingTick 路由冻结。单点修(applyEvents 返回本轮新事件)。前次 2026-06-19 S006 SendPage UI 重设计。
 
 ## 进展线索
 
@@ -18,6 +18,7 @@
 - **S004** 三个 UI 修复 (06-19)：①进度计数按发送次数计(双维度:保留 steps,新增 sends;sendsTotal=iteration×ΣmaxCount;非 repeat 用例仍走 steps)②保存按钮去 disable(hasErrors 响应式滞后,save() 已有 validate 拦截)③发送失败悬停显示具体报错(sendResult.error.message,回退 SEND_RESULT_STATUS_MAP 标签)。task+command-ingress+send 422 tests 全过,tsc 0 错,lint 0 新增。详见 D004 + S004 + voice.md 2026-06-19
 - **S005** 串口两个问题 (06-19,主对话子任务)：①配置项写死——9d35a5f 只做了类型+Settings UI 半截,**透传链断 3 处**(platform-bridge SerialConnectConfig 缺字段/real-serial-adapter 丢字段/serial-handlers 没传参),本次补全 + NewConnectionDialog 加 4 个 q-select。flowControl 语义层(none/hardware/software)→main 转 serialport v13 布尔(rtscts/xon/xoff)。dataBits 不加 9(serialport v13 不接受)。②打包后检测不到——根因方向 `npmRebuild:false` 导致原生模块未用 electron ABI,改 true + postinstall 加 electron-rebuild;枚举失败从静默 return[] 改 throw 透传到 renderer devtool(throw+catch 路线,签名不变)。connection 65/65 过,tsc 0 错,lint 0 错。**待用户目标机验证打包**。详见 D005/D006 + S005 + voice.md 2026-06-19
 - **S006** SendPage(帧发送页)UI 重设计 (06-19,讨论型任务转实施)：brainstorming→spec→plan→executing-plans 全流程。保留帧模板库+帧实例模型(点帧建实例)。实现:①三栏高度链 ②左栏单行 ellipsis+去 fieldCount+收藏图标区分 ③编辑弹窗 Dec/Hex 全局切换+数值字段双显+badge→分组卡片+flex 滚动(不写死 60vh) ④右栏四块分隔线→卡片化+发送区钉底+构建问题并入参数卡 ⑤表格操作列 5 图标→编辑+菜单。**flex max-height 撑开陷阱**(两次误判 page 高度链方向,最终对比 DisplayPage 定位真因:q-table 全量渲染撑破 flex,需 overflow:hidden 钳制)见 **D007**。新增 numeric-field-format util(18 测试)。send 176 + task/command-ingress 392 测试全过,tsc 0 错,样式 0 硬编码,lint 0 新增。**编辑弹窗深度讨论留待压缩上下文后**。spec/plan 归档 docs/superpowers/。详见 D007 + S006 + voice.md 2026-06-19
+- **S007** 接收帧匹配计数到 48 卡死 (06-21,主对话子任务)：累计型冻结(重启就好,跑到 48 又死)。**破案钥匙 48 = EVENT_LIMIT(50)−2**(connect 占 2 槽)。根因 `collectEventsAfter` 用数组下标取 `EVENT_LIMIT=50` 滚动窗口增量,满后 `slice(50)` 恒返回 `[]`→`drainAdapterEvents` 拿不到 data→routingTick 路由冻结→匹配计数不再涨(rxBytes 走独立 counters 仍涨,证明路由断非数据断)。TDD 复现:推 60 一次 drain 只拿 48、三轮各 30 实际 30/18/0,数字精确吻合现象。单点修:删 `collectEventsAfter`、`applyEvents` 改为直接返回本轮新事件快照(与 events 截断解耦)、连带让 `scheduleReconnect`/`handleAdapterDisconnects` 返回 reconnect 事件。connection 全套过、复现测试过、tsc 0 错;heartbeat 5 个预存失败 git stash baseline 验证无关。**待用户目标机验证跑到 48 不卡**。无 D###(纯技术推导根因修复,路径唯一)。**独立问题 B 拆帧异常未修**("长度三次"指向 splitBySyncWord,粘包补丁 FIXME)。详见 S007-receive-freeze-at-48.md
 
 ## 已确认结论
 
@@ -104,7 +105,9 @@
 
 ## 当前位置
 
-**H008 task step 级参数变化机制实施完成 + 独立审查通过(2026-06-18)**。两个问题合一实施完成:字段级可变参数 + 表达式连续累积(共用 FieldValueResolver 骨架),顺手修 progress 爆表 + maxIterations 覆盖两 bug。accumulation 采用"复用帧侧 self-ref + task 补 writeback"路径(用户拍板,偏离 H008 v2 原设计但语义一致)。
+**S007 接收帧匹配计数到 48 卡死修复完成(2026-06-21)**。根因 `collectEventsAfter` 用数组下标取 EVENT_LIMIT=50 滚动窗口增量,满后恒返回 [] 导致 routingTick 路由冻结、匹配计数卡在 48(=50−2,connect 占 2 槽)。单点修复(applyEvents 返回本轮新事件)+ TDD 复现测试已落地,connection 全套过、tsc 0 错。**待用户目标机验证跑到 48 之后继续不卡**。独立问题 B(拆帧异常/"长度三次")未修,留后续。
+
+前序:H008 task step 级参数变化机制实施完成 + 独立审查通过(2026-06-18)。两个问题合一实施完成:字段级可变参数 + 表达式连续累积(共用 FieldValueResolver 骨架),顺手修 progress 爆表 + maxIterations 覆盖两 bug。accumulation 采用"复用帧侧 self-ref + task 补 writeback"路径(用户拍板,偏离 H008 v2 原设计但语义一致)。
 
 **独立审查结论:pass-with-known-gaps**(无 revise-required 问题,架构零违规,核心语义全部正确且有 USER CASE 测试覆盖)。审查指出的两个 known gap 已补清:4 处 [task-debug] console.info 清理 + accumulation 端到端集成测试(真实 frame-resolver 递推 + writeback 闭环)。
 

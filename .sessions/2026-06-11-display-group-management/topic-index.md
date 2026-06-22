@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-17 H001 stash 收口 handoff
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-21 S008 接收页鬼畜修复
 
 ## 进展线索
 
@@ -8,6 +8,7 @@
 - **S005** 图表+UI全面诊断+修复 (06-12)：持久化已修复。诊断 8 项问题，完成 6 项 UI 修复（#3-#8）
 - **S002** 图表累积重构 (06-12)：6 agent 验证 + 三阶段实施完成。图表时序累积移到 composable，删除死代码（projection/selector/clone/service），新增 getSourceFields() 方法。lint+test 通过
 - **S006** v2 审查反馈修复 (06-12)：4 blocker + 4 major + 2 minor 全部修复。lint display 0 error / display test 66 pass（含 8 新增验收场景）/ v2 引入 tsc error 全清
+- **S008** 接收页鬼畜修复 (06-21)：H001 已收口（主干测试转绿）。修复 emergent 分组 label 裸 frameId + buildPlaceholderRows 对 emergent 返空 + display buffer 整体覆盖三个连环缺陷。2 条偏离设计的决策（D-buffer-accumulate / D-emergent-from-frame-def）。test 105/105、lint 净
 
 ## 已确认结论
 
@@ -17,14 +18,16 @@
 - S005：持久化已生效。UI 修复 6 项完成（过滤发送帧、按钮条件渲染、移除 sortable、_reorder 条件列、行高 36）
 - S002：图表累积移到 composable 层（Map buffer + numeric 过滤 + maxPoints 裁剪）；删除 projectChartSeries/projectChartInstances/getChartInstances/getChartSeries/selectChartInstances/selectChartSeries/3个clone函数/DisplayProjection.charts；类型保留给 history 共用；新增 getSourceFields() 给 composable 读未过滤数据
 - S006：R19 vs 设计 5.8 冲突通过 page 层 enrich 解决（bridge push 保留作 shape 冗余但 UI 不直接信任；projection toRow 删 fieldName；DisplayPage fieldNameLookup + enrichRows 从 frameReader 静态 lookup 覆盖）。getFieldName 硬失败 '[Unknown Field]' 防 UUID 泄漏。WaveformChart emptyVariant prop 区分 no-selection vs no-data。ScatterConfigDialog availableFields 加 binding 字段，toBinding 用 find lookup 不分割字符串。
+- S008：emergent 分组从接收帧定义生成（不依赖运行时数据，label=帧名）；buildPlaceholderRows 对 emergent 分组按 frameId 兜底；display buffer 改按 dataItemId 累积（upsert），与图表 chartBuffer 累积语义对齐。根因是静态帧定义与动态接收数据流耦合（D7 精神未贯彻到 buffer/emergent 两处）。决策 D-buffer-accumulate / D-emergent-from-frame-def 偏离设计文档 line 100/171/258/182，留待设计文档修订同步。
 
 ## 未决项
 
-- **🔴 主干测试坏掉(紧急)**:S007 完整修复在 `stash@{0}` 没提交,主干卡在 S006+半截S007 混合态,`use-display-refresh.spec.ts` 4/4 fail(`state.getTable1Rows is not a function`)。转 H001 收口。
-- **等待用户二次审查**:S006 全部修复完成,验证证据齐(lint/tsc/test),等用户审查确认(S007 收口后审查)
+- **等待用户回测**:S008 刚交付，待用户运行时确认（分组名中文 / 表格不闪 / 手动分组正常）
+- **S008 行为变化**:buffer 累积后停发的帧保留最后值不自动清除（用户已认可可接受；如需超时清理或按连接状态清，再开新 session）
+- **设计文档修订**:S008 两条决策偏离设计文档 line 100/171/258/182 明文，待需要时同步更新设计文档（与本轮代码解耦）
 - **预存问题不在本轮范围**:tsc 残留(exactOptionalPropertyTypes + readonly Ref)/vite vue plugin/.vue import/connection-core test fail/quasar rollup build
-- **运行时手工验证**:图表冷启动占位、migration 加载旧 persistence、字段名显示、图表不出数据上游根因(receive 是否有 matched 数据)—— H001 收口后下一步
+- **运行时手工验证**:图表冷启动占位、migration 加载旧 persistence、字段名显示、图表不出数据上游根因(receive 是否有 matched 数据)
 
 ## 当前位置
 
-主干 display 测试坏掉(4/4 fail),根因是 S007 半截状态(API 不一致)。修复已躺在 stash@{0}(混合 stash,需甄别只取 display 部分)。转 **H001-display-stash-reconciliation-handoff.md** 收口:取 stash display 改动 → 对齐 API → 测试转绿 → 提交。收口后再做运行时手工验证。
+S008 完成：接收页分组名裸 id + 表格鬼畜（整表闪空 + 内容闪）三个连环缺陷已修，test 105/105、lint 净，诊断日志已撤。两条偏离设计的决策已记入 S008 决策段 + voice.md。等用户回测确认行为。
