@@ -578,9 +578,9 @@ onUnmounted(() => {
           </q-badge>
           <span class="rw-text-desc">{{ recordCount }} 条记录</span>
         </template>
+      </div>
 
-        <span class="display-page__bottom-divider" />
-
+      <div class="display-page__bottom-stats flex items-center">
         <div class="display-page__stat-item">
           <span class="rw-text-label">匹配率</span>
           <strong class="rw-text-value">{{ matchRate }}</strong>
@@ -605,9 +605,9 @@ onUnmounted(() => {
           <span class="rw-text-label">字节数</span>
           <strong class="rw-text-value">{{ counters.byteCount }}</strong>
         </div>
-      </div>
 
-      <div class="flex items-center gap-3">
+        <span class="display-page__bottom-divider" />
+
         <span class="rw-text-desc">刷新: {{ prefs.refreshCadenceMs }}ms</span>
         <StatusBadge
           :status="displayRefresh.availability.value.available ? 'receiving' : 'idle'"
@@ -676,6 +676,11 @@ onUnmounted(() => {
   width: 1px;
   align-self: stretch;
   background: var(--rw-color-border-subtle);
+}
+
+// 底栏右侧统计指标组：间距加大（space-6 > gap-3），避免挤开
+.display-page__bottom-stats {
+  gap: var(--rw-space-6);
 }
 
 .display-page__panels {

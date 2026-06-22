@@ -1,6 +1,7 @@
 # [S009] 实时测试页布局调整（标题改名 + stat 并入录制行 + 行高压缩）
 
 > 2026-06-22 | UI 调整 (1xx) | active
+> 2026-06-22 续接 用户反馈"那六个你靠右，间距大点，不然容易挤开"
 > 上游: S008（接收页鬼畜已修，主干绿） | 直接合同: 无（纯 UI/样式）
 
 ## 目标
@@ -25,16 +26,17 @@
 
 ### 改动 2：stat 并入录制行（DisplayPage.vue）
 
-**迭代**：初版把 stat 从表格上方移到表格下方独立成块（grid 6 列 → flex 单行）。用户反馈"stat 我打算让它和开始录制那按钮一行，别单独了" → 最终方案把 stat 嵌入 bottom-bar。
+**迭代**：初版把 stat 从表格上方移到表格下方独立成块（grid 6 列 → flex 单行）→ 用户反馈"stat 我打算让它和开始录制那按钮一行，别单独了" → 把 stat 嵌入 bottom-bar 左侧组（和录制按钮同行，用竖分隔线隔开）→ 续接用户反馈"那六个你靠右，间距大点，不然容易挤开" → 最终方案把 stat 移到右侧组。
 
 **最终布局**（bottom-bar 单行，`justify-between` 两组）：
-- **左侧组**：录制按钮 + REC 指示 + 记录数 + `|` 竖分隔线 + 6 个 stat-item（匹配率/总批次/已匹配/未匹配/错误/字节数）
-- **右侧组**：刷新 ms + 数据源 StatusBadge
+- **左侧组**：录制按钮 + REC 指示 + 记录数
+- **右侧组**（`.display-page__bottom-stats`，`gap: --rw-space-6` 加大间距）：6 个 stat-item（匹配率/总批次/已匹配/未匹配/错误/字节数）+ `|` 竖分隔线 + 刷新 ms + 数据源 StatusBadge
 
 **CSS**：
 - 删掉独立 `.display-page__stats` 容器样式
-- `.display-page__stat-item` 改 `inline-flex baseline`（label+value 同行），去掉项间 border-left（嵌入 bottom-bar 不需要）
-- 新增 `.display-page__bottom-divider`（1px 竖线，`align-self: stretch`，分隔录制区与统计区）
+- `.display-page__stat-item` 改 `inline-flex baseline`（label+value 同行）
+- `.display-page__bottom-divider`（1px 竖线，`align-self: stretch`）现在分隔 stat 区与刷新/数据源区（在右侧组内部）
+- `.display-page__bottom-stats { gap: var(--rw-space-6) }`（注：项目无 `--rw-space-5` token，用 space-6 更大间距，避免挤开）
 
 ### 改动 3：表格行高压缩（DataTable.vue + DisplayPanel.vue）
 
