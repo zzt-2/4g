@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接5 **用户亲改,我过度工程**。真正修复只两点:(1) TaskExecutionDetail 两 flex 容器加 `no-wrap`(我漏了 flex-wrap 维度);(2) ExecutionListPage 右栏根 `min-h-0 overflow-hidden` → `h-full`(直接拿满父高比堆保险简洁)。教训:大部分地方 w-full/h-full 就够,只在滚动边界加 overflow-auto,关键 flex item 才加 min-h-0,别每层都堆 flex-1 min-h-0 overflow-hidden。前次续接4 转向旧代码范式(显式 padding-top:50px + 清 Quasar padding)。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接5 用户亲改两点最小修复:(1) TaskExecutionDetail 两 flex 容器加 `no-wrap`;(2) ExecutionListPage 右栏根 `min-h-0 overflow-hidden` → `h-full`。前 4 次续接堆了较多不必要的 flex-1 min-h-0 overflow-hidden。前次续接4 转向旧代码范式(显式 padding-top:50px + 清 Quasar padding)。S009 三件事(devTools 默认开 + frame:false + 自定义三按钮)见 D009。
 
 ## 进展线索
 
