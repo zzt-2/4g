@@ -129,7 +129,9 @@ describe('connection state and service pilot', () => {
     const cleanupOutcome = await service.cleanup();
 
     expectOk(cleanupOutcome);
-    expect(cleanupOutcome.events.map((event) => event.kind)).toEqual(['disconnected']);
+    // cleanup 命令返回本轮产生的全部事件: service 注入的 cleanup 标记 + adapter 的 disconnected。
+    // (与 disconnect 路径返回 disconnect-requested + disconnected 的契约一致。)
+    expect(cleanupOutcome.events.map((event) => event.kind)).toEqual(['cleanup', 'disconnected']);
     expect(service.getConnectionFact(serialTransportConfigFixture.id)).toMatchObject({
       lifecycle: 'disconnected',
       target: {

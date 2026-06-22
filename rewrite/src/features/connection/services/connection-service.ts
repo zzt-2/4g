@@ -8,6 +8,7 @@ import {
   cloneTransportTarget,
   createConnectionIssue,
   createConnectionValidationOutcome,
+  createTransportEventSnapshot,
   normalizeTransportConfig,
   type ConnectionRuntimeFact,
   type ConnectionStateSnapshot,
@@ -180,12 +181,12 @@ function toErrorEvent(
   };
 }
 
-function collectEventsAfter(
-  beforeLength: number,
-  snapshot: ReadonlyConnectionStateSnapshot,
-): TransportEventSnapshot[] {
-  return snapshot.events.slice(beforeLength).map(cloneTransportEvent);
-}
+// Note: 不再用「数组下标 beforeLength」来取本轮新增事件。connection state 的
+// events 是 EVENT_LIMIT 的滚动窗口(appendEvent 用 .slice(-50) 裁剪),一旦填满,
+// 下标恒为 limit、滚动数组长度恒为 limit, slice(limit) 会永远返回 [] —— 导致
+// routingTick 在累计到约 48 帧(connect 占 2 槽)后路由冻结、匹配计数不再增长。
+// 改由 applyEvents 直接返回本轮新加入的事件快照,与 events 是否被截断解耦。
+// See: rewrite/src/__tests__/integration/routing-truncation-freeze.spec.ts
 
 // --- Public factories ---
 
@@ -249,13 +250,21 @@ export function createConnectionService(
 
   const reconnectTimers = new Map<string, unknown>();
 
-  function applyEvents(events: readonly ConnectionAdapterEvent[]): void {
+  function applyEvents(
+    events: readonly ConnectionAdapterEvent[],
+  ): TransportEventSnapshot[] {
+    const appended: TransportEventSnapshot[] = [];
     for (const event of events) {
       if (event.kind === 'disconnected' || event.kind === 'error' || event.kind === 'cleanup') {
         console.warn('[connection] adapter event:', event.kind, event.connectionId);
       }
-      state.applyEvent(adapterEventToNormalized(event, now));
+      const normalized = adapterEventToNormalized(event, now);
+      state.applyEvent(normalized);
+      // state.applyEvent 内部会对 events 滚动截断, 但「本次新加入的事件」是确定的,
+      // 直接克隆一份作为本轮新增返回, 不依赖 events 数组的下标/长度。
+      appended.push(cloneTransportEvent(createTransportEventSnapshot(normalized)));
     }
+    return appended;
   }
 
   function cancelReconnectTimer(connectionId: string): void {
@@ -273,17 +282,22 @@ export function createConnectionService(
     reconnectTimers.clear();
   }
 
-  function scheduleReconnect(connectionId: string, policy: ReturnType<typeof getReconnectPolicy>, attempt: number): void {
+  function scheduleReconnect(
+    connectionId: string,
+    policy: ReturnType<typeof getReconnectPolicy>,
+    attempt: number,
+  ): TransportEventSnapshot {
     const delay = nextReconnectDelay(policy, attempt);
     const nextAt = new Date(Date.now() + delay).toISOString();
 
-    state.applyEvent({
-      kind: 'reconnect-scheduled',
+    const reconnectScheduled = {
+      kind: 'reconnect-scheduled' as const,
       connectionId,
       occurredAt: now(),
       reconnectAttempt: attempt,
       reconnectNextAt: nextAt,
-    });
+    };
+    state.applyEvent(reconnectScheduled);
 
     const timerId = scheduleTimeout(() => {
       reconnectTimers.delete(connectionId);
@@ -291,9 +305,14 @@ export function createConnectionService(
     }, delay);
 
     reconnectTimers.set(connectionId, timerId);
+
+    return cloneTransportEvent(createTransportEventSnapshot(reconnectScheduled));
   }
 
-  function handleAdapterDisconnects(events: readonly TransportEventSnapshot[]): void {
+  function handleAdapterDisconnects(
+    events: readonly TransportEventSnapshot[],
+  ): TransportEventSnapshot[] {
+    const generated: TransportEventSnapshot[] = [];
     for (const event of events) {
       if (event.kind !== 'disconnected') continue;
 
@@ -305,8 +324,9 @@ export function createConnectionService(
       const policy = getReconnectPolicy(fact.kind);
       if (!shouldReconnect(policy, 0)) continue;
 
-      scheduleReconnect(event.connectionId, policy, 0);
+      generated.push(scheduleReconnect(event.connectionId, policy, 0));
     }
+    return generated;
   }
 
   async function attemptReconnect(connectionId: string): Promise<void> {
@@ -327,7 +347,8 @@ export function createConnectionService(
         connectionId,
         occurredAt: now(),
       });
-      applyEvents(command.events);
+      // 重连不对外报告事件，显式丢弃 applyEvents 的返回值。
+      void applyEvents(command.events);
     } else {
       const nextAttempt = currentAttempt + 1;
       if (shouldReconnect(policy, nextAttempt)) {
@@ -375,18 +396,19 @@ export function createConnectionService(
         };
       }
 
-      const beforeLength = state.getSnapshot().events.length;
-
       state.upsertConfig(normalized.config);
-      state.applyEvent({
-        kind: 'connect-requested',
+      const connectRequested = {
+        kind: 'connect-requested' as const,
         connectionId: normalized.config.id,
         occurredAt: now(),
-      });
-      applyEvents(command.events);
+      };
+      state.applyEvent(connectRequested);
+      const events: TransportEventSnapshot[] = [
+        cloneTransportEvent(createTransportEventSnapshot(connectRequested)),
+        ...applyEvents(command.events),
+      ];
 
       const snapshot = state.getSnapshot();
-      const events = collectEventsAfter(beforeLength, snapshot);
 
       return {
         ok: true,
@@ -399,22 +421,26 @@ export function createConnectionService(
     async disconnect(connectionId) {
       cancelReconnectTimer(connectionId);
 
-      state.applyEvent({
-        kind: 'disconnect-requested',
+      const disconnectRequested = {
+        kind: 'disconnect-requested' as const,
         connectionId,
         occurredAt: now(),
-      });
+      };
+      state.applyEvent(disconnectRequested);
+      const events: TransportEventSnapshot[] = [
+        cloneTransportEvent(createTransportEventSnapshot(disconnectRequested)),
+      ];
 
       const command = await options.adapter.disconnect(connectionId);
 
-      const beforeLength = state.getSnapshot().events.length;
-      applyEvents(command.events ?? []);
+      events.push(...applyEvents(command.events ?? []));
       if (!command.ok && command.events === undefined) {
-        state.applyEvent(toErrorEvent(connectionId, command.error, now()));
+        const errorEvent = toErrorEvent(connectionId, command.error, now());
+        state.applyEvent(errorEvent);
+        events.push(cloneTransportEvent(createTransportEventSnapshot(errorEvent)));
       }
 
       const snapshot = state.getSnapshot();
-      const events = collectEventsAfter(beforeLength, snapshot);
       const lastEvent = events[events.length - 1];
       const error = !command.ok
         ? adapterErrorToSnapshot(command.error, connectionId, lastEvent?.occurredAt ?? now())
@@ -439,23 +465,27 @@ export function createConnectionService(
     },
 
     async write(request) {
-      state.applyEvent({
-        kind: 'write-requested',
+      const writeRequested = {
+        kind: 'write-requested' as const,
         connectionId: request.connectionId,
         occurredAt: now(),
         byteLength: request.bytes.length,
-      });
+      };
+      state.applyEvent(writeRequested);
+      const events: TransportEventSnapshot[] = [
+        cloneTransportEvent(createTransportEventSnapshot(writeRequested)),
+      ];
 
       const command = await options.adapter.write(request);
 
-      const beforeLength = state.getSnapshot().events.length;
-      applyEvents(command.events ?? []);
+      events.push(...applyEvents(command.events ?? []));
       if (!command.ok && command.events === undefined) {
-        state.applyEvent(toErrorEvent(request.connectionId, command.error, now()));
+        const errorEvent = toErrorEvent(request.connectionId, command.error, now());
+        state.applyEvent(errorEvent);
+        events.push(cloneTransportEvent(createTransportEventSnapshot(errorEvent)));
       }
 
       const snapshot = state.getSnapshot();
-      const events = collectEventsAfter(beforeLength, snapshot);
       const lastEvent = events[events.length - 1];
       const error = !command.ok
         ? adapterErrorToSnapshot(command.error, request.connectionId, lastEvent?.occurredAt ?? now())
@@ -480,14 +510,12 @@ export function createConnectionService(
     },
 
     async drainAdapterEvents() {
-      const beforeLength = state.getSnapshot().events.length;
       const adapterEvents = await options.adapter.drainEvents();
-      applyEvents(adapterEvents);
+      const drainedEvents = applyEvents(adapterEvents);
 
-      const afterApply = state.getSnapshot();
-      const drainedEvents = collectEventsAfter(beforeLength, afterApply);
-
-      handleAdapterDisconnects(drainedEvents);
+      // handleAdapterDisconnects 可能因 disconnected 事件派生出 reconnect-scheduled
+      // 事件(经 scheduleReconnect 写入 state),这些也是本轮新增,需并入返回值。
+      drainedEvents.push(...handleAdapterDisconnects(drainedEvents));
 
       const snapshot = state.getSnapshot();
       const lastError = snapshot.lastError
@@ -498,7 +526,7 @@ export function createConnectionService(
         ok: true,
         validation: validValidation(),
         snapshot,
-        events: collectEventsAfter(beforeLength, snapshot),
+        events: drainedEvents,
         ...(lastError ? { error: lastError } : {}),
       };
     },
@@ -506,24 +534,27 @@ export function createConnectionService(
     async cleanup() {
       cancelAllReconnectTimers();
 
+      const events: TransportEventSnapshot[] = [];
       for (const fact of state.getSnapshot().runtimeFacts) {
-        state.applyEvent({
-          kind: 'cleanup',
+        const cleanupEvent = {
+          kind: 'cleanup' as const,
           connectionId: fact.connectionId,
           occurredAt: now(),
-        });
+        };
+        state.applyEvent(cleanupEvent);
+        events.push(cloneTransportEvent(createTransportEventSnapshot(cleanupEvent)));
       }
 
       const command = await options.adapter.cleanup();
 
-      const beforeLength = state.getSnapshot().events.length;
-      applyEvents(command.events ?? []);
+      events.push(...applyEvents(command.events ?? []));
       if (!command.ok && command.events === undefined) {
-        state.applyEvent(toErrorEvent('cleanup', command.error, now()));
+        const errorEvent = toErrorEvent('cleanup', command.error, now());
+        state.applyEvent(errorEvent);
+        events.push(cloneTransportEvent(createTransportEventSnapshot(errorEvent)));
       }
 
       const snapshot = state.getSnapshot();
-      const events = collectEventsAfter(beforeLength, snapshot);
       const lastEvent = events[events.length - 1];
       const error = !command.ok
         ? adapterErrorToSnapshot(command.error, 'cleanup', lastEvent?.occurredAt ?? now())
