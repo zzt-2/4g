@@ -654,7 +654,10 @@ onUnmounted(() => {
 .display-page__stat-item {
   display: inline-flex;
   align-items: baseline;
-  gap: var(--rw-space-1);
+  gap: var(--rw-space-2);
+  // 固定槽位宽度：数字增长先吃掉槽位右侧留白，到 min-width 上限才推挤相邻项。
+  // 容纳 label(≤3字) + 预期最大数字(约 7 位 body 字号)，取整 104px。
+  min-width: 104px;
   white-space: nowrap;
 
   span {
@@ -678,9 +681,10 @@ onUnmounted(() => {
   background: var(--rw-color-border-subtle);
 }
 
-// 底栏右侧统计指标组：间距加大（space-6 > gap-3），避免挤开
+// 底栏右侧统计指标组：stat 之间大间距（固定 24px > space-6），
+// 配合每个 stat-item min-width，数字增长不挤走相邻项。
 .display-page__bottom-stats {
-  gap: var(--rw-space-6);
+  gap: 24px;
 }
 
 .display-page__panels {
