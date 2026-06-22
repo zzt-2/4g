@@ -346,6 +346,12 @@ function buildRcFrameAsset(spec: RcGroupSpec): FrameAsset {
       `遥控 ${spec.moduleIdLabel} group_id=0x${spec.groupId.toString(16).toUpperCase()} param_count=${spec.paramCount} payload_word=${wordCount}`,
     frameType: 'dongfanghong-rc',
     protocol: 'rs422-fixed',
+    // send 路径帧级总开关：autoChecksum 让 checksum.ts:143 实算校验位
+    // （否则 frame.options 缺失 → patchOptions 取 undefined → 校验位恒 0）。
+    // includeLengthField=false：length 字段 defaultValue 已是静态正确的 payload 字节数，
+    // 开了反而会被 total-frame-length 语义覆盖（且 lengthFieldId 不在 FrameOptionsDefinition 里会留 warning）。
+    // bigEndian=true：全部字段大端，与 fields[].bigEndian 一致。
+    options: { autoChecksum: true, bigEndian: true, includeLengthField: false },
     identifierRules: headerIdentifierRules(spec.moduleId, spec.groupId, spec.paramCount, APP_MSG_TYPE_REMOTE_CMD),
   };
 }
@@ -390,6 +396,9 @@ function buildTmFrameAsset(spec: {
       `遥测 ${spec.moduleIdLabel} group_id=0x${spec.groupId.toString(16).toUpperCase()} param_count=${spec.paramCount} payload_word=${wordCount}`,
     frameType: 'dongfanghong-tm',
     protocol: 'rs422-fixed',
+    // 遥测帧不设 options：send-service 只跑在 direction='send' 路径上，
+    // applyBuildPostPatch 永不会被 TM 帧调用，autoChecksum/includeLengthField 无意义。
+    // （TM 帧的 checksum 字段供解析侧展示用，不参与发送侧算校验。）
     identifierRules: headerIdentifierRules(spec.moduleId, spec.groupId, spec.paramCount, APP_MSG_TYPE_TELEMETRY),
   };
 }
@@ -1838,11 +1847,261 @@ const tmCommRxIq = buildTmFrameAsset({
 });
 
 // ===========================================================================
+// 收发回环图表测试帧（测试专用，非真实业务帧）
+//
+// 用途：display 的两类图表缺"能收发联调"的测试帧——
+//   - waveform 图需要帧有会变化的数值字段；
+//   - scatter 图（星座图）需要 I 路字段 + Q 路字段。
+// 现有 47 帧里 rc-* 无数值数据字段，唯一能测星座的是 tm-comm-rx-iq，缺测波形的帧。
+//
+// 收发模式：回环自测（串口 TX/RX 短接，或单进程内 send 编码→receive 解析）。
+// 每个测试帧造【一对】send + receive，二者 header word0 逐字节相同——
+// receive 帧的 identifierRules（sync[0:3] + header[8:11] 双 eq 规则）才能匹配上
+// send 编码发出的字节（matchReceiveFrame 按这两段逐字节比较）。
+// send 帧数值字段 configurable:true（可在 send 页面编辑后发出），receive 帧同名字段
+// configurable:false（仅解析展示，喂给图表）。
+//
+// header word0 协议语义说明：两帧都用 msg_type=0x2（遥测头）。
+// 理由——回环的本质是"软件模拟下位机回传遥测"，receive 帧 msg_type=0x2 正确；
+// send 帧在此场景只是个"字节发生器"（把可编辑数值编码成字节回环），无真机校验
+// msg_type，取遥测头是为了和 receive 帧 header 逐字节一致以触发 identifierRules 匹配。
+// 真实业务里 send=0x1/receive=0x2 是不同 header 的独立帧，与此测试场景无关。
+//
+// 分配 moduleId=0xF（测试专用高位，避开真实模块 0x0–0x8），3 对 header word0 与现有帧无冲突：
+//   - waveform-6       : group_id=0x90, header 0x12F90060, 6 个 uint32 数值，测波形
+//   - waveform-8       : group_id=0x91, header 0x12F91080, 8 个 uint32 数值，测波形
+//   - constellation    : group_id=0x92, 1 I bytes + 1 Q bytes（各 24 字节），测星座
+// 注：造帧背景见 .sessions 调研；display 图表设计见 codestable/features/2026-06-11-display-group-management。
+// ===========================================================================
+
+// send 测试帧数值字段：复用 makeRcParamWord（uint32 configurable:true），但显式传 defaultValue。
+function testSendWord(id: string, name: string, bitDesc: string, defaultValue: string): FrameFieldDefinition {
+  return makeRcParamWord(id, name, bitDesc, { defaultValue });
+}
+
+// receive 测试帧数值字段：复用 makeTmStatusWord（uint32 configurable:false），显式传 defaultValue。
+function testRecvWord(id: string, name: string, bitDesc: string, defaultValue: string): FrameFieldDefinition {
+  return makeTmStatusWord(id, name, bitDesc, { defaultValue });
+}
+
+// 星座图 I/Q bytes 字段：承载多个采样的字节流，scatter 按 bitWidth 从中切多点
+// （见 display/core/sampling.ts extractValuesFromHex）。length=24 字节：bitWidth=8 切 24 点，
+// bitWidth=12 切 16 点（对齐旧版 sampleCount=16）。send 帧 configurable 可编辑 hex。
+function makeTestBytesField(
+  id: string,
+  name: string,
+  description: string,
+  byteLength: number,
+  defaultValue: string,
+  configurable: boolean,
+): FrameFieldDefinition {
+  return {
+    id,
+    name,
+    dataType: 'bytes',
+    length: byteLength,
+    description,
+    inputType: 'input',
+    configurable,
+    options: [],
+    dataParticipationType: 'direct',
+    defaultValue,
+    bigEndian: true,
+  };
+}
+
+interface TestChartPairSpec {
+  /** 共同 header 的 groupId（moduleId 固定 0xF，msgType 固定 0x2 遥测头）。 */
+  groupId: number;
+  paramCount: number;
+  /** send 帧 id（rc-test-*）。 */
+  sendId: string;
+  /** receive 帧 id（tm-test-*）。 */
+  recvId: string;
+  name: string;
+  /** payload 字段定义；send/recv 共用同一组 (id,name,desc,defaultValue)，仅 configurable 不同。 */
+  fields: { id: string; name: string; bitDesc: string; defaultValue: string }[];
+  description: string;
+}
+
+// 造一对 send + receive 测试帧（同 header word0，同字段结构）。
+// 用 buildRcFrameAsset/buildTmFrameAsset 各自生成骨架后，把 send 帧的 header 强制改成
+// 遥测头（msg_type=0x2），使其与 receive 帧 header 逐字节相同 → identifierRules 回环匹配成立。
+function buildTestChartPair(spec: TestChartPairSpec): { send: FrameAsset; recv: FrameAsset } {
+  const sendPayload: FrameFieldDefinition[] = spec.fields.map((f) =>
+    testSendWord(f.id, f.name, f.bitDesc, f.defaultValue),
+  );
+  const recvPayload: FrameFieldDefinition[] = spec.fields.map((f) =>
+    testRecvWord(f.id, f.name, f.bitDesc, f.defaultValue),
+  );
+
+  const send = buildRcFrameAsset({
+    id: spec.sendId,
+    name: `测试(发) - ${spec.name}`,
+    moduleId: 0xF,
+    moduleIdLabel: 'test_block',
+    groupId: spec.groupId,
+    paramCount: spec.paramCount,
+    payloadFields: sendPayload,
+    description: spec.description,
+  });
+  // 强制 send 帧 header 为遥测头（msg_type=0x2），与 receive 帧 header 逐字节一致。
+  // 否则 buildRcFrameAsset 默认用 rcHeader（msg_type=0x1），回环时 identifierRules 匹配不上。
+  const telemetryHeader = tmHeader(0xF, spec.groupId, spec.paramCount);
+  send.fields[2] = makeHeaderField(telemetryHeader, 0xF, spec.groupId);
+  send.identifierRules = headerIdentifierRules(0xF, spec.groupId, spec.paramCount, APP_MSG_TYPE_TELEMETRY);
+
+  const recv = buildTmFrameAsset({
+    id: spec.recvId,
+    name: `测试(收) - ${spec.name}`,
+    moduleId: 0xF,
+    moduleIdLabel: 'test_block',
+    groupId: spec.groupId,
+    paramCount: spec.paramCount,
+    payloadFields: recvPayload,
+    description: spec.description,
+  });
+
+  return { send, recv };
+}
+
+const testWaveform6Pair = buildTestChartPair({
+  groupId: 0x90,
+  paramCount: 6,
+  sendId: 'rc-test-waveform-6',
+  recvId: 'tm-test-waveform-6',
+  name: '波形图 6 通道数值',
+  fields: [
+    { id: 'ch0-voltage', name: '通道0 电压', bitDesc: 'word0 bit[31:0]：uint32 原始码值（单位 mV，模拟量）', defaultValue: '0x00000BB8' },
+    { id: 'ch1-current', name: '通道1 电流', bitDesc: 'word1 bit[31:0]：uint32 原始码值（单位 mA，模拟量）', defaultValue: '0x000001F4' },
+    { id: 'ch2-temp', name: '通道2 温度', bitDesc: 'word2 bit[31:0]：uint32 原始码值（单位 0.01℃，模拟量）', defaultValue: '0x00009C40' },
+    { id: 'ch3-power', name: '通道3 功率', bitDesc: 'word3 bit[31:0]：uint32 原始码值（单位 0.1W，模拟量）', defaultValue: '0x00000064' },
+    { id: 'ch4-pressure', name: '通道4 压力', bitDesc: 'word4 bit[31:0]：uint32 原始码值（单位 Pa，模拟量）', defaultValue: '0x0000EA60' },
+    { id: 'ch5-snr', name: '通道5 信噪比', bitDesc: 'word5 bit[31:0]：uint32 原始码值（单位 0.01dB，模拟量）', defaultValue: '0x000007D0' },
+  ],
+  description:
+    '收发回环测试帧（module_id=0xF test_block group_id=0x90）：send+receive 一对，header word0=0x12F90060 相同。' +
+    '6 个 uint32 数值字段（电压/电流/温度/功率/压力/信噪比）。send 帧（rc-test-waveform-6）数值可编辑，' +
+    '编码发出的字节经回环被 receive 帧（tm-test-waveform-6）按 identifierRules 匹配解析，喂 display waveform 图画曲线。',
+});
+
+const testWaveform8Pair = buildTestChartPair({
+  groupId: 0x91,
+  paramCount: 8,
+  sendId: 'rc-test-waveform-8',
+  recvId: 'tm-test-waveform-8',
+  name: '波形图 8 通道数值',
+  fields: [
+    { id: 'ch0-sin', name: '通道0 正弦', bitDesc: 'word0 bit[31:0]：uint32 原始码值（建议发送侧填正弦采样）', defaultValue: '0x00008000' },
+    { id: 'ch1-cos', name: '通道1 余弦', bitDesc: 'word1 bit[31:0]：uint32 原始码值（建议发送侧填余弦采样）', defaultValue: '0x00008000' },
+    { id: 'ch2-triangle', name: '通道2 三角', bitDesc: 'word2 bit[31:0]：uint32 原始码值（建议发送侧填三角波采样）', defaultValue: '0x00000000' },
+    { id: 'ch3-ramp', name: '通道3 锯齿', bitDesc: 'word3 bit[31:0]：uint32 原始码值（建议发送侧填锯齿波采样）', defaultValue: '0x00000000' },
+    { id: 'ch4-square', name: '通道4 方波', bitDesc: 'word4 bit[31:0]：uint32 原始码值（建议发送侧填方波采样）', defaultValue: '0x00000000' },
+    { id: 'ch5-noise', name: '通道5 噪声', bitDesc: 'word5 bit[31:0]：uint32 原始码值（建议发送侧填随机噪声）', defaultValue: '0x00000000' },
+    { id: 'ch6-envelope', name: '通道6 包络', bitDesc: 'word6 bit[31:0]：uint32 原始码值（建议发送侧填包络采样）', defaultValue: '0x00000000' },
+    { id: 'ch7-dc', name: '通道7 直流', bitDesc: 'word7 bit[31:0]：uint32 原始码值（建议发送侧填直流偏置）', defaultValue: '0x00008000' },
+  ],
+  description:
+    '收发回环测试帧（module_id=0xF test_block group_id=0x91）：send+receive 一对，header word0=0x12F91080 相同。' +
+    '8 个 uint32 数值字段，通道名标注建议波形（正弦/余弦/三角/锯齿/方波/噪声/包络/直流），便于多通道 waveform 图叠加对比。',
+});
+
+// 星座图对：I/Q 用 bytes 长字段承载多个采样，scatter 按 bitWidth 切多点（对接旧版
+// extractValuesFromHex 语义，见 display/core/sampling.ts）。不复用 buildTestChartPair
+// （它专为 uint32 数值字段设计）；这里单独用 buildRcFrameAsset/buildTmFrameAsset + bytes 字段。
+//
+// 长度选择：I/Q 各 length=24 字节（=6 word，paramCount 共 12 word）。
+//   - bitWidth=8  → 每字段切 24 点
+//   - bitWidth=12 → 每字段切 16 点（对齐旧版默认 sampleCount=16）
+// checksum 对齐：I(24)+Q(24)=48 字节是 4 的倍数，满足 sum32 对齐。
+// defaultValue 给一组示例 IQ 采样（16 个 12-bit 值，正弦/余弦），便于空跑有可见点。
+const CONSTELLATION_IQ_BYTE_LENGTH = 24;
+// 16 个 12-bit 有符号采样示例（正弦 I 路 / 余弦 Q 路，幅度 ±2047，围绕 0 有正有负）。
+// 每 3 hex 字符一个 12-bit 补码值，16 值 × 3 = 48 hex 字符 = 24 字节（正好填满 length）。
+// 负数用补码编码（如 -2047 → 0x801），scatter 按 bitWidth 切出后会还原成负数，画四象限星座图。
+const CONSTELLATION_I_DEFAULT = '0x00030F5A77637FF7635A730F000CF1A5989D80189DA59CF1';
+const CONSTELLATION_Q_DEFAULT = '0x7FF7635A730F000CF1A5989D80189DA59CF100030F5A7763';
+
+function buildTestConstellationPair(): { send: FrameAsset; recv: FrameAsset } {
+  const groupId = 0x92;
+  // bytes 字段每个占 6 word，2 个字段 = 12 word
+  const paramCount = (CONSTELLATION_IQ_BYTE_LENGTH * 2) / 4;
+
+  const sendPayload: FrameFieldDefinition[] = [
+    makeTestBytesField(
+      'test-iq-i', 'I 路采样',
+      `word0..5（24 字节）：I 路采样字节流，scatter 按 bitWidth 切多点（scatter iSource 选此）`,
+      CONSTELLATION_IQ_BYTE_LENGTH, CONSTELLATION_I_DEFAULT, true,
+    ),
+    makeTestBytesField(
+      'test-iq-q', 'Q 路采样',
+      `word6..11（24 字节）：Q 路采样字节流，scatter 按 bitWidth 切多点（scatter qSource 选此）`,
+      CONSTELLATION_IQ_BYTE_LENGTH, CONSTELLATION_Q_DEFAULT, true,
+    ),
+  ];
+  const recvPayload: FrameFieldDefinition[] = [
+    makeTestBytesField(
+      'test-iq-i', 'I 路采样',
+      `word0..5（24 字节）：I 路采样字节流，scatter 按 bitWidth 切多点（scatter iSource 选此）`,
+      CONSTELLATION_IQ_BYTE_LENGTH, CONSTELLATION_I_DEFAULT, false,
+    ),
+    makeTestBytesField(
+      'test-iq-q', 'Q 路采样',
+      `word6..11（24 字节）：Q 路采样字节流，scatter 按 bitWidth 切多点（scatter qSource 选此）`,
+      CONSTELLATION_IQ_BYTE_LENGTH, CONSTELLATION_Q_DEFAULT, false,
+    ),
+  ];
+
+  const send = buildRcFrameAsset({
+    id: 'rc-test-constellation',
+    name: '测试(发) - 星座图 I/Q 数据流',
+    moduleId: 0xF,
+    moduleIdLabel: 'test_block',
+    groupId,
+    paramCount,
+    payloadFields: sendPayload,
+    description:
+      '收发回环测试帧（module_id=0xF test_block group_id=0x92）：send+receive 一对。' +
+      'I/Q 各 24 字节 bytes 字段，scatter 按 bitWidth 切多点（bitWidth=8 切 24 点，bitWidth=12 切 16 点）。' +
+      'send 帧 I/Q 可编辑 hex，回环后 receive 帧解析，display scatter 选 iSource=test-iq-i、qSource=test-iq-q。',
+  });
+  // 强制 send 帧 header 为遥测头（msg_type=0x2），与 receive 帧 header 逐字节一致以触发回环匹配。
+  const telemetryHeader = tmHeader(0xF, groupId, paramCount);
+  send.fields[2] = makeHeaderField(telemetryHeader, 0xF, groupId);
+  send.identifierRules = headerIdentifierRules(0xF, groupId, paramCount, APP_MSG_TYPE_TELEMETRY);
+
+  const recv = buildTmFrameAsset({
+    id: 'tm-test-constellation',
+    name: '测试(收) - 星座图 I/Q 数据流',
+    moduleId: 0xF,
+    moduleIdLabel: 'test_block',
+    groupId,
+    paramCount,
+    payloadFields: recvPayload,
+    description:
+      '收发回环测试帧（module_id=0xF test_block group_id=0x92）：send+receive 一对。' +
+      'I/Q 各 24 字节 bytes 字段，scatter 按 bitWidth 切多点（bitWidth=8 切 24 点，bitWidth=12 切 16 点）。' +
+      'send 帧 I/Q 可编辑 hex，回环后 receive 帧解析，display scatter 选 iSource=test-iq-i、qSource=test-iq-q。',
+  });
+
+  return { send, recv };
+}
+
+const testConstellationPair = buildTestConstellationPair();
+
+const rcTestWaveform6 = testWaveform6Pair.send;
+const tmTestWaveform6 = testWaveform6Pair.recv;
+const rcTestWaveform8 = testWaveform8Pair.send;
+const tmTestWaveform8 = testWaveform8Pair.recv;
+const rcTestConstellation = testConstellationPair.send;
+const tmTestConstellation = testConstellationPair.recv;
+
+// ===========================================================================
 // 汇总导出
 // ===========================================================================
 
 export const dongfanghongFrames: FrameAsset[] = [
-  // 遥控（send）— 30 条
+  // 遥控（send）— 33 条（含 3 条测试帧）
   rcClkMgmtMap,
   rcAdcMap,
   rcAdcPulseReset,
@@ -1873,7 +2132,11 @@ export const dongfanghongFrames: FrameAsset[] = [
   rcCommRxPulseRangeRst,
   rcCommRxPulseCountClr,
   rcCommRxPulseManualRst,
-  // 遥测（receive）— 17 条
+  // 测试帧（send，与下方 receive 帧成回环对）— 3 条
+  rcTestWaveform6,
+  rcTestWaveform8,
+  rcTestConstellation,
+  // 遥测（receive）— 20 条（含 3 条测试帧）
   tmClkMgmtRuntime,
   tmClkMgmtCfg,
   tmAdcRuntime,
@@ -1891,6 +2154,10 @@ export const dongfanghongFrames: FrameAsset[] = [
   tmCommRxRuntime,
   tmCommRxCfg,
   tmCommRxIq,
+  // 测试帧（receive，测图表数据源）— 3 条
+  tmTestWaveform6,
+  tmTestWaveform8,
+  tmTestConstellation,
 ];
 
 export const dongfanghongFrameCount = dongfanghongFrames.length;
