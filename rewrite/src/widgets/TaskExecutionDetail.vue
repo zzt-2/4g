@@ -132,7 +132,7 @@ const progressLabel = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="task-detail flex flex-col gap-3 h-full min-h-0">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
@@ -162,32 +162,34 @@ const progressLabel = computed(() => {
       <span class="rw-text-value text-xs">{{ progress.iterationsCompleted }}/{{ progress.iterationsTotal }}</span>
     </div>
 
-    <!-- Step status list -->
-    <q-separator />
-    <div class="flex flex-col gap-1">
+    <!-- Step status list — scrollable region occupying all remaining space -->
+    <div class="flex flex-col flex-1 min-h-0 gap-1">
+      <q-separator />
       <span class="rw-text-label text-xs">步骤状态</span>
-      <div
-        v-for="item in stepStatuses"
-        :key="item.index"
-        class="flex items-center gap-2"
-      >
-        <q-icon
-          :name="item.status === 'running' ? 'o_pending' : item.status === 'done' ? 'o_check_circle' : item.status === 'failed' ? 'o_error' : item.status === 'skipped' ? 'o_skip_next' : 'o_radio_button_unchecked'"
-          :color="item.status === 'done' ? 'positive' : item.status === 'failed' ? 'negative' : item.status === 'running' ? 'primary' : 'grey'"
-          size="xs"
-        />
-        <span class="rw-text-value text-xs flex-1">
-          {{ item.step.name ?? STEP_KIND_LABELS[item.step.kind].label }} #{{ item.index + 1 }}
-        </span>
-        <span v-if="item.result" class="rw-text-desc text-xs">
-          {{ formatStepResult(item.step, item.result) }}
-          <q-tooltip v-if="failureTooltipText(item.result)" :delay="300" max-width="320px">
-            {{ failureTooltipText(item.result) }}
-          </q-tooltip>
-        </span>
-        <span v-else-if="item.status === 'running' && delayRemainingText(item.index)" class="rw-text-desc text-xs">
-          {{ delayRemainingText(item.index) }}
-        </span>
+      <div class="flex flex-col gap-1 min-h-0 overflow-y-auto">
+        <div
+          v-for="item in stepStatuses"
+          :key="item.index"
+          class="flex items-center gap-2"
+        >
+          <q-icon
+            :name="item.status === 'running' ? 'o_pending' : item.status === 'done' ? 'o_check_circle' : item.status === 'failed' ? 'o_error' : item.status === 'skipped' ? 'o_skip_next' : 'o_radio_button_unchecked'"
+            :color="item.status === 'done' ? 'positive' : item.status === 'failed' ? 'negative' : item.status === 'running' ? 'primary' : 'grey'"
+            size="xs"
+          />
+          <span class="rw-text-value text-xs flex-1">
+            {{ item.step.name ?? STEP_KIND_LABELS[item.step.kind].label }} #{{ item.index + 1 }}
+          </span>
+          <span v-if="item.result" class="rw-text-desc text-xs">
+            {{ formatStepResult(item.step, item.result) }}
+            <q-tooltip v-if="failureTooltipText(item.result)" :delay="300" max-width="320px">
+              {{ failureTooltipText(item.result) }}
+            </q-tooltip>
+          </span>
+          <span v-else-if="item.status === 'running' && delayRemainingText(item.index)" class="rw-text-desc text-xs">
+            {{ delayRemainingText(item.index) }}
+          </span>
+        </div>
       </div>
     </div>
 

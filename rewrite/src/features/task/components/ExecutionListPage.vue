@@ -23,8 +23,8 @@ import AdvancedConfigPanel from '@/features/task/components/AdvancedConfigPanel.
 import SendTargetSelector from '@/features/send/components/SendTargetSelector.vue';
 import { useAsyncAction, useNotify, usePolling } from '@/shared/composables';
 import { formatElapsed, formatDateTime } from '@/shared/utils/format';
-import { isTerminal, calculateProgress } from '@/features/task/core';
-import type { TaskStepDefinition, ReadonlyTaskInstanceState, TaskTemplate } from '@/features/task/core';
+import { isTerminal, calculateProgress, applyDefaultTargetOverride } from '@/features/task/core';
+import type { TaskStepDefinition, ReadonlyTaskInstanceState, TaskTemplate, TaskDefinition } from '@/features/task/core';
 import { taskColumns, type TaskTableRow } from '@/features/task/components/task-columns';
 import { historyColumns, type HistoryTableRow } from '@/features/task/components/history-columns';
 import { TASK_STATUS_MAP, resolveDisplayStatus } from '@/features/task/components/taskStatusMap';
@@ -54,6 +54,65 @@ const activeRows = shallowRef<TaskTableRow[]>([]);
 const historyRows = shallowRef<HistoryTableRow[]>([]);
 const selectedActiveRow = shallowRef<TaskTableRow[]>([]);
 const selectedHistoryRow = shallowRef<HistoryTableRow[]>([]);
+
+// ===== Batch set send target mode (active tab) =====
+const batchMode = ref(false);
+const batchSelectedActiveRows = shallowRef<TaskTableRow[]>([]);
+const isBatchTargetDialogOpen = ref(false);
+const batchTargetId = ref<string | null>(null);
+
+function onOpenBatchSetTarget(): void {
+  if (batchSelectedActiveRows.value.length === 0) {
+    notify.warning('请先选择至少一个任务');
+    return;
+  }
+  // updateTask 仅允许 lifecycle === 'created' 的实例更新——非 created 的跳过
+  const editable = batchSelectedActiveRows.value.filter((r) => r.lifecycle === 'created');
+  if (editable.length === 0) {
+    notify.warning('选中的任务都不是待启动状态，无法修改');
+    return;
+  }
+  let sendStepCount = 0;
+  for (const row of editable) {
+    for (const step of row._original.definitionRef.steps) {
+      if (step.kind === 'send') sendStepCount++;
+    }
+  }
+  if (sendStepCount === 0) {
+    notify.warning('选中的任务里没有 send 步骤，无需设置发送目标');
+    return;
+  }
+  batchTargetId.value = null;
+  isBatchTargetDialogOpen.value = true;
+}
+
+function onConfirmBatchSetTarget(): void {
+  if (!batchTargetId.value) {
+    notify.warning('请选择一个发送目标');
+    return;
+  }
+  const editable = batchSelectedActiveRows.value.filter((r) => r.lifecycle === 'created');
+  const skipped = batchSelectedActiveRows.value.length - editable.length;
+  let updated = 0;
+  let affectedSteps = 0;
+  for (const row of editable) {
+    const inst = row._original;
+    const nextDef = applyDefaultTargetOverride(inst.definitionRef as TaskDefinition, batchTargetId.value);
+    const result = taskService.updateTask(inst.instanceId, nextDef);
+    if (result) {
+      updated++;
+      for (const step of nextDef.steps) {
+        if (step.kind === 'send') affectedSteps++;
+      }
+    }
+  }
+  isBatchTargetDialogOpen.value = false;
+  batchSelectedActiveRows.value = [];
+  selectedActiveRow.value = [];
+  refreshLists();
+  const skipNote = skipped > 0 ? `，跳过 ${skipped} 个非待启动任务` : '';
+  notify.success(`已更新 ${updated} 个任务的默认发送目标（影响 ${affectedSteps} 个 send 步骤${skipNote}）`);
+}
 
 // Template picker state
 const isTemplatePickerOpen = ref(false);
@@ -127,6 +186,19 @@ const selectedTemplateLabel = computed(() => {
   if (!selectedInstance.value?.templateId) return '--';
   const tpl = taskService.getTemplate(selectedInstance.value.templateId);
   return tpl?.name ?? selectedInstance.value.templateId;
+});
+
+// targetId(connectionId) → 可读 label 的查找表。列表展示默认发送目标用。
+const targetLabelMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {};
+  try {
+    for (const t of connectionService.listTransportTargets()) {
+      map[t.targetId] = `${t.label} (${t.kind})`;
+    }
+  } catch {
+    // 无可用目标时返回空 map，列表显示原 id 截断
+  }
+  return map;
 });
 
 function onActiveRowClick(row: TaskTableRow): void {
@@ -341,6 +413,14 @@ function hasPreviousSendStep(si: number): boolean {
           <q-btn unelevated no-caps color="primary" icon="o_library_add" label="从模板创建" @click="onCreateFromTemplate" />
           <q-btn flat no-caps icon="o_add" label="空白任务" @click="onNewBlankTask" />
           <q-btn flat no-caps icon="o_stop_circle" label="全部停止" :disable="activeRows.length === 0" @click="onStopAll" />
+          <q-btn
+            v-if="activeTab === 'active'"
+            flat no-caps
+            :icon="batchMode ? 'o_close' : 'o_checklist'"
+            :label="batchMode ? '退出批量' : '批量管理'"
+            :color="batchMode ? 'negative' : 'grey'"
+            @click="batchMode = !batchMode; batchSelectedActiveRows = []; selectedActiveRow = []"
+          />
         </template>
       </TableToolbar>
 
@@ -363,17 +443,38 @@ function hasPreviousSendStep(si: number): boolean {
         </q-chip>
       </div>
 
+      <!-- Batch mode toolbar (active tab only) -->
+      <div v-if="activeTab === 'active' && batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
+        <q-btn
+          flat dense no-caps
+          icon="o_send"
+          label="设置发送目标"
+          color="primary"
+          size="sm"
+          :disable="batchSelectedActiveRows.length === 0"
+          @click="onOpenBatchSetTarget"
+        />
+        <span class="rw-text-desc text-xs">{{ batchSelectedActiveRows.length }} 项已选中（仅待启动状态可修改）</span>
+        <div class="flex-1" />
+        <q-btn
+          flat dense no-caps
+          label="退出批量模式"
+          size="sm"
+          @click="batchMode = false; batchSelectedActiveRows = []"
+        />
+      </div>
+
       <q-tab-panels v-model="activeTab" animated keep-alive class="flex-1">
         <q-tab-panel name="active" class="p-0 pt-0">
           <DataTable
             :columns="taskColumns"
             :rows="activeRows"
             row-key="instanceId"
-            selection="single"
-            :selected="selectedActiveRow"
+            :selection="batchMode ? 'multiple' : 'single'"
+            :selected="batchMode ? batchSelectedActiveRows : selectedActiveRow"
             container-height="calc(100vh - 280px)"
-            @row-click="(_row: TaskTableRow) => onActiveRowClick(_row)"
-            @update:selected="onActiveSelectionChange"
+            @row-click="(_row: TaskTableRow) => { if (!batchMode) onActiveRowClick(_row) }"
+            @update:selected="batchMode ? (batchSelectedActiveRows = $event as TaskTableRow[]) : onActiveSelectionChange($event as TaskTableRow[])"
           >
             <template #no-data>
               <div class="text-center w-full p-4 rw-text-label">暂无活动任务</div>
@@ -395,6 +496,15 @@ function hasPreviousSendStep(si: number): boolean {
                   :label="props.row.scheduleKindDisplay.label"
                   class="m-0"
                 />
+              </q-td>
+            </template>
+
+            <template #body-cell-defaultTargetId="props">
+              <q-td :props="props">
+                <span v-if="props.row.defaultTargetId" class="rw-text-value text-xs">
+                  {{ targetLabelMap[props.row.defaultTargetId] ?? props.row.defaultTargetId.slice(0, 8) + '…' }}
+                </span>
+                <span v-else class="rw-text-desc text-xs">未设置</span>
               </q-td>
             </template>
 
@@ -421,7 +531,7 @@ function hasPreviousSendStep(si: number): boolean {
 
             <template #body-cell-_actions="props">
               <q-td :props="props">
-                <div class="flex items-center justify-center gap-1">
+                <div v-if="!batchMode" class="flex items-center justify-center gap-1">
                   <q-btn
                     v-if="props.row.lifecycle === 'created'"
                     flat round dense icon="o_play_arrow" size="sm" color="positive"
@@ -530,54 +640,56 @@ function hasPreviousSendStep(si: number): boolean {
     </div>
 
     <!-- Right panel: 360px -->
-    <div class="w-[360px] flex-shrink-0 flex flex-col min-h-0 overflow-y-auto rw-divider-l">
+    <div class="w-[360px] flex-shrink-0 flex flex-col min-h-0 overflow-hidden rw-divider-l">
       <template v-if="selectedInstance">
         <template v-if="selectedInstance.lifecycle === 'created'">
-          <div class="p-4 rw-divider-b">
-            <div class="mb-3">
-              <span class="rw-text-label text-xs">任务名称</span>
-              <div class="rw-text-value">{{ selectedInstance.definitionRef.name }}</div>
-            </div>
-            <div class="mb-3">
-              <span class="rw-text-label text-xs">来源模板</span>
-              <div class="rw-text-value">{{ selectedTemplateLabel }}</div>
-            </div>
-            <div class="mb-3">
-              <span class="rw-text-label text-xs">调度类型</span>
-              <div class="mt-1">
-                <q-chip
-                  dense
-                  outline
-                  :color="selectedScheduleKindDisplay.color"
-                  :label="selectedScheduleKindDisplay.label"
-                />
+          <div class="flex-1 min-h-0 overflow-y-auto">
+            <div class="p-4 rw-divider-b">
+              <div class="mb-3">
+                <span class="rw-text-label text-xs">任务名称</span>
+                <div class="rw-text-value">{{ selectedInstance.definitionRef.name }}</div>
+              </div>
+              <div class="mb-3">
+                <span class="rw-text-label text-xs">来源模板</span>
+                <div class="rw-text-value">{{ selectedTemplateLabel }}</div>
+              </div>
+              <div class="mb-3">
+                <span class="rw-text-label text-xs">调度类型</span>
+                <div class="mt-1">
+                  <q-chip
+                    dense
+                    outline
+                    :color="selectedScheduleKindDisplay.color"
+                    :label="selectedScheduleKindDisplay.label"
+                  />
+                </div>
+              </div>
+              <div>
+                <span class="rw-text-label text-xs">步骤数</span>
+                <div class="rw-text-value">{{ selectedInstance.definitionRef.steps.length }}</div>
               </div>
             </div>
-            <div>
-              <span class="rw-text-label text-xs">步骤数</span>
-              <div class="rw-text-value">{{ selectedInstance.definitionRef.steps.length }}</div>
-            </div>
-          </div>
 
-          <div class="p-4">
-            <div class="flex items-center gap-2">
-              <q-btn
-                unelevated no-caps color="primary"
-                icon="o_edit" label="编辑"
-                @click="onEditTask"
-              />
-              <q-btn
-                unelevated no-caps color="positive"
-                icon="o_play_arrow" label="启动"
-                :loading="isOperating(`start-${selectedInstance.instanceId}`)"
-                @click="onStart(selectedInstance.instanceId)"
-              />
+            <div class="p-4">
+              <div class="flex items-center gap-2">
+                <q-btn
+                  unelevated no-caps color="primary"
+                  icon="o_edit" label="编辑"
+                  @click="onEditTask"
+                />
+                <q-btn
+                  unelevated no-caps color="positive"
+                  icon="o_play_arrow" label="启动"
+                  :loading="isOperating(`start-${selectedInstance.instanceId}`)"
+                  @click="onStart(selectedInstance.instanceId)"
+                />
+              </div>
             </div>
           </div>
         </template>
 
         <template v-else>
-          <div class="p-4">
+          <div class="flex-1 min-h-0 p-4">
             <TaskExecutionDetail
               :instance="selectedInstance"
               :progress="selectedProgress"
@@ -588,7 +700,7 @@ function hasPreviousSendStep(si: number): boolean {
               @stop="selectedInstance && onStop(selectedInstance.instanceId)"
             />
           </div>
-          <div v-if="isTerminal(selectedInstance.lifecycle)" class="p-4 rw-divider-t">
+          <div v-if="isTerminal(selectedInstance.lifecycle)" class="flex-shrink-0 p-4 rw-divider-t">
             <div class="flex items-center gap-2">
               <q-btn
                 flat no-caps icon="o_replay" label="重新执行" color="primary"
@@ -873,6 +985,37 @@ function hasPreviousSendStep(si: number): boolean {
             label="保存并启动"
             :loading="editor.isSaving.value"
             @click="onSaveAndStart"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Batch set send target dialog (active tab only) -->
+    <q-dialog v-model="isBatchTargetDialogOpen">
+      <q-card class="rw-dialog-md">
+        <q-card-section>
+          <div class="text-h6">批量设置发送目标</div>
+          <div class="rw-text-desc text-caption mt-1">
+            将应用到选中任务的<strong>默认发送目标</strong>，同时清空每个 send 步骤的单独覆盖，让所有 send 步骤统一回退到任务级。<br />
+            <span class="text-warning">仅"待启动"状态的任务会被修改，其它状态自动跳过。</span>
+          </div>
+        </q-card-section>
+        <q-card-section class="pt-0">
+          <span class="rw-text-label text-xs">发送目标</span>
+          <SendTargetSelector
+            :model-value="batchTargetId"
+            :connection-service="connectionService"
+            class="mt-1"
+            @update:model-value="batchTargetId = $event"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat no-caps label="取消" v-close-popup />
+          <q-btn
+            unelevated no-caps color="primary"
+            label="应用"
+            :disable="!batchTargetId"
+            @click="onConfirmBatchSetTarget"
           />
         </q-card-actions>
       </q-card>

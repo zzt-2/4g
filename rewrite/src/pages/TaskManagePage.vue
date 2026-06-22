@@ -14,8 +14,8 @@ function onInstantiated(): void {
 </script>
 
 <template>
-  <q-page class="task-page min-h-full">
-    <div class="flex items-center gap-3 p-4 rw-divider-b">
+  <q-page class="task-page flex flex-col h-full">
+    <div class="flex items-center gap-3 p-4 rw-divider-b flex-shrink-0">
       <span class="rw-text-value text-h6">任务管理</span>
       <div class="flex-1" />
       <q-tabs
