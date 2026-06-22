@@ -95,6 +95,16 @@ watch(() => props.loading, (loading) => {
   }
 });
 
+// chart 容器用 v-show 控制（isEmpty 时 display:none）。当数据从空→有，div 重新显示，
+// 此时 ECharts 实例可能还停留在 0 尺寸（init 时若 display:none 则 clientWidth/Height=0）。
+// 主动 resize 让它适配真实尺寸，消除 "Can't get DOM width or height" 警告 + 避免空画布。
+watch(() => isEmpty.value, (empty) => {
+  if (!chart) return;
+  if (empty) return;
+  // div 重新显示需要在下一帧（v-show 切换后 DOM 更新完）才能拿到非 0 尺寸
+  requestAnimationFrame(() => chart?.resize());
+});
+
 onMounted(() => {
   if (!chartRef.value) return;
   chart = echarts.init(chartRef.value);

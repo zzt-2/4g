@@ -11,3 +11,34 @@ body {
   margin: 0;
   text-rendering: optimizeLegibility;
 }
+
+// --- Scrollbars ---
+// 细条 + 透明轨道 + 半透明胶囊 thumb，hover 加深（token 映射 rw 语义色）
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--rw-color-text-muted);
+  border-radius: 9999px;
+  opacity: 0.3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--rw-color-text-primary);
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rw-color-text-muted) transparent;
+}

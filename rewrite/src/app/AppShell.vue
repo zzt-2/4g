@@ -60,7 +60,7 @@ function navigate(to: string): void {
     <q-header bordered class="app-shell__header">
       <q-toolbar>
         <q-btn flat round dense icon="menu" aria-label="切换导航" @click="drawerOpen = !drawerOpen" />
-        <q-toolbar-title class="app-shell__title">东方红上位机</q-toolbar-title>
+        <q-toolbar-title class="app-shell__title">激光模拟器</q-toolbar-title>
       </q-toolbar>
     </q-header>
 

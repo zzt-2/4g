@@ -131,7 +131,6 @@ onMounted(() => {
       <!-- Header -->
       <div class="home-page__header gap-4">
         <div>
-          <p class="home-page__eyebrow mb-1">{{ bridgeLabel }}</p>
           <h1 class="home-page__title m-0">运行总览</h1>
         </div>
         <q-btn flat round icon="refresh" aria-label="刷新" @click="refreshData" />
@@ -144,15 +143,8 @@ onMounted(() => {
       <section class="home-page__section gap-2">
         <h2 class="home-page__section-title pb-1">快速入口</h2>
         <div class="home-page__actions gap-2">
-          <q-card
-            v-for="action in quickActions"
-            :key="action.to"
-            flat
-            bordered
-            clickable
-            class="home-page__action-card"
-            @click="navigateTo(action.to)"
-          >
+          <q-card v-for="action in quickActions" :key="action.to" flat bordered clickable class="home-page__action-card"
+            @click="navigateTo(action.to)">
             <q-card-section class="home-page__action-content gap-3">
               <q-icon :name="action.icon" size="24px" :color="action.color" />
               <div class="home-page__action-text">
@@ -169,7 +161,8 @@ onMounted(() => {
       <section v-if="connectionSummaries.length > 0" class="home-page__section gap-2">
         <h2 class="home-page__section-title pb-1">连接状态</h2>
         <div class="home-page__conn-list">
-          <div v-for="conn in connectionSummaries" :key="conn.connectionId" class="home-page__conn-item gap-3 py-2.5 px-4">
+          <div v-for="conn in connectionSummaries" :key="conn.connectionId"
+            class="home-page__conn-item gap-3 py-2.5 px-4">
             <StatusBadge :status="conn.lifecycle" :status-map="connectionStatusMap" />
             <span class="home-page__conn-label">{{ conn.label }}</span>
             <span class="rw-text-desc">{{ conn.routeLabel }}</span>
