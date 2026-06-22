@@ -187,6 +187,13 @@ export function useDisplayRefresh(
     }
   }
 
+  // 清空折线图已累积的数据点（chartBuffer），保留字段配置（selectedItems）。
+  // 数据从零重新累积。供工具栏"清空折线图数据"按钮调用。
+  function clearChartData(): void {
+    chartBuffer.clear();
+    refresh();
+  }
+
   onUnmounted(() => {
     disposed = true;
     stop();
@@ -202,5 +209,6 @@ export function useDisplayRefresh(
     getTable2Rows: () => table2Rows.value.map((r) => ({ ...r })),
     start,
     stop,
+    clearChartData,
   };
 }

@@ -192,7 +192,17 @@ export function createDisplayService(
       const current = state.getSnapshot();
 
       if (material.fields) {
-        buffer.sourceFields = material.fields.map((f) => ({ ...f }));
+        // 累积语义（upsert by dataItemId）：保留 buffer 中已有字段（本批没来的帧保持最后已知值），
+        // 本批带来的字段覆盖同 dataItemId 的旧值。
+        // 修复"每批整体覆盖 → 多帧交替到达时表格内容反复闪空"的内容鬼畜。
+        // 设计上与图表 chartBuffer 的累积语义对齐（同一 feature 不该两套 buffer 语义）。
+        const merged = new Map<string, DisplayFieldMaterial>(
+          buffer.sourceFields.map((f) => [f.dataItemId, f]),
+        );
+        for (const f of material.fields) {
+          merged.set(f.dataItemId, { ...f });
+        }
+        buffer.sourceFields = [...merged.values()];
       }
 
       if (material.availability) {

@@ -12,6 +12,7 @@ import GroupConfigDialog from '@/features/display/components/GroupConfigDialog.v
 import type { ReceiveCounterSnapshot, ReceiveLifecycleStatus } from '@/features/receive';
 import type {
   ChartInstancePatch,
+  ChartSelectedItem,
   DisplayGroupConfig,
   DisplayMode,
   GroupOption,
@@ -56,24 +57,27 @@ const prefs = computed(() => displayRefresh.preferences.value);
 
 const configuredGroups = computed(() => prefs.value.groups);
 
+const receiveFrames = computed(() => frameService.listFrames({ direction: 'receive' }));
+
+// 分组下拉列表：用户手动建的分组 + emergent 分组。
+// emergent 分组按帧定义生成（不依赖是否收到数据）：每个没被归入任何手动分组的接收帧，
+// 各自作为一个 emergent 分组项（value=frameId, label=帧名）。
+// 修复"emergent 分组靠扫表格行算出 → 没收到数据就没分组 / 行抖动时分组列表也抖"。
+// 设计文档 line 100 原定 emergent 靠运行时数据，此处改为立足于帧定义（R19 精神：静态优先）。
 const groups = computed((): GroupOption[] => {
   const configured = configuredGroups.value;
-  const configuredIds = new Set(configured.map((g) => g.id));
-  const emergent = new Set<string>();
-  for (const r of displayRefresh.getTable1Rows()) {
-    if (r.groupId && !configuredIds.has(r.groupId)) emergent.add(r.groupId);
-  }
-  for (const r of displayRefresh.getTable2Rows()) {
-    if (r.groupId && !configuredIds.has(r.groupId)) emergent.add(r.groupId);
+  // 已被手动分组引用的 frameId，不再作为 emergent 重复出现
+  const assignedFrameIds = new Set<string>();
+  for (const g of configured) {
+    for (const entry of g.frames) assignedFrameIds.add(entry.frameId);
   }
   const options: GroupOption[] = configured.map((g) => ({ value: g.id, label: g.label }));
-  for (const id of [...emergent].sort()) {
-    options.push({ value: id, label: id });
+  for (const frame of receiveFrames.value) {
+    if (assignedFrameIds.has(frame.id)) continue;
+    options.push({ value: frame.id, label: frame.name });
   }
   return options;
 });
-
-const receiveFrames = computed(() => frameService.listFrames({ direction: 'receive' }));
 
 // ===== Field metadata (description/unit for tooltips) =====
 const fieldMeta = computed(() => {
@@ -135,22 +139,29 @@ const availableFields = computed(() => {
   return [...map.values()];
 });
 
-const chartAvailableFields = computed(() => {
-  const panelKey = chartConfigPanel.value === '1' ? 'table1' : 'table2';
-  const selectedGroupId = prefs.value[panelKey].selectedGroupId;
-
-  const result: { groupId: string; frameId: string; fieldId: string; fieldName: string; frameName: string }[] = [];
+// 解析某分组下可选的字段列表（供图表配置 + 换分组自动选首帧复用）。
+// groupId='' → 全部分组（手动分组按配置 + 未分组帧全部字段）；
+// groupId=手动分组 id → 该分组配置的帧（按 visibleFieldIds 过滤）；
+// groupId=frameId（emergent 分组，不在 configuredGroups）→ 该帧全部字段。
+interface AvailableField {
+  readonly groupId: string;
+  readonly frameId: string;
+  readonly fieldId: string;
+  readonly fieldName: string;
+  readonly frameName: string;
+}
+function resolveFieldsForGroup(groupId: string): AvailableField[] {
+  const result: AvailableField[] = [];
   const covered = new Set<string>();
-
-  function push(groupId: string, frameId: string, fieldId: string, fieldName: string, frameName: string): void {
-    const key = `${groupId}:${frameId}:${fieldId}`;
+  function push(gId: string, frameId: string, fieldId: string, fieldName: string, frameName: string): void {
+    const key = `${gId}:${frameId}:${fieldId}`;
     if (covered.has(key)) return;
     covered.add(key);
-    result.push({ groupId, frameId, fieldId, fieldName, frameName });
+    result.push({ groupId: gId, frameId, fieldId, fieldName, frameName });
   }
 
-  if (selectedGroupId) {
-    const group = configuredGroups.value.find((g) => g.id === selectedGroupId);
+  if (groupId) {
+    const group = configuredGroups.value.find((g) => g.id === groupId);
     if (group) {
       for (const entry of group.frames) {
         const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
@@ -161,8 +172,15 @@ const chartAvailableFields = computed(() => {
       }
       return result;
     }
+    // emergent 分组（value=frameId，不在 configuredGroups）：该帧全部字段
+    const emergentFields = frameReader.listFieldReferences({ frameId: groupId });
+    for (const f of emergentFields) {
+      push(groupId, f.frameId, f.fieldId, f.fieldName, f.frameName);
+    }
+    return result;
   }
 
+  // 全部分组：手动分组按配置 + 未分组帧全部字段
   for (const group of configuredGroups.value) {
     for (const entry of group.frames) {
       const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
@@ -179,7 +197,23 @@ const chartAvailableFields = computed(() => {
     }
   }
   return result;
+}
+
+const chartAvailableFields = computed(() => {
+  const panelKey = chartConfigPanel.value === '1' ? 'table1' : 'table2';
+  return resolveFieldsForGroup(prefs.value[panelKey].selectedGroupId);
 });
+
+// 换分组后图表配置自动选中当前分组的第一个帧的全部字段（而非清空）。
+// 用户切分组后图表立即有内容，不用手动点开配置选字段。
+function pickFirstFrameItems(groupId: string): ChartSelectedItem[] {
+  const fields = resolveFieldsForGroup(groupId);
+  if (fields.length === 0) return [];
+  const firstFrameId = fields[0]!.frameId;
+  return fields
+    .filter((f) => f.frameId === firstFrameId)
+    .map((f) => ({ groupId: f.groupId, frameId: f.frameId, fieldId: f.fieldId }));
+}
 
 const mode1 = computed(() => prefs.value.table1.displayMode);
 const mode2 = computed(() => prefs.value.table2.displayMode);
@@ -189,22 +223,36 @@ const chart2 = computed(() => displayRefresh.chartInstances.value[1] ?? null);
 function buildPlaceholderRows(selectedGroupId: string): TableRowProjection[] {
   if (selectedGroupId) {
     const group = configuredGroups.value.find((g) => g.id === selectedGroupId);
-    if (!group) return [];
-    const rows: TableRowProjection[] = [];
-    for (const entry of group.frames) {
-      const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
-      for (const f of fields) {
-        if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
-        rows.push({
-          groupId: selectedGroupId,
-          dataItemId: `${f.frameId}:${f.fieldId}`,
-          fieldName: f.fieldName,
-          value: null,
-          displayValue: '-',
-        });
+    if (group) {
+      // 用户手动建的分组：按 frames + visibleFieldIds 过滤
+      const rows: TableRowProjection[] = [];
+      for (const entry of group.frames) {
+        const fields = frameReader.listFieldReferences({ frameId: entry.frameId });
+        for (const f of fields) {
+          if (entry.visibleFieldIds.length > 0 && !entry.visibleFieldIds.includes(f.fieldId)) continue;
+          rows.push({
+            groupId: selectedGroupId,
+            dataItemId: `${f.frameId}:${f.fieldId}`,
+            fieldName: f.fieldName,
+            value: null,
+            displayValue: '-',
+          });
+        }
       }
+      return rows;
     }
-    return rows;
+    // emergent 分组（value=frameId，不在 configuredGroups 里）：
+    // 当作单个未分组帧兜底，显示该帧全部字段。修复"选中 emergent 分组后
+    // placeholder 返回空 → buffer 覆盖瞬间整表闪'暂无字段数据'"的鬼畜。
+    // 若该 id 连帧都不是，才返回空（真正的无定义状态）。
+    const emergentFields = frameReader.listFieldReferences({ frameId: selectedGroupId });
+    return emergentFields.map((f) => ({
+      groupId: selectedGroupId,
+      dataItemId: `${f.frameId}:${f.fieldId}`,
+      fieldName: f.fieldName,
+      value: null,
+      displayValue: '-',
+    }));
   }
   const rows: TableRowProjection[] = [];
   for (const frame of receiveFrames.value) {
@@ -333,6 +381,10 @@ function onModeChange(panel: '1' | '2', mode: DisplayMode): void {
 function onGroupChange(panel: '1' | '2', groupId: string): void {
   const key = panel === '1' ? 'table1' : 'table2';
   displayService.updatePreferences({ [key]: { selectedGroupId: groupId } });
+  // 切分组后图表配置自动选中当前分组的第一个帧全部字段（而非清空），
+  // 用户切分组后图表立即有内容。selectedItems 变化也会触发 chartBuffer 自动清空旧数据。
+  const chartId = panel === '1' ? 'chart-1' : 'chart-2';
+  displayService.updateChartConfig(chartId, { selectedItems: pickFirstFrameItems(groupId) });
   persistDisplay();
 }
 
@@ -419,6 +471,12 @@ function stopRecording(): void {
 
 // ===== Lifecycle =====
 onMounted(() => {
+  // DisplayPage 是双面板 UI（panel1 对应 chart-1，panel2 对应 chart-2），但 display preferences
+  // 默认只 1 个 chart 实例。挂载时确保至少 2 个，否则右面板图表永远读不到 chart-2 → "未选择字段"。
+  // updateChartCount(2) 在已有 ≥2 个时保留原状（currentCharts[i] ?? default），多次挂载安全。
+  if (prefs.value.charts.length < 2) {
+    displayService.updateChartCount(2);
+  }
   refreshStats();
   polling.start();
   displayRefresh.start();
@@ -490,6 +548,7 @@ onUnmounted(() => {
         @open-scatter-settings="scatterConfigOpen = true"
         @open-group-config="groupConfigOpen = true"
         @reorder-field="(id, dir) => onReorderField('1', id, dir)"
+        @clear-chart-data="displayRefresh.clearChartData()"
       />
       <DisplayPanel
         panel-id="2"
@@ -512,6 +571,7 @@ onUnmounted(() => {
         @open-scatter-settings="scatterConfigOpen = true"
         @open-group-config="groupConfigOpen = true"
         @reorder-field="(id, dir) => onReorderField('2', id, dir)"
+        @clear-chart-data="displayRefresh.clearChartData()"
       />
     </div>
 

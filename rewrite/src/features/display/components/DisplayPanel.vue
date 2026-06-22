@@ -42,6 +42,7 @@ const emit = defineEmits<{
   'openScatterSettings': [];
   'openGroupConfig': [];
   'reorderField': [dataItemId: string, direction: 'up' | 'down'];
+  'clearChartData': [];
 }>();
 
 const $q = useQuasar();
@@ -199,6 +200,17 @@ const allColumnNames = panelTableColumns
         @click="emit('openChartSettings')"
       >
         <q-tooltip>图表配置</q-tooltip>
+      </q-btn>
+      <q-btn
+        v-if="mode === 'chart'"
+        flat
+        round
+        dense
+        icon="restart_alt"
+        size="sm"
+        @click="emit('clearChartData')"
+      >
+        <q-tooltip>清空折线图数据</q-tooltip>
       </q-btn>
       <q-btn
         v-if="mode === 'special'"
