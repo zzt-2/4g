@@ -122,6 +122,7 @@ timers.clearGroup('polling')
 - 选项数组/标签映射写在 setup 内 → 放模块级或常量文件（O4）
 - 同一逻辑出现 2+ 处不提取（O3）
 - `any` 类型（D6）
+- 预防性堆 `flex-1 min-h-0 overflow-hidden`（每层都加）→ 按场景精确加，滚动边界才加 overflow + min-h-0，拿满父级用 h-full/w-full（L4）
 
 ## 状态声明顺序（O1）
 

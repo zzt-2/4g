@@ -206,6 +206,31 @@ const result = await taskService.validateConfig(config);
 
 不用 xs/sm 断点、不引入 touch 手势库。响应式仅处理窗口缩小，下限 `breakpoint.page-compact`（720px）。
 
+### L4. Flex 布局按最小必要写，不全层堆 `flex-1 min-h-0 overflow-hidden`
+
+结构性 class 按场景精确加，不预防性堆叠：
+
+- **拿满父级宽/高**用 `w-full` / `h-full`，不用 `flex-1`（除非真的是 flex item 要分剩余空间）。
+- **`min-h-0`** 只加在"内部需要 `overflow` 滚动"的 flex item 上（flex 默认 `min-height:auto` 会撑开，挡住滚动）。不滚动的 flex item 不加。
+- **`overflow-auto` / `overflow-y-auto`** 只加在真正的滚动边界（内容超高需要滚的容器）。中间传递层用 `overflow-hidden` 裁剪，普通容器不加 overflow。
+- **`no-wrap`** 给单列 flex 容器（`flex flex-col`）显式标，保证子项不换行、收缩/滚动行为正确。
+
+```html
+<!-- ❌ 预防性堆 flex-1 min-h-0 overflow-hidden，多数层不需要 -->
+<div class="flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="flex-1 min-h-0 overflow-hidden">
+    <div class="flex-1 min-h-0 overflow-y-auto">...</div>
+  </div>
+</div>
+
+<!-- ✅ 只在拿满高度的容器用 h-full，只在滚动边界加 overflow-y-auto + min-h-0 -->
+<div class="flex flex-col h-full">
+  <div class="flex flex-col flex-1 min-h-0 no-wrap">
+    <div class="flex-1 min-h-0 overflow-y-auto">...</div>
+  </div>
+</div>
+```
+
 ---
 
 ## 6. 颜色与状态色
