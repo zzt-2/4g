@@ -163,20 +163,15 @@ const progressLabel = computed(() => {
     </div>
 
     <!-- Step status list — scrollable region occupying all remaining space -->
-    <div class="flex flex-col flex-1 min-h-0 gap-1">
+    <div class="flex flex-col flex-1 min-h-0 gap-1 no-wrap">
       <q-separator />
       <span class="rw-text-label text-xs">步骤状态</span>
-      <div class="flex flex-col gap-1 min-h-0 overflow-y-auto">
-        <div
-          v-for="item in stepStatuses"
-          :key="item.index"
-          class="flex items-center gap-2"
-        >
+      <div class="flex flex-col gap-1 min-h-0 overflow-y-auto no-wrap">
+        <div v-for="item in stepStatuses" :key="item.index" class="flex items-center gap-2">
           <q-icon
             :name="item.status === 'running' ? 'o_pending' : item.status === 'done' ? 'o_check_circle' : item.status === 'failed' ? 'o_error' : item.status === 'skipped' ? 'o_skip_next' : 'o_radio_button_unchecked'"
             :color="item.status === 'done' ? 'positive' : item.status === 'failed' ? 'negative' : item.status === 'running' ? 'primary' : 'grey'"
-            size="xs"
-          />
+            size="xs" />
           <span class="rw-text-value text-xs flex-1">
             {{ item.step.name ?? STEP_KIND_LABELS[item.step.kind].label }} #{{ item.index + 1 }}
           </span>
@@ -200,39 +195,12 @@ const progressLabel = computed(() => {
 
     <!-- Actions -->
     <div class="flex items-center gap-2">
-      <q-btn
-        v-if="isRunning"
-        flat
-        no-caps
-        dense
-        icon="o_pause"
-        label="暂停"
-        color="warning"
-        size="sm"
-        @click="emit('pause')"
-      />
-      <q-btn
-        v-if="isPaused"
-        flat
-        no-caps
-        dense
-        icon="o_play_arrow"
-        label="恢复"
-        color="primary"
-        size="sm"
-        @click="emit('resume')"
-      />
-      <q-btn
-        v-if="isRunning || isPaused"
-        flat
-        no-caps
-        dense
-        icon="o_stop"
-        label="停止"
-        color="negative"
-        size="sm"
-        @click="emit('stop')"
-      />
+      <q-btn v-if="isRunning" flat no-caps dense icon="o_pause" label="暂停" color="warning" size="sm"
+        @click="emit('pause')" />
+      <q-btn v-if="isPaused" flat no-caps dense icon="o_play_arrow" label="恢复" color="primary" size="sm"
+        @click="emit('resume')" />
+      <q-btn v-if="isRunning || isPaused" flat no-caps dense icon="o_stop" label="停止" color="negative" size="sm"
+        @click="emit('stop')" />
     </div>
   </div>
 </template>

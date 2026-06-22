@@ -414,22 +414,14 @@ function hasPreviousSendStep(si: number): boolean {
   <div class="flex flex-1 min-h-0 overflow-hidden">
     <!-- Left: instance list with tabs -->
     <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <TableToolbar
-        v-model:search-model-value="searchText"
-        search-placeholder="搜索任务名称..."
-      >
+      <TableToolbar v-model:search-model-value="searchText" search-placeholder="搜索任务名称...">
         <template #actions>
           <q-btn unelevated no-caps color="primary" icon="o_library_add" label="从模板创建" @click="onCreateFromTemplate" />
           <q-btn flat no-caps icon="o_add" label="空白任务" @click="onNewBlankTask" />
           <q-btn flat no-caps icon="o_stop_circle" label="全部停止" :disable="activeRows.length === 0" @click="onStopAll" />
-          <q-btn
-            v-if="activeTab === 'active'"
-            flat no-caps
-            :icon="batchMode ? 'o_close' : 'o_checklist'"
-            :label="batchMode ? '退出批量' : '批量管理'"
-            :color="batchMode ? 'negative' : 'grey'"
-            @click="batchMode = !batchMode; batchSelectedActiveRows = []; selectedActiveRow = []"
-          />
+          <q-btn v-if="activeTab === 'active'" flat no-caps :icon="batchMode ? 'o_close' : 'o_checklist'"
+            :label="batchMode ? '退出批量' : '批量管理'" :color="batchMode ? 'negative' : 'grey'"
+            @click="batchMode = !batchMode; batchSelectedActiveRows = []; selectedActiveRow = []" />
         </template>
       </TableToolbar>
 
@@ -439,72 +431,46 @@ function hasPreviousSendStep(si: number): boolean {
       </q-tabs>
 
       <div v-if="activeTab === 'active'" class="flex items-center gap-1 px-4 py-1">
-        <q-chip
-          v-for="opt in STATUS_FILTER_OPTIONS"
-          :key="opt.value"
-          dense
-          clickable
+        <q-chip v-for="opt in STATUS_FILTER_OPTIONS" :key="opt.value" dense clickable
           :color="statusFilter === opt.value ? 'primary' : 'grey-4'"
-          :text-color="statusFilter === opt.value ? 'white' : 'grey-7'"
-          @click="statusFilter = opt.value"
-        >
+          :text-color="statusFilter === opt.value ? 'white' : 'grey-7'" @click="statusFilter = opt.value">
           {{ opt.label }}
         </q-chip>
       </div>
 
       <!-- Batch mode toolbar (active tab only) -->
-      <div v-if="activeTab === 'active' && batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
-        <q-btn
-          flat dense no-caps
-          icon="o_send"
-          label="设置发送目标"
-          color="primary"
-          size="sm"
-          :disable="batchSelectedActiveRows.length === 0"
-          @click="onOpenBatchSetTarget"
-        />
+      <div v-if="activeTab === 'active' && batchMode"
+        class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
+        <q-btn flat dense no-caps icon="o_send" label="设置发送目标" color="primary" size="sm"
+          :disable="batchSelectedActiveRows.length === 0" @click="onOpenBatchSetTarget" />
         <span class="rw-text-desc text-xs">{{ batchSelectedActiveRows.length }} 项已选中（仅待启动状态可修改）</span>
         <div class="flex-1" />
-        <q-btn
-          flat dense no-caps
-          label="退出批量模式"
-          size="sm"
-          @click="batchMode = false; batchSelectedActiveRows = []"
-        />
+        <q-btn flat dense no-caps label="退出批量模式" size="sm" @click="batchMode = false; batchSelectedActiveRows = []" />
       </div>
 
       <q-tab-panels v-model="activeTab" animated keep-alive class="flex-1">
         <q-tab-panel name="active" class="p-0 pt-0">
-          <DataTable
-            :columns="taskColumns"
-            :rows="activeRows"
-            row-key="instanceId"
+          <DataTable :columns="taskColumns" :rows="activeRows" row-key="instanceId"
             :selection="batchMode ? 'multiple' : 'single'"
-            :selected="batchMode ? batchSelectedActiveRows : selectedActiveRow"
-            container-height="calc(100vh - 280px)"
+            :selected="batchMode ? batchSelectedActiveRows : selectedActiveRow" container-height="calc(100vh - 280px)"
             @row-click="(_row: TaskTableRow) => { if (!batchMode) onActiveRowClick(_row) }"
-            @update:selected="batchMode ? (batchSelectedActiveRows = $event as TaskTableRow[]) : onActiveSelectionChange($event as TaskTableRow[])"
-          >
+            @update:selected="batchMode ? (batchSelectedActiveRows = $event as TaskTableRow[]) : onActiveSelectionChange($event as TaskTableRow[])">
             <template #no-data>
               <div class="text-center w-full p-4 rw-text-label">暂无活动任务</div>
             </template>
 
             <template #body-cell-templateId="props">
               <q-td :props="props">
-                <span v-if="props.row.templateId" class="rw-text-value text-xs">{{ templateNameMap[props.row.templateId] ?? props.row.templateId.slice(0, 8) + '…' }}</span>
+                <span v-if="props.row.templateId" class="rw-text-value text-xs">{{ templateNameMap[props.row.templateId]
+                  ?? props.row.templateId.slice(0, 8) + '…' }}</span>
                 <span v-else class="rw-text-desc text-xs">--</span>
               </q-td>
             </template>
 
             <template #body-cell-scheduleKind="props">
               <q-td :props="props">
-                <q-chip
-                  dense
-                  outline
-                  :color="props.row.scheduleKindDisplay.color"
-                  :label="props.row.scheduleKindDisplay.label"
-                  class="m-0"
-                />
+                <q-chip dense outline :color="props.row.scheduleKindDisplay.color"
+                  :label="props.row.scheduleKindDisplay.label" class="m-0" />
               </q-td>
             </template>
 
@@ -526,13 +492,8 @@ function hasPreviousSendStep(si: number): boolean {
             <template #body-cell-progress="props">
               <q-td :props="props">
                 <div class="flex items-center gap-2">
-                  <q-linear-progress
-                    :value="props.row.progressPercent / 100"
-                    color="primary"
-                    size="4px"
-                    class="flex-1"
-                    rounded
-                  />
+                  <q-linear-progress :value="props.row.progressPercent / 100" color="primary" size="4px" class="flex-1"
+                    rounded />
                   <span class="rw-text-desc text-xs min-w-[32px] text-right">{{ props.row.progressLabel }}</span>
                 </div>
               </q-td>
@@ -541,39 +502,21 @@ function hasPreviousSendStep(si: number): boolean {
             <template #body-cell-_actions="props">
               <q-td :props="props">
                 <div v-if="!batchMode" class="flex items-center justify-center gap-1">
-                  <q-btn
-                    v-if="props.row.lifecycle === 'created'"
-                    flat round dense icon="o_play_arrow" size="sm" color="positive"
-                    :loading="isOperating(`start-${props.row.instanceId}`)"
-                    @click.stop="onStart(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'running'"
-                    flat round dense icon="o_pause" size="sm" color="warning"
-                    :loading="isOperating(`pause-${props.row.instanceId}`)"
-                    @click.stop="onPause(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'paused'"
-                    flat round dense icon="o_play_arrow" size="sm" color="primary"
-                    :loading="isOperating(`resume-${props.row.instanceId}`)"
-                    @click.stop="onResume(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'running' || props.row.lifecycle === 'paused'"
-                    flat round dense icon="o_stop" size="sm" color="negative"
-                    @click.stop="onStop(props.row.instanceId)"
-                  />
-                  <q-btn
-                    v-if="props.row.lifecycle === 'created'"
-                    flat round dense icon="o_edit" size="sm" color="primary"
-                    @click.stop="onEditTask()"
-                  />
-                  <q-btn
-                    v-if="isTerminal(props.row.lifecycle)"
-                    flat round dense icon="o_delete" size="sm" color="negative"
-                    @click.stop="onRemove(props.row.instanceId)"
-                  />
+                  <q-btn v-if="props.row.lifecycle === 'created'" flat round dense icon="o_play_arrow" size="sm"
+                    color="positive" :loading="isOperating(`start-${props.row.instanceId}`)"
+                    @click.stop="onStart(props.row.instanceId)" />
+                  <q-btn v-if="props.row.lifecycle === 'running'" flat round dense icon="o_pause" size="sm"
+                    color="warning" :loading="isOperating(`pause-${props.row.instanceId}`)"
+                    @click.stop="onPause(props.row.instanceId)" />
+                  <q-btn v-if="props.row.lifecycle === 'paused'" flat round dense icon="o_play_arrow" size="sm"
+                    color="primary" :loading="isOperating(`resume-${props.row.instanceId}`)"
+                    @click.stop="onResume(props.row.instanceId)" />
+                  <q-btn v-if="props.row.lifecycle === 'running' || props.row.lifecycle === 'paused'" flat round dense
+                    icon="o_stop" size="sm" color="negative" @click.stop="onStop(props.row.instanceId)" />
+                  <q-btn v-if="props.row.lifecycle === 'created'" flat round dense icon="o_edit" size="sm"
+                    color="primary" @click.stop="onEditTask()" />
+                  <q-btn v-if="isTerminal(props.row.lifecycle)" flat round dense icon="o_delete" size="sm"
+                    color="negative" @click.stop="onRemove(props.row.instanceId)" />
                 </div>
               </q-td>
             </template>
@@ -582,31 +525,20 @@ function hasPreviousSendStep(si: number): boolean {
 
         <q-tab-panel name="history" class="p-0 pt-0">
           <div v-if="historyRows.length > 0" class="flex justify-end px-4 py-1">
-            <q-btn flat no-caps dense icon="o_delete_sweep" label="清空历史" size="sm" color="negative" @click="onClearHistory" />
+            <q-btn flat no-caps dense icon="o_delete_sweep" label="清空历史" size="sm" color="negative"
+              @click="onClearHistory" />
           </div>
-          <DataTable
-            :columns="historyColumns"
-            :rows="historyRows"
-            row-key="instanceId"
-            selection="single"
-            :selected="selectedHistoryRow"
-            container-height="calc(100vh - 280px)"
-            @row-click="(_row: HistoryTableRow) => onHistoryRowClick(_row)"
-            @update:selected="onHistorySelectionChange"
-          >
+          <DataTable :columns="historyColumns" :rows="historyRows" row-key="instanceId" selection="single"
+            :selected="selectedHistoryRow" container-height="calc(100vh - 280px)"
+            @row-click="(_row: HistoryTableRow) => onHistoryRowClick(_row)" @update:selected="onHistorySelectionChange">
             <template #no-data>
               <div class="text-center w-full p-4 rw-text-label">暂无历史记录</div>
             </template>
 
             <template #body-cell-scheduleKind="props">
               <q-td :props="props">
-                <q-chip
-                  dense
-                  outline
-                  :color="props.row.scheduleKindDisplay.color"
-                  :label="props.row.scheduleKindDisplay.label"
-                  class="m-0"
-                />
+                <q-chip dense outline :color="props.row.scheduleKindDisplay.color"
+                  :label="props.row.scheduleKindDisplay.label" class="m-0" />
               </q-td>
             </template>
 
@@ -631,15 +563,11 @@ function hasPreviousSendStep(si: number): boolean {
             <template #body-cell-_actions="props">
               <q-td :props="props">
                 <div class="flex items-center justify-center gap-1">
-                  <q-btn
-                    flat round dense icon="o_replay" size="sm" color="primary"
+                  <q-btn flat round dense icon="o_replay" size="sm" color="primary"
                     :loading="isOperating(`retry-${props.row.instanceId}`)"
-                    @click.stop="onRetry(props.row.instanceId)"
-                  />
-                  <q-btn
-                    flat round dense icon="o_delete" size="sm" color="negative"
-                    @click.stop="onRemove(props.row.instanceId)"
-                  />
+                    @click.stop="onRetry(props.row.instanceId)" />
+                  <q-btn flat round dense icon="o_delete" size="sm" color="negative"
+                    @click.stop="onRemove(props.row.instanceId)" />
                 </div>
               </q-td>
             </template>
@@ -649,7 +577,7 @@ function hasPreviousSendStep(si: number): boolean {
     </div>
 
     <!-- Right panel: 360px -->
-    <div class="w-[360px] flex-shrink-0 flex flex-col min-h-0 overflow-hidden rw-divider-l">
+    <div class="w-[360px] flex-shrink-0 flex flex-col h-full rw-divider-l">
       <template v-if="selectedInstance">
         <template v-if="selectedInstance.lifecycle === 'created'">
           <div class="flex-1 min-h-0 overflow-y-auto">
@@ -665,12 +593,8 @@ function hasPreviousSendStep(si: number): boolean {
               <div class="mb-3">
                 <span class="rw-text-label text-xs">调度类型</span>
                 <div class="mt-1">
-                  <q-chip
-                    dense
-                    outline
-                    :color="selectedScheduleKindDisplay.color"
-                    :label="selectedScheduleKindDisplay.label"
-                  />
+                  <q-chip dense outline :color="selectedScheduleKindDisplay.color"
+                    :label="selectedScheduleKindDisplay.label" />
                 </div>
               </div>
               <div>
@@ -681,17 +605,10 @@ function hasPreviousSendStep(si: number): boolean {
 
             <div class="p-4">
               <div class="flex items-center gap-2">
-                <q-btn
-                  unelevated no-caps color="primary"
-                  icon="o_edit" label="编辑"
-                  @click="onEditTask"
-                />
-                <q-btn
-                  unelevated no-caps color="positive"
-                  icon="o_play_arrow" label="启动"
+                <q-btn unelevated no-caps color="primary" icon="o_edit" label="编辑" @click="onEditTask" />
+                <q-btn unelevated no-caps color="positive" icon="o_play_arrow" label="启动"
                   :loading="isOperating(`start-${selectedInstance.instanceId}`)"
-                  @click="onStart(selectedInstance.instanceId)"
-                />
+                  @click="onStart(selectedInstance.instanceId)" />
               </div>
             </div>
           </div>
@@ -699,27 +616,19 @@ function hasPreviousSendStep(si: number): boolean {
 
         <template v-else>
           <div class="flex-1 min-h-0 p-4 flex flex-col">
-            <TaskExecutionDetail
-              :instance="selectedInstance"
-              :progress="selectedProgress"
-              :display-status="selectedDisplayStatus"
-              :status-info="selectedStatusInfo"
+            <TaskExecutionDetail :instance="selectedInstance" :progress="selectedProgress"
+              :display-status="selectedDisplayStatus" :status-info="selectedStatusInfo"
               @pause="selectedInstance && onPause(selectedInstance.instanceId)"
               @resume="selectedInstance && onResume(selectedInstance.instanceId)"
-              @stop="selectedInstance && onStop(selectedInstance.instanceId)"
-            />
+              @stop="selectedInstance && onStop(selectedInstance.instanceId)" />
           </div>
           <div v-if="isTerminal(selectedInstance.lifecycle)" class="flex-shrink-0 p-4 rw-divider-t">
             <div class="flex items-center gap-2">
-              <q-btn
-                flat no-caps icon="o_replay" label="重新执行" color="primary"
+              <q-btn flat no-caps icon="o_replay" label="重新执行" color="primary"
                 :loading="isOperating(`retry-${selectedInstance.instanceId}`)"
-                @click="onRetry(selectedInstance.instanceId)"
-              />
-              <q-btn
-                flat no-caps icon="o_delete" label="删除" color="negative"
-                @click="onRemove(selectedInstance.instanceId)"
-              />
+                @click="onRetry(selectedInstance.instanceId)" />
+              <q-btn flat no-caps icon="o_delete" label="删除" color="negative"
+                @click="onRemove(selectedInstance.instanceId)" />
             </div>
           </div>
         </template>
@@ -738,23 +647,13 @@ function hasPreviousSendStep(si: number): boolean {
           <div class="text-h6">从模板创建任务</div>
         </q-card-section>
         <q-card-section class="pt-0">
-          <q-input
-            v-model="pickerSearch"
-            dense outlined
-            placeholder="搜索模板名称..."
-            class="mb-2"
-          >
+          <q-input v-model="pickerSearch" dense outlined placeholder="搜索模板名称..." class="mb-2">
             <template #prepend>
               <q-icon name="o_search" size="xs" />
             </template>
           </q-input>
           <q-list bordered separator class="rounded">
-            <q-item
-              v-for="tpl in filteredPickerRows"
-              :key="tpl.templateId"
-              clickable
-              @click="onPickTemplate(tpl)"
-            >
+            <q-item v-for="tpl in filteredPickerRows" :key="tpl.templateId" clickable @click="onPickTemplate(tpl)">
               <q-item-section>
                 <q-item-label class="rw-text-value">{{ tpl.name }}</q-item-label>
                 <q-item-label caption>
@@ -787,44 +686,22 @@ function hasPreviousSendStep(si: number): boolean {
         <q-card-section class="pt-0 rw-dialog-scroll-body">
           <q-form ref="editorFormRef" @submit.prevent>
             <div class="flex flex-col gap-4">
-              <q-input
-                v-model="editor.taskName.value"
-                dense outlined
-                label="任务名称"
-                :rules="[(val: string) => !!val || '请输入任务名称']"
-              />
+              <q-input v-model="editor.taskName.value" dense outlined label="任务名称"
+                :rules="[(val: string) => !!val || '请输入任务名称']" />
 
               <div>
                 <span class="rw-text-label text-xs">调度类型</span>
-                <q-select
-                  v-model="editor.scheduleKind.value"
-                  :options="SCHEDULE_KIND_OPTIONS"
-                  emit-value
-                  map-options
-                  outlined dense
-                  class="mt-1"
-                />
+                <q-select v-model="editor.scheduleKind.value" :options="SCHEDULE_KIND_OPTIONS" emit-value map-options
+                  outlined dense class="mt-1" />
               </div>
 
               <template v-if="editor.scheduleKind.value === 'timer'">
-                <q-input
-                  v-model.number="editor.timerIntervalMs.value"
-                  dense outlined
-                  type="number"
-                  label="间隔 (ms)"
-                  :rules="[(val: number) => val > 0 || '间隔必须大于0']"
-                />
+                <q-input v-model.number="editor.timerIntervalMs.value" dense outlined type="number" label="间隔 (ms)"
+                  :rules="[(val: number) => val > 0 || '间隔必须大于0']" />
                 <div class="flex items-center gap-3">
                   <q-toggle v-model="editor.timerInfinite.value" label="无限循环" />
-                  <q-input
-                    v-if="!editor.timerInfinite.value"
-                    v-model.number="editor.timerIterations.value"
-                    dense outlined
-                    type="number"
-                    label="执行次数"
-                    :rules="[(val: number) => val > 0 || '次数必须大于0']"
-                    class="w-40"
-                  />
+                  <q-input v-if="!editor.timerInfinite.value" v-model.number="editor.timerIterations.value" dense
+                    outlined type="number" label="执行次数" :rules="[(val: number) => val > 0 || '次数必须大于0']" class="w-40" />
                 </div>
               </template>
 
@@ -832,49 +709,28 @@ function hasPreviousSendStep(si: number): boolean {
                 <div class="flex flex-col gap-2">
                   <div class="flex items-center justify-between">
                     <span class="rw-text-label text-xs">触发条件</span>
-                    <q-btn flat dense no-caps icon="o_add" label="添加条件" size="sm" color="primary" @click="editor.addEventCondition()" />
+                    <q-btn flat dense no-caps icon="o_add" label="添加条件" size="sm" color="primary"
+                      @click="editor.addEventCondition()" />
                   </div>
-                  <div
-                    v-for="(cond, ci) in editor.eventConditions.value"
-                    :key="ci"
-                    class="flex items-center gap-1"
-                  >
-                    <ConditionTermEditor
-                      :model-value="cond"
-                      :frame-service="frameService"
-                      :show-logic-operator="ci > 0"
-                      direction="receive"
-                      @update:model-value="editor.updateEventCondition(ci, $event)"
-                    />
-                    <q-btn flat round dense icon="o_close" size="xs" color="negative" @click="editor.removeEventCondition(ci)" />
+                  <div v-for="(cond, ci) in editor.eventConditions.value" :key="ci" class="flex items-center gap-1">
+                    <ConditionTermEditor :model-value="cond" :frame-service="frameService" :show-logic-operator="ci > 0"
+                      direction="receive" @update:model-value="editor.updateEventCondition(ci, $event)" />
+                    <q-btn flat round dense icon="o_close" size="xs" color="negative"
+                      @click="editor.removeEventCondition(ci)" />
                   </div>
                   <div v-if="editor.eventConditions.value.length === 0" class="rw-text-desc text-xs">至少添加一条触发条件</div>
-                  <q-input
-                    :model-value="editor.eventCooldownMs.value"
-                    dense outlined
-                    type="number"
-                    label="冷却时间 (ms)"
-                    @update:model-value="editor.eventCooldownMs.value = Number($event) || 0"
-                  />
+                  <q-input :model-value="editor.eventCooldownMs.value" dense outlined type="number" label="冷却时间 (ms)"
+                    @update:model-value="editor.eventCooldownMs.value = Number($event) || 0" />
                 </div>
               </template>
 
               <div>
                 <span class="rw-text-label text-xs">默认发送目标</span>
-                <SendTargetSelector
-                  :model-value="editor.defaultTargetId.value"
-                  :connection-service="connectionService"
-                  class="mt-1"
-                  @update:model-value="editor.defaultTargetId.value = $event"
-                />
+                <SendTargetSelector :model-value="editor.defaultTargetId.value" :connection-service="connectionService"
+                  class="mt-1" @update:model-value="editor.defaultTargetId.value = $event" />
                 <div class="rw-text-desc text-caption mt-1">未在步骤内单独覆盖时，所有 send 步骤使用此目标</div>
-                <q-btn
-                  flat dense no-caps
-                  label="清空所有步骤的发送目标覆盖"
-                  size="sm"
-                  color="primary"
-                  @click="editor.clearAllStepTargetOverrides()"
-                />
+                <q-btn flat dense no-caps label="清空所有步骤的发送目标覆盖" size="sm" color="primary"
+                  @click="editor.clearAllStepTargetOverrides()" />
               </div>
 
               <q-separator />
@@ -884,68 +740,36 @@ function hasPreviousSendStep(si: number): boolean {
                   <span class="rw-text-label text-xs">步骤列表</span>
                   <q-btn-dropdown flat dense no-caps label="添加步骤" size="sm" color="primary">
                     <q-list>
-                      <q-item
-                        v-for="opt in ADD_STEP_OPTIONS"
-                        :key="opt.value"
-                        clickable
-                        dense
-                        v-close-popup
-                        @click="onAddStep(opt.value)"
-                      >
+                      <q-item v-for="opt in ADD_STEP_OPTIONS" :key="opt.value" clickable dense v-close-popup
+                        @click="onAddStep(opt.value)">
                         <q-item-section>{{ opt.label }}</q-item-section>
                       </q-item>
                     </q-list>
                   </q-btn-dropdown>
                 </div>
 
-                <q-expansion-item
-                  v-for="(step, si) in editor.steps.value"
-                  :key="step.id"
-                  dense
-                  switch-toggle-side
-                  :label="step.name ?? STEP_KIND_LABELS[step.kind].label"
-                  :caption="STEP_KIND_LABELS[step.kind].label"
-                  header-class="rw-text-value text-sm"
-                >
+                <q-expansion-item v-for="(step, si) in editor.steps.value" :key="step.id" dense switch-toggle-side
+                  :label="step.name ?? STEP_KIND_LABELS[step.kind].label" :caption="STEP_KIND_LABELS[step.kind].label"
+                  header-class="rw-text-value text-sm">
                   <div class="pl-3 flex flex-col gap-3">
-                    <SendStepEditor
-                      v-if="step.kind === 'send'"
-                      :step="step.config"
-                      :step-name="step.name ?? ''"
-                      :step-index="si"
-                      :has-previous-send-step="hasPreviousSendStep(si)"
-                      :frame-service="frameService"
+                    <SendStepEditor v-if="step.kind === 'send'" :step="step.config" :step-name="step.name ?? ''"
+                      :step-index="si" :has-previous-send-step="hasPreviousSendStep(si)" :frame-service="frameService"
                       :connection-service="connectionService"
                       @update:step="onStepUpdate(si, { ...step, config: $event })"
                       @update:step-name="onStepNameUpdate(si, $event)"
-                      @copy-previous="editor.duplicateStepValuesFromPrevious(si)"
-                    />
+                      @copy-previous="editor.duplicateStepValuesFromPrevious(si)" />
 
-                    <WaitConditionStepEditor
-                      v-if="step.kind === 'wait-condition'"
-                      :step="step.config"
-                      :step-name="step.name ?? ''"
-                      :frame-service="frameService"
+                    <WaitConditionStepEditor v-if="step.kind === 'wait-condition'" :step="step.config"
+                      :step-name="step.name ?? ''" :frame-service="frameService"
                       @update:step="onStepUpdate(si, { ...step, config: $event })"
-                      @update:step-name="onStepNameUpdate(si, $event)"
-                    />
+                      @update:step-name="onStepNameUpdate(si, $event)" />
 
-                    <DelayStepEditor
-                      v-if="step.kind === 'delay'"
-                      :step="step.config"
-                      :step-name="step.name ?? ''"
+                    <DelayStepEditor v-if="step.kind === 'delay'" :step="step.config" :step-name="step.name ?? ''"
                       @update:step="onStepUpdate(si, { ...step, config: $event })"
-                      @update:step-name="onStepNameUpdate(si, $event)"
-                    />
+                      @update:step-name="onStepNameUpdate(si, $event)" />
 
-                    <q-btn
-                      flat dense no-caps
-                      label="删除步骤"
-                      icon="o_delete"
-                      size="sm"
-                      color="negative"
-                      @click="editor.removeStep(si)"
-                    />
+                    <q-btn flat dense no-caps label="删除步骤" icon="o_delete" size="sm" color="negative"
+                      @click="editor.removeStep(si)" />
                   </div>
                 </q-expansion-item>
 
@@ -956,23 +780,15 @@ function hasPreviousSendStep(si: number): boolean {
 
               <q-separator />
 
-              <AdvancedConfigPanel
-                :stop-condition="editor.stopCondition.value"
-                :error-policy="editor.errorPolicy.value"
-                :frame-service="frameService"
-                @update:stop-condition="editor.stopCondition.value = $event ?? {}"
-                @update:error-policy="editor.errorPolicy.value = $event"
-              />
+              <AdvancedConfigPanel :stop-condition="editor.stopCondition.value" :error-policy="editor.errorPolicy.value"
+                :frame-service="frameService" @update:stop-condition="editor.stopCondition.value = $event ?? {}"
+                @update:error-policy="editor.errorPolicy.value = $event" />
 
               <template v-if="editor.validationIssues.value.length > 0">
                 <q-separator />
                 <div class="flex flex-col gap-1">
-                  <div
-                    v-for="(issue, ii) in editor.validationIssues.value"
-                    :key="ii"
-                    class="text-xs"
-                    :class="issue.severity === 'error' ? 'text-negative' : 'text-warning'"
-                  >
+                  <div v-for="(issue, ii) in editor.validationIssues.value" :key="ii" class="text-xs"
+                    :class="issue.severity === 'error' ? 'text-negative' : 'text-warning'">
                     {{ issue.message }}
                   </div>
                 </div>
@@ -983,18 +799,9 @@ function hasPreviousSendStep(si: number): boolean {
 
         <q-card-actions align="right">
           <q-btn flat no-caps label="取消" @click="editor.isEditing.value = false" />
-          <q-btn
-            unelevated no-caps color="primary"
-            label="保存"
-            :loading="editor.isSaving.value"
-            @click="onSave"
-          />
-          <q-btn
-            unelevated no-caps color="positive"
-            label="保存并启动"
-            :loading="editor.isSaving.value"
-            @click="onSaveAndStart"
-          />
+          <q-btn unelevated no-caps color="primary" label="保存" :loading="editor.isSaving.value" @click="onSave" />
+          <q-btn unelevated no-caps color="positive" label="保存并启动" :loading="editor.isSaving.value"
+            @click="onSaveAndStart" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -1011,21 +818,13 @@ function hasPreviousSendStep(si: number): boolean {
         </q-card-section>
         <q-card-section class="pt-0">
           <span class="rw-text-label text-xs">发送目标</span>
-          <SendTargetSelector
-            :model-value="batchTargetId"
-            :connection-service="connectionService"
-            class="mt-1"
-            @update:model-value="batchTargetId = $event"
-          />
+          <SendTargetSelector :model-value="batchTargetId" :connection-service="connectionService" class="mt-1"
+            @update:model-value="batchTargetId = $event" />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat no-caps label="取消" v-close-popup />
-          <q-btn
-            unelevated no-caps color="primary"
-            label="应用"
-            :disable="!batchTargetId"
-            @click="onConfirmBatchSetTarget"
-          />
+          <q-btn unelevated no-caps color="primary" label="应用" :disable="!batchTargetId"
+            @click="onConfirmBatchSetTarget" />
         </q-card-actions>
       </q-card>
     </q-dialog>

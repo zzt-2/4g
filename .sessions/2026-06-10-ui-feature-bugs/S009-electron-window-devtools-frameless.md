@@ -263,3 +263,31 @@ Quasar 的实际高度模型(从 node_modules/quasar/dist/quasar.css 直读):
 - AppShell.vue + TaskExecutionDetail.vue eslint 0 error,SCSS 编译 OK
 - 纯 CSS/class 改动,无 TS/逻辑改动
 - **待用户实测**(重启 dev server):(a) header 不遮内容顶(内容从 header 下方 50px 处开始);(b) TaskExecutionDetail 步骤状态区占满右栏剩余空间并在内部滚;(c) 滚动条在 header 下方不盖 header
+
+## 续接5(2026-06-22):用户亲改——我过度工程,真正修复只两点
+
+### 用户反馈(直接改了给我看)
+
+> "你是不会写前端吗?我自己看了看,发现你这一大堆 flex-1 min-h-0 overflow-hidden。正常我们这种不会去全都加吧?大部分都是不管或者 w-full、h-full?只有关键地方加,有的地方补上 overflow-auto 和 no-wrap 就行。你看我改的,我就动了一点点就改好了,你怎么这么费劲"
+
+用户亲自改了两个文件(ExecutionListPage + TaskExecutionDetail),diff 后发现**真正的布局修复只有两点**,其余 95% 是 prettier 格式化(多行属性压单行)。
+
+### 用户真正的两点修复
+
+1. **`TaskExecutionDetail.vue`**:步骤状态区 + 内部滚动列表两个 flex 容器加 **`no-wrap`**(`flex flex-col flex-1 min-h-0 gap-1 no-wrap` 和 `flex flex-col gap-1 min-h-0 overflow-y-auto no-wrap`)。我完全漏了 flex-wrap 这个维度——显式 no-wrap 保证子项不换行,让 min-h-0 + overflow-y-auto 正确触发收缩滚动。**根 flex-1 min-h-0 用户保留了我加的**(那层是对的)。
+2. **`ExecutionListPage.vue` 右栏根**:`w-[360px] flex-shrink-0 flex flex-col min-h-0 overflow-hidden rw-divider-l` → **`w-[360px] flex-shrink-0 flex flex-col h-full rw-divider-l`**。即 `min-h-0 overflow-hidden` → `h-full`。右栏直接 h-full 拿满父高,比"min-h-0 + overflow-hidden 保险"更直接简洁。**701 行父 div 的 `flex-1 min-h-0 p-4 flex flex-col` 用户保留**(续接2 那层是对的)。
+
+### 教训(过度工程反例,记下避免再犯)
+
+我前 4 次续接堆了大量 `flex-1 min-h-0 overflow-hidden`,几乎每层都加保险。**这是过度工程**。正确的最小化布局思路(用户原话归纳):
+
+- **大部分地方不管或 `w-full`/`h-full` 就够**——容器拿满父级宽/高,不需要 flex-1 + min-h-0 三件套
+- **只在真正需要裁剪的滚动边界加 `overflow-auto`**(或 overflow-y-auto),不是每层都加 overflow-hidden
+- **有的地方补 `no-wrap`**(flex 容器)——我这次完全漏了这个维度,flex-wrap 会影响子项收缩行为
+- **关键地方才加 min-h-0**——不是每个 flex item 都要 min-h-0,只在"flex item 内部要 overflow 滚动"时才必须(否则 flex 默认 min-height:auto 撑开)
+
+**对照**:续接2 给 701 加 `flex flex-col`、续接3 给 q-layout height:100%、续接4 给 TaskExecutionDetail 根 flex-1 min-h-0——这些**部分有用**(高度链源头 + 关键 flex 容器),但我同时在很多不需要的地方也堆了 min-h-0 overflow-hidden,把简单问题搞复杂。用户只动两点(no-wrap + 右栏 h-full)就解决了 TaskExecutionDetail 滚动。
+
+### 续接5提交
+
+提交用户亲改的两个文件(ExecutionListPage + TaskExecutionDetail)。改动主体是格式化 + 两个真修复点(no-wrap + 右栏 h-full)。无 D###(纯布局最小化修正)。
