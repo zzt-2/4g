@@ -11,6 +11,8 @@ interface DataTableProps {
   selected?: readonly T[];
   virtualScrollItemSize?: number;
   containerHeight?: string;
+  /** 紧凑行高：td 纵向 padding 压到 2px、line-height 1.15（约 20px/行，默认约 36px）。 */
+  compact?: boolean;
 }
 
 const props = withDefaults(defineProps<DataTableProps>(), {
@@ -19,6 +21,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   selected: () => [],
   virtualScrollItemSize: 36,
   containerHeight: 'calc(100vh - 200px)',
+  compact: false,
 });
 
 const emit = defineEmits<{
@@ -40,6 +43,7 @@ const showSelection = computed(() => props.selection !== 'none');
   <q-table
     ref="tableRef"
     flat
+    :dense="compact"
     :columns="columns"
     :rows="rows"
     :row-key="rowKey"
@@ -50,7 +54,7 @@ const showSelection = computed(() => props.selection !== 'none');
     :virtual-scroll-item-size="virtualScrollItemSize"
     :rows-per-page-options="[0]"
     :style="{ maxHeight: containerHeight }"
-    class="data-table"
+    :class="['data-table', { 'data-table--compact': compact }]"
     @row-click="(_evt: MouseEvent, row: T, index: number) => emit('row-click', row, index, _evt)"
   >
     <template #no-data>
@@ -84,6 +88,14 @@ const showSelection = computed(() => props.selection !== 'none');
   :deep(td.q-table--col-auto-width) {
     width: 48px;
     min-width: 48px;
+  }
+
+  // 紧凑模式：td 纵向 padding 8→2px + line-height 1.5→1.15，行高约 36→20px。
+  // 用 DataTable 自身 scoped（proven 生效），避免父组件 :deep 穿透子组件根元素失效。
+  &.data-table--compact :deep(tbody td) {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    line-height: 1.15;
   }
 }
 </style>

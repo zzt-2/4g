@@ -234,6 +234,8 @@ const allColumnNames = panelTableColumns
           :rows="rows"
           row-key="dataItemId"
           container-height="100%"
+          :virtual-scroll-item-size="20"
+          compact
         >
           <template #no-data>
             <div class="text-center w-full p-4 rw-text-label">暂无字段数据</div>

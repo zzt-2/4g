@@ -45,8 +45,8 @@ sessions:
     title: 接收帧分组管理 Feature 实施与修复
     status: active
     created: 2026-06-11
-    last_updated: 2026-06-21
-    description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。S008 修接收页鬼畜（emergent 分组裸 id + buildPlaceholderRows 返空 + buffer 整体覆盖三连环缺陷），2 条偏离设计决策（buffer 累积/emergent 立足帧定义）。
+    last_updated: 2026-06-22
+    description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。S008 修接收页鬼畜（emergent 分组裸 id + buildPlaceholderRows 返空 + buffer 整体覆盖三连环缺陷），2 条偏离设计决策（buffer 累积/emergent 立足帧定义）。S009 实时测试页三处 UI 调整（标题改名 + stat 移位单行 + 行间距减半），纯样式无 D###。
 
   - slug: 2026-06-12-checksum-sum-word
     title: Checksum SUM32/SUM16 Feature 实施

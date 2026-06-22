@@ -492,36 +492,8 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-3">
-        <h1 class="display-page__title m-0">实时展示</h1>
+        <h1 class="display-page__title m-0">实时测试</h1>
         <StatusBadge :status="lifecycle" :status-map="receiveLifecycleMap" />
-      </div>
-    </div>
-
-    <!-- Stats bar -->
-    <div class="display-page__stats mb-3">
-      <div class="display-page__stat-item">
-        <span class="rw-text-label">匹配率</span>
-        <strong class="rw-text-value">{{ matchRate }}</strong>
-      </div>
-      <div class="display-page__stat-item">
-        <span class="rw-text-label">总批次</span>
-        <strong class="rw-text-value">{{ counters.batchCount }}</strong>
-      </div>
-      <div class="display-page__stat-item">
-        <span class="rw-text-label">已匹配</span>
-        <strong class="rw-text-value text-positive">{{ counters.matchedCount }}</strong>
-      </div>
-      <div class="display-page__stat-item">
-        <span class="rw-text-label">未匹配</span>
-        <strong class="rw-text-value">{{ counters.unmatchedCount }}</strong>
-      </div>
-      <div class="display-page__stat-item">
-        <span class="rw-text-label">错误</span>
-        <strong class="rw-text-value text-negative">{{ counters.inputErrorCount + counters.configErrorCount + counters.parseErrorCount }}</strong>
-      </div>
-      <div class="display-page__stat-item">
-        <span class="rw-text-label">字节数</span>
-        <strong class="rw-text-value">{{ counters.byteCount }}</strong>
       </div>
     </div>
 
@@ -575,7 +547,7 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- Bottom bar: recording controls -->
+    <!-- Bottom bar: recording controls + 统计指标（同一行） -->
     <div class="display-page__bottom-bar mt-3">
       <div class="flex items-center gap-3">
         <q-btn
@@ -606,6 +578,33 @@ onUnmounted(() => {
           </q-badge>
           <span class="rw-text-desc">{{ recordCount }} 条记录</span>
         </template>
+
+        <span class="display-page__bottom-divider" />
+
+        <div class="display-page__stat-item">
+          <span class="rw-text-label">匹配率</span>
+          <strong class="rw-text-value">{{ matchRate }}</strong>
+        </div>
+        <div class="display-page__stat-item">
+          <span class="rw-text-label">总批次</span>
+          <strong class="rw-text-value">{{ counters.batchCount }}</strong>
+        </div>
+        <div class="display-page__stat-item">
+          <span class="rw-text-label">已匹配</span>
+          <strong class="rw-text-value text-positive">{{ counters.matchedCount }}</strong>
+        </div>
+        <div class="display-page__stat-item">
+          <span class="rw-text-label">未匹配</span>
+          <strong class="rw-text-value">{{ counters.unmatchedCount }}</strong>
+        </div>
+        <div class="display-page__stat-item">
+          <span class="rw-text-label">错误</span>
+          <strong class="rw-text-value text-negative">{{ counters.inputErrorCount + counters.configErrorCount + counters.parseErrorCount }}</strong>
+        </div>
+        <div class="display-page__stat-item">
+          <span class="rw-text-label">字节数</span>
+          <strong class="rw-text-value">{{ counters.byteCount }}</strong>
+        </div>
       </div>
 
       <div class="flex items-center gap-3">
@@ -652,22 +651,11 @@ onUnmounted(() => {
   line-height: var(--rw-line-height-title-lg);
 }
 
-.display-page__stats {
-  border: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
-  border-radius: var(--rw-radius-panel);
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
 .display-page__stat-item {
-  border-right: var(--rw-border-width-subtle) solid var(--rw-color-border-subtle);
-  display: grid;
-  gap: 2px;
-  padding: var(--rw-space-3) var(--rw-space-4);
-
-  &:last-child {
-    border-right: none;
-  }
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--rw-space-1);
+  white-space: nowrap;
 
   span {
     color: var(--rw-color-text-muted);
@@ -681,6 +669,13 @@ onUnmounted(() => {
     font-weight: var(--rw-font-weight-semibold);
     line-height: var(--rw-line-height-body);
   }
+}
+
+// 录制控件区与统计指标区的竖向分隔线
+.display-page__bottom-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rw-color-border-subtle);
 }
 
 .display-page__panels {

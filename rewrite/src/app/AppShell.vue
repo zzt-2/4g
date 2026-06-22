@@ -29,7 +29,7 @@ const navigationItems = [
   { label: '连接管理', to: '/connection', icon: 'link' },
   { label: '帧定义', to: '/frames', icon: 'view_agenda' },
   { label: '帧发送', to: '/send', icon: 'send' },
-  { label: '实时展示', to: '/display', icon: 'monitor_heart' },
+  { label: '实时测试', to: '/display', icon: 'monitor_heart' },
   { label: '任务管理', to: '/tasks', icon: 'assignment' },
   { label: '指令接入', to: '/command-ingress', icon: 'settings_input_antenna' },
 ] as const;

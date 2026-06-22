@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-21 S008 接收页鬼畜修复
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-22 S009 实时测试页布局调整
 
 ## 进展线索
 
@@ -9,6 +9,7 @@
 - **S002** 图表累积重构 (06-12)：6 agent 验证 + 三阶段实施完成。图表时序累积移到 composable，删除死代码（projection/selector/clone/service），新增 getSourceFields() 方法。lint+test 通过
 - **S006** v2 审查反馈修复 (06-12)：4 blocker + 4 major + 2 minor 全部修复。lint display 0 error / display test 66 pass（含 8 新增验收场景）/ v2 引入 tsc error 全清
 - **S008** 接收页鬼畜修复 (06-21)：H001 已收口（主干测试转绿）。修复 emergent 分组 label 裸 frameId + buildPlaceholderRows 对 emergent 返空 + display buffer 整体覆盖三个连环缺陷。2 条偏离设计的决策（D-buffer-accumulate / D-emergent-from-frame-def）。test 105/105、lint 净
+- **S009** 实时测试页布局调整 (06-22)：三处纯 UI 调整（3 轮迭代）——标题"实时展示"→"实时测试"（含 AppShell 菜单同步）、stat 并入底栏录制行不再单独成块、表格行高压缩（DataTable compact prop 双保险：dense + scoped CSS，行高 36→20px）。行高前 2 次 scoped :deep 因选择器落在子组件根元素上失效，根因已记。无 D###。test 61/61、lint 净
 
 ## 已确认结论
 
@@ -30,4 +31,4 @@
 
 ## 当前位置
 
-S008 完成：接收页分组名裸 id + 表格鬼畜（整表闪空 + 内容闪）三个连环缺陷已修，test 105/105、lint 净，诊断日志已撤。两条偏离设计的决策已记入 S008 决策段 + voice.md。等用户回测确认行为。
+S009 完成：实时测试页三处 UI 调整（标题改名 + stat 移位单行 + 行间距减半）已交付，test 61/61、lint 净。等用户运行时回测视觉效果。S008 的鬼畜修复等用户回测确认行为（两条决策已在 S008/voice.md 落档）。
