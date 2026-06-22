@@ -1,7 +1,18 @@
 html,
 body,
 #q-app {
+  /* 锁定视口高度:height:100% 给 #q-app(= .q-layout-container,Quasar 默认 height:100%)
+     一个稳定的视口高度父级,让整条高度链(html → body → #q-app → .q-layout)成立。
+     仅 min-height:100% 不够:body 会被超高内容撑过视口 → 出现 body 级滚动条 →
+     盖住 q-header(fixed 在视口顶部,但滚动条是浏览器绘制在视口右边缘的最顶层,盖不住)。
+     overflow:hidden 让 body 本身永不滚动,滚动只发生在 q-page-container 内容区(header 下方)。 */
+  height: 100%;
   min-height: 100%;
+}
+
+html,
+body {
+  overflow: hidden;
 }
 
 body {

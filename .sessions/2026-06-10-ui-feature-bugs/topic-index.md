@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 Electron 主窗口壳层改造:devTools 默认开(dev) + 无边框窗口(frame:false) + 自定义窗口控制三按钮(minimize/maximize-toggle/close)。三层联动:main(window-handlers.ts 新增 + index.ts frame:false/openDevTools)+ preload(windowControl bridge)+ types(WindowControlBridge)+ renderer(AppShell q-toolbar 加三按钮 + drag/no-drag 区 + 最大化图标事件同步)。见 D009。前次 2026-06-22 S008 任务管理两页批量设置发送目标。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-22 S009 续接 修滚动条盖标题栏 bug(早存,frameless 后暴露):根因 base.scss `html,body,#q-app { min-height:100% }` 无 height + .q-layout 无 height → page-container `height:100%` 退化为 auto → 内容撑开冒泡到 body → body 滚动条盖住 fixed header(浏览器滚动条在最顶层 z-index 无效)。b40e2b8 此前修过半截。修复:base.scss 加 `height:100%`+body `overflow:hidden` 锁视口 + AppShell page-container 改 `overflow-y:auto` 在 header 下滚。前次 2026-06-22 S009 Electron 主窗口壳层改造:devTools 默认开(dev) + 无边框窗口(frame:false) + 自定义窗口控制三按钮(minimize/maximize-toggle/close)。见 D009。
 
 ## 进展线索
 
