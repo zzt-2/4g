@@ -201,6 +201,15 @@ const targetLabelMap = computed<Record<string, string>>(() => {
   return map;
 });
 
+// templateId → 模板名称查找表。"来源模板"列展示名称而非 id。
+const templateNameMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {};
+  for (const tpl of taskService.listTemplates()) {
+    map[tpl.templateId] = tpl.name;
+  }
+  return map;
+});
+
 function onActiveRowClick(row: TaskTableRow): void {
   selectedActiveRow.value = [row];
 }
@@ -482,7 +491,7 @@ function hasPreviousSendStep(si: number): boolean {
 
             <template #body-cell-templateId="props">
               <q-td :props="props">
-                <span v-if="props.row.templateId" class="rw-text-value text-xs">{{ props.row.templateId.slice(0, 8) }}…</span>
+                <span v-if="props.row.templateId" class="rw-text-value text-xs">{{ templateNameMap[props.row.templateId] ?? props.row.templateId.slice(0, 8) + '…' }}</span>
                 <span v-else class="rw-text-desc text-xs">--</span>
               </q-td>
             </template>

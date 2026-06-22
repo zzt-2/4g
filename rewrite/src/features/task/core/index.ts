@@ -50,6 +50,7 @@ export {
   createWaitConditionStep,
   createTaskDefinition,
   cloneStepDefinition,
+  applyDefaultTargetOverride,
 } from './task-builders';
 export { serializeTaskDefinition, deserializeTaskDefinition } from './task-serialization';
 export type { SerializedTaskDefinition } from './task-serialization';

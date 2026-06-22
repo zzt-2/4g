@@ -11,7 +11,7 @@ import type {
   StepRepeat,
   CustomerSyncMeta,
 } from '../core';
-import { validateTaskDefinition, createTaskDefinition, cloneStepDefinition } from '../core';
+import { validateTaskDefinition, createTaskDefinition, cloneStepDefinition, applyDefaultTargetOverride } from '../core';
 import type { TaskValidationIssue } from '../core/task-validation';
 import { deepToRaw } from './deep-raw';
 
@@ -260,6 +260,22 @@ export function useTemplateEditor(taskService: TaskService) {
     });
   }
 
+  // 批量设置发送目标（任务级）：写 defaultTargetId + 清空所有 send step 的 step 级 targetId 覆盖。
+  // 语义：所有 send step 统一回退到任务级 defaultTargetId。
+  function setAllStepTargetOverrides(targetId: string | null): void {
+    const draft = {
+      id: 'draft',
+      name: 'draft',
+      steps: steps.value,
+      schedule: { kind: 'immediate' },
+      errorPolicy: errorPolicy.value,
+      ...(defaultTargetId.value ? { defaultTargetId: defaultTargetId.value } : {}),
+    } as TaskDefinition;
+    const next = applyDefaultTargetOverride(draft, targetId);
+    steps.value = [...next.steps];
+    defaultTargetId.value = next.defaultTargetId ?? null;
+  }
+
   function updateStepRepeat(index: number, repeat: StepRepeat | undefined): void {
     const step = steps.value[index];
     if (step.kind !== 'send') return;
@@ -314,6 +330,7 @@ export function useTemplateEditor(taskService: TaskService) {
     updateEventCondition,
     duplicateStepValuesFromPrevious,
     clearAllStepTargetOverrides,
+    setAllStepTargetOverrides,
     updateStepRepeat,
     addExitCondition,
     removeExitCondition,

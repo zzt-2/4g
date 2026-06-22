@@ -7,6 +7,7 @@ export interface TaskTableRow {
   readonly templateId?: string;
   readonly scheduleKind: string;
   readonly scheduleKindDisplay: { readonly color: string; readonly label: string };
+  readonly defaultTargetId?: string;
   readonly lifecycle: string;
   readonly displayStatus: string;
   readonly progressPercent: number;
@@ -36,8 +37,16 @@ export const taskColumns: QTableColumn[] = [
     field: 'scheduleKind',
     align: 'center',
     sortable: true,
-    style: 'width: 100px',
-    headerStyle: 'width: 100px',
+    style: 'width: 120px',
+    headerStyle: 'width: 120px',
+  },
+  {
+    name: 'defaultTargetId',
+    label: '默认发送目标',
+    field: 'defaultTargetId',
+    align: 'left',
+    style: 'width: 160px',
+    headerStyle: 'width: 160px',
   },
   {
     name: 'status',

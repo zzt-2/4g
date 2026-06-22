@@ -30,10 +30,13 @@ export function toTaskRow(inst: ReadonlyTaskInstanceState): TaskTableRow {
       : `${progress.stepsCompleted}/${progress.stepsTotal}`,
     _original: inst,
   };
+  const withTarget = inst.definitionRef.defaultTargetId
+    ? { ...base, defaultTargetId: inst.definitionRef.defaultTargetId }
+    : base;
   if (inst.templateId !== undefined) {
-    return { ...base, templateId: inst.templateId };
+    return { ...withTarget, templateId: inst.templateId };
   }
-  return base;
+  return withTarget;
 }
 
 export function toHistoryRow(inst: ReadonlyTaskInstanceState): HistoryTableRow {

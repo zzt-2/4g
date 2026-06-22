@@ -7,6 +7,7 @@ export interface TemplateTableRow {
   readonly scheduleKind: string;
   readonly scheduleKindDisplay: { readonly color: string; readonly label: string };
   readonly tags: readonly string[];
+  readonly defaultTargetId?: string;
   readonly stepCount: number;
   readonly updatedAt: string;
   readonly _original: TaskTemplate;
@@ -26,8 +27,8 @@ export const templateColumns: QTableColumn[] = [
     field: 'scheduleKind',
     align: 'center',
     sortable: true,
-    style: 'width: 100px',
-    headerStyle: 'width: 100px',
+    style: 'width: 120px',
+    headerStyle: 'width: 120px',
   },
   {
     name: 'tags',
@@ -36,6 +37,14 @@ export const templateColumns: QTableColumn[] = [
     align: 'left',
     style: 'width: 200px',
     headerStyle: 'width: 200px',
+  },
+  {
+    name: 'defaultTargetId',
+    label: '默认发送目标',
+    field: 'defaultTargetId',
+    align: 'left',
+    style: 'width: 160px',
+    headerStyle: 'width: 160px',
   },
   {
     name: 'stepCount',

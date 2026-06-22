@@ -13,6 +13,7 @@ import SendTargetSelector from '@/features/send/components/SendTargetSelector.vu
 import { useAsyncAction, useNotify } from '@/shared/composables';
 import { formatDateTime } from '@/shared/utils/format';
 import type { TaskStepDefinition, TaskTemplate } from '@/features/task/core';
+import { applyDefaultTargetOverride } from '@/features/task/core';
 import { exportTemplates, parseImportedFile } from '@/features/task/services/task-template-io';
 import { SCHEDULE_KIND_MAP, SCHEDULE_KIND_OPTIONS } from '@/features/task/components/scheduleKindMap';
 import { STEP_KIND_LABELS, ADD_STEP_OPTIONS, createBlankStepByKind } from '@/features/task/components/task-labels';
@@ -68,12 +69,75 @@ function onBatchDelete(): void {
   });
 }
 
+// ===== Batch set send target mode =====
+const isBatchTargetDialogOpen = ref(false);
+const batchTargetId = ref<string | null>(null);
+
+function onOpenBatchSetTarget(): void {
+  if (batchSelectedRows.value.length === 0) {
+    notify.warning('请先选择至少一个模板');
+    return;
+  }
+  // 统计选中模板里有多少 send step，给用户预期
+  let sendStepCount = 0;
+  for (const row of batchSelectedRows.value) {
+    for (const step of row._original.definition.steps) {
+      if (step.kind === 'send') sendStepCount++;
+    }
+  }
+  if (sendStepCount === 0) {
+    notify.warning('选中的模板里没有 send 步骤，无需设置发送目标');
+    return;
+  }
+  batchTargetId.value = null;
+  isBatchTargetDialogOpen.value = true;
+}
+
+function onConfirmBatchSetTarget(): void {
+  if (!batchTargetId.value) {
+    notify.warning('请选择一个发送目标');
+    return;
+  }
+  let updated = 0;
+  let affectedSteps = 0;
+  for (const row of batchSelectedRows.value) {
+    const original = row._original;
+    const nextDef = applyDefaultTargetOverride(original.definition, batchTargetId.value);
+    const result = taskService.updateTemplate(original.templateId, { definition: nextDef });
+    if (result) {
+      updated++;
+      for (const step of nextDef.steps) {
+        if (step.kind === 'send') affectedSteps++;
+      }
+    }
+  }
+  isBatchTargetDialogOpen.value = false;
+  batchSelectedRows.value = [];
+  selectedRow.value = [];
+  refresh();
+  notify.success(`已更新 ${updated} 个模板的默认发送目标（影响 ${affectedSteps} 个 send 步骤）`);
+}
+
 const allTags = computed<readonly string[]>(() => {
   const set = new Set<string>();
   for (const tpl of taskService.listTemplates()) {
     for (const t of tpl.tags) set.add(t);
   }
   return Array.from(set).sort();
+});
+
+// targetId(connectionId) → 可读 label 的查找表。列表展示默认发送目标用。
+// try/catch: listTransportTargets 在无连接时可能抛，回退空表（显示原 id 截断）。
+const targetLabelMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {};
+  try {
+    for (const t of connectionService.listTransportTargets()) {
+      map[t.targetId] = `${t.label} (${t.kind})`;
+    }
+  } catch {
+    // 无可用目标时返回空 map，列表显示原 id 截断
+  }
+  return map;
 });
 
 refresh();
@@ -86,6 +150,7 @@ function toTemplateRow(tpl: TaskTemplate): TemplateTableRow {
     scheduleKind: kind,
     scheduleKindDisplay: SCHEDULE_KIND_MAP[kind] ?? { color: 'grey', label: kind },
     tags: [...tpl.tags],
+    ...(tpl.definition.defaultTargetId ? { defaultTargetId: tpl.definition.defaultTargetId } : {}),
     stepCount: tpl.definition.steps.length,
     updatedAt: tpl.updatedAt,
     _original: tpl,
@@ -306,6 +371,15 @@ function onToggleTagFilter(tag: string): void {
         :disable="batchSelectedRows.length === 0"
         @click="onBatchDelete"
       />
+      <q-btn
+        flat dense no-caps
+        icon="o_send"
+        label="设置发送目标"
+        color="primary"
+        size="sm"
+        :disable="batchSelectedRows.length === 0"
+        @click="onOpenBatchSetTarget"
+      />
       <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
       <div class="flex-1" />
       <q-btn
@@ -315,6 +389,36 @@ function onToggleTagFilter(tag: string): void {
         @click="batchMode = false; batchSelectedRows = []"
       />
     </div>
+
+    <!-- Batch set send target dialog -->
+    <q-dialog v-model="isBatchTargetDialogOpen">
+      <q-card class="rw-dialog-md">
+        <q-card-section>
+          <div class="text-h6">批量设置发送目标</div>
+          <div class="rw-text-desc text-caption mt-1">
+            将应用到选中的 {{ batchSelectedRows.length }} 个模板的<strong>默认发送目标</strong>，同时清空每个 send 步骤的单独覆盖，让所有 send 步骤统一回退到任务级。
+          </div>
+        </q-card-section>
+        <q-card-section class="pt-0">
+          <span class="rw-text-label text-xs">发送目标</span>
+          <SendTargetSelector
+            :model-value="batchTargetId"
+            :connection-service="connectionService"
+            class="mt-1"
+            @update:model-value="batchTargetId = $event"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat no-caps label="取消" v-close-popup />
+          <q-btn
+            unelevated no-caps color="primary"
+            label="应用"
+            :disable="!batchTargetId"
+            @click="onConfirmBatchSetTarget"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Template list -->
     <DataTable
@@ -363,6 +467,15 @@ function onToggleTagFilter(tag: string): void {
       <template #body-cell-updatedAt="props">
         <q-td :props="props">
           <span class="rw-text-value text-xs">{{ formatDateTime(props.row.updatedAt) }}</span>
+        </q-td>
+      </template>
+
+      <template #body-cell-defaultTargetId="props">
+        <q-td :props="props">
+          <span v-if="props.row.defaultTargetId" class="rw-text-value text-xs">
+            {{ targetLabelMap[props.row.defaultTargetId] ?? props.row.defaultTargetId.slice(0, 8) + '…' }}
+          </span>
+          <span v-else class="rw-text-desc text-xs">未设置</span>
         </q-td>
       </template>
 
