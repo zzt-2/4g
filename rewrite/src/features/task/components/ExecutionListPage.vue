@@ -330,9 +330,9 @@ function hasPreviousSendStep(si: number): boolean {
 </script>
 
 <template>
-  <div class="flex flex-1 overflow-hidden">
+  <div class="flex flex-1 min-h-0 overflow-hidden">
     <!-- Left: instance list with tabs -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
       <TableToolbar
         v-model:search-model-value="searchText"
         search-placeholder="搜索任务名称..."
@@ -530,7 +530,7 @@ function hasPreviousSendStep(si: number): boolean {
     </div>
 
     <!-- Right panel: 360px -->
-    <div class="w-[360px] flex-shrink-0 flex flex-col overflow-y-auto rw-divider-l">
+    <div class="w-[360px] flex-shrink-0 flex flex-col min-h-0 overflow-y-auto rw-divider-l">
       <template v-if="selectedInstance">
         <template v-if="selectedInstance.lifecycle === 'created'">
           <div class="p-4 rw-divider-b">

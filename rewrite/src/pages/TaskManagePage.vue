@@ -29,7 +29,7 @@ function onInstantiated(): void {
       </q-tabs>
     </div>
 
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
       <TemplateListPage
         v-if="activeTab === 'templates'"
         @instantiated="onInstantiated"
