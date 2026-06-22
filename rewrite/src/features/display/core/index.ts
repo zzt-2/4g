@@ -4,5 +4,6 @@ export * from './defaults';
 export * from './validation';
 export * from './normalize';
 export * from './projection';
+export * from './sampling';
 export * from './group-resolution';
 export * from './migrate';

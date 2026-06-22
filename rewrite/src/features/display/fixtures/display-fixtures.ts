@@ -55,6 +55,13 @@ export const nonNumericFieldMaterial: DisplayFieldMaterial[] = [
   { groupId: 'iq', dataItemId: 'iqFrame:qData', fieldName: 'Q', value: null, displayValue: 'N/A', updatedAt: '2026-05-06T10:00:00Z' },
 ];
 
+// bytes 类型 I/Q 字段（value 是 hex 字符串，对接 receive field-parser 对 bytes 字段的输出）。
+// "0102 0304" bitWidth=8 → [1,2,3,4]；用于测 projectScatter 按 bitWidth 切多点。
+export const bytesIqFieldMaterial: DisplayFieldMaterial[] = [
+  { groupId: 'iq', dataItemId: 'iqFrame:iData', fieldName: 'I', value: '01020304', displayValue: '01020304', updatedAt: '2026-05-06T10:00:00Z' },
+  { groupId: 'iq', dataItemId: 'iqFrame:qData', fieldName: 'Q', value: '05060708', displayValue: '05060708', updatedAt: '2026-05-06T10:00:00Z' },
+];
+
 // --- Preference patches ---
 
 export const updateTable1Patch: DisplayPreferencesPatch = {

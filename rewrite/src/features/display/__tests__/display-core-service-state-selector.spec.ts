@@ -16,6 +16,7 @@ import {
   invalidPreferenceInput,
   legacyLikeDisplayInput,
   nonNumericFieldMaterial,
+  bytesIqFieldMaterial,
   sampleFieldMaterial,
   sampleIqFieldMaterial,
   updateChart1Patch,
@@ -82,6 +83,44 @@ describe('display core projection', () => {
 
   it('returns empty scatter for non-numeric I/Q values', () => {
     const result = projectScatter(nonNumericFieldMaterial, {
+      iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' },
+      qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' },
+      sampleCount: 256, bitWidth: 8, refreshIntervalMs: 100,
+    });
+    expect(result.points).toHaveLength(0);
+  });
+
+  it('projects scatter multi-points from bytes hex fields by bitWidth', () => {
+    // bytes I="01020304" / Q="05060708"，bitWidth=8 → 各切 4 个值，配对成 4 个点
+    const result = projectScatter(bytesIqFieldMaterial, {
+      iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' },
+      qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' },
+      sampleCount: 256, bitWidth: 8, refreshIntervalMs: 100,
+    });
+    expect(result.points).toHaveLength(4);
+    expect(result.sampleCount).toBe(4);
+    expect(result.points[0]).toEqual({ i: 1, q: 5 });
+    expect(result.points[3]).toEqual({ i: 4, q: 8 });
+  });
+
+  it('limits scatter points by sampleCount preference', () => {
+    // 同样 4 个值，但 sampleCount=2 → 只画 2 个点
+    const result = projectScatter(bytesIqFieldMaterial, {
+      iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' },
+      qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' },
+      sampleCount: 2, bitWidth: 8, refreshIntervalMs: 100,
+    });
+    expect(result.points).toHaveLength(2);
+    expect(result.sampleCount).toBe(2);
+  });
+
+  it('returns empty scatter when bytes I/Q length mismatch produces no pairs', () => {
+    // I 字段切出 4 值，Q 字段空 hex → 0 配对
+    const mismatched: typeof bytesIqFieldMaterial = [
+      { groupId: 'iq', dataItemId: 'iqFrame:iData', fieldName: 'I', value: '01020304', displayValue: '01020304' },
+      { groupId: 'iq', dataItemId: 'iqFrame:qData', fieldName: 'Q', value: '', displayValue: '' },
+    ];
+    const result = projectScatter(mismatched, {
       iSource: { groupId: 'iq', dataItemId: 'iqFrame:iData' },
       qSource: { groupId: 'iq', dataItemId: 'iqFrame:qData' },
       sampleCount: 256, bitWidth: 8, refreshIntervalMs: 100,
@@ -224,6 +263,45 @@ describe('display service', () => {
     const result = service.reset();
     expect(result.ok).toBe(true);
     expect(service.getSnapshot()).toEqual(defaultDisplayFixture);
+  });
+
+  it('accumulates source material across batches (upsert by dataItemId), not whole-buffer replace', () => {
+    // 真实场景：一秒十几帧，每个 routing tick 只匹配一个帧（processReceiveBatch 一批一帧）。
+    // buffer 必须按 dataItemId 累积，否则不同帧交替到达时表格内容会反复闪空（内容鬼畜）。
+    const service = createDisplayService();
+    // 第一批：只有 frame1 的字段
+    service.ingestSourceMaterial({
+      fields: [
+        { groupId: 'g1', dataItemId: 'frame1:voltage', value: 3.3, displayValue: '3.3 V', updatedAt: 't1' },
+        { groupId: 'g1', dataItemId: 'frame1:current', value: 1.5, displayValue: '1.5 A', updatedAt: 't1' },
+      ],
+    });
+    // 第二批：只有 frame2 的字段（不含 frame1）
+    service.ingestSourceMaterial({
+      fields: [
+        { groupId: 'g2', dataItemId: 'frame2:temperature', value: 25, displayValue: '25 C', updatedAt: 't2' },
+      ],
+    });
+    // 累积语义：frame1 的字段应保留，frame2 的字段并入。覆盖语义下 frame1 会丢失。
+    const sourceFields = service.getSourceFields();
+    expect(sourceFields.map((f) => f.dataItemId).sort()).toEqual([
+      'frame1:current',
+      'frame1:voltage',
+      'frame2:temperature',
+    ]);
+  });
+
+  it('upsert updates existing field value in place (same dataItemId)', () => {
+    const service = createDisplayService();
+    service.ingestSourceMaterial({
+      fields: [{ groupId: 'g1', dataItemId: 'frame1:voltage', value: 3.3, displayValue: '3.3 V', updatedAt: 't1' }],
+    });
+    service.ingestSourceMaterial({
+      fields: [{ groupId: 'g1', dataItemId: 'frame1:voltage', value: 3.5, displayValue: '3.5 V', updatedAt: 't2' }],
+    });
+    const field = service.getSourceFields().find((f) => f.dataItemId === 'frame1:voltage');
+    expect(field?.value).toBe(3.5);
+    expect(service.getSourceFields()).toHaveLength(1);
   });
 
   it('handles empty source material gracefully', () => {

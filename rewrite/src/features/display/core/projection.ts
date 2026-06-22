@@ -8,6 +8,7 @@ import type {
   ScatterSourceBinding,
   TableRowProjection,
 } from './types';
+import { extractValuesFromHex } from './sampling';
 
 export function projectTableRows(
   fields: readonly DisplayFieldMaterial[],
@@ -54,6 +55,13 @@ function toRow(f: DisplayFieldMaterial): TableRowProjection {
 /**
  * Project chart series from selected items.
  * Chart time-series accumulation lives in useDisplayRefresh composable.
+ *
+ * scatter（星座图）采样：
+ *   - bytes 字段（value 是 hex string）：按 preference.bitWidth 从 hex 切出多个有符号采样值，
+ *     一段 I + 一段 Q 按 index 配对成多点（对接旧版 extractValuesFromHex 语义）。
+ *   - 数值字段（value 是 number）：保持单点行为（向后兼容）。
+ *   - 点数上限取 min(iValues.length, qValues.length, preference.sampleCount)。
+ *   - bitWidth/sampleCount 由 ScatterConfigDialog 配置（默认 8/256）。
  */
 export function projectScatter(
   fields: readonly DisplayFieldMaterial[],
@@ -66,17 +74,41 @@ export function projectScatter(
     return { points: [], sampleCount: 0 };
   }
 
-  const iVal = typeof iField.value === 'number' ? iField.value : null;
-  const qVal = typeof qField.value === 'number' ? qField.value : null;
+  const iValues = extractScatterSamples(iField.value, preference.bitWidth);
+  const qValues = extractScatterSamples(qField.value, preference.bitWidth);
 
-  if (iVal === null || qVal === null) {
+  if (iValues.length === 0 || qValues.length === 0) {
     return { points: [], sampleCount: 0 };
   }
 
+  const maxPoints = preference.sampleCount > 0 ? preference.sampleCount : Math.max(iValues.length, qValues.length);
+  const pairCount = Math.min(iValues.length, qValues.length, maxPoints);
+
+  const points = [];
+  for (let i = 0; i < pairCount; i++) {
+    points.push({ i: iValues[i]!, q: qValues[i]! });
+  }
+
   return {
-    points: [{ i: iVal, q: qVal }],
-    sampleCount: 1,
+    points,
+    sampleCount: points.length,
   };
+}
+
+/**
+ * 从单个字段的 value 提取 scatter 采样值。
+ * - number（数值字段）：单值包装成 [value]。
+ * - string（bytes 字段的 hex）：按 bitWidth 切多点。
+ * - 其它：空数组。
+ */
+function extractScatterSamples(value: unknown, bitWidth: number): number[] {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? [value] : [];
+  }
+  if (typeof value === 'string') {
+    return extractValuesFromHex(value, bitWidth);
+  }
+  return [];
 }
 
 function findFieldByBinding(

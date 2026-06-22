@@ -129,6 +129,32 @@ describe('T024f: Display projection correctness', () => {
     expect(scatter.points[0].q).toBe(20);
   });
 
+  it('scatter projection multi-points from bytes hex I/Q fields by bitWidth', () => {
+    // bytes I/Q：value 是 hex 字符串（对接 receive field-parser 对 bytes 字段输出）
+    service.ingestSourceMaterial({
+      fields: [
+        field('frame-1', 'i-bytes', 'I Bytes', '01020304', '01020304'),
+        field('frame-1', 'q-bytes', 'Q Bytes', '05060708', '05060708'),
+      ],
+    });
+
+    service.updatePreferences({
+      scatter: {
+        iSource: { groupId: 'frame-1', dataItemId: 'i-bytes' },
+        qSource: { groupId: 'frame-1', dataItemId: 'q-bytes' },
+        bitWidth: 8,
+        sampleCount: 256,
+      },
+    });
+
+    const scatter = service.getScatterProjection();
+    // bitWidth=8 → 每字段 4 个值，配对 4 点
+    expect(scatter.sampleCount).toBe(4);
+    expect(scatter.points).toHaveLength(4);
+    expect(scatter.points[0]).toEqual({ i: 1, q: 5 });
+    expect(scatter.points[3]).toEqual({ i: 4, q: 8 });
+  });
+
   it('scatter projection returns empty when I/Q sources are missing', () => {
     service.ingestSourceMaterial({
       fields: [
