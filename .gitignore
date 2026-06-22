@@ -36,6 +36,13 @@ yarn-error.log*
 /public/data/history-statistics
 /public/business-data
 
+# 旧代码归档区（_archive-legacy/）下的运行时产物 / build 产物 / 临时编译文件
+# 这些是旧 src/ 时代产生的，归档时连目录一起搬过来了，但不能进版本库（dist 163MB、history-statistics 14MB）
+/_archive-legacy/dist/
+/_archive-legacy/public/business-data/
+/_archive-legacy/public/data/history-statistics/
+/_archive-legacy/quasar.config.*.temporary.compiled*
+
 # Local-only Claude/OMC archives (not version controlled)
 /.sessions/_wsl-claude-archive/
 /.sessions/_archive_helpers/
@@ -49,3 +56,14 @@ yarn-error.log*
 # Windows 保留名误建
 /nul
 /codestable/features/nul
+
+# rewrite/ 下的临时调试产物（build 日志、tsc 输出、探测脚本、备份）
+/rewrite/build-output*.log
+/rewrite/tsc-out.txt
+/rewrite/probe-resolve*.mjs
+/rewrite/package.json.bak
+/rewrite/public.zip
+/rewrite/nul
+
+# 浏览器另存的下载副本（带 (N) 后缀），非版本库数据源
+/rewrite/public/frames/*(*).json
