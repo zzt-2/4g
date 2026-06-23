@@ -1,6 +1,7 @@
 # S012 接收帧高频时主线程卡顿 —— storage O(N·M) 治本
 
 > 2026-06-23 | 性能优化 bug | 状态: 优化完成,待用户目标机实测
+> （续接 2026-06-23:第三症状"切走再回来卡"——backgroundThrottling:false）
 
 ## 目标
 
@@ -81,3 +82,19 @@ state.replaceRecords(merged);  // ← 再深拷贝 N
 - **pre-existing 5 个集成测试失败**(event-truncation: event buffer 没截断到 50 / tcp-receive-datapath: TCP 字节没到 receive):在 HEAD 已确认与本任务无关,属另一个 bug(疑似 S007 改 collectEventsAfter 的连带?或环境?),记后续。
 - **pre-existing 测试基建损坏**:所有 import 了 `frame/index.ts`(re-export `FrameSelector.vue`)的测试(receive/runtime/storage 整套)之前集体跑不起来。本次修(vitest.config 加 vue + pnpm add @vitejs/plugin-vue)顺带恢复,后续别再漏装。
 - 剩余 ~18ms 里的 fake adapter 深拷贝是测试隔离,非 prod。若 prod 实测仍卡,下一步考虑:storage records 是否需要上限(像 receive events 的 50 滚动窗口)、或 append 改异步批量(fanOutToStorage 攒一批再写)。
+
+---
+
+## 续接:切走再回来卡——backgroundThrottling:false(2026-06-23)
+
+用户补报**第三症状**(独立于帧率卡和开久了卡):"我感觉你这个软件我开了之后我去用别的软件回来之后就变得巨卡",且"另一个人这么说"——多人独立复现,优先级拉高。
+
+**根因(强代码推断,基于 Electron 已知行为)**:`src-electron/main/index.ts` 的 BrowserWindow `webPreferences` **没设 `backgroundThrottling`**,Electron 默认 true → 窗口失焦时 Chromium 把 renderer 的定时器/任务节流到 ~1次/秒。但真硬件(串口/网口)不知道你切走了,持续推数据 → native/transport eventQueue 堆积;切回前台节流解除,routingTick 一次性 drain 成百上千帧 → 瞬间超大尖峰(叠加上文 storage O(N·M))→ UI 冻住几秒 = "巨卡"。工业遥测上位机典型坑。
+
+**治本(用户拍板 A 方案)**:webPreferences 加 `backgroundThrottling: false`,一行配置。上位机常驻前台,后台持续占 CPU 可接受,换事件不堆积。
+
+**诚实声明**:此根因是**基于代码 + Electron 已知行为的强推断**,无"切走再回来"场景的直接 trace 证据。最硬的验证 = 用户复现"切走再回来卡"时,回前台瞬间立刻录一段 Performance(带 source map)看尖峰落点。但用户选直接上 A 验证。
+
+**下一步候选(B 方案,若 A 后仍卡)**:routingTick 单轮 drain 加批量上限(如 50 帧/轮,超出留给下一轮),分帧消化避免惊群尖峰。本次不做,记后续。
+
+**验证**:tsc 0 / lint 0(纯 webPreferences 配置,无测试依赖)。**待用户完全重启 dev server 实测**(main 进程改动 HMR 不生效,S009 同款老问题)。

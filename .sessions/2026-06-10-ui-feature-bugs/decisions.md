@@ -608,20 +608,22 @@ interface WindowControlBridge {
 
 ---
 
-## D010: 接收帧高频卡顿——storage appendLocalRecords O(N·M) 治本 + 测试基建范围扩张
+## D010: 接收帧高频卡顿——storage appendLocalRecords O(N·M) 治本 + 测试基建范围扩张 + backgroundThrottling:false
 
 > status: active
-> date: 2026-06-23
+> date: 2026-06-23（续接 2026-06-23:补 backgroundThrottling:false 治"切走再回来卡"）
 > 取代：无
 > 被取代：无
 
 ### 决策
 
-两条合一记录(同一性能优化任务 S012 内):
+三条合一记录(同一性能优化任务 S012 内):
 
 **(A) 范围扩张:修 pre-existing 测试基建。** `vitest.config.ts` 加 `@vitejs/plugin-vue` 的 `vue()` 插件 + `pnpm add -D @vitejs/plugin-vue`(已作为 vite-plugin-vue-devtools 间接依赖装在 pnpm store,顶层未暴露)。修前所有 import 了 `frame/index.ts`(re-export `FrameSelector.vue`)的测试(receive/runtime/storage 整套)在当前工作树**集体跑不起来**(vite 报 "Install @vitejs/plugin-vue to handle .vue files")。
 
 **(B) 性能治本:storage `appendLocalRecords` 改 append-only 增量,消除每帧 O(N) merge/排序/多次深拷贝。** 加快速路径 `canAppendInOrderFast`(新 records 单调递增+id 全新+首条≥现有末条时走 append,跳过 `mergeStorageLocalRecords`),否则回退全量 merge(保留乱序/去重语义)。配套:`storage-state` 加 `appendRecords`(增量 concat + 返回 merged+snapshot 复用)+ `getLastRecordCapturedAtMs`/`hasRecordId` 轻量 accessor(读末条/查 id 不触发全量深拷贝)。
+
+**(C) 续接:BrowserWindow `backgroundThrottling: false`。** 用户补报第三症状"切走再回来卡"(多人独立复现)。根因(强代码推断):webPreferences 默认 `backgroundThrottling:true` 节流失焦窗口 routingTick → 真 hardware 持续推数据堆积 → 回前台惊群一次性 drain 超大尖峰。治本一行配置关闭节流。上位机常驻前台,后台占 CPU 可接受。
 
 ### 理由
 

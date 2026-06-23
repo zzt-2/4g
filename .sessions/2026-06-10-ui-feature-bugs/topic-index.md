@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-23 S012 接收帧高频卡顿——storage appendLocalRecords O(N·M) 治本。用户原话"一秒接收十几帧…严重的性能问题"+ 补"开久了卡"。trace 锁 timer#4=routingTick setInterval(300-430ms/次)。Node 基准证伪"routingTick 服务层瓶颈"(12帧仅5.5ms),实证根因是 storage appendLocalRecords 每帧全量深拷贝+排序=O(N·M),2000 records 单 tick 62ms,反推 trace 300ms 自洽。治本:append-only 快速路径(canAppendInOrderFast)+ 轻量 accessor。2000 records 单 append 34ms→18.65ms(1.8x),端到端 62ms→34ms。顺带清 9 处 debug log + 修 pre-existing 测试基建(vitest 加 vue 插件,D010)。**待用户目标机实测**。前序 S011 任务管理页 UI 重做。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-23 S012 续接:第三症状"切走再回来卡"——backgroundThrottling:false。用户+同事多人独立复现"开软件→用别的→回来巨卡"。根因(强代码推断):webPreferences 默认 backgroundThrottling:true 节流失焦窗口 routingTick → 硬件持续推数据堆积 → 回前台惊群。治本一行关闭节流,待用户重启 dev server 实测。前序 S012(storage appendLocalRecords O(N·M) 治本,2000 records 单 tick 62ms→34ms)、S011 任务管理页 UI 重做。
 
 ## 范围变更记录
 

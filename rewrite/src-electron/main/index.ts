@@ -39,6 +39,12 @@ async function createWindow() {
       contextIsolation: true,
       sandbox: false,
       preload: getPreloadPath(),
+      // 禁用后台节流(Chromium 默认 backgroundThrottling:true 会把失焦窗口的
+      // 定时器/任务拉到 ~1次/秒)。工业遥测场景:硬件不停推数据,routingTick(100ms
+      // setInterval)一旦被节流,事件在 native/transport 队列堆积;切回前台时
+      // 节流解除,routingTick 一次性 drain 成百上千帧 → 超大尖峰冻住 UI("切到别的
+      // 软件再回来就巨卡")。上位机常驻前台,后台持续占 CPU 可接受,换不堆积。
+      backgroundThrottling: false,
     },
   });
 

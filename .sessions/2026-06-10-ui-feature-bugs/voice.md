@@ -148,3 +148,8 @@
 - [AskUserQuestion 选]"加 vue 插件到 vitest.config(推荐)" → D010（范围扩张拍板:修 pre-existing 测试基建让 receive/runtime 测试可跑,为本任务证据+验证扫除障碍）
 - "卡了很久？" → S012（进展确认问询——答:没卡,刚好拿到决定性证据:storage appendLocalRecords O(N·M),2000 records 单 tick 62ms,反推 trace 300ms 自洽）
 
+## 2026-06-23（S012 续接:切走再回来卡）
+
+- > "我感觉你这个软件我开了之后我去用别的软件回来之后就变得巨卡" + "另一个人这么说？" → S012 续接/D010（**第三症状——后台/失焦触发,独立于帧率卡和开久了卡**。多人独立复现("另一个人"=同事/用户)提升优先级。根因:webPreferences 默认 backgroundThrottling:true 节流失焦窗口 routingTick → 事件堆积 → 回前台惊群。治本一行 backgroundThrottling:false。注:此为强代码推断,待用户重启 dev server 实测复现验证）
+- "A吧" → S012 续接（拍板选 A 方案 backgroundThrottling:false,否决先录 trace 再下手的选项）
+
