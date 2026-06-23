@@ -3,7 +3,8 @@
 // 与 TemplateEditDialog 结构近乎同构（任务编辑多了「保存并启动」）。
 // editor 由 use-task-editor 实例驱动（page 持有，prop 传入）。
 
-import { ref, type QForm } from 'quasar';
+import { ref } from 'vue';
+import { type QForm } from 'quasar';
 import ConditionTermEditor from '@/widgets/ConditionTermEditor.vue';
 import SendStepEditor from '@/features/task/components/SendStepEditor.vue';
 import WaitConditionStepEditor from '@/features/task/components/WaitConditionStepEditor.vue';

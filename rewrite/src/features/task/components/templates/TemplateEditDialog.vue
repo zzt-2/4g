@@ -3,7 +3,8 @@
 // 内含模板名/标签/调度类型/默认发送目标/步骤列表/高级配置/校验问题。
 // editor 由 use-template-editor 实例驱动（page 持有，prop 传入），本组件只做展示 + emit save。
 
-import { ref, type QForm } from 'quasar';
+import { ref } from 'vue';
+import { type QForm } from 'quasar';
 import ConditionTermEditor from '@/widgets/ConditionTermEditor.vue';
 import SendStepEditor from '@/features/task/components/SendStepEditor.vue';
 import WaitConditionStepEditor from '@/features/task/components/WaitConditionStepEditor.vue';
