@@ -213,7 +213,7 @@ const result = await taskService.validateConfig(config);
 - **拿满父级宽/高**用 `w-full` / `h-full`，不用 `flex-1`（除非真的是 flex item 要分剩余空间）。
 - **`min-h-0`** 只加在"内部需要 `overflow` 滚动"的 flex item 上（flex 默认 `min-height:auto` 会撑开，挡住滚动）。不滚动的 flex item 不加。
 - **`overflow-auto` / `overflow-y-auto`** 只加在真正的滚动边界（内容超高需要滚的容器）。中间传递层用 `overflow-hidden` 裁剪，普通容器不加 overflow。
-- **`no-wrap`** 给单列 flex 容器（`flex flex-col`）显式标，保证子项不换行、收缩/滚动行为正确。
+- **`no-wrap`** 给**任何**作为分栏/分列容器的 flex 容器显式标（横排 `flex` 或竖排 `flex flex-col` 都要），保证子项不换行、收缩/滚动行为正确。横排分栏漏 `no-wrap` 时，若某子项内容宽度溢出（如 KPI bar 项多、表格列宽累加），父级会**换行**把后续子项挤到下一行——视觉上"右栏消失/掉到下面"。竖排漏 `no-wrap` 时子项可能异常收缩。
 
 ```html
 <!-- ❌ 预防性堆 flex-1 min-h-0 overflow-hidden，多数层不需要 -->
@@ -223,11 +223,23 @@ const result = await taskService.validateConfig(config);
   </div>
 </div>
 
+<!-- ❌ 横排分栏漏 no-wrap：左列表内容撑宽后，右详情面板被挤到下一行 -->
+<div class="flex flex-1 min-h-0 gap-6">
+  <div class="flex-1 min-w-0">左列表（KPI/表格可能撑宽）</div>
+  <div class="w-100 min-w-100 flex-shrink-0">右详情</div>
+</div>
+
 <!-- ✅ 只在拿满高度的容器用 h-full，只在滚动边界加 overflow-y-auto + min-h-0 -->
 <div class="flex flex-col h-full">
   <div class="flex flex-col flex-1 min-h-0 no-wrap">
     <div class="flex-1 min-h-0 overflow-y-auto">...</div>
   </div>
+</div>
+
+<!-- ✅ 横排分栏也显式 no-wrap：左右栏固定并排，不换行 -->
+<div class="flex flex-1 min-h-0 gap-6 no-wrap">
+  <div class="flex-1 min-w-0">左列表</div>
+  <div class="w-100 min-w-100 flex-shrink-0">右详情</div>
 </div>
 ```
 

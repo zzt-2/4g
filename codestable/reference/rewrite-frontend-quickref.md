@@ -123,6 +123,7 @@ timers.clearGroup('polling')
 - 同一逻辑出现 2+ 处不提取（O3）
 - `any` 类型（D6）
 - 预防性堆 `flex-1 min-h-0 overflow-hidden`（每层都加）→ 按场景精确加，滚动边界才加 overflow + min-h-0，拿满父级用 h-full/w-full（L4）
+- 分栏/分列 flex 容器（横排 `flex` 或竖排 `flex flex-col`）漏 `no-wrap` → 横排漏会换行把后续子项挤下去（S011 踩过：右详情面板掉到下面），竖排漏会异常收缩（L4）
 
 ## 状态声明顺序（O1）
 
