@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // 执行监控页右栏任务详情面板：卡片化 created 态（手写信息块）+ 运行态/终态（调 TaskExecutionDetail）。
-// 拓宽右栏 + gap-6 后，本面板 ~400px。卡片化分区治「平淡灰扑扑」痛点。
-// TaskExecutionDetail 滚动修复（S009 续接5 用户亲改：no-wrap + h-full）保留——本组件只套卡片壳，不动 TaskExecutionDetail 内部。
+// 拓宽右栏 ~400px + gap-6 不贴死（治「右栏窄/贴死」通病）。
+// TaskExecutionDetail 滚动修复（S009 续接5 用户亲改：no-wrap + h-full）保留——本组件只套卡片壳。
+// 操作 loading 通过 isOperating prop 注入（父级 useAsyncAction 持锁，子组件只读）。
 
 import StatusBadge from '@/widgets/StatusBadge.vue';
 import TaskExecutionDetail from '@/widgets/TaskExecutionDetail.vue';
@@ -15,9 +16,7 @@ interface Props {
   progress: TaskProgress | null;
   displayStatus: string;
   statusInfo: { label: string; color: string };
-  /** 来源模板可读名（无则 '--'） */
   templateLabel: string;
-  /** 操作 loading 查询函数（父级 useAsyncAction.isOperating 注入，子组件只读不持锁） */
   isOperating: (id: string) => boolean;
 }
 
@@ -43,7 +42,7 @@ const emit = defineEmits<{
     </div>
 
     <template v-else>
-      <!-- created 态：手写信息卡 + 操作按钮（可编辑可启动） -->
+      <!-- created 态：手写信息卡 + 操作按钮 -->
       <template v-if="instance.lifecycle === 'created'">
         <div class="flex-1 min-h-0 overflow-y-auto p-4 no-wrap">
           <div class="task-detail-panel__field">
@@ -57,7 +56,8 @@ const emit = defineEmits<{
           <div class="task-detail-panel__field">
             <span class="rw-text-label text-xs">调度类型</span>
             <div class="mt-1">
-              <q-chip dense outline :color="(SCHEDULE_KIND_MAP[instance.definitionRef.schedule.kind] ?? { color: 'grey' }).color"
+              <q-chip dense outline
+                :color="(SCHEDULE_KIND_MAP[instance.definitionRef.schedule.kind] ?? { color: 'grey' }).color"
                 :label="(SCHEDULE_KIND_MAP[instance.definitionRef.schedule.kind] ?? { label: instance.definitionRef.schedule.kind }).label" />
             </div>
           </div>
@@ -83,7 +83,7 @@ const emit = defineEmits<{
         </div>
       </template>
 
-      <!-- 运行态/终态：调 TaskExecutionDetail（滚动修复保留） -->
+      <!-- 运行态/终态：调 TaskExecutionDetail -->
       <template v-else>
         <div class="flex-1 min-h-0 p-4 flex flex-col no-wrap">
           <TaskExecutionDetail :instance="instance" :progress="progress"
@@ -93,7 +93,6 @@ const emit = defineEmits<{
             @stop="emit('stop', instance.instanceId)" />
         </div>
 
-        <!-- 终态：重新执行/删除按钮 -->
         <div v-if="isTerminal(instance.lifecycle)" class="flex-shrink-0 p-4 rw-divider-t">
           <div class="flex items-center gap-2">
             <q-btn flat no-caps icon="o_replay" label="重新执行" color="primary"
@@ -109,11 +108,6 @@ const emit = defineEmits<{
 </template>
 
 <style scoped lang="scss">
-.task-detail-panel {
-  // 卡片壳（rw-panel-base 已给背景），高度链：h-full 拿满父级，内部 overflow 滚动
-  width: 100%;
-}
-
 .task-detail-panel__field {
   margin-bottom: var(--rw-space-3);
 }

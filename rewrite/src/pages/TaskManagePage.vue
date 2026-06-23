@@ -25,7 +25,10 @@ import type { ReadonlyTaskInstanceState } from '@/features/task/core';
 // 子组件
 import TaskManageToolbar from '@/features/task/components/TaskManageToolbar.vue';
 import TemplateList from '@/features/task/components/templates/TemplateList.vue';
-import ExecutionList from '@/features/task/components/executions/ExecutionList.vue';
+import ExecutionKpiBar from '@/features/task/components/executions/ExecutionKpiBar.vue';
+import ExecutionToolbar from '@/features/task/components/executions/ExecutionToolbar.vue';
+import ActiveTaskTable from '@/features/task/components/executions/ActiveTaskTable.vue';
+import HistoryTaskTable from '@/features/task/components/executions/HistoryTaskTable.vue';
 import TaskDetailPanel from '@/features/task/components/executions/TaskDetailPanel.vue';
 import TemplateEditDialog from '@/features/task/components/templates/TemplateEditDialog.vue';
 import TaskEditDialog from '@/features/task/components/executions/TaskEditDialog.vue';
@@ -709,57 +712,88 @@ function onHistoryRowClick(row: HistoryTableRow): void {
         />
       </div>
 
-      <!-- Tab2: 执行监控（KPI + 左列表 + 右详情，gap-6 不贴死） -->
-      <div v-show="activeTab === 'executions'" class="flex h-full gap-6 p-3 no-wrap">
-        <!-- 左：KPI bar + 二级分段 + 列表 -->
-        <ExecutionList
+      <!-- Tab2: 执行监控——page 直接编排 KPI/Toolbar/列表/详情（对齐 S010 范式，无中间巨石组件） -->
+      <div v-show="activeTab === 'executions'" class="flex flex-col h-full">
+        <!-- KPI bar（活动/历史计数总览） -->
+        <ExecutionKpiBar :active-rows="activeRows" :history-rows="historyRows" />
+
+        <!-- 二级分段控件 + 状态筛选/清空历史 -->
+        <ExecutionToolbar
           v-model="executionsInnerTab"
           :status-filter="executionsStatusFilter"
-          :active-rows="activeRows"
-          :history-rows="historyRows"
-          :selected-active-row="selectedActiveRow"
-          :selected-history-row="selectedHistoryRow"
-          :batch-mode="executionsBatchMode"
-          :batch-selected-active-rows="batchSelectedActiveRows"
-          :target-label-map="targetLabelMap"
-          :template-name-map="templateNameMap"
-          :is-operating="isOperating"
-          class="flex-1 min-w-0"
+          :has-history="historyRows.length > 0"
           @update:status-filter="onStatusFilterChange"
-          @active-row-click="onActiveRowClick"
-          @history-row-click="onHistoryRowClick"
-          @active-selection-change="selectedActiveRow = $event"
-          @history-selection-change="selectedHistoryRow = $event"
-          @update:batch-selected-active-rows="batchSelectedActiveRows = $event"
-          @start="onStart"
-          @pause="onPause"
-          @resume="onResume"
-          @stop="onStop"
-          @edit="onEditTask"
-          @remove="onRemove"
-          @retry="onRetry"
           @clear-history="onClearHistory"
-          @toggle-batch-mode="onToggleExecutionsBatch"
-          @open-batch-set-target="onOpenBatchSetTargetTasks"
         />
 
-        <!-- 右：任务详情卡片（~400px，拓宽 + 卡片化） -->
-        <TaskDetailPanel
-          :instance="selectedInstance"
-          :progress="selectedProgress"
-          :display-status="selectedDisplayStatus"
-          :status-info="selectedStatusInfo"
-          :template-label="selectedTemplateLabel"
-          :is-operating="isOperating"
-          class="w-100 min-w-100 flex-shrink-0"
-          @edit="onEditTask"
-          @start="onStart"
-          @pause="onPause"
-          @resume="onResume"
-          @stop="onStop"
-          @retry="onRetry"
-          @remove="onRemove"
-        />
+        <!-- 主体：左列表 + 右详情，gap-6 不贴死，no-wrap 防换行 -->
+        <div class="flex flex-1 min-h-0 gap-6 no-wrap">
+          <!-- 左：列表区（活动/历史二级 tab 切换，批量工具条） -->
+          <div class="exec-list-pane flex flex-col flex-1 min-w-0 min-h-0">
+            <!-- 批量模式工具条（仅 active tab + 批量模式开） -->
+            <div v-if="executionsInnerTab === 'active' && executionsBatchMode"
+              class="flex items-center gap-2 px-6 py-2 rw-divider-b flex-shrink-0">
+              <q-btn flat dense no-caps icon="o_send" label="设置发送目标" color="primary" size="sm"
+                :disable="batchSelectedActiveRows.length === 0" @click="onOpenBatchSetTargetTasks" />
+              <span class="rw-text-desc text-xs">{{ batchSelectedActiveRows.length }} 项已选中（仅待启动状态可修改）</span>
+              <div class="flex-1" />
+              <q-btn flat dense no-caps label="退出批量模式" size="sm" @click="onToggleExecutionsBatch" />
+            </div>
+
+            <!-- 活动任务表 -->
+            <ActiveTaskTable
+              v-if="executionsInnerTab === 'active'"
+              :rows="activeRows"
+              :selected="selectedActiveRow"
+              :batch-mode="executionsBatchMode"
+              :batch-selected="batchSelectedActiveRows"
+              :target-label-map="targetLabelMap"
+              :template-name-map="templateNameMap"
+              :is-operating="isOperating"
+              class="flex-1 min-h-0"
+              @row-click="onActiveRowClick"
+              @selection-change="selectedActiveRow = $event"
+              @update:batch-selected="batchSelectedActiveRows = $event"
+              @start="onStart"
+              @pause="onPause"
+              @resume="onResume"
+              @stop="onStop"
+              @edit="onEditTask"
+              @remove="onRemove"
+            />
+
+            <!-- 历史记录表 -->
+            <HistoryTaskTable
+              v-else
+              :rows="historyRows"
+              :selected="selectedHistoryRow"
+              :is-operating="isOperating"
+              class="flex-1 min-h-0"
+              @row-click="onHistoryRowClick"
+              @selection-change="selectedHistoryRow = $event"
+              @retry="onRetry"
+              @remove="onRemove"
+            />
+          </div>
+
+          <!-- 右：任务详情卡片（~400px，w-100 min-w-100 双保险防压缩） -->
+          <TaskDetailPanel
+            :instance="selectedInstance"
+            :progress="selectedProgress"
+            :display-status="selectedDisplayStatus"
+            :status-info="selectedStatusInfo"
+            :template-label="selectedTemplateLabel"
+            :is-operating="isOperating"
+            class="w-100 min-w-100 flex-shrink-0"
+            @edit="onEditTask"
+            @start="onStart"
+            @pause="onPause"
+            @resume="onResume"
+            @stop="onStop"
+            @retry="onRetry"
+            @remove="onRemove"
+          />
+        </div>
       </div>
     </div>
 
