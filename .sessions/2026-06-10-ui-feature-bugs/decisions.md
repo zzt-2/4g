@@ -605,3 +605,53 @@ interface WindowControlBridge {
 - Electron 35 BrowserWindow API(frame/titleBarStyle/openDevTools/-webkit-app-region)
 - 现有 IPC 命名约定(file-handlers/serial-handlers 的 `domain:action`)
 - 触发原话:见 voice.md 2026-06-22
+
+---
+
+## D010: 接收帧高频卡顿——storage appendLocalRecords O(N·M) 治本 + 测试基建范围扩张
+
+> status: active
+> date: 2026-06-23
+> 取代：无
+> 被取代：无
+
+### 决策
+
+两条合一记录(同一性能优化任务 S012 内):
+
+**(A) 范围扩张:修 pre-existing 测试基建。** `vitest.config.ts` 加 `@vitejs/plugin-vue` 的 `vue()` 插件 + `pnpm add -D @vitejs/plugin-vue`(已作为 vite-plugin-vue-devtools 间接依赖装在 pnpm store,顶层未暴露)。修前所有 import 了 `frame/index.ts`(re-export `FrameSelector.vue`)的测试(receive/runtime/storage 整套)在当前工作树**集体跑不起来**(vite 报 "Install @vitejs/plugin-vue to handle .vue files")。
+
+**(B) 性能治本:storage `appendLocalRecords` 改 append-only 增量,消除每帧 O(N) merge/排序/多次深拷贝。** 加快速路径 `canAppendInOrderFast`(新 records 单调递增+id 全新+首条≥现有末条时走 append,跳过 `mergeStorageLocalRecords`),否则回退全量 merge(保留乱序/去重语义)。配套:`storage-state` 加 `appendRecords`(增量 concat + 返回 merged+snapshot 复用)+ `getLastRecordCapturedAtMs`/`hasRecordId` 轻量 accessor(读末条/查 id 不触发全量深拷贝)。
+
+### 理由
+
+**(A)** 不修测试基建,S012 的 Phase 1 证据(routingTick 基准)+ 阶段 4 验证(receive/runtime/storage 测试)都跑不起来。用户拍板"加 vue 插件到 vitest.config"。
+
+**(B)** 实证根因:trace 里 timer#4(routingTick setInterval)每次回调 300-430ms,占主线程几乎全部。从 trace 提取时间戳分析:间隔 mean=332ms(被超时回调拖垮的 100ms setInterval),drain 空时 0.3ms → 瓶颈由"处理数据帧"触发。Node 基准证明 routingTick 服务层 12 帧只 5.5ms,**服务层不是瓶颈**;持续推帧采样证明**单 tick 耗时随累积 storage records 线性增长**(2000 records → 62ms,56x)。反推 trace:12 帧/秒 × 15 分钟 ≈ 10800 records → 单 tick ~330ms,命中。根因是 `appendLocalRecords` 每帧把全部历史 records 深拷贝 2-3 次 + 排序一次。
+
+### 排除的替代方案
+
+- **只调大定时器间隔(100ms→1000ms)**:糊弄,回调重活还在,只是触发频率降,根因没解决。明确否决。
+- **单纯清 debug log**:可证明的小改进(console.log 高频确实重,基准 10万次 742ms vs 不打 23ms),但只能解释一部分不是全部。node 基准 routingTick 含 log 也才 5.5ms。作为 3a 做了,但非治本。
+- **拆 frame barrel 去掉 .vue re-export**:范围更大、风险更高,且 vue 插件方案一行修复更治本(测试基建就该支持 .vue)。
+- **storage records 加滚动上限(像 receive events 的 50 窗口)**:会丢历史数据,语义改变。本次不做,记后续(若 prod 实测仍卡再考虑,或 append 改异步批量攒批写)。
+
+### 影响范围
+
+- `rewrite/vitest.config.ts`(加 vue 插件)+ `package.json`(@vitejs/plugin-vue devDep)——测试基建,所有测试受益。
+- `rewrite/src/features/storage-local-baseline/services/storage-local-service.ts`(appendLocalRecords fast path + canAppendInOrderFast helper)
+- `rewrite/src/features/storage-local-baseline/state/storage-state.ts`(appendRecords/getLastRecordCapturedAtMs/hasRecordId 新方法)
+- `rewrite/src/features/storage-local-baseline/__tests__/storage-append-perf.spec.ts`(新增性能回归测试)
+- `rewrite/src/runtime/__tests__/routing-tick-perf.spec.ts`(新增 Phase 1 证据基准)
+- `rewrite/src/runtime/routing-tick.ts` + `receive/core/processor.ts` + `receive/services/receive-service.ts`(清 debug log)
+- **契约不变**:appendLocalRecords/StorageStateContainer 既有方法签名未改(appendRecords 等是新增),排序/隔离/去重语义全部保留(storage-service-state-selector 7 测试过)。
+
+### 来源
+
+- S012(2026-06-23,接收帧高频卡顿性能优化)
+- trace `rewrite/docs/Trace-20260623T093434.json` + `perf-summary.md`(prod,无 source map)
+- Node 基准实测数据(见 S012):routingTick 5.5ms / append 2000 records 62ms(旧)→18.65ms(新)/ 端到端 62ms→34ms
+- 用户纠正:"一秒十几帧指的是我真的收到十几帧,不是100ms的定时器"
+- 用户补充新证据:"开久了卡"
+- 用户拍板范围扩张:"加 vue 插件到 vitest.config(推荐)" + "把那一堆日志该清的清一下?说是开久了卡(顺便想想还可能是啥)"
+- 触发原话:见 voice.md 2026-06-23

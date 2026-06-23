@@ -30,20 +30,15 @@ export async function routingTick(
     (event) => event.kind === 'data' && event.bytes !== undefined,
   );
 
-  const nonDataEvents = drainOutcome.events.filter(
-    (event) => event.kind !== 'data',
-  );
-  if (nonDataEvents.length > 0) {
-    console.warn('[ROUTE-TICK] non-data events:', nonDataEvents.length,
-      nonDataEvents.map(e => `${e.kind}(${e.id})`));
-  }
-
+  // 非 data 事件(disconnect/error/cleanup)是低频但需可见的状态变化,保留 warn
+  // 但去掉每次的 .map 格式化(高频 tick 下即便不触发也按需构造)。
   if (dataEvents.length === 0) {
+    const nonDataCount = drainOutcome.events.length;
+    if (nonDataCount > 0) {
+      console.warn('[routing] non-data events in tick:', nonDataCount);
+    }
     return { ok: true, eventsRouted: 0, matchesEmitted: 0 };
   }
-
-  console.log('[ROUTE-TICK] data events:', dataEvents.length,
-    dataEvents.map(e => `${e.kind}(${e.bytes?.length}B from ${e.connectionId})`));
 
   const source = new ConnectionToReceiveInputSource(dataEvents);
   const receiveOutcome =

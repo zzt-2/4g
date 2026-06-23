@@ -230,15 +230,15 @@ export function createReceiveService(
     async drainInputSource(source) {
       const outcomes: ReceiveBatchOutcome[] = [];
       const events = await source.drainEvents();
-      console.log('[RX-SVC] drainInputSource: events:', events.length,
-        events.map(e => e.kind === 'batch' ? `batch(${e.batch.bytes.length}B)` : `error(${e.error.kind})`));
       for (const event of events) {
         const serviceCall = event.kind === 'batch' ? ingest(event.batch) : recordInputError(event.error);
         outcomes.push(...serviceCall.outcomes);
       }
       const errorKinds = outcomes.filter(o => o.kind !== 'matched' && o.kind !== 'unmatched');
       if (errorKinds.length > 0) {
-        console.warn('[RX-SVC] error outcomes:', errorKinds.map(o => `${o.kind}(${o.issues.map(i => i.code)})`));
+        // 非 matched/unmatched 的结果(config/parse/input-error/stale)是异常信号,保留计数级 warn;
+        // 去掉每个 outcome 的 issues.map 格式化(高频批下无谓开销),只报数量。
+        console.warn('[receive] error outcomes:', errorKinds.length);
       }
 
       return serviceOutcome(state.getSnapshot(), outcomes);
