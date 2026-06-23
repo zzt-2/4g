@@ -710,7 +710,7 @@ function onHistoryRowClick(row: HistoryTableRow): void {
       </div>
 
       <!-- Tab2: 执行监控（KPI + 左列表 + 右详情，gap-6 不贴死） -->
-      <div v-show="activeTab === 'executions'" class="flex h-full gap-6 p-3">
+      <div v-show="activeTab === 'executions'" class="flex h-full gap-6 p-3 no-wrap">
         <!-- 左：KPI bar + 二级分段 + 列表 -->
         <ExecutionList
           v-model="executionsInnerTab"
@@ -751,7 +751,7 @@ function onHistoryRowClick(row: HistoryTableRow): void {
           :status-info="selectedStatusInfo"
           :template-label="selectedTemplateLabel"
           :is-operating="isOperating"
-          class="w-[400px] flex-shrink-0"
+          class="w-100 min-w-100 flex-shrink-0"
           @edit="onEditTask"
           @start="onStart"
           @pause="onPause"
