@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-19
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-23
 
 ## 子系统架构认知(D003,2026-06-18 确立)
 
@@ -200,8 +200,34 @@
 **H008 + R001 + R002 + D001/D002/D003 完成（粒度调研 + setTestTask 协议层对齐 + 代码清理 + 工程量评估 + 子系统认知纠正:我们是 LAS,翻译是双向同源简单工程）。**
 **对接闭环实施完成(2026-06-19,分支 feat/northbound-task-integration,8 commit,已合 main)：翻译器 encode/decode + getTestCaseAll + setTestTask decode + 报告收集器 + 模板上报开关 UI。375/380 测试通过。**
 **⚠️ 2026-06-19 方向调整(H009):用户指出"上报标记挂 TaskTemplate"是错误耦合。正确方向:task 模板保持纯粹,command-ingress 维护"模板→用例"映射表(B 方案)。本轮 CustomerSyncMeta + 模板 UI 开关需回滚;翻译器/快照/路径/报告收集器保留。详见 H009。**
-**联调现状：heartbeat/login/getSubSysState ✓ 通；getTestCaseAll/setTestTask 已实现(方向待按 H009 调整)。**
-**已知未做:command-ingress 映射表(H009,B方案)、UI 美化、真实设备对接、ExecutionListPage 来源标识、controlTestTask action 联调实测、8800/80 端口确认。**
+**S012 完成(2026-06-22,H009 执行):本轮 8 commit 的耦合部分已回滚(task feature 零甲方字段,grep 0 匹配);command-ingress 新建 catalog-mapping.ts 映射表(CatalogMapping + CRUD + localStorage)+ 挂进 use-central-docking 第四份数据;翻译器 encode 入参从 TaskTemplate 改为 (EncodeSource + mapping);getTestCaseAll 数据源改为映射表(selectEnabledMappings + getTemplate);用例目录 tab UI 从手写 JSON 改为"选模板 + 配可覆盖字段"列表式管理。1464/5(baseline 1463/5,0 新增失败)。D002 标记 partially-superseded,D004 新建。**
+**S013 完成(2026-06-23):登录 password 缺失修复(S011 同 bug 复发)。根因 b 铁证——`persistConfig`/`PersistedConfig` 从 S008 起漏存 password(非回归);auth.ts 加两层防御(D005:password/username 非空前置校验 + access_token 缺失报错,杜绝 undefined 被 JSON.stringify 静默吞);DockingConfigDialog password 加必填 rules。northbound+CI 270/5(0 新增失败,5 failed 全 heartbeat-timer pre-existing baseline),lint 0,tsc 工具自身 bug 与本任务无关。离线研究:controlTestTask action 矛盾(文档参数表只列 abort vs 示例四种,代码按四种实现,stop/abort 语义待联调实测区分)+ getTestCaseAll 报文核对(runSubSys 必填级遗漏 + durate/satelliteCount/stationCount 硬编码,联调有字段校验反馈再补)。实测:登录通(token 604799s)、入站通(真实拓扑=甲方后端在桥接虚拟机 10.15.5.93,改 t_sub_system.base_url=http://10.15.4.54:5001 + 加 5001 防火墙规则)。联调顺带发现 S012 遗留 blocker bug → 开 H010 交接 S014。**
+**联调现状：login/heartbeat/getSubSysState/getTestCaseAll(请求到达)✓ 通；getTestCaseAll 响应 datas 空(S014 第一层 testCaseConfig 已修但未联调;第二层 D006 协议理解错误待下一轮重写——datas 该走 FTP 文件非响应体);setTestTask 已实现(待联调)。**
+**已知未做:UI 美化、真实设备对接、ExecutionListPage 来源标识、controlTestTask action 联调实测(文档矛盾待解)、getTestCaseAll 字段补全(runSubSys 等)、getTestCaseAll 协议流程重写(D006:FTP 上传 + fileTranslationComplete 通知,待下一轮)、FTP 配置 UI(DockingConfigForm 加 5 字段,顺带打通 TestReport 上传链)、fileType/fileIndex 字段联调确认。**
+**S016 完成(2026-06-23):中心对接数据文件持久化。用户报"用例目录/对接配置重装就丢"——根因是 S012 治本时只迁了 task 模板,这 4 份(northbound-docking-config/devices/catalog-mappings/test-catalog)漏迁还留 localStorage。新建 command-ingress/services/docking-file-storage.ts(照 task-template 范式,3 份合写 state/docking.json + .bak + 原子写);LazyDockingStorage holder 照 LazyPersistence 延迟注入;bootstrap 加 hydrateDockingData;use-central-docking 加 storage 参数改调;顺带删死代码(DEFAULT_TEST_CASES/DEFAULT_TEST_CATALOG/setTestCatalogData/configuredTestCases 整条链)。docking-file-storage.spec 12/12 过,全量 1754/11(全 baseline,stash 0 新增),lint 0。延续 S012 文件持久化范式,不新建 D###。**
+
+### S016 — 中心对接数据文件持久化(localStorage → 文件)
+- 起因:用户报"用例目录没有持久化,对接配置也是,重新安装后就变回去了。这对吗?"
+- **不对,是遗漏**。S012 治本只迁了 task 模板,中心对接 4 份数据(northbound-docking-config/devices/catalog-mappings/test-catalog)漏迁留 localStorage。Electron localStorage 存 userData 的 LevelDB,清缓存/删 userData/某些重装都会整丢
+- brainstorm 拍板 5 点:① 全 4 份迁(旧 JSON catalog 决定删非迁,D004 后已死)② 架构 A(feature 内建 file-storage,不挂 FeaturePersistence)③ localStorage 自动迁移+清(跟 task 模板同套路)④ 全归 command-ingress(守 D004)⑤ 单文件 docking.json 装 3 份
+- 实施:新建 docking-file-storage.ts(createDockingFileStorage + LazyDockingStorage holder);feature-wiring 加 dockingStorage 字段;rewriteRuntime 加 hydrateDockingData(紧跟 hydrateTaskTemplates);use-central-docking 加 storage 参数,初始化+CRUD 全改调 storage;CommandIngressPage 传 runtime.features.dockingStorage
+- 时序关键:useCentralDocking 同步读,bootstrap 异步 hydrate——靠 AppShell `v-if="!hydrated"` 保证 ready 前不渲染 router-view,composable setup 时 setDelegate 已执行,无冲突
+- 删死代码:docking-labels 的 DEFAULT_TEST_CATALOG;northbound 的 setTestCatalogData/configuredTestCases/DEFAULT_TEST_CASES(D004 后已死);旧 docking-config-persistence.spec(localStorage 路径已被 storage 取代,等价防御在 docking-file-storage.spec saveConfig 覆盖)
+- 验证:docking-file-storage.spec 12/12;command-ingress+northbound 275/280(5 failed 全 heartbeat-timer baseline);全量 1754/11(全 baseline,stash 对照 0 新增);lint 0;vue-tsc 工具自身 bug(与本任务无关)
+- 延续 S012 文件持久化范式,**不新建 D###**
+- 详见 S016-docking-data-file-persistence.md
+
+### S014 — getTestCaseAll datas 空:testCaseConfig 漏接线修复 + 协议理解纠正(D006)
+- 接 H010 handoff(S013 联调中发现的 S012 遗留 bug)
+- 现象:用户点"用例同步"后"啥也没看见"。铁证:甲方日志 15:57:34 响应只有信封字段无 datas,请求无 ftpInfo
+- **第一层根因(已修)**:feature-wiring.ts:183-189 漏传 testCaseConfig → northbound-service.ts:533 `if(!options.testCaseConfig) return null` 永远命中 → testCases 空数组。类型契约裂缝:`testCaseConfig?` 可选但 handler 当必填,单测 spec:857-861 手动传值掩盖 runtime gap。**已修**:方案 A——deriveTestCaseConfig 从 activeConfig.subSysId 取真源 + 激光默认常量,删 options.testCaseConfig 死字段。northbound-service.spec 42/42 过,lint 0,全量 11 failed 全 baseline(stash 证实 0 新增)
+- **⚠️ 第二层根因(协议理解错误,本轮发现,下一轮修,D006)**:datas **该走 FTP 文件**,不是 HTTP 响应体字段。文档铁证:03-用例管理.md L5"采用 json 文件传输方式"+ L73-91 响应表无 datas 字段 + L158-517 datas 是文件 testcase_all.json 内容。代码 L586 把 datas 塞响应体是 S006 mock 时代错误实现,我盯着它看反而被误导。用户原话"他们用例都用的 tm 的 ftp"纠正
+- **D006 拍板的正确流程**:getTestCaseAll 收到 → 序列化 {datas:[...]} → FTP 上传到【config.ftp】+【basePath/yyyy-mm-dd/testcase_all.json】→ 回应 statusCode:1(响应体无 datas)→ 调 fileTranslationComplete(tranType:upload,filePath)通知甲方。FTP 地址我们自己配、路径我们自己建
+- **4 个代码 gap 待下一轮修**:① L579 序列化缺 {datas} 包裹 ② L586 响应体多塞 datas ③ fileTranslationComplete 没接到 getTestCaseAll ④ FTP 地址源用错(用请求 ftpInfo,应 config.ftp)
+- **FTP 配置 UI 待下一轮做**:DockingConfigForm 加 host/port/username/password/basePath 5 个输入框 + saveConfigAndConnect 传 ftp + 持久化。修好后 TestReport 上传链(uploadTestReportAndNotify L188)也能通
+- **待联调确认字段**:fileType(文件类型标识表无 TestCase 类,先占位)、fileIndex(先填 0)、testDataFileTranslationComplete vs fileTranslationComplete(用户先答前者讨论指向后者)
+- **教训**:理解协议先读文档,不要先读代码。代码可能错(S006 mock 残留),甲方权威文档是基准
+- 状态:**testCaseConfig 修复(第一层)已完成并测试通过**;协议流程对齐(第二层 D006)+ FTP 配置 UI 留下一轮(S015 或 S014 续接)
 
 ### S007 — 报告链路分析
 - 发现甲方要三层：msgReport（实时进度）+ testCaseResultReport（快速 verdict）+ TestReport.json FTP 文件（详细报告）
@@ -328,3 +354,35 @@
 - 本轮已合 main 的代码:翻译器/快照/路径/报告收集器**保留**;CustomerSyncMeta + 模板 UI 开关**需回滚**
 - 推翻 D002 的"挂 TaskTemplate"部分;D001/D003 不变
 - 详见 H009-catalog-mapping-refactor-handoff.md
+
+### S012 — catalog mapping 归 command-ingress(H009 执行 / D004)
+- 执行 H009 handoff,跨 3 feature 重构
+- 步骤 1 回滚 task 耦合:删 CustomerSyncMeta + TaskTemplate.customerSync + TemplateUpdates.customerSync + TaskInstanceState.source/customerTaskId;删 use-template-editor 的 syncEnabled/overridablePathsText 状态及 save/openEdit/resetForm 逻辑;删 TemplateListPage 上报开关 UI。task feature 271/271 过,grep customerSync 0 匹配
+- 步骤 2 建映射表:新建 command-ingress/core/catalog-mapping.ts(CatalogMapping + 纯函数 CRUD + localStorage),挂进 use-central-docking 作第四份数据,12 个单测全过
+- 步骤 3 翻译器接口改(TDD):encodeTaskTemplateToTestCase → encodeSourceToTestCase,入参 (EncodeSource + mapping);getTestCaseAll 数据源改 selectEnabledMappings + getTemplate;decode 链零改动。translator 11/11,northbound 全套 119/124(5 失败全 heartbeat-timer pre-existing baseline)
+- 步骤 4 UI 改造:用例目录 tab 从手写 JSON 改为映射列表表格 + 添加/编辑 dialog(选模板 + enabled + 可覆盖路径 + 候选路径 chip 一键填);旧 JSON 编辑器降级为折叠调试用
+- 验收:全套 1464 passed / 5 failed(baseline 1463/5,+1 通过 0 新增失败);lint 改动文件 0 error;vue-tsc 工具自身有 bug(与本任务无关)
+- D002 标记 partially-superseded;D004 新建
+- 详见 S012-catalog-mapping-refactor.md
+
+### S013 — 登录 password 缺失修复 + 防御(D005)+ 离线接口研究
+- 用户报"目前又 tm 连不上了",日志铁证=登录被拒(POST /auth/partner/login 请求体无 password,参数校验异常),同 S011 复发——非网络问题
+- Phase 1 根因 b 铁证:`persistConfig`/`PersistedConfig`(use-central-docking.ts:22-58)从 S008(commit 56c1e05, 2026-06-11)起漏存 password(非回归),S011 时用户 UI 手填凑通、刷新即丢。`''`→`undefined` 运行时落差点未能从代码推出,但持久化缺陷无论根因是哪个都必须修
+- Phase 3/4 修复(TDD):
+  - auth.ts 加两层防御——login() 开头 password/username 非空前置校验(抛错不发请求)+ 响应 access_token 缺失报错(不把失败当成功,S011 bug #2)。auth.spec.ts +2 case,9/9 过
+  - persistConfig 补 password 字段(PersistedConfig 接口 + 函数都加,导出供测试)。新建 docking-config-persistence.spec.ts(3 case),3/3 过
+  - DockingConfigDialog password 输入框加必填 rules(UI 第一道校验)
+- 验收:northbound+command-ingress 270/5(0 新增失败,5 failed 全 heartbeat-timer pre-existing baseline);lint 改动文件 0 error;tsc 改动文件 0 error(vue-tsc 工具自身 bug 与本任务无关)
+- 离线研究(连不上也能做):① controlTestTask action 矛盾(文档参数表只列 abort vs 示例四种 pause/continue/stop/abort,代码按四种实现,task-service pauseTask/resumeTask 已完整实现;stop vs abort 语义代码无区分都映射 stopTask,联调实测后定);② getTestCaseAll 报文核对(encode 输出结构与文档基本对齐,但 runSubSys 必填级遗漏 + durate/satelliteCount/stationCount 硬编码,联调有字段校验反馈再补)。两项均不新建 D###(实测后补)
+- D005 新建(auth 防御层);D001~D004 不变
+- 两条日志=两个独立问题:日志 A 出站登录失败(本轮修)、日志 B 入站可达性(甲方 platform-admin Feign 调 127.0.0.1:5001 被拒,疑甲方 t_sub_system.base_url 回退占位值,按边界单独排查不混本轮)
+- 详见 S013-login-password-defense-and-offline-research.md
+
+### H010 — getTestCaseAll 响应 datas 永远空(testCaseConfig 漏接线,S012 遗留 blocker)
+- 起因:S013 入站连通后,用户报"用例同步啥也没看见"。甲方日志(15:57)铁证:响应只有信封字段,无 datas
+- 根因:`feature-wiring.ts:183-189` createNorthboundService 漏传 testCaseConfig → `northbound-service.ts:533` `if (!options.testCaseConfig) return null` 永远成立 → 所有映射判 null → testCases 空 → 响应不带 datas
+- 单测盲区:`northbound-service.spec.ts:857-861` 手动传了 testCaseConfig 所以单测绿,但 runtime wiring 漏传无测试覆盖;类型 `testCaseConfig?` 可选但 handler 当必填前置条件(契约不一致)
+- 不是 FTP 问题(甲方请求没带 ftpInfo,数据走响应体 datas);不是映射表问题(用户确认映射表有 enabled 项)
+- 严重度:blocker——S012 核心功能(getTestCaseAll 真实化)完全失效
+- 修复方向:方案 C 硬编码 laser 默认值先跑通 / 方案 A 从 docking config 派生正经接线 + service 加 setTestCaseConfig 方法
+- 详见 H010-getTestCaseAll-empty-datas-handoff.md

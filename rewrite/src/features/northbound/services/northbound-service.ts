@@ -30,16 +30,14 @@ import type {
   FileTranslationCompleteOutbound,
   OutboundEnvelope,
   SigReportDevice,
-  GetTestCaseAllRequest,
   SetParsRequest,
 } from '../core/types';
 import { generateTestReport } from '../core/test-report-generator';
-import { encodeTaskTemplateToTestCase, decodeTestCaseToTaskDefinition, createPlaceholderFailDefinition } from '../core/testcase-sync-translator';
-import type {
-  NorthboundTestCaseConfig,
-  ReportedSnapshot,
-  OverrideWarning,
-} from '../core/types';
+import { encodeSourceToTestCase, decodeTestCaseToTaskDefinition, createPlaceholderFailDefinition } from '../core/testcase-sync-translator';
+import type { EncodeSource } from '../core/testcase-sync-translator';
+import type { CatalogMapping } from '@/features/command-ingress/core';
+import { selectEnabledMappings } from '@/features/command-ingress/core';
+import type { NorthboundTestCaseConfig } from '../core/types';
 import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
 import type { ReportDataCollector } from './report-data-collector';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
@@ -70,6 +68,27 @@ export interface FtpUploadConfig {
   readonly content: string;
 }
 
+// S014: 激光子系统(LAS)的固定身份信息(非 subSysId 字段都固定)。
+// subSysId 是变量(用户在对接对话框填,如 'JG'),其余是激光子系统的固有属性。
+// 见 D003(我们是 SOCC-CQ-LAS,5 个二级子系统之一)+ D001(caseTemplate↔TaskTemplate)。
+const LASER_TEST_CASE_DEFAULTS = {
+  subSysName: '激光载荷',
+  menuId: 'laser-menu',
+  menuName: '激光测试',
+  caseType: 'orbit',
+} as const satisfies Omit<NorthboundTestCaseConfig, 'subSysId'>;
+
+/**
+ * S014: 从 activeConfig 派生 testCaseConfig。
+ * subSysId 用真源(start(config) 时用户填的值,存在 activeConfig.subSysId);
+ * 其余字段用激光子系统固定默认值。
+ * 返回 null 仅当 activeConfig 还没建立(start() 未调用)——此时 getTestCaseAll 本就不该被处理。
+ */
+function deriveTestCaseConfig(cfg: NorthboundConfig | null): NorthboundTestCaseConfig | null {
+  if (!cfg) return null;
+  return { subSysId: cfg.subSysId, ...LASER_TEST_CASE_DEFAULTS };
+}
+
 export interface FtpFacade {
   uploadFile(config: FtpUploadConfig): Promise<void>;
 }
@@ -80,7 +99,6 @@ export interface NorthboundServiceOptions {
   readonly httpFacade: HttpFacade;
   readonly ftpFacade?: FtpFacade;
   readonly connectionSnapshot: () => { readonly status: string };
-  readonly testCaseConfig?: NorthboundTestCaseConfig;
   readonly reportedSnapshotStorage?: ReportedSnapshotStorage;
   readonly reportDataCollector?: ReportDataCollector;
 }
@@ -99,7 +117,8 @@ export interface NorthboundService {
   reportFileTranslationComplete(file: Omit<FileTranslationCompleteOutbound, keyof OutboundEnvelope>): Promise<void>;
   reportSigReport(data: readonly SigReportDevice[], taskId: string, testCaseId: string): Promise<void>;
   setDeviceList(items: readonly DeviceInfoItem[]): void;
-  setTestCatalogData(data: Record<string, unknown>): void;
+  /** D004: 喂入 command-ingress 维护的「模板→用例」映射表,getTestCaseAll 从这里取数据源 */
+  setCatalogMappings(mappings: readonly CatalogMapping[]): void;
 }
 
 export function createNorthboundService(options: NorthboundServiceOptions): NorthboundService {
@@ -426,32 +445,16 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     pars: [],
   };
 
-  const DEFAULT_TEST_CASES = {
-    datas: [{
-      name: '激光链路测试', id: 'ADS_MENU_01', isParent: true,
-      type: '', runSubSys: '', depSubSys: '', depSubNe: '',
-      durate: 0, execSteps: '', remark: '',
-      inputPars: [], preHandle: [], afterHandle: [],
-      children: [{
-        name: '激光通信测试', id: 'ADS_TC_001', isParent: false,
-        type: 'land', runSubSys: 'ADS', depSubSys: '', depSubNe: '',
-        durate: 60, execSteps: '1.发送帧;2.接收帧;3.校验结果',
-        remark: 'Mock 测试用例',
-        inputPars: [], preHandle: [], afterHandle: [],
-        children: [],
-      }],
-    }],
-  };
-
   let configuredDevices: readonly DeviceInfoItem[] = [DEFAULT_DEVICE];
-  let configuredTestCases: Record<string, unknown> = DEFAULT_TEST_CASES;
+  // D004: command-ingress 维护的映射表,getTestCaseAll 的数据源(替代旧 customerSync 模板字段)
+  let configuredCatalogMappings: readonly CatalogMapping[] = [];
 
   function setDeviceList(items: readonly DeviceInfoItem[]): void {
     configuredDevices = items;
   }
 
-  function setTestCatalogData(data: Record<string, unknown>): void {
-    configuredTestCases = data;
+  function setCatalogMappings(mappings: readonly CatalogMapping[]): void {
+    configuredCatalogMappings = mappings;
   }
 
   // --- Stub handlers ---
@@ -510,36 +513,95 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     return buildResponse(envelope, 1, 'ok');
   }
 
-  async function handleGetTestCaseAll(body: Record<string, unknown>, envelope: InboundEnvelope): Promise<CustomerResponse> {
-    const parsed = body as GetTestCaseAllRequest;
-    const ftpInfo = parsed.ftpInfo;
+  async function handleGetTestCaseAll(_body: Record<string, unknown>, envelope: InboundEnvelope): Promise<CustomerResponse> {
+    // D006: getTestCaseAll 用例数据走 FTP 文件传输(03-用例管理.md L5 "采用 json 文件传输方式")。
+    // datas 是 FTP 文件 testcase_all.json 的内容({datas:[...]} 包裹),不是 HTTP 响应体字段。
+    // 响应体只有信封字段(无 datas)。FTP 地址用我们 config.ftp 自己配的(不用请求里的 ftpInfo)。
+    // 流程:序列化 {datas} → 上传 config.ftp/basePath/yyyy-mm-dd/testcase_all.json → 回 statusCode:1
+    //       → 调 fileTranslationComplete 通知甲方文件路径。
 
-    // 从 taskService 取 enabled 模板,encode 成 CustomerTestCase
-    const allTemplates = options.taskService.listTemplates();
-    const enabledTemplates = allTemplates.filter(t => t.customerSync?.enabled === true);
-    const testCases = enabledTemplates.map(t => {
-      if (!options.testCaseConfig) return null;
-      const { testCase, snapshot } = encodeTaskTemplateToTestCase(t, options.testCaseConfig);
+    const cfg = activeConfig;
+    const ftp = options.ftpFacade;
+    // D006: getTestCaseAll 本就该走 FTP,没配 config.ftp 或没 ftpFacade 是配置缺失,报错而非静默成功
+    if (!cfg?.ftp || !ftp) {
+      return buildResponse(envelope, 2, 'FTP not configured (请在对接配置填写 FTP 地址)');
+    }
+
+    // S014: testCaseConfig 从 activeConfig.subSysId 派生(用户在对接对话框填的真源),
+    // 其余字段是激光子系统的固定身份信息。
+    const testCaseConfig = deriveTestCaseConfig(cfg);
+    if (!testCaseConfig) return buildResponse(envelope, 2, 'testCaseConfig missing');
+
+    // D004: 数据源是 command-ingress 维护的映射表(过滤 enabled),而非模板的 customerSync 字段。
+    const enabledMappings = selectEnabledMappings(configuredCatalogMappings);
+    const testCases = enabledMappings.map(mapping => {
+      const tpl = options.taskService.getTemplate(mapping.templateId);
+      if (!tpl) return null; // 映射指向的模板已被删,跳过
+      const source: EncodeSource = {
+        definition: tpl.definition,
+        templateId: tpl.templateId,
+        templateName: tpl.name,
+        templateTags: tpl.tags,
+      };
+      const { testCase, snapshot } = encodeSourceToTestCase(source, mapping, testCaseConfig);
       options.reportedSnapshotStorage?.save(snapshot);
       return testCase;
     }).filter((tc): tc is NonNullable<typeof tc> => tc !== null);
 
-    if (ftpInfo?.ip && options.ftpFacade) {
-      try {
-        await options.ftpFacade.uploadFile({
-          host: ftpInfo.ip,
-          port: ftpInfo.port ?? 21,
-          username: ftpInfo.username ?? 'anonymous',
-          password: ftpInfo.password ?? '',
-          remotePath: `${(ftpInfo.dir ?? '/').replace(/\/$/, '')}/testcase_all.json`,
-          content: JSON.stringify(testCases),
-        });
-      } catch {
-        return buildResponse(envelope, 2, 'FTP upload failed');
-      }
+    // D006: 上传路径 basePath/yyyy-mm-dd/testcase_all.json(加日期前缀,避免多份混一起)
+    const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+    const basePath = cfg.ftp.basePath.replace(/\/+$/, '');
+    const remotePath = `${basePath}/${today}/testcase_all.json`;
+    // D006: 文件内容是 {datas:[...]} 包裹(03-用例管理.md L158-163 文件格式定义)
+    const fileContent = JSON.stringify({ datas: testCases });
+
+    try {
+      await ftp.uploadFile({
+        host: cfg.ftp.host,
+        port: cfg.ftp.port,
+        username: cfg.ftp.username,
+        password: cfg.ftp.password,
+        remotePath,
+        content: fileContent,
+      });
+    } catch (e) {
+      console.error('[northbound] getTestCaseAll FTP upload failed', e);
+      // 上传失败也通知甲方(让甲方知道失败了),然后回 statusCode:2
+      await reportFileTranslationCompleteSafe({
+        tranType: 'upload',
+        result: 'fail',
+        fileType: 'TestCase',
+        fileIndex: 0,
+        filePath: remotePath,
+        ftpServerIp: cfg.ftp.host,
+      });
+      return buildResponse(envelope, 2, 'FTP upload failed');
     }
 
-    return buildResponse(envelope, 1, 'ok', testCases.length > 0 ? { datas: testCases } : undefined);
+    // D006: 上传成功后调 fileTranslationComplete 通知甲方文件路径(甲方自己去 FTP 取)
+    await reportFileTranslationCompleteSafe({
+      tranType: 'upload',
+      result: 'success',
+      fileType: 'TestCase',
+      fileIndex: 0,
+      filePath: remotePath,
+      ftpServerIp: cfg.ftp.host,
+    });
+
+    // 响应体只有信封字段,无 datas(D006)
+    return buildResponse(envelope, 1, 'ok');
+  }
+
+  /**
+   * D006: fileTranslationComplete 通知(fileTranslationComplete 接口)。
+   * 包装 reportFileTranslationComplete,失败只 log 不影响主流程(R11:通知失败不影响 getTestCaseAll 响应)。
+   */
+  async function reportFileTranslationCompleteSafe(file: Omit<FileTranslationCompleteOutbound, keyof OutboundEnvelope>): Promise<void> {
+    try {
+      await reportFileTranslationComplete(file);
+    } catch (e) {
+      console.error('[northbound] reportFileTranslationComplete failed', e);
+    }
   }
 
   // --- Request router ---
@@ -754,7 +816,7 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     reportFileTranslationComplete,
     reportSigReport,
     setDeviceList,
-    setTestCatalogData,
+    setCatalogMappings,
   };
 }
 

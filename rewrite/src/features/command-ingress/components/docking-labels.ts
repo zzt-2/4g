@@ -52,6 +52,12 @@ export const DEFAULT_DOCKING_CONFIG = {
   password: '',
   grantType: 'partner',
   tenantId: '000000',
+  // D006: FTP 配置(getTestCaseAll 用例数据走 FTP 文件传输 + TestReport 上传都用它)
+  ftpHost: '',
+  ftpPort: 21,
+  ftpUsername: '',
+  ftpPassword: '',
+  ftpBasePath: '/laser',
 };
 
 // --- Mock devices ---
@@ -67,22 +73,3 @@ export const MOCK_DEVICES: readonly DeviceInfoItem[] = [
     pars: [],
   },
 ];
-
-// --- Default test case catalog (V1.0.4 getTestCaseAll format) ---
-
-export const DEFAULT_TEST_CATALOG: Record<string, unknown> = {
-  datas: [{
-    name: '激光链路测试', id: 'JG_MENU_01', isParent: true,
-    type: '', runSubSys: '', depSubSys: '', depSubNe: '',
-    durate: 0, execSteps: '', remark: '',
-    inputPars: [], preHandle: [], afterHandle: [],
-    children: [{
-      name: '激光通信测试', id: 'JG_TC_001', isParent: false,
-      type: 'land', runSubSys: 'JG', depSubSys: '', depSubNe: '',
-      durate: 60, execSteps: '1.发送帧;2.接收帧;3.校验结果',
-      remark: 'Mock 测试用例',
-      inputPars: [], preHandle: [], afterHandle: [],
-      children: [],
-    }],
-  }],
-};

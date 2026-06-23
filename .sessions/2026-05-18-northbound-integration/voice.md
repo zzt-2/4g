@@ -28,8 +28,45 @@
 - ⟶ 推翻 2026-06-17 R002 "翻译层站不住"结论(基于 ka 数据对不上 laser frame 的错误前提)
 
 ## 2026-06-19
-- "其实我不是很想把是否上报给甲方和任务模板那边耦合到一起,这不好" → H009(推翻 D002 的耦合设计)
-- "现在指令接入、中心对接、用例目录那块你是不是完全没管?我设想的是让那块负责这个的" → H009(command-ingress 负责对接)
-- "任务那边我这段时间已经搞通了,现在就差甲方这边和任务那边对接了"
-- [选择 B] 用例目录自动从 task 模板派生,映射规则在 command-ingress 配,task 模板不带甲方字段 → H009
+- "其实我不是很想把是否上报给甲方和任务模板那边耦合到一起,这不好" → H009 / D004(推翻 D002 的耦合设计)
+- "现在指令接入、中心对接、用例目录那块你是不是完全没管?我设想的是让那块负责这个的" → H009 / D004(command-ingress 负责对接)
+- "任务那边我这段时间已经搞通了,现在就差甲方这边和任务那边对接了" → H009
+- [选择 B] 用例目录自动从 task 模板派生,映射规则在 command-ingress 配,task 模板不带甲方字段 → H009 / D004
 - ⟶ 推翻 2026-06-17 D002 的"CustomerSyncMeta 挂 TaskTemplate"设计(改为 command-ingress 映射表)
+
+## 2026-06-23
+- "目前又 tm 连不上了" → S013(实为登录被拒——password 缺失,同 S011 复发;非网络问题)
+- [发现] "我本地这块是空的"(对接配置 password 字段空) → S013(印证 persistConfig 漏存 password 根因)
+- "现在,到了之前的用例那块了?反正同步之后啥也没看见。不知道是ftp没弄还是啥" → S014(getTestCaseAll datas 空 blocker)
+- "映射表啥的都有。确认开了,我刚加的。" → S014(排除映射表空的可能)
+- "单独开吧?你先写日志,然后我压缩上下文之后继续。这块必须得修,且我得知道到底啥情况" → S014(独立 session + 先讲清楚再修)
+- "你在说啥?这是啥?我咋不知道?我们不是讨论ftp吗?" → S014(拒绝直接跳到代码方案,要先讲清楚来龙去脉)
+- "顺便我说一下,目前咱们知道ftp服务器配置吗?知道往哪传吗?我怎么记得都不知道呢?还是确实知道只是我忘了" → S014(FTP 配置疑问;⟶ 后续纠正:不是"协议设计如此",是我们要自己配 config.ftp)
+- [选择 2] "先讲清楚再修"(在"修/先讲清楚再修/暂不修"中选) → S014(用户偏好:动手前先看清全局)
+
+## 2026-06-23 续接(S014 协议纠正)
+- "a" → S014(选方案 A:deriveTestCaseConfig 从 activeConfig 派生)
+- "ftp知道是啥了" + 甲方转述"那请问我们这边ftp是要传到哪个目录 / 目录自己定或者按接口协议规范 / 回调接口告诉我路径和IP地址 / 是响应体里的ftpInfo吗 / 那个是虚拟机里面的 / fileTranslationComplete接口协议看下 / 虚拟机里面搭建了vsftp服务 / 可以到ftp服务器模块看一下账号密码 / 回调收到的记录就在这个表里" → S014(FTP 信息补齐:vsftpd 在虚拟机,账号密码甲方那边管,fileTranslationComplete 通知路径)
+- "用户密码啥的到时候得加配置" → S014(FTP 配置要加 UI 入口)
+- "testDataFileTranslationComplete" → S014(被问用哪个接口的回答,但后续讨论指向通用 fileTranslationComplete,见 D006 待澄清)
+- "停,ftp好像是fileTranslationComplete这个,我们传完之后回报这个。你没理解错吧?" → S014(纠正我把 getTestCaseAll 和 fileTranslationComplete 当两个独立场景)
+- "你tm觉得我会跟你扯淡吗?这个流程是很明确的。因为他们用例都用的tm的ftp,不然我在这折腾?咱们先把这两块对齐吧" → D006(推翻我"FTP 是备用/datas 走响应体"的脑补;用户明确用例走 FTP)
+- "ftp配置我们自己设,我能看见用户密码和ip端口。然后,路径自己写,我们自己建路径,甲方通过fileTranslationComplete了解在哪" → D006(FTP 地址我们自配 config.ftp + 路径自建 basePath/日期/testcase_all.json + fileTranslationComplete 通知)
+- [选 basePath/testcase_all.json + 前面加日期] → D006(上传路径定:basePath/yyyy-mm-dd/testcase_all.json)
+- [选 上传后立即调 fileTranslationComplete] → D006(通知环节在同一条链)
+- "不急,你先记日志,把我们这一大段该死的讨论记下来,完完整整地记下来。我不想之后再跟你掰扯" → S014(本轮只落档不改代码)
+- "继续,你tm直接写,别搞这个计划" → S014(拒绝 plan mode,直接写文档)
+- [教训] 我盯着 S006 mock 时代错误代码(L586 把 datas 塞响应体)被带节奏,没回文档第一句"L5 采用 json 文件传输方式"重新校准 → 理解协议先读文档不要先读代码
+
+## 2026-06-23 续接二(S016 持久化迁移)
+- "我发现,目前用例目录没有持久化,然后对接配置也是,重新安装后,就直接变回去了?这对吗?" + `[northbound] getTestCaseAll FTP upload failed ECONNREFUSED 10.15.4.54:21` → S016(用户报两个问题:① 持久化遗漏 ② FTP 连不上。① 是真 bug 要做,② 是配置/网络问题非代码)
+- "持久化得做。" → S016(brainstorm 起点)
+- [选 全部 4 份一次性迁] → S016(迁移范围)
+- [选 A feature 内各自建 file-storage] → S016(架构方向)
+- [选 自动迁移 + 清 localStorage] → S016(迁移路径)
+- [选 全归 command-ingress] → S016(feature 归属)
+- [选 旧 JSON catalog 删掉] → S016(死代码清理)
+- "随你便,别给我拉屎,和别的一样,能用就行" → S016(方案细节别再问,跟 task 模板同款即可;用户明确拒绝过度设计讨论)
+- "别墨迹了,赶紧的" → S016(催推进,不要再分节确认)
+- "赶紧做赶紧做,不用计划了,都tm做过几次了" → S016(拒绝 writing-plans,直接干;文件持久化范式 S012 已趟平,无需再写计划)
+- [教训] S012 治本时只迁了 task 模板,没全盘扫同类数据(northbound/command-ingress 的 4 份 localStorage)——迁移要全盘,不能只迁最先暴露的那一个

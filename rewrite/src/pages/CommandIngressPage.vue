@@ -48,7 +48,7 @@ const activeTab = ref<'monitor' | 'config' | 'docking'>('monitor');
 const scoeConfig = useScoeConfig();
 const monitor = useScoeMonitor(service);
 const testTool = useTestTool(service, () => '');
-const docking = useCentralDocking(northboundService, taskService, resultService, notify);
+const docking = useCentralDocking(northboundService, taskService, resultService, notify, runtime.features.dockingStorage);
 
 // ===== 操作 =====
 const { execute, isOperating } = useAsyncAction();
@@ -531,8 +531,8 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Tab 2: SCOE 配置 -->
-      <div v-show="activeTab === 'config'" class="flex h-full gap-2">
-        <SatelliteList class="w-72 min-w-72 flex-shrink-0" :rows="scoeConfig.satelliteConfigs.value"
+      <div v-show="activeTab === 'config'" class="flex h-full">
+        <SatelliteList class="w-100 min-w-100 flex-shrink-0" :rows="scoeConfig.satelliteConfigs.value"
           :selected-id="scoeConfig.selectedConfigId.value" @update:selected="scoeConfig.selectSatellite"
           @add="handleAddSatellite" @duplicate="handleDuplicateSatellite" @delete="handleDeleteSatellite"
           @import="handleImportConfig" @export="handleExportConfig" />

@@ -28,7 +28,6 @@ import {
 } from '@/features/send';
 import {
   createTaskService,
-  createTaskTemplateStorage,
   createTaskHistoryStorage,
   type TaskService,
 } from '@/features/task';
@@ -38,6 +37,7 @@ import {
   type CommandIngressService,
   type ScoeGlobalConfig,
 } from '@/features/command-ingress';
+import { LazyDockingStorage } from '@/features/command-ingress/services/docking-file-storage';
 import {
   createDisplayService,
   type DisplayService,
@@ -76,6 +76,9 @@ export interface RewriteWiredFeatures {
   readonly commandIngressService: CommandIngressService;
   readonly northboundService: NorthboundService;
   readonly receiveEventSourceBridge: ReceiveEventSourceBridge;
+  /** S016: 中心对接数据文件持久化 holder(对接配置/设备/映射表)。wireFeatures 时建空壳,
+   *  bootstrap 拿到 fileFacade 后建真 storage + hydrate + setDelegate 注入。 */
+  readonly dockingStorage: LazyDockingStorage;
 }
 
 export interface WireFeaturesOptions {
@@ -95,6 +98,7 @@ export function wireFeatures(
   options: WireFeaturesOptions,
 ): RewriteWiredFeatures {
   // L0: no cross-dependencies
+  const dockingStorage = new LazyDockingStorage();
   const frameService = createDefaultFrameService();
   const frameReader = frameService;
   const settingsService = createSettingsService();
@@ -141,7 +145,8 @@ export function wireFeatures(
   const taskService = createTaskService({
     sendService,
     receiveEventSource: receiveEventSourceBridge,
-    templateStorage: createTaskTemplateStorage(),
+    // templateStorage 不在此注入(S012 根因 D):wireFeatures 同步初始化时无 fileFacade,
+    // 启动模板为空。bootstrap 异步读到文件后端后调 setTemplateStorage + hydrateTemplates 注入。
     historyStorage: createTaskHistoryStorage(),
   });
 
@@ -206,5 +211,6 @@ export function wireFeatures(
     commandIngressService,
     northboundService,
     receiveEventSourceBridge,
+    dockingStorage,
   };
 }

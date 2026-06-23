@@ -4,61 +4,17 @@ import type { TaskService } from '@/features/task';
 import type { ResultService } from '@/features/result';
 import type { DeviceInfoItem } from '@/features/northbound/core/types';
 import type { UseNotifyReturn } from '@/shared/composables';
-import { DEFAULT_DOCKING_CONFIG, MOCK_DEVICES, DEFAULT_TEST_CATALOG } from '../components/docking-labels';
-
-// --- Persistence helpers ---
-
-const CONFIG_KEY = 'northbound-docking-config';
-const DEVICES_KEY = 'northbound-docking-devices';
-const TEST_CATALOG_KEY = 'northbound-docking-test-catalog';
-
-interface PersistedConfig {
-  serverHost: string;
-  serverPort: number;
-  customerBaseUrl: string;
-  subSysType: string;
-  subSysId: string;
-  loginUrl: string;
-  clientId: string;
-  username: string;
-  grantType: string;
-  tenantId: string;
-}
-
-function loadJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) as T : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function persistConfig(cfg: DockingConfigForm): void {
-  const persisted: PersistedConfig = {
-    serverHost: cfg.serverHost,
-    serverPort: cfg.serverPort,
-    customerBaseUrl: cfg.customerBaseUrl,
-    subSysType: cfg.subSysType,
-    subSysId: cfg.subSysId,
-    loginUrl: cfg.loginUrl,
-    clientId: cfg.clientId,
-    username: cfg.username,
-    grantType: cfg.grantType,
-    tenantId: cfg.tenantId,
-  };
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(persisted));
-}
-
-function persistDevices(items: readonly DeviceInfoItem[]): void {
-  localStorage.setItem(DEVICES_KEY, JSON.stringify(items));
-}
-
-function persistTestCatalog(data: unknown): void {
-  localStorage.setItem(TEST_CATALOG_KEY, JSON.stringify(data));
-}
+import { DEFAULT_DOCKING_CONFIG, MOCK_DEVICES } from '../components/docking-labels';
+import type { DockingFileStorage } from '../services/docking-file-storage';
+import {
+  upsertMapping,
+  removeMapping,
+} from '../core/catalog-mapping';
+import type { CatalogMapping } from '../core/catalog-mapping';
 
 // --- Public types ---
+
+export type { PersistedConfig } from '../services/docking-file-storage';
 
 export interface DockingConnectionState {
   readonly https: 'unknown' | 'connected' | 'disconnected' | 'error';
@@ -93,6 +49,12 @@ export interface DockingConfigForm {
   password: string;
   grantType: string;
   tenantId: string;
+  // D006: FTP 配置(getTestCaseAll 用例数据走 FTP + TestReport 上传)
+  ftpHost: string;
+  ftpPort: number;
+  ftpUsername: string;
+  ftpPassword: string;
+  ftpBasePath: string;
 }
 
 // --- Composable ---
@@ -102,6 +64,7 @@ export function useCentralDocking(
   taskService: TaskService,
   resultService: ResultService,
   notify: UseNotifyReturn,
+  storage: DockingFileStorage,
 ) {
   const connectionState = ref<DockingConnectionState>({
     https: 'unknown',
@@ -115,23 +78,34 @@ export function useCentralDocking(
   const isConnecting = ref(false);
   const isDisconnecting = ref(false);
 
+  // S016:对接配置从文件持久化(storage)读,不再走 localStorage。
+  // storage 已由 bootstrap hydrate 完(AppShell 保证 ready resolve 前不渲染路由)。
+  const persistedConfig = storage.loadConfig();
   const config = reactive<DockingConfigForm>({
     ...DEFAULT_DOCKING_CONFIG,
-    ...loadJson<Partial<PersistedConfig>>(CONFIG_KEY, {}),
+    ...(persistedConfig ?? {}),
   });
 
   const dockingTasks = shallowRef<readonly DockingTaskRow[]>([]);
   const reportRecords = shallowRef<readonly ReportRecord[]>([]);
 
-  // --- Device list (configurable, persisted) ---
-  const initialDevices = loadJson<DeviceInfoItem[]>(DEVICES_KEY, [...MOCK_DEVICES]);
-  const devices = shallowRef<readonly DeviceInfoItem[]>(initialDevices);
-  northboundService.setDeviceList(initialDevices);
+  // --- Device list (configurable, persisted via storage) ---
+  const initialDevices = storage.loadDevices();
+  const devices = shallowRef<readonly DeviceInfoItem[]>(
+    initialDevices.length > 0 ? initialDevices : [...MOCK_DEVICES],
+  );
+  northboundService.setDeviceList(devices.value);
 
-  // --- Test case catalog (configurable, persisted) ---
-  const initialCatalog = loadJson<Record<string, unknown>>(TEST_CATALOG_KEY, DEFAULT_TEST_CATALOG);
-  const testCatalog = shallowRef(initialCatalog);
-  northboundService.setTestCatalogData(initialCatalog);
+  // --- Catalog mappings (D004: 「模板→用例」映射,getTestCaseAll 的真实数据源) ---
+  const initialMappings = storage.loadCatalogMappings();
+  const catalogMappings = shallowRef<readonly CatalogMapping[]>(initialMappings);
+  northboundService.setCatalogMappings(initialMappings);
+
+  function syncMappings(next: readonly CatalogMapping[]): void {
+    catalogMappings.value = next;
+    northboundService.setCatalogMappings(next);
+    storage.saveCatalogMappings(next);
+  }
 
   // Track which tasks we've already recorded as settled
   const reportedInstanceIds = new Set<string>();
@@ -201,6 +175,17 @@ export function useCentralDocking(
   async function saveConfigAndConnect(): Promise<void> {
     isConnecting.value = true;
     try {
+      // D006: FTP 配置可选。用户填了 ftpHost 才传 ftp(getTestCaseAll/TestReport 需要)。
+      // 没填则不传,handleGetTestCaseAll 会回 statusCode:2 提示去配。
+      const ftp = config.ftpHost.trim()
+        ? {
+            host: config.ftpHost.trim(),
+            port: config.ftpPort,
+            username: config.ftpUsername.trim(),
+            password: config.ftpPassword,
+            basePath: config.ftpBasePath.trim() || '/laser',
+          }
+        : undefined;
       await northboundService.start({
         serverHost: config.serverHost,
         serverPort: config.serverPort,
@@ -215,9 +200,10 @@ export function useCentralDocking(
           grantType: config.grantType,
           tenantId: config.tenantId,
         },
+        ftp,
       });
       showConfigDialog.value = false;
-      persistConfig(config);
+      storage.saveConfig({ ...config });
       refresh();
       notify.success('已连接甲方');
     } catch (e) {
@@ -255,7 +241,7 @@ export function useCentralDocking(
     const next = [...devices.value, device];
     devices.value = next;
     northboundService.setDeviceList(next);
-    persistDevices(next);
+    storage.saveDevices(next);
   }
 
   function updateDevice(deviceId: string, patch: Partial<DeviceInfoItem>): void {
@@ -264,22 +250,24 @@ export function useCentralDocking(
     );
     devices.value = next;
     northboundService.setDeviceList(next);
-    persistDevices(next);
+    storage.saveDevices(next);
   }
 
   function removeDevice(deviceId: string): void {
     const next = devices.value.filter(d => d.deviceId !== deviceId);
     devices.value = next;
     northboundService.setDeviceList(next);
-    persistDevices(next);
+    storage.saveDevices(next);
   }
 
-  // --- Test catalog update ---
+  // --- Catalog mapping CRUD (D004) ---
 
-  function updateTestCatalog(data: Record<string, unknown>): void {
-    testCatalog.value = data;
-    northboundService.setTestCatalogData(data);
-    persistTestCatalog(data);
+  function saveMapping(mapping: CatalogMapping): void {
+    syncMappings(upsertMapping(catalogMappings.value, mapping));
+  }
+
+  function deleteMapping(templateId: string): void {
+    syncMappings(removeMapping(catalogMappings.value, templateId));
   }
 
   return {
@@ -293,7 +281,7 @@ export function useCentralDocking(
     dockingTasks,
     reportRecords,
     devices,
-    testCatalog,
+    catalogMappings,
     refresh,
     saveConfigAndConnect,
     disconnect,
@@ -301,6 +289,7 @@ export function useCentralDocking(
     addDevice,
     updateDevice,
     removeDevice,
-    updateTestCatalog,
+    saveMapping,
+    deleteMapping,
   };
 }
