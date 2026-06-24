@@ -68,6 +68,44 @@ export interface DockingTaskHistoryStorage {
   recomputeBatchStatus(taskId: string): void;
 }
 
+/**
+ * 延迟注入 holder(照 docking-file-storage 的 LazyDockingStorage 同款)。
+ *
+ * wireFeatures 同步初始化时无 fileFacade,先建空 delegate(loadAll 返空、saveAll/insert/update 丢弃);
+ * bootstrap 异步拿到 fileFacade + dataDir 后,创建真 storage + hydrate,再 setDelegate 注入。
+ *
+ * AppShell 保证 bootstrap ready resolve 前不渲染 router-view,所以 composable / northbound 接入点
+ * 调用时 delegate 一定已是真 storage(hydrate 完)。
+ */
+export class LazyDockingTaskHistoryStorage implements DockingTaskHistoryStorage {
+  private delegate: DockingTaskHistoryStorage = createEmptyTaskHistoryStorage();
+
+  setDelegate(storage: DockingTaskHistoryStorage): void {
+    this.delegate = storage;
+  }
+
+  hydrate() { return this.delegate.hydrate(); }
+  loadAll() { return this.delegate.loadAll(); }
+  saveAll(batches: readonly PersistedTaskBatch[]) { this.delegate.saveAll(batches); }
+  insertBatch(batch: PersistedTaskBatch) { return this.delegate.insertBatch(batch); }
+  updateCase(taskId: string, testCaseId: string, patch: Partial<PersistedTaskCase>) {
+    this.delegate.updateCase(taskId, testCaseId, patch);
+  }
+  recomputeBatchStatus(taskId: string) { this.delegate.recomputeBatchStatus(taskId); }
+}
+
+/** 空 storage(wireFeatures 初始 delegate):loadAll 返空,其余 no-op/discard。 */
+function createEmptyTaskHistoryStorage(): DockingTaskHistoryStorage {
+  return {
+    async hydrate() { /* no-op */ },
+    loadAll: () => [],
+    saveAll: () => { /* discarded */ },
+    insertBatch: () => false,
+    updateCase: () => { /* no-op */ },
+    recomputeBatchStatus: () => { /* no-op */ },
+  };
+}
+
 export function createDockingTaskHistoryStorage(
   files: FileAccess,
   dataDir: string,

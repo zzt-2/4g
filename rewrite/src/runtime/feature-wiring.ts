@@ -38,6 +38,7 @@ import {
   type ScoeGlobalConfig,
 } from '@/features/command-ingress';
 import { LazyDockingStorage } from '@/features/command-ingress/services/docking-file-storage';
+import { LazyDockingTaskHistoryStorage } from '@/features/command-ingress/services/docking-task-history-storage';
 import {
   createDisplayService,
   type DisplayService,
@@ -80,6 +81,9 @@ export interface RewriteWiredFeatures {
   /** S016: 中心对接数据文件持久化 holder(对接配置/设备/映射表)。wireFeatures 时建空壳,
    *  bootstrap 拿到 fileFacade 后建真 storage + hydrate + setDelegate 注入。 */
   readonly dockingStorage: LazyDockingStorage;
+  /** 中心下发任务批次历史文件持久化 holder(state/docking-tasks.json)。
+   *  wireFeatures 时建空壳,bootstrap 拿到 fileFacade 后建真 storage + hydrate + setDelegate 注入。 */
+  readonly dockingTaskHistoryStorage: LazyDockingTaskHistoryStorage;
 }
 
 export interface WireFeaturesOptions {
@@ -100,6 +104,7 @@ export function wireFeatures(
 ): RewriteWiredFeatures {
   // L0: no cross-dependencies
   const dockingStorage = new LazyDockingStorage();
+  const dockingTaskHistoryStorage = new LazyDockingTaskHistoryStorage();
   const frameService = createDefaultFrameService();
   const frameReader = frameService;
   const settingsService = createSettingsService();
@@ -198,6 +203,8 @@ export function wireFeatures(
     ftpFacade: ftpFacade ?? undefined,
     connectionSnapshot: () => connectionService.getSnapshot(),
     reportedSnapshotStorage,
+    // 批次历史持久化:传 lazy holder(初始空 delegate,bootstrap 异步 setDelegate 真实例)。
+    historyStorage: dockingTaskHistoryStorage,
   });
 
   // 事件订阅（onStepResult / onTaskSettled）由 northbound 在 start() 内自管
@@ -219,5 +226,6 @@ export function wireFeatures(
     northboundService,
     receiveEventSourceBridge,
     dockingStorage,
+    dockingTaskHistoryStorage,
   };
 }

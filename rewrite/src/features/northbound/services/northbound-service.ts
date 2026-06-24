@@ -38,6 +38,9 @@ import { encodeSourceToTestCase, decodeTestCaseToTaskDefinition, createPlacehold
 import type { EncodeSource } from '../core/testcase-sync-translator';
 import type { CatalogMapping } from '@/features/command-ingress/core';
 import { selectEnabledMappings } from '@/features/command-ingress/core';
+// 仅类型引用(command-ingress 批次历史记录的形状),type-only import 编译期擦除,
+// northbound 运行时不耦合 command-ingress 的 storage 实现。
+import type { PersistedTaskBatch, PersistedTaskCase } from '@/features/command-ingress/services/docking-task-history-storage';
 import type { NorthboundTestCaseConfig } from '../core/types';
 import type { CustomerTestCaseMenu } from '../core/types';
 import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
@@ -96,6 +99,20 @@ export interface FtpFacade {
   uploadFile(config: FtpUploadConfig): Promise<void>;
 }
 
+/**
+ * 中心下发「任务批次历史」持久化的最小消费接口(spec: 任务批次历史面板)。
+ *
+ * 用结构接口承载 command-ingress storage 的形状(northbound 是被注入方,不拥有批次历史存储细节)。
+ * 接入点 handleSetTestTask / createAndStartTask / reportTaskResult 调用这些方法叠加记录,
+ * 不动现有 setTestTask/resultReport 链路。
+ */
+export interface DockingTaskHistorySink {
+  insertBatch(batch: PersistedTaskBatch): boolean;
+  updateCase(taskId: string, testCaseId: string, patch: Partial<PersistedTaskCase>): void;
+  recomputeBatchStatus(taskId: string): void;
+  loadAll(): readonly PersistedTaskBatch[];
+}
+
 export interface NorthboundServiceOptions {
   readonly taskService: TaskService;
   readonly resultService: ResultService;
@@ -104,6 +121,8 @@ export interface NorthboundServiceOptions {
   readonly connectionSnapshot: () => { readonly status: string };
   readonly reportedSnapshotStorage?: ReportedSnapshotStorage;
   readonly reportDataCollector?: ReportDataCollector;
+  /** 中心下发任务批次历史持久化(可选,注入后在 setTestTask/reportTaskResult 链路叠加记录)。 */
+  readonly historyStorage?: DockingTaskHistorySink;
 }
 
 export interface NorthboundService {

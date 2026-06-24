@@ -14,6 +14,7 @@ import { decideFrameSeed } from '@/runtime/frame-seed';
 import { deserializeFrames } from '@/features/frame';
 import { createTaskTemplateFileStorage, createTaskTemplateStorage } from '@/features/task';
 import { createDockingFileStorage } from '@/features/command-ingress/services/docking-file-storage';
+import { createDockingTaskHistoryStorage } from '@/features/command-ingress/services/docking-task-history-storage';
 
 const rewriteRuntimeKey: InjectionKey<RewriteRuntime> = Symbol('rewrite-runtime');
 
@@ -177,6 +178,10 @@ async function initPersistenceAsync(
     // 中心对接数据迁文件持久化(S016):对接配置/设备列表/catalog 映射表
     // localStorage → state/docking.json,跟 task 模板同套路。3 份合写一个文件。
     await hydrateDockingData(runtime, fileFacade, dataDir);
+
+    // 中心下发任务批次历史持久化(spec: 任务批次历史面板):setTestTask 批次 + 每用例结果摘要
+    // 存 state/docking-tasks.json。新数据(无 localStorage 旧后端),文件不存在 = 空数组。
+    await hydrateDockingTaskHistory(runtime, fileFacade, dataDir);
   } catch (err: unknown) {
     console.error('[bootstrap] Persistence initialization failed:', err instanceof Error ? err.message : err);
   }
@@ -339,4 +344,42 @@ async function hydrateDockingData(
   await storage.hydrate();
 
   runtime.features.dockingStorage.setDelegate(storage);
+}
+
+/**
+ * 中心下发任务批次历史 hydrate + 注入(spec: 任务批次历史面板)。
+ *
+ * 跟 hydrateDockingData 同套路:创建文件后端 storage(原子写 + .bak 损坏恢复),
+ * hydrate 读文件(新数据无 localStorage 迁移,文件不存在 = 空数组),再 setDelegate 注进
+ * runtime 的 LazyDockingTaskHistoryStorage holder。onDataLoss 弹 Quasar Notify 让用户感知。
+ *
+ * northbound 接入点(handleSetTestTask/createAndStartTask/reportTaskResult)从注入的 holder
+ * 调 insertBatch/updateCase/recomputeBatchStatus——AppShell 保证 ready resolve 前不渲染 router-view,
+ * 所以接入点被触发时 delegate 一定已是真 storage(hydrate 完)。
+ */
+async function hydrateDockingTaskHistory(
+  runtime: RewriteRuntime,
+  fileFacade: FileFacade,
+  dataDir: string,
+): Promise<void> {
+  const storage = createDockingTaskHistoryStorage(fileFacade, dataDir, {
+    onDataLoss: (message) => {
+      console.error('[bootstrap]', message);
+      import('quasar')
+        .then(({ Notify }) => {
+          try {
+            Notify.create({ type: 'warning', message: '任务批次历史', caption: message, timeout: 10000 });
+          } catch {
+            // Notify.create 失败(app 上下文未就绪)→ 忽略,console.error 已记录
+          }
+        })
+        .catch(() => {
+          // quasar 模块加载失败 → 忽略
+        });
+    },
+  });
+
+  await storage.hydrate();
+
+  runtime.features.dockingTaskHistoryStorage.setDelegate(storage);
 }
