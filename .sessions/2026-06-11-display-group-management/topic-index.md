@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-24 S010 星座图刷新间隔接通+点大小配置
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-24 S011 分组配置导入导出
 
 ## 进展线索
 
@@ -11,6 +11,7 @@
 - **S008** 接收页鬼畜修复 (06-21)：H001 已收口（主干测试转绿）。修复 emergent 分组 label 裸 frameId + buildPlaceholderRows 对 emergent 返空 + display buffer 整体覆盖三个连环缺陷。2 条偏离设计的决策（D-buffer-accumulate / D-emergent-from-frame-def）。test 105/105、lint 净
 - **S009** 实时测试页布局调整 (06-22)：三处纯 UI 调整（3 轮迭代）——标题"实时展示"→"实时测试"（含 AppShell 菜单同步）、stat 并入底栏录制行不再单独成块、表格行高压缩（DataTable compact prop 双保险：dense + scoped CSS，行高 36→20px）。行高前 2 次 scoped :deep 因选择器落在子组件根元素上失效，根因已记。无 D###。test 61/61、lint 净
 - **S010** 星座图刷新间隔接通+点大小配置 (06-24)：刷新间隔"半成品"接通——4 个互相打架的刷新概念（scatter/chart/顶层/写死）收敛为三视图各自独立节奏（D001）。两层存储 bug 修复（normalize scatter 合并漏字段 + clone 白名单漏 pointSize）；消费层重写（删写死 cadenceMs=200，改三组独立 cadence + watch 重启）；点大小加 pref+滑块（默认4，原写死6）。默认间隔 100/200→2000ms。推翻主对话"统一到 C"预判，改用用户拍板的"各自独立"。test display 69/69 + 集成 38/38、lint 0 新增、tsc src 0 错。待运行时实测
+- **S011** 分组配置导入导出 (06-24)：GroupConfigDialog 补导入导出——只导分组配置（DisplayGroupConfig[]）、导入完全替换、入口在弹窗标题栏。序列化/校验抽独立纯函数 core/group-io.ts（11 单测覆盖往返+边界），文件 IO 复用 getFileFacade 双路径（Electron/浏览器降级），导入校验后替换 editingGroups 不立即落盘（可取消）。无 D###。test group-io 11/11、lint 0、tsc 0
 
 ## 已确认结论
 
@@ -33,4 +34,4 @@
 
 ## 当前位置
 
-S010 完成：星座图刷新间隔接通生效 + 点大小配置 + 默认间隔≥2s 已交付。刷新间隔"半成品"彻底接通——4 个打架的刷新概念收敛为三视图各自独立节奏（D001），两层存储 bug + 消费层写死值全部修复，点大小加 pref+滑块。test display 69/69 + 集成 38/38、lint 0 新增、tsc src 0 错。等用户运行时实测（改刷新间隔→保存→再开是新值；图表节奏变慢；点变小；滑块调点大小）。S008/S009 仍待运行时回测。
+S011 完成：分组配置导入导出已交付。GroupConfigDialog 标题栏加导入/导出，序列化校验抽 group-io.ts 纯函数（11 单测）。test display 80/80、lint 0、tsc 0。等用户运行时实测（导出 json→改分组→导入替换→保存→重开验证）。S008-S010 仍待运行时回测。

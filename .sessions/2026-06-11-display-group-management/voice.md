@@ -29,3 +29,4 @@
 - "弃用 C，底栏不再显示单一值" → D001（顶层 refreshCadenceMs 弃用，底栏删假显示）
 - "500ms吧？" → D001（表格无入口，固定 500ms 节奏）
 - "2吧"（点大小：调默认值+加 pref 字段，选项2） → S010（pointSize 加配置入口，不只调默认值）
+- "这些配置有持久化吧？然后，我记得之前想给 rewrite\src\features\display\components\GroupConfigDialog.vue 里的分组加一个导入导出来着，一直没加？" → S011（确认持久化有；GroupConfigDialog 补分组导入导出）

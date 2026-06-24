@@ -46,7 +46,7 @@ sessions:
     status: active
     created: 2026-06-11
     last_updated: 2026-06-24
-    description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。S008 修接收页鬼畜（emergent 分组裸 id + buildPlaceholderRows 返空 + buffer 整体覆盖三连环缺陷），2 条偏离设计决策（buffer 累积/emergent 立足帧定义）。S009 实时测试页三处 UI 调整（标题改名 + stat 移位单行 + 行间距减半），纯样式无 D###。S010 星座图刷新间隔接通生效+点大小配置+默认间隔≥2s——4 个打架的刷新概念（scatter专属/chart通用/顶层cadence/写死200）收敛为三视图各自独立节奏（D001：星座图←scatter.refreshIntervalMs、波形图←charts min、表格←固定500ms，顶层弃用底栏不显示）。两层存储 bug 修复（normalize scatter 合并漏字段+clone 白名单漏 pointSize）+ 消费层重写（删写死 cadence=200，三组独立 cadence+watch 重启）+ pointSize 新 pref（默认4，弹窗滑块1-12）+ 默认间隔 100/200→2000ms。推翻主对话"统一到 C"预判改用用户拍板"各自独立"。test display 69/69+集成 38/38，lint 0 新增，tsc src 0 错，待运行时实测。
+    description: 分组管理 feature 从设计到实现到代码质量修复的完整过程。两轮实施：初始实现 + 7 严重/4 中等问题修复。S008 修接收页鬼畜（emergent 分组裸 id + buildPlaceholderRows 返空 + buffer 整体覆盖三连环缺陷），2 条偏离设计决策（buffer 累积/emergent 立足帧定义）。S009 实时测试页三处 UI 调整（标题改名 + stat 移位单行 + 行间距减半），纯样式无 D###。S010 星座图刷新间隔接通生效+点大小配置+默认间隔≥2s——4 个打架的刷新概念（scatter专属/chart通用/顶层cadence/写死200）收敛为三视图各自独立节奏（D001：星座图←scatter.refreshIntervalMs、波形图←charts min、表格←固定500ms，顶层弃用底栏不显示）。两层存储 bug 修复（normalize scatter 合并漏字段+clone 白名单漏 pointSize）+ 消费层重写（删写死 cadence=200，三组独立 cadence+watch 重启）+ pointSize 新 pref（默认4，弹窗滑块1-12）+ 默认间隔 100/200→2000ms。推翻主对话"统一到 C"预判改用用户拍板"各自独立"。test display 69/69+集成 38/38，lint 0 新增，tsc src 0 错，待运行时实测。S011 分组配置导入导出——GroupConfigDialog 标题栏加导入/导出，只导分组配置、导入完全替换；序列化/校验抽 core/group-io.ts 纯函数（11 单测），文件 IO 复用 getFileFacade 双路径，导入校验后替换 editingGroups 不立即落盘可取消。无 D###。test group-io 11/11、lint 0、tsc 0。
 
   - slug: 2026-06-12-checksum-sum-word
     title: Checksum SUM32/SUM16 Feature 实施

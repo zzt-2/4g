@@ -6,4 +6,5 @@ export * from './normalize';
 export * from './projection';
 export * from './sampling';
 export * from './group-resolution';
+export * from './group-io';
 export * from './migrate';

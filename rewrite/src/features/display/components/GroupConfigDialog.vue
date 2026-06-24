@@ -2,7 +2,10 @@
 import { ref, watch, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import type { DisplayGroupConfig, DisplayGroupFrameEntry } from '../core';
+import { serializeGroups, parseGroupsFromJson } from '../core';
 import type { FrameAssetSummary, FrameAssetReader, FrameFieldReference } from '@/features/frame';
+import { getFileFacade } from '@/platform';
+import { useNotify } from '@/shared/composables';
 
 interface Props {
   modelValue: boolean;
@@ -14,6 +17,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const $q = useQuasar();
+const notify = useNotify();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
@@ -129,13 +133,113 @@ function save(): void {
 function close(): void {
   emit('update:modelValue', false);
 }
+
+// ===== 导入导出（只导分组配置，导入完全替换 editingGroups，未保存前可取消）=====
+
+function timestamp(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+async function onExport(): Promise<void> {
+  if (editingGroups.value.length === 0) {
+    notify.warning('当前没有分组可导出');
+    return;
+  }
+  const json = serializeGroups(editingGroups.value);
+  const defaultName = `display-groups-${timestamp()}.json`;
+  const fileFacade = getFileFacade();
+  if (fileFacade) {
+    const path = await fileFacade.showSaveDialog({
+      title: '导出分组配置',
+      defaultPath: defaultName,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (path) {
+      await fileFacade.writeTextFile(path, json);
+      notify.success(`已导出 ${editingGroups.value.length} 个分组`);
+    }
+  } else {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultName;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify.success(`已下载 ${editingGroups.value.length} 个分组`);
+  }
+}
+
+async function onImport(): Promise<void> {
+  const fileFacade = getFileFacade();
+  let text: string | null = null;
+  if (fileFacade) {
+    const path = await fileFacade.showOpenDialog({
+      title: '导入分组配置',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (!path) return;
+    text = await fileFacade.readTextFile(path);
+  } else {
+    // 浏览器降级：用隐藏 <input type=file> 读单个文件。
+    text = await new Promise<string | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return resolve(null);
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+  }
+  if (text === null) return;
+
+  let parsed: DisplayGroupConfig[];
+  try {
+    parsed = parseGroupsFromJson(text);
+  } catch (e) {
+    notify.error(`导入失败：${(e as Error).message}`);
+    return;
+  }
+
+  // 完全替换：确认后清空 editingGroups 填入导入内容（还没保存，用户可继续改/取消）。
+  $q.dialog({
+    title: '导入分组',
+    message: `将导入 ${parsed.length} 个分组，完全替换当前的 ${editingGroups.value.length} 个分组。\n（导入后需点"保存"才生效）`,
+    cancel: true,
+    persistent: true,
+    ok: { label: '替换', color: 'primary' },
+  }).onOk(() => {
+    editingGroups.value = parsed;
+    selectedGroupId.value = parsed.length > 0 ? parsed[0]!.id : null;
+    notify.success(`已载入 ${parsed.length} 个分组，记得保存`);
+  });
+}
 </script>
 
 <template>
   <q-dialog :model-value="modelValue" persistent @update:model-value="close">
     <q-card class="rw-dialog-lg">
-      <q-card-section>
+      <q-card-section class="flex items-center justify-between">
         <div class="text-h6">分组管理</div>
+        <div class="flex gap-2">
+          <q-btn flat dense icon="o_upload" color="primary" size="sm" no-caps @click="onImport">
+            <q-tooltip>从 JSON 文件导入分组（完全替换）</q-tooltip>
+            导入
+          </q-btn>
+          <q-btn flat dense icon="o_download" color="primary" size="sm" no-caps :disable="editingGroups.length === 0" @click="onExport">
+            <q-tooltip>导出当前分组为 JSON</q-tooltip>
+            导出
+          </q-btn>
+        </div>
       </q-card-section>
 
       <q-card-section class="q-pt-none">
