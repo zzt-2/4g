@@ -342,6 +342,32 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
     const customerTaskId = parsed.taskId ?? '';
     const sortedLayers = [...layers].sort((a, b) => a.layer - b.layer);
+
+    // 接入点1(spec: 任务批次历史面板):收到 setTestTask、创建实例之前,建一条批次记录。
+    // 按 layer 升序遍历所有 node 平铺成 cases(顺序 = 拓扑序 = 执行顺序),全部 status: 'pending'。
+    // caseName 直接从 node.name 取(甲方真实报文 node 是 {id,name,type},node.name 就是用例名);
+    // 字符串 node 无 name → 回落 testCaseId。insertBatch 内部按 taskId 去重(重复下发不重复插)。
+    if (options.historyStorage && customerTaskId) {
+      const cases: PersistedTaskCase[] = [];
+      for (const layer of sortedLayers) {
+        for (const node of layer.nodes) {
+          const id = typeof node === 'string' ? node : node.id;
+          const name = typeof node === 'string' ? id : (node.name ?? id);
+          cases.push({
+            testCaseId: id, caseName: name, status: 'pending',
+            instanceId: null, startedAt: null, finishedAt: null, durationMs: null,
+          });
+        }
+      }
+      options.historyStorage.insertBatch({
+        taskId: customerTaskId,
+        taskName: parsed.taskName ?? customerTaskId,
+        receivedAt: Date.now(),
+        status: 'running',
+        cases,
+      });
+    }
+
     processLayers(sortedLayers, parsed, customerTaskId).catch(() => {});
 
     return buildResponse(envelope, 1, 'ok');
@@ -412,6 +438,15 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     if (customerTaskId) {
       // P2.1: remember the customer-issued taskId so testCaseResultReport can echo it.
       state.mapTaskId(instance.instanceId, customerTaskId);
+    }
+    // 接入点2(spec: 任务批次历史面板):实例创建后回填 instanceId/status=running/startedAt。
+    // 只回填 instanceId/status/startedAt,不回填 caseName(建批次时已从 node.name 取定)。
+    if (customerTaskId) {
+      options.historyStorage?.updateCase(customerTaskId, tc.testCaseId, {
+        instanceId: instance.instanceId,
+        status: 'running',
+        startedAt: Date.now(),
+      });
     }
     options.taskService.startTask(instance.instanceId);
     return { instanceId: instance.instanceId };
