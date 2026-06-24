@@ -71,3 +71,6 @@ export { createHeartbeatTimer, type HeartbeatTimer } from './services/heartbeat-
 
 // --- Service ---
 export { createNorthboundService, type NorthboundService, type NorthboundConfig, type NorthboundServiceOptions, type FtpFacade, type FtpUploadConfig } from './services/northbound-service';
+
+// --- Reported snapshot storage (encode 快照持久化,decode 时按 outCaseId 反查) ---
+export { createReportedSnapshotStorage, type ReportedSnapshotStorage } from './services/reported-snapshot-storage';

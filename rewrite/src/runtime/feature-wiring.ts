@@ -49,6 +49,7 @@ import {
 } from '@/features/result';
 import {
   createNorthboundService,
+  createReportedSnapshotStorage,
   type NorthboundService,
 } from '@/features/northbound';
 import {
@@ -185,12 +186,18 @@ export function wireFeatures(
   // L5: needs L3 + L4 + platform facades
   const httpFacade = getHttpFacade();
   const ftpFacade = getFtpFacade();
+  // D: reportedSnapshotStorage 负责持久化 encode 快照(getTestCaseAll 时 save),
+  // setTestTask 下发时按 outCaseId(=testCaseId)load 反查,decode 还原带参数覆盖的 TaskDefinition。
+  // 漏接它 → snapshot missing → 用占位 fail 任务,真实测试逻辑不执行。
+  // 默认用 localStorage(renderer 进程可用);无 localStorage 环境退化成空 storage。
+  const reportedSnapshotStorage = createReportedSnapshotStorage();
   const northboundService = createNorthboundService({
     taskService,
     resultService,
     httpFacade: httpFacade!,
     ftpFacade: ftpFacade ?? undefined,
     connectionSnapshot: () => connectionService.getSnapshot(),
+    reportedSnapshotStorage,
   });
 
   // 事件订阅（onStepResult / onTaskSettled）由 northbound 在 start() 内自管
