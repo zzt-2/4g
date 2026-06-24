@@ -20,6 +20,7 @@ import type {
   ControlTestTaskResponse,
   CustomerResponse,
   ExecutionPlanLayer,
+  ExecutionPlanNode,
   TestCaseInfo,
   InboundEnvelope,
   EnvelopeConfig,
@@ -339,8 +340,13 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       tcById.set(tc.testCaseId, tc);
     }
 
-    // Resolve a layer node (a testCaseId string) into its TestCaseInfo, if present.
-    const resolveNode = (node: string): TestCaseInfo | undefined => tcById.get(node);
+    // Resolve a layer node into its TestCaseInfo, if present.
+    // 04-任务管理.md L353 规定 node 是纯 testCaseId 字符串;但甲方实现实际下发对象 {id,name,type}
+    // (id=testCaseId)。两种都兼容:字符串直接查,对象取 .id 查。
+    const resolveNode = (node: string | ExecutionPlanNode): TestCaseInfo | undefined => {
+      const id = typeof node === 'string' ? node : node.id;
+      return tcById.get(id);
+    };
 
     for (const layer of layers) {
       if (layer.parallel) {

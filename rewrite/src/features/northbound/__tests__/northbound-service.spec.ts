@@ -333,6 +333,46 @@ describe('createNorthboundService — inbound routes', () => {
     expect(taskService.startTask).toHaveBeenCalledTimes(2);
   });
 
+  it('setTestTask accepts object-form layer nodes {id,name,type} (甲方实现偏离文档,实际下发对象而非字符串)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const body = JSON.stringify({
+      method: 'setTestTask',
+      requestId: 1101,
+      subSysType: 'laser',
+      subSysId: 'JG',
+      taskId: 'T_obj_a',
+      taskName: 'Obj A',
+      resources: null,
+      immediate: true,
+      repeatCount: 1,
+      isEnd: false,
+      orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'c2b43266@1782291730690', deviceIds: [], masterTest: false, testMode: 0, ephMode: 0, orbitInfo: null, inputPars: [] },
+        { testCaseId: '98803a25@1782291730691', deviceIds: [], masterTest: false, testMode: 0, ephMode: 0, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      // 甲方实际下发:nodes 元素是对象 {id,name,type}(id=testCaseId),而非文档 L353 的纯字符串。
+      // 复现真实联调报文结构(含 layer 多层 + 对象 node)。
+      executionPlan: {
+        layers: [
+          { layer: 1, parallel: false, nodes: [{ id: 'c2b43266@1782291730690', name: '1540波长测试 - 5G RS', type: 'case' }] },
+          { layer: 2, parallel: false, nodes: [{ id: '98803a25@1782291730691', name: '1540波长测试 - 2.5G RS', type: 'case' }] },
+        ],
+      },
+    });
+
+    await handler({ method: 'POST', url: '/setTestTask', body });
+
+    // 对象 node 的 .id 被正确解析为 testCaseId → 两个用例都被创建并启动
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(2));
+    expect(taskService.startTask).toHaveBeenCalledTimes(2);
+  });
+
   it('controlTestTask with stop action calls stopTask via taskId mapping', async () => {
     const httpFacade = makeMockHttpFacade();
     const taskService = makeMockTaskService();

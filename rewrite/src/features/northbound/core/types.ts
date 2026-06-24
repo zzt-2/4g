@@ -91,10 +91,22 @@ export interface ExecutionPlan {
   readonly layers: readonly ExecutionPlanLayer[];
 }
 
+/**
+ * 执行计划层节点。
+ * 04-任务管理.md L353 规定 nodes 是「测试用例ID列表」(纯字符串),示例 "TC-TLM-001"。
+ * 但甲方实现实际下发的 node 是对象 {id,name,type}(name=用例名,type='case')。
+ * 用联合类型兼容两种:字符串直接用,对象取 .id。
+ */
+export interface ExecutionPlanNode {
+  readonly id: string;
+  readonly name?: string;
+  readonly type?: string;
+}
+
 export interface ExecutionPlanLayer {
   readonly layer: number;                  // NOTE: 'layer' not 'layerNo'
   readonly parallel: boolean;
-  readonly nodes: readonly string[];  // testCaseId strings (04-任务管理.md: nodes is plain id list)
+  readonly nodes: readonly (string | ExecutionPlanNode)[];
 }
 
 // V1.0.4 controlTestTask: single taskId + action (not testCaseIdList[] + controlType).
