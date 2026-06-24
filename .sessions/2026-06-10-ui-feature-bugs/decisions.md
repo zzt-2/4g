@@ -657,3 +657,45 @@ interface WindowControlBridge {
 - 用户补充新证据:"开久了卡"
 - 用户拍板范围扩张:"加 vue 插件到 vitest.config(推荐)" + "把那一堆日志该清的清一下?说是开久了卡(顺便想想还可能是啥)"
 - 触发原话:见 voice.md 2026-06-23
+
+---
+
+## D011: flex 高度链排查方法论——必须从 q-page-container 起逐环验证 computed height,禁止凭读代码猜
+
+> 失败路线记录 + 方法论。S013 编辑弹窗重设计附带的 ExecutionListPage 右栏高度问题,5 次修复全失败后搁置。
+
+### 决策(方法论约束)
+
+排查"内容撑开页面/flex 滚动不生效"类问题时,**禁止**只读代码凭 CSS 推断就改。必须:
+
+1. **浏览器 DevTools 实测**:打开撑开状态,F12 Elements 从最外层 `<body>` 往内逐层点,记录每层 **computed height**(是固定值还是 auto/被撑开)。定位"第一个 height 变 auto/超出视口"的层 = 真正断点。
+2. **从 q-page-container 起,不从 q-page 内部起**:Quasar 的 `q-page-container` 默认只有算出来的 `min-height`(基于 header/footer),**没有显式 height**。所以 `q-page` 的 `h-full`(height:100%)引用的是父级的 **height**——父级只有 min-height 时,height:100% 解析为 **auto,失效**。这是非直觉的:你以为 `h-full` 锁住了,其实没有。
+3. **对照"已知工作"的页面逐环对比**(如 SendPage/DisplayPage),列出**全部**差异再动手,不能只挑一个看着像的改。
+
+### 失败路线(5 次,全部 ruled out)
+
+- **改 q-page 内部 flex 链**(`min-h-0` / `overflow-hidden` / `flex-1`):改了 q-page → 中间容器 → ExecutionListPage 根 → 右栏 全链 5 环,**无效**。因为断点在 q-page **之上**(q-page-container),不在 q-page 之下。
+- **`min-h-full` → `h-full`**(q-page):理论上对,但 q-page-container 没显式 height → h-full 引用空 → 失效。
+- **给 q-page-container 加 `height:100% + overflow:hidden`**(AppShell):理论最对,但用户反馈**仍不行**。可能 scoped 样式没穿透到 Quasar 内部渲染的 q-page-container DOM,或 height:100% 的父级(q-layout)也没显式 height。**未验证**(用户决定搁置)。
+
+### ruled out 的具体结论
+
+- `q-page` 内部怎么改 flex/min-h-0 都救不了——断点在它父级。**以后排查先看 q-page-container,不要先钻 q-page 内部**。
+- 不能假设 `h-full` 生效——先确认它的引用链(父→祖→…→有显式 height 的祖先)每一环都有显式 height。
+
+### 可复用部分
+
+- **systematic-debugging 的价值**:5 次失败全是违反了"先 gather evidence(at component boundary)再改"——纯读代码猜。第 6 次按方法论要浏览器实测时,用户已失去耐心搁置。教训:**这类问题第一次就该要求浏览器 DevTools 数据,不要试图纯前端代码推断**。
+- D007(flex max-height:100% 撑开陷阱)是同类知识的另一面(D007 讲 q-table 全量渲染撑破 flex,本 D011 讲 q-page 高度链断在 container 层)。两者合起来覆盖"全屏列表/表格页高度问题"的主要陷阱。
+
+### 影响范围
+
+- AppShell.vue 有未验证的 `q-page-container { height:100%; overflow:hidden }` 改动(commit `6feae8e`/`b40e2b8`),可能无效或被 scoped 限制。后续排查时**先验证这行到底生没生效**(DevTools 看 q-page-container 的 computed height)。
+- S011 已把 ExecutionListPage 拆成子组件(TaskDetailPanel 等),后续排查以 S011 后的结构为准。
+
+### 来源
+
+- S013(编辑弹窗深度重设计附带的 ExecutionListPage 右栏高度问题)
+- 用户证据:"除了最上面的激光模拟器标题栏,别的都被撑开" + body 出竖向滚动条 + 撑到 q-page-container 层
+- 触发原话:"依然是完全撑开" / "没用啊?它依然会给顶起来" / "依然不行,不管了"(搁置)
+- 5 次失败 commit:009f271 / 104c917 / 7202e5d(已 revert) / 97e6d74(已 revert) / 6feae8e+b40e2b8(未验证)
