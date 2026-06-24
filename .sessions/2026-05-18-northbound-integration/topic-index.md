@@ -205,6 +205,7 @@
 **联调现状：login/heartbeat/getSubSysState/getTestCaseAll(请求到达)✓ 通；getTestCaseAll 响应 datas 空(S014 第一层 testCaseConfig 已修但未联调;第二层 D006 协议理解错误待下一轮重写——datas 该走 FTP 文件非响应体);setTestTask 已实现(待联调)。**
 **已知未做:UI 美化、真实设备对接、ExecutionListPage 来源标识、controlTestTask action 联调实测(文档矛盾待解)、getTestCaseAll 字段补全(runSubSys 等)、getTestCaseAll 协议流程重写(D006:FTP 上传 + fileTranslationComplete 通知,待下一轮)、FTP 配置 UI(DockingConfigForm 加 5 字段,顺带打通 TestReport 上传链)、fileType/fileIndex 字段联调确认。**
 **S016 完成(2026-06-23):中心对接数据文件持久化。用户报"用例目录/对接配置重装就丢"——根因是 S012 治本时只迁了 task 模板,这 4 份(northbound-docking-config/devices/catalog-mappings/test-catalog)漏迁还留 localStorage。新建 command-ingress/services/docking-file-storage.ts(照 task-template 范式,3 份合写 state/docking.json + .bak + 原子写);LazyDockingStorage holder 照 LazyPersistence 延迟注入;bootstrap 加 hydrateDockingData;use-central-docking 加 storage 参数改调;顺带删死代码(DEFAULT_TEST_CASES/DEFAULT_TEST_CATALOG/setTestCatalogData/configuredTestCases 整条链)。docking-file-storage.spec 12/12 过,全量 1754/11(全 baseline,stash 0 新增),lint 0。延续 S012 文件持久化范式,不新建 D###。**
+**D007 落档(2026-06-24):FTP 主动/被动模式联调踩坑。甲方 readRemoteFile 报 ConnectException 拒绝连接,经 telnet + 我方 curl + 甲方 worker curl + tcpdump 联调实测,定论病根在甲方 Java 代码走主动模式(数据通道服务端反向连客户端,穿不过"只放行 21"的隔离网络),正解是甲方加 `ftpClient.enterLocalPassiveMode();`,我方零改动。否决"关服务端被动模式"等 5 条错误排查路径,沉淀 curl 双端对比 + tcpdump 抓控制通道命令的定位 SOP。待办:抓甲方 Java 包坐实 + 甲方改代码后回归。**
 
 ### S016 — 中心对接数据文件持久化(localStorage → 文件)
 - 起因:用户报"用例目录没有持久化,对接配置也是,重新安装后就变回去了。这对吗?"

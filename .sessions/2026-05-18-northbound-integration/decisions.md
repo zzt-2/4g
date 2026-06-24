@@ -67,10 +67,12 @@
 
 ## D002: getTestCaseAll 数据源 = TaskTemplate(带"上报"标记)
 
-> status: active
+> status: active(partially-superseded)
 > date: 2026-06-17
 > 取代：无
-> 被取代：无
+> 被取代：部分被 D004 推翻(2026-06-22)
+>
+> > 部分被 D004 推翻:上报标记不再挂 TaskTemplate(CustomerSyncMeta 删除),改归 command-ingress 映射表。**数据源仍是 listTemplates/getTemplate 不变**,只是"哪些模板上报 / 可覆盖哪些字段"的规则从模板字段移到独立映射表。
 
 ### 决策
 
@@ -211,3 +213,260 @@ northbound↔task 的翻译层采用**双向同源映射**模型:parId↔frameId
 - HAR 证据: 91 处 subSysName 全是 ka,laser 0 处
 - 07-参数配置与查询.md:117(parId 由子系统自定义,中心只转发不解析)
 - 触发原话: 见 voice.md 2026-06-18
+
+---
+
+## D004: 映射表归 command-ingress(推翻 D002 的耦合设计)
+
+> status: active
+> date: 2026-06-22
+> 取代：D002 的"挂 TaskTemplate"部分(数据源不变)
+> 被取代：无
+
+### 决策
+
+「是否上报给甲方」+ 「甲方可覆盖哪些字段」这两个规则,**由 command-ingress feature 维护一张「task 模板 → 甲方用例」映射表持有**,不再挂在 task 的 TaskTemplate 上。getTestCaseAll 的数据源仍是 task 模板定义(走 `taskService.getTemplate`),但"哪些模板上报 / 各自可覆盖哪些字段"的规则从 command-ingress 映射表读。
+
+**三层职责划分(H009 不变量)**:
+- **task feature**:纯粹的执行引擎。TaskTemplate 只有 templateId/name/tags/definition/时间戳,**不带任何甲方字段**。本轮(D002 实施)加的 CustomerSyncMeta + TaskInstanceState.source/customerTaskId 全删。
+- **command-ingress feature**:负责"和甲方对接"。维护 CatalogMapping 映射表(templateId / enabled / overridablePaths / outCaseId / reportedAt),localStorage key `northbound-docking-catalog-mappings`。
+- **northbound feature**:协议层。getTestCaseAll 读 command-ingress 映射表(过滤 enabled)→ 取 task 模板定义 → encode。setTestTask decode 的 overridablePaths 从快照(上报时由 encode 写入,来源已是映射表)读。**不持有业务规则,规则从 command-ingress 传进来**。
+
+**数据流(D004 后)**:
+```
+task 模板(纯粹,无甲方字段)
+  ↓ command-ingress 映射表(记录"模板X上报给甲方,可覆盖字段Y/Z")
+  ↓ northbound encode(模板定义 + 映射规则 → caseTemplate)
+  ↓ getTestCaseAll 返回甲方 + 存快照(overridablePaths 来自映射表)
+  ↑ setTestTask 下发 → northbound decode(快照 + 映射规则 → 覆盖后的 definition)
+  ↑ task createTask 执行
+```
+
+### 理由
+
+1. **职责解耦**:任务系统(task feature)本该只管"怎么执行任务"。把"要不要给甲方""甲方能改哪些字段"塞进 task 模板,是跨职责耦合 —— 任务模板被迫关心甲方的存在。映射表归 command-ingress 后,task 模板保持纯粹。
+2. **command-ingress 已有对接基础设施**:use-central-docking 已管 config/devices/catalog 三份数据 + localStorage 持久化,映射表作为第四份数据自然挂入,无需新建 feature。
+3. **翻译器往返一致性不变**:encode 生成的 parId,decode 必须能定位回(D003 双向同源)。改的只是 overridablePaths 的**来源链**(模板字段 → 映射表),往返逻辑零改动,10 个 translator 测试核心断言全保留。
+
+### 排除的替代方案
+
+- ❌ **维持 D002(CustomerSyncMeta 挂 TaskTemplate)**:跨职责耦合,任务系统被迫感知甲方。用户明确反对("其实我不是很想把是否上报给甲方和任务模板那边耦合到一起,这不好")。否决。
+- ❌ **northbound 自己持映射表**:违反"northbound 是协议层不持有业务规则"不变量。否决。
+- ❌ **把映射表做成 task feature 的元数据(非 customerSync 命名)**:无论字段叫什么,只要挂在 TaskTemplate 上就是耦合。否决。
+
+### 影响范围
+
+- **task/core/types.ts**:删 CustomerSyncMeta + TaskTemplate.customerSync + TemplateUpdates.customerSync + TaskInstanceState.source/customerTaskId(S012 已执行)
+- **task/composables/use-template-editor.ts**:删 syncEnabled/overridablePathsText 状态及相关 save/openEdit/resetForm 逻辑(S012 已执行)
+- **task/components/TemplateListPage.vue**:删"上报给甲方"开关 + 路径编辑器(S012 已执行)
+- **command-ingress/core/catalog-mapping.ts**:新建 — CatalogMapping 接口 + CRUD + localStorage 持久化(S012 已执行)
+- **command-ingress/composables/use-central-docking.ts**:加 catalogMappings 第四份数据 + saveMapping/deleteMapping(S012 已执行)
+- **northbound/core/testcase-sync-translator.ts**:`encodeTaskTemplateToTestCase(template, config)` → `encodeSourceToTestCase(source, mapping, config)`,新增 EncodeSource 接口(S012 已执行)
+- **northbound/services/northbound-service.ts**:加 setCatalogMappings 方法 + handleGetTestCaseAll 数据源改为映射表(S012 已执行)
+- **northbound 保留**(H009 明确不动):path-resolver / reported-snapshot-storage / report-data-collector / test-report-generator / decode 链路逻辑 / CustomerResponse.datas 字段
+- **D002**:标记 partially-superseded(数据源仍是 listTemplates/getTemplate 不变,只是上报标记移走)
+
+### 来源
+
+- H009(2026-06-19 方向调整 handoff,用户指出耦合错误)
+- S012(2026-06-22 实施,本决策落地)
+- 触发原话: 见 voice.md 2026-06-19(H009)+ 2026-06-22(S012 录入)
+
+---
+
+## D005: auth 出站请求加显式前置校验(password/username 非空 + access_token 缺失报错)
+
+> status: active
+> date: 2026-06-23
+> 取代：无
+> 被取代：无
+
+### 决策
+
+`auth.ts` 的 `login()` 在发请求前**必须显式校验** `password` / `username` 非空,收到响应后**必须校验** `access_token` 存在。任一不满足直接抛明确错误,**绝不**让 undefined 被 `JSON.stringify` 静默吞掉、或把失败响应当成功。
+
+### 理由
+
+1. **同 bug 复发两次(S011 + S013),证明代码无防御**:S011(2026-06-13)定位"password 缺失(JSON.stringify 自动省略 undefined)",当时只在笔记里写了"附带建议(未修)"——结果 S013(2026-06-23)同一 bug 又犯。不加固防御,第三次复发只是时间问题。
+2. **根因不可控(配置/持久化/UI 多路径都可能让 password 变空),防御层是兜底**:S013 还定位到 `persistConfig` 漏存 password 的缺陷(已修),但运行时仍可能有其他路径让 `config.password` 为空/undefined。auth 层的前置校验是**最后一道兜底**,确保无论上游怎么丢,都不会发出缺字段的 body 招致甲方 400。
+3. **失败响应误读为成功(S011 bug #2)**:旧代码把无 `access_token` 的错误响应当成功缓存,打印误导性的"登录成功,token 有效期 0s"。必须改成无 token 即抛错。
+
+### 排除的替代方案
+
+- ❌ **只在 UI 层校验(password 必填)**:UI 校验是第一道(S013 也加了),但 UI 不是唯一入口——脚本/测试/其他调用方都可能绕过 UI 直接构造 config。auth 层必须自校验。否决"只靠 UI"。
+- ❌ **靠 JSON.stringify 的 undefined 省略"自然暴露"问题**:这正是 bug 本身。省略导致请求体缺字段,甲方报"参数校验异常",排查链路长。必须前置拦截。否决。
+- ❌ **失败响应静默缓存(旧行为)**:误导日志("登录成功"实为失败)+ 后续所有出站请求带 undefined token 必然失败,排查更难。否决,必须报错。
+
+### 影响范围
+
+- **`auth.ts`**:`login()` 开头加 password/username 非空检查(抛错,不发请求);响应解析后加 `access_token` 存在检查(无则抛错)。返回的 AuthService 接口不变。
+- **`auth.spec.ts`**:+2 测试 case(undefined password / 空串 password 都抛错且不发请求)。9/9 过。
+- **`use-central-docking.ts`**:`persistConfig` 补 password 字段(并行修复,根因之一),`PersistedConfig` 接口 + 函数同步加。+1 测试文件 `docking-config-persistence.spec.ts`(3 case)。
+- **`DockingConfigDialog.vue`**:password 输入框加必填 rules(UI 第一道校验)。
+- 不影响 D001~D004(翻译/映射/数据源方向不变)。
+
+### 来源
+
+- S011(2026-06-13,同 bug 首次定位,笔记"附带建议(未修)")
+- S013(2026-06-23,同 bug 复发,本轮加固防御)
+- 用户原话"目前又 tm 连不上了"(实为登录被拒)→ 触发本轮
+- 触发原话: 见 voice.md 2026-06-23
+
+---
+
+## D006: getTestCaseAll 走 FTP 文件传输(datas 是文件内容,不是 HTTP 响应体字段)
+
+> status: active
+> date: 2026-06-23
+> 取代：无(推翻我此前基于错误代码实现的脑补理解,非取代某 D###)
+> 被取代：无
+
+### 决策
+
+getTestCaseAll 的用例数据**走 FTP 文件传输**,不走 HTTP 响应体。完整流程:
+
+```
+甲方: POST getTestCaseAll(请求体只有信封字段,不带 ftpInfo)
+  ↓
+我们 handleGetTestCaseAll:
+  1. 取映射表 + 模板 → encode → testCases 数组
+  2. 序列化文件内容: JSON.stringify({ datas: testCases })   ← {datas:[...]} 包裹,不是裸数组
+  3. FTP 上传到【我们自己配的 config.ftp】+【我们自己建的路径】:
+     remotePath = `${config.ftp.basePath}/${yyyy-mm-dd}/testcase_all.json`
+  4. 回应 getTestCaseAll: statusCode:1,响应体【只有信封字段,无 datas】
+  5. 主动调 fileTranslationComplete(tranType:'upload', result:'success', filePath:remotePath)
+     → 告诉甲方"文件传完了,在这个路径",甲方自己去 FTP 取
+```
+
+**四个关键点**:
+1. **`datas` 是 FTP 文件 `testcase_all.json` 里的内容**,不是 HTTP 响应体字段。文档响应参数表(03-用例管理.md:73-91)根本无 datas 字段。
+2. **FTP 地址/账号/端口我们自己配**(DockingConfigForm 加输入框),不用甲方请求里的 ftpInfo。
+3. **路径我们自己建**:`basePath/yyyy-mm-dd/testcase_all.json`(加日期前缀,避免多份混一起)。
+4. **上传后立即调 fileTranslationComplete** 通知甲方(不是另一场景,是同一条链的通知环节)。
+
+### 文档铁证(03-用例管理.md)
+
+- **L5**:"由于消息可能过大,所以采用 json 文件传输方式,文件后缀为 .json" —— 默认就是文件传输,非"备用"
+- **L73-91 响应参数表**:无 `datas` 字段(只有 method/requestId/subSysType/subSysId/sessionId/statusCode/msg)
+- **L158-517**:"测试用例属性信息**文件格式**定义",L163 `{"datas":[...]}` —— datas 是文件内容
+- **L57 ftpInfo**:虽标注"此对象为备用",但结合 L5 看,实际意思是"FTP 地址可由请求方指定或二级子系统自定",**用户拍板用我们自己配的 config.ftp**
+
+### 排除的替代方案(我此前错的理解,记录避免重蹈)
+
+- ❌ **datas 走 HTTP 响应体,L586 那样的实现**:基于 S006 mock 时代错误代码的脑补。文档响应表无 datas 字段。**否决**,响应体只回信封。
+- ❌ **FTP 地址用甲方请求里的 ftpInfo**:用户明确否决("ftp配置我们自己设,我能看见用户密码和ip端口")。ftpInfo 虽在协议里,但我们用自己的 config.ftp。
+- ❌ **fileTranslationComplete 是独立场景,与 getTestCaseAll 无关**:错误理解。用户明确"甲方通过 fileTranslationComplete 了解在哪",它就是 getTestCaseAll 走 FTP 后的通知环节。
+- ❌ **路径用 ftpInfo.dir**:用户明确"路径自己写,我们自己建路径",用 `basePath/yyyy-mm-dd/testcase_all.json`。
+
+### 影响范围(下一轮 S015 / S014 续接实施)
+
+- **`handleGetTestCaseAll`**(northbound-service.ts:543-587)重写:
+  - 序列化改 `JSON.stringify({ datas: testCases })`(加包裹)
+  - FTP 上传改用 `activeConfig.ftp`(我们配的),remotePath = `basePath/yyyy-mm-dd/testcase_all.json`
+  - 响应体删 datas(L586 改成只回信封)
+  - 上传后调 `reportFileTranslationComplete`(tranType:'upload', filePath:remotePath)
+- **`DockingConfigForm` + `use-central-docking`**:加 FTP 配置 5 字段(host/port/username/password/basePath)输入框 + saveConfigAndConnect 传 ftp + 持久化
+- **`NorthboundConfig.ftp`** 字段已存在(L54-60),无需改类型
+- **顺带打通 `uploadTestReportAndNotify`**(L188-235):FTP 配置 UI 修好后,这条链(TestReport 上传 + testDataFileTranslationComplete)也能通(L196 不再早退)
+- **测试**:handleGetTestCaseAll 相关单测要重写(原断言 parsed.datas 现在应不存在,改为断言 FTP 上传被调用 + fileTranslationComplete 被调)
+
+### 待联调确认的字段细节(不阻塞代码框架)
+
+- **fileType**:文档文件类型标识表(01-概述与约定.md:160-228)无 TestCase 类型。先占位 `TestCase`,联调有反馈再改。
+- **fileIndex**:文档(05:502)说"中心下发时携带,未携带填 0"。先填 0。
+- **`testDataFileTranslationComplete` vs `fileTranslationComplete`**:用户被问时先答前者,但讨论指向后者(通用版,带 tranType)。两者字段不同(ftpServerIP 大写 vs ftpServerIp 小写 + tranType)。联调确认 getTestCaseAll 通知用哪个。当前代码两个方法都有(reportTestDataFileComplete L774 / reportFileTranslationComplete L779)。
+
+### 来源
+
+- 03-用例管理.md L5/L73-91/L158-517(铁证:datas 是文件内容非响应体)
+- 05-文件传输与结果上报.md L455-589(fileTranslationComplete 协议)
+- 用户原话(2026-06-23 续接):
+  - "你 tm 觉得我会跟你扯淡吗?这个流程是很明确的。因为他们用例都用的 tm 的 ftp,不然我在这折腾?"(纠正我"FTP 是备用"的脑补)
+  - "ftp配置我们自己设,我能看见用户密码和 ip 端口。然后,路径自己写,我们自己建路径,甲方通过 fileTranslationComplete 了解在哪"(FTP 自配 + 路径自建 + fileTranslationComplete 通知)
+  - "testDataFileTranslationComplete"(被问用哪个接口时的回答,但与后续讨论存在张力,见待澄清项)
+- 触发原话: 见 voice.md 2026-06-23
+
+---
+
+## D007: FTP 主动/被动模式联调踩坑定位法 + 否决"关服务端被动模式"
+
+> status: active
+> date: 2026-06-24
+> 取代：无
+> 被取代：无
+
+### 决策
+
+(1) **FTP 文件传输联调出现"我方通甲方不通"时,默认假设:两端各自决定主动/被动模式,数据通道方向不同导致穿越防火墙能力不同。** 我方(basic-ftp)走被动(出站方向)能穿过"只放行 21"的防火墙,甲方 Java(默认主动,数据通道是服务端反向连客户端)在隔离网络必失败。正解是甲方代码加 `ftpClient.enterLocalPassiveMode();`,**不是改服务端配置**。
+
+(2) **否决"关掉服务端被动模式"这条排查路径。** 关服务端被动会把唯一能工作的一端(我方上传)也搞死,且治不了甲方主动模式的病根。
+
+(3) **定位方法定型**:用 `curl -v`(注意 PowerShell 下用 `curl.exe` 别用别名)从两端分别测被动读取,对比谁通谁不通;最终在 FTP 服务端 tcpdump 抓甲方 Java 的控制通道命令,看发的是 `PASV/EPSV`(被动)还是 `PORT/EPRT`(主动)。
+
+### 核心失败机制
+
+FTP 协议有控制通道(21)和数据通道(被动高位端口 / 主动客户端端口)两条:
+
+- **被动模式(PASV)**:客户端 → 服务端高位端口(出站方向,和连 21 同向)
+- **主动模式(PORT)**:服务端 → 客户端高位端口(入站方向,需客户端开端口给服务端连进来)
+
+甲方 worker 所在网络"只放行了 21"(甚至公网都连不上,yum 都装不了)。于是:
+- 被动模式数据通道(出站)能穿过 → 我方 basic-ftp + 甲方 curl 都能通
+- 主动模式数据通道(入站)穿不过 → 甲方 Java(Commons Net FTPClient 默认主动)必然失败,表现为 worker 侧 `ConnectException: 拒绝连接`
+
+### 否决了什么
+
+- ❌ **关掉 vsftpd 被动模式(`pasv_enable=NO`)**:把我方(basic-ftp 只能被动)数据通道也搞死,从"我方通甲方不通"变成"两边都不通",治标不治本(甲方主动模式病根仍在)。甲方曾误走此路,产生 `ETIMEDOUT 10.15.5.93:18914`。
+- ❌ **注释 vsftpd pasv_* 配置项企图"关被动"**:vsftpd `pasv_enable` 默认值就是 YES,**注释掉 = 用默认值 = 被动仍开着**,不是关闭。甲方误以为"注释=关闭",实际回到 baseline。
+- ❌ **改服务端 `pasv_address`**:本轮排查曾假设服务端 PASV 返回了内网 IP,但 `quote PASV` 实测返回 `10.15.5.93` 正确,排除此假设。
+- ❌ **怀疑 worker 到 10.15.5.93 网络隔离**:甲方 worker `telnet 10.15.5.93 21` 成功(`220 vsFTPd 3.0.3`),控制通道通,排除网络隔离。
+- ❌ **我方改主动模式配合甲方**:basic-ftp 对主动模式支持极弱,改了大概率传不动,且不应为甲方 bug 牺牲我方正常链路。
+
+### 可复用部分(定位 SOP)
+
+1. **先确认两端控制通道都通**:`telnet <ftp-ip> 21` 各自测。都通 → 不是网络隔离。
+2. **两端分别 curl 被动测读取**:
+   - PowerShell: `curl.exe -v --user 'user:pass' "ftp://ip/path"`(注意 `curl.exe` 绕开 Invoke-WebRequest 别名;密码含 `!` 用单引号或 `set +H`)
+   - 两端都成功 → 网络 + 服务端 + 文件 + 权限全正常,病根在客户端代码
+   - 一端成功一端失败 → 失败端到 FTP 之间有防火墙挡数据端口
+3. **服务端 tcpdump 抓控制通道命令**(排除已知能通的 IP):
+   ```bash
+   tcpdump -i any -A -s 0 'tcp port 21 and host <ftp-ip> and src host not <我方IP> and dst host not <我方IP>'
+   ```
+   让目标端触发一次读取,看抓到的命令:
+   - `PASV`/`EPSV` → 走被动 → 模式不是病根,另查
+   - `PORT`/`EPRT` → 走主动 = 病根坐实 → 客户端加 `enterLocalPassiveMode()`
+4. **结论判定铁律**:同一台机器、同一 FTP、同样被动,curl 能读 Java 不能读 → 100% 是 Java 代码没走被动。
+
+### 具体数据(本轮)
+
+- 甲方日志首报:`fileType=CfgParam, filePath=/laser/2026-06-23/testcase_all.json, ServiceException(读取FTP远程文件失败: ConnectException: 拒绝连接)`,堆栈 `FileTransRecordWorker.readRemoteFile(:210) → processCaseInfoRecord(:140)`
+- 甲方 telnet:`Connected to 10.15.5.93. 220 (vsFTPd 3.0.3)` → 控制通道通
+- 我方 curl(10.15.4.54):`229 Entering Extended Passive Mode (|||40089|)` → `226 Transfer complete.` ✓
+- 甲方 worker curl:被动读取成功 ✓(用户确认"成功啊?")
+- 我方 tcpdump 抓到的是自己上传序列(`EPSV` → `STOR testcase_all.json` → `226 Transfer complete`),证明服务端被动模式工作正常(`pasv_enable=YES` 默认生效)
+- vsftpd.conf 实情:`#pasv_enable=YES` / `#pasv_min_port=50000` / `#pasv_max_port=50100` 全注释 → 被动开 + 随机端口(baseline)
+- **未抓到甲方 Java 的包**(需甲方触发 readRemoteFile),但 curl 两端通已足够定论:病根在甲方 Java 走主动模式
+
+### 影响范围
+
+- **我方代码**:零改动。basic-ftp 走被动(`ftp-handlers.ts` 默认),上传链路正常,不背锅。
+- **甲方代码**:`FileTransRecordWorker.readRemoteFile`(java:210) connect+login 后加一句 `ftpClient.enterLocalPassiveMode();`
+- **服务端配置**:vsftpd.conf 无需改(被动已开且工作)。若甲方 Java 切被动后仍偶发端口问题,再考虑固定 `pasv_min_port/max_port` + 放行(本轮未走到这步)
+- **后续 FTP 类联调**:本 SOP 可复用于任何"我方通甲方不通"的 FTP 文件传输排查(TestReport.json 上传链若遇同类问题同法)
+- **不影响 D006**:getTestCaseAll 走 FTP 的协议流程不变,本轮是传输层联调踩坑,非协议层
+
+### 待办(联调未闭合项)
+
+- [ ] 抓甲方 Java 的控制通道命令,坐实"走主动模式"(预期看到 `PORT`/`EPRT`)
+- [ ] 甲方加 `enterLocalPassiveMode()` 后重跑 readRemoteFile,确认通
+- [ ] 验证通过后,可考虑在 DockingConfigDialog 加 FTP 连通性自检按钮(我方 access() + 探测数据通道),把"控制通但数据超时/甲方主动模式"这类问题在上报前暴露 —— 非本轮范围,单列
+
+### 来源
+
+- 甲方日志(2026-06-23 23:09):readRemoteFile ConnectException 拒绝连接
+- 甲方 telnet / 我方 curl / 甲方 worker curl / 我方 tcpdump(2026-06-24 联调实测数据)
+- vsftpd.conf 实情(甲方贴出)
+- 触发原话: 见 voice.md 2026-06-24
+
+---

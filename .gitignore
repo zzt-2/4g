@@ -67,3 +67,12 @@ yarn-error.log*
 
 # 浏览器另存的下载副本（带 (N) 后缀），非版本库数据源
 /rewrite/public/frames/*(*).json
+
+# 本地临时产物：perf 调试探针 + DevTools trace（38MB）+ 摘要
+/analyze-perf.py
+/rewrite/docs/Trace-*.json
+/rewrite/docs/perf-summary.md
+
+# 本地甲方文档源文件（docs/ 下已有拆分好的 markdown，这些是原始拷贝，不进库）
+/新文档.md
+/集成测试系统与各二级子系统接口设计0616-V1.0.8.docx

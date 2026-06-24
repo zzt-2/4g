@@ -70,3 +70,27 @@
 - "别墨迹了,赶紧的" → S016(催推进,不要再分节确认)
 - "赶紧做赶紧做,不用计划了,都tm做过几次了" → S016(拒绝 writing-plans,直接干;文件持久化范式 S012 已趟平,无需再写计划)
 - [教训] S012 治本时只迁了 task 模板,没全盘扫同类数据(northbound/command-ingress 的 4 份 localStorage)——迁移要全盘,不能只迁最先暴露的那一个
+
+## 2026-06-24(FTP 主动/被动模式联调踩坑 + 定位法)
+- 甲方日志:`读取FTP远程文件失败: ConnectException: 拒绝连接`(fileType=CfgParam, filePath=/laser/2026-06-23/testcase_all.json)→ 触发本轮排查
+- "我的文件都传过去了,我能看见。" → 排查起点:我方上传通、甲方读失败
+- 甲方转述:"这好像连本地不给连接 / 不应该,其它服务器都是本地的 / 在本地用命令看看 / 服务器上连ftp这个ip地址,如果连不上就是同样的问题,要看看怎么修改ftp配置" → 透露其它子系统 FTP 都在 worker 本地可达,只有我方上报的是远程 IP
+- 甲方:"这台机器为啥不能yum更新了 / 对,这个机器和公网无法连接 / 没办法安装ftp客户端,我把被动模式关掉了,再试试看" → 甲方在 worker 上瞎试(关被动模式),方向错误
+- 我方报错(关被动后):`Can't open data connection in passive mode: connect ETIMEDOUT 10.15.5.93:18914` → 关被动反而把我方数据通道也搞死
+- 甲方 telnet 证实:`Trying 10.15.5.93... Connected to 10.15.5.93. 220 (vsFTPd 3.0.3)` → worker 到 FTP 控制通道 21 是通的,排除网络隔离
+- "读取失败是关之前。之前我能传上去,但他们读不了" → 关键时间线纠正:默认被动下就是"我方传✓ 甲方读✗",关被动不是病根
+- "是10.15.5.93"(quote PASV 返回的 IP)→ 排除 pasv_address 配错假设,IP 是对的
+- 甲方贴 vsftpd.conf:pasv_enable/pasv_min_port/pasv_max_port 全是注释掉的(vsftpd 默认 pasv_enable=YES,注释≠关闭)→ 甲方误以为"注释掉了=关了被动",实际被动一直开着
+- "这么搞了之后还是读取失败。麻了"(配了端口段+放行还是失败)→ 配置改不动问题,转向用证据定位
+- "ConnectException: 拒绝连接 然后,win终端passive说是无效命令。ssh里,ftp是无效命令" → Win ftp.exe 残废无 passive 命令;worker 隔离装不了 ftp 客户端
+- PowerShell `curl` 被别名为 Invoke-WebRequest 报 "找不到接受实际参数的位置形式参数" → 改用 curl.exe 或 cmd
+- 我方机器(10.15.4.54)curl 被动读文件 ✓ 成功(`229 Entering Extended Passive Mode (|||40089|)` + `226 Transfer complete.`)→ FTP 服务端、被动、文件、权限全正常
+- 甲方 worker curl 被动读文件 ✓ 成功 → **同一台 worker、同一 FTP、同样被动,curl 能读 Java 不能读 → 病根在甲方 Java 代码(没走被动)**
+- "甲方问看看是不是开启被动模式了,我咋看?而且,我不开被动也没法传吧?还是说我能改" → 关键澄清:被动/主动是每端各自决定,我方走被动能传,与甲方 bug 无关,我方不用改
+- 我方 tcpdump 抓的是自己上传(10.15.4.54→10.15.5.93),命令序列 STOR 成功;抓包位置在 FTP 服务端,适合抓甲方,只需让甲方触发一次 readRemoteFile
+- "那能不能关被动呢?关了会有用吗" → 否决:关被动把能工作的一端(我方)也搞死,还治不了甲方病根
+- "记吧。不过没办法吗?有办法去测吗?" → 记档(D007);抓包定位法(让甲方触发,看命令是 PASV 还是 PORT)
+- [教训] FTP 主动/被动模式是每端各自决定,不是两端协商;数据通道方向决定能否穿过"只放行 21"的防火墙 → D007
+- [教训] PowerShell `curl` 是 Invoke-WebRequest 别名,不认 --user;用 curl.exe 或 cmd 绕开
+- [教训] bash 双引号 `!` 历史展开会吞密码;单引号或 set +H 绕开
+- [教训] vsftpd pasv_enable 默认 YES,注释掉 ≠ 关闭被动;注释的配置项是"用默认值"不是"禁用"
