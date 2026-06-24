@@ -493,6 +493,23 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       case 'stop':
       case 'abort':
         options.taskService.stopTask(instanceId);
+        // 接入点4(spec: 任务批次历史面板):stop/abort → 该实例对应的用例标 failed + 重算批次 status。
+        // abort 统一归 failed(粒度2 不细分,见 spec「已知债务」)。
+        // durationMs 从 storage 现有 case 的 startedAt 读(接入点2 存的)。
+        if (options.historyStorage) {
+          const testCaseIdForHistory = state.getTestCaseId(instanceId);
+          if (testCaseIdForHistory) {
+            const existingBatch = options.historyStorage.loadAll().find(b => b.taskId === taskId);
+            const existingCase = existingBatch?.cases.find(c => c.testCaseId === testCaseIdForHistory);
+            const startedAt = existingCase?.startedAt ?? null;
+            const finishedAt = Date.now();
+            const durationMs = startedAt !== null ? finishedAt - startedAt : null;
+            options.historyStorage.updateCase(taskId, testCaseIdForHistory, {
+              status: 'failed', finishedAt, durationMs,
+            });
+            options.historyStorage.recomputeBatchStatus(taskId);
+          }
+        }
         break;
       case 'pause':
         options.taskService.pauseTask(instanceId);

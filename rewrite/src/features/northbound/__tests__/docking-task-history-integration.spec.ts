@@ -165,6 +165,48 @@ function makeOptions(overrides?: Partial<NorthboundServiceOptions>): NorthboundS
   };
 }
 
+/** makeMockTaskService 的「保持运行」变体:startTask 不自动触发 onTaskSettled
+ *  (任务保持 running,映射不被 reportTaskResult 清),用于 controlTestTask 场景(任务仍在运行时被 stop)。
+ *  各方法返回递增 instanceId。 */
+function makeMockTaskServiceRunning(): TaskService {
+  const handlersList: TaskEventHandlers[] = [];
+  let nextId = 0;
+  const mock = {
+    createTask: vi.fn(() => {
+      nextId += 1;
+      return makeMockInstance({ instanceId: `inst-${String(nextId).padStart(3, '0')}`, lifecycle: 'running' });
+    }),
+    // 不自动触发 onTaskSettled —— 任务保持 running
+    startTask: vi.fn(),
+    stopTask: vi.fn(),
+    pauseTask: vi.fn(),
+    resumeTask: vi.fn(),
+    getInstance: vi.fn((id: string) => makeMockInstance({ instanceId: id, lifecycle: 'running' })),
+    onSettled: vi.fn().mockResolvedValue(undefined),
+    removeTask: vi.fn(),
+    retryTask: vi.fn().mockReturnValue(undefined),
+    updateTask: vi.fn().mockReturnValue(undefined),
+    stopAll: vi.fn().mockReturnValue(0),
+    getSnapshot: vi.fn().mockReturnValue({ instances: [] }),
+    getProgress: vi.fn().mockReturnValue(undefined),
+    getStatistics: vi.fn().mockReturnValue({ total: 0, active: 0, completed: 0, failed: 0 }),
+    subscribe: vi.fn((handlers: TaskEventHandlers) => {
+      handlersList.push(handlers);
+      return () => {
+        const idx = handlersList.indexOf(handlers);
+        if (idx >= 0) handlersList.splice(idx, 1);
+      };
+    }),
+    createTemplate: vi.fn(),
+    listTemplates: vi.fn().mockReturnValue([]),
+    getTemplate: vi.fn().mockReturnValue(undefined),
+    updateTemplate: vi.fn().mockReturnValue(undefined),
+    deleteTemplate: vi.fn().mockReturnValue(false),
+    instanciateTemplate: vi.fn().mockReturnValue(makeMockInstance()),
+  };
+  return mock as unknown as TaskService;
+}
+
 async function startAndGetHandler(
   service: ReturnType<typeof createNorthboundService>,
   httpFacade: HttpFacade,
@@ -477,5 +519,102 @@ describe('docking-task-history 接入点 3: reportTaskResult 更新用例结果 
     // setTestTask + reportTaskResult 全链路不抛错
     await expect(handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_NH', [{ testCaseId: 'tc-nh', caseName: 'NH' }]) })).resolves.toBeDefined();
     await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 接入点 4 测试(controlTestTask stop/abort → 用例标 failed + 重算批次)
+// ---------------------------------------------------------------------------
+
+describe('docking-task-history 接入点 4: controlTestTask stop/abort 标用例 failed', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('controlTestTask stop → 对应用例标 failed + recomputeBatchStatus', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskServiceRunning();
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // 先 setTestTask 建批次 + 回填 instanceId(status=running)
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_CTRL', [{ testCaseId: 'tc-ctrl', caseName: 'CTRL用例' }]) });
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
+    // clear 以便区分接入点4 的 updateCase 调用
+    (history.updateCase as ReturnType<typeof vi.fn>).mockClear();
+    (history.recomputeBatchStatus as ReturnType<typeof vi.fn>).mockClear();
+
+    // controlTestTask stop(用 customer taskId)
+    await handler({
+      method: 'POST', url: '/controlTestTask',
+      body: JSON.stringify({ method: 'controlTestTask', requestId: 2, subSysType: 'laser', subSysId: 'JG', taskId: 'T_CTRL', action: 'stop' }),
+    });
+
+    // updateCase 被调(标 failed),recomputeBatchStatus 被调
+    expect(history.updateCase).toHaveBeenCalledTimes(1);
+    const [taskId, testCaseId, patch] = (history.updateCase as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(taskId).toBe('T_CTRL');
+    expect(testCaseId).toBe('tc-ctrl');
+    expect((patch as Partial<PersistedTaskCase>).status).toBe('failed');
+    expect((patch as Partial<PersistedTaskCase>).finishedAt).toBeTypeOf('number');
+    expect(history.recomputeBatchStatus).toHaveBeenCalledWith('T_CTRL');
+  });
+
+  it('controlTestTask abort → 同 stop,用例标 failed(粒度2 不细分)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskServiceRunning();
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_ABORT', [{ testCaseId: 'tc-ab', caseName: 'AB用例' }]) });
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
+    (history.updateCase as ReturnType<typeof vi.fn>).mockClear();
+
+    await handler({
+      method: 'POST', url: '/controlTestTask',
+      body: JSON.stringify({ method: 'controlTestTask', requestId: 2, subSysType: 'laser', subSysId: 'JG', taskId: 'T_ABORT', action: 'abort' }),
+    });
+
+    const patch = ((history.updateCase as ReturnType<typeof vi.fn>).mock.calls[0]![2]) as Partial<PersistedTaskCase>;
+    expect(patch.status).toBe('failed'); // abort 统一归 failed
+  });
+
+  it('controlTestTask pause/continue → 不触发批次记录更新(只 stop/abort 才标 failed)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskServiceRunning();
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_PAUSE', [{ testCaseId: 'tc-pa', caseName: 'PA用例' }]) });
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
+    (history.updateCase as ReturnType<typeof vi.fn>).mockClear();
+    (history.recomputeBatchStatus as ReturnType<typeof vi.fn>).mockClear();
+
+    // pause
+    await handler({
+      method: 'POST', url: '/controlTestTask',
+      body: JSON.stringify({ method: 'controlTestTask', requestId: 2, subSysType: 'laser', subSysId: 'JG', taskId: 'T_PAUSE', action: 'pause' }),
+    });
+    expect(history.updateCase).not.toHaveBeenCalled();
+    expect(history.recomputeBatchStatus).not.toHaveBeenCalled();
+  });
+
+  it('controlTestTask 未知 taskId → 现有 handleCode=1 + 不触发批次更新', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    const resp = await handler({
+      method: 'POST', url: '/controlTestTask',
+      body: JSON.stringify({ method: 'controlTestTask', requestId: 2, subSysType: 'laser', subSysId: 'JG', taskId: 'T_UNKNOWN', action: 'stop' }),
+    });
+    const parsed = JSON.parse(resp.body as string);
+    expect(parsed.handleCode).toBe(1); // busy(未找到)
+    expect(history.updateCase).not.toHaveBeenCalled();
   });
 });
