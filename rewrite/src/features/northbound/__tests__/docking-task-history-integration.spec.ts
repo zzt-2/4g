@@ -287,9 +287,11 @@ describe('docking-task-history 接入点 1+2: handleSetTestTask 建批次 / crea
     });
     await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
 
-    // updateCase 被调一次,patch 含 instanceId/status/startedAt
-    expect(history.updateCase).toHaveBeenCalledTimes(1);
-    const [taskId, testCaseId, patch] = history.updateCase.mock.calls[0]!;
+    // updateCase 至少被调一次(接入点2 回填;reportTaskResult 链路也可能再调接入点3)。
+    // 取第一次调用 = 接入点2 回填(instanceId/status=running/startedAt)。
+    expect(history.updateCase).toHaveBeenCalled();
+    const point2Call = history.updateCase.mock.calls[0]!;
+    const [taskId, testCaseId, patch] = point2Call;
     expect(taskId).toBe('T_BACKFILL');
     expect(testCaseId).toBe('tc-bf');
     expect(patch).toMatchObject({ status: 'running' });
@@ -328,8 +330,11 @@ describe('docking-task-history 接入点 1+2: handleSetTestTask 建批次 / crea
     const batch = history.insertBatch.mock.calls[0]![0] as PersistedTaskBatch;
     // cases 按 layer 升序(L1 在前),平铺成一个列表
     expect(batch.cases.map(c => c.testCaseId)).toEqual(['tc-L1', 'tc-L2']);
-    // 每个用例都回填了
-    expect(history.updateCase).toHaveBeenCalledTimes(2);
+    // 每个用例的接入点2 都回填了:存在 status=running 的 updateCase 调用,testCaseId 覆盖两个用例。
+    const backfilledCaseIds = history.updateCase.mock.calls
+      .filter(([, , p]) => (p as Partial<PersistedTaskCase>).status === 'running')
+      .map(([, tcId]) => tcId);
+    expect(backfilledCaseIds).toEqual(expect.arrayContaining(['tc-L1', 'tc-L2']));
   });
 
   it('无 historyStorage 时:接入点静默跳过(不抛错,不影响现有 setTestTask 链路)', async () => {
@@ -345,6 +350,132 @@ describe('docking-task-history 接入点 1+2: handleSetTestTask 建批次 / crea
     });
     // 现有链路照常(响应 ok + 创建任务)
     expect(resp.statusCode).toBe(200);
+    await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 接入点 3 测试(reportTaskResult 更新用例结果 + 重算批次 status)
+// ---------------------------------------------------------------------------
+
+describe('docking-task-history 接入点 3: reportTaskResult 更新用例结果 + 重算批次 status', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('verdict=passed → updateCase(status=passed, finishedAt, durationMs)+ recomputeBatchStatus(completed)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const resultService = makeMockResultService();
+    // verdict passed
+    (resultService.collectResult as ReturnType<typeof vi.fn>).mockReturnValue({
+      instanceId: 'inst-001', taskDefinitionId: 'def-001', verdict: 'passed',
+      judgedAt: '2026-05-25T10:00:05.000Z', startedAt: '2026-05-25T10:00:00.000Z', finishedAt: '2026-05-25T10:00:05.000Z',
+    });
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, resultService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_P', [{ testCaseId: 'tc-p', caseName: 'P用例' }]) });
+    // startTask 同步触发 onTaskSettled → reportTaskResult 异步触发;等 updateCase 被调
+    await vi.waitFor(() => expect(history.updateCase).toHaveBeenCalled());
+
+    // 最后一次 updateCase 是接入点3(reportTaskResult)的调用(接入点2 先调过一次回填 running)
+    const lastCall = history.updateCase.mock.calls.at(-1)!;
+    const [taskId, testCaseId, patch] = lastCall;
+    expect(taskId).toBe('T_P');
+    expect(testCaseId).toBe('tc-p');
+    expect((patch as Partial<PersistedTaskCase>).status).toBe('passed');
+    expect((patch as Partial<PersistedTaskCase>).finishedAt).toBeTypeOf('number');
+    expect((patch as Partial<PersistedTaskCase>).durationMs).toBeTypeOf('number');
+    // durationMs = finishedAt - startedAt(非负)
+    const dur = (patch as Partial<PersistedTaskCase>).durationMs!;
+    expect(dur).toBeGreaterThanOrEqual(0);
+    // 重算批次 status 被调(全部 passed → completed,但 fake recompute no-op,这里只验被调)
+    expect(history.recomputeBatchStatus).toHaveBeenCalledWith('T_P');
+  });
+
+  it('verdict=failed → updateCase(status=failed)+ recomputeBatchStatus', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const resultService = makeMockResultService();
+    (resultService.collectResult as ReturnType<typeof vi.fn>).mockReturnValue({
+      instanceId: 'inst-001', taskDefinitionId: 'def-001', verdict: 'failed',
+      judgedAt: '2026-05-25T10:00:05.000Z', startedAt: '2026-05-25T10:00:00.000Z', finishedAt: '2026-05-25T10:00:05.000Z',
+    });
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, resultService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_F', [{ testCaseId: 'tc-f', caseName: 'F用例' }]) });
+    await vi.waitFor(() => expect(history.updateCase).toHaveBeenCalled());
+
+    const lastCall = history.updateCase.mock.calls.at(-1)!;
+    expect((lastCall[2] as Partial<PersistedTaskCase>).status).toBe('failed');
+    expect(history.recomputeBatchStatus).toHaveBeenCalledWith('T_F');
+  });
+
+  it('verdict=stopped → 用例标 failed(中止统一归 failed, spec 粒度2)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const resultService = makeMockResultService();
+    (resultService.collectResult as ReturnType<typeof vi.fn>).mockReturnValue({
+      instanceId: 'inst-001', taskDefinitionId: 'def-001', verdict: 'stopped',
+      judgedAt: '2026-05-25T10:00:05.000Z', startedAt: '2026-05-25T10:00:00.000Z', finishedAt: '2026-05-25T10:00:05.000Z',
+    });
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, resultService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_S', [{ testCaseId: 'tc-s', caseName: 'S用例' }]) });
+    await vi.waitFor(() => expect(history.updateCase).toHaveBeenCalled());
+
+    const lastCall = history.updateCase.mock.calls.at(-1)!;
+    expect((lastCall[2] as Partial<PersistedTaskCase>).status).toBe('failed'); // stopped → failed
+  });
+
+  it('durationMs = finishedAt - 接入点2 存的 startedAt(从 storage 现有 case 读)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const resultService = makeMockResultService();
+    (resultService.collectResult as ReturnType<typeof vi.fn>).mockReturnValue({
+      instanceId: 'inst-001', taskDefinitionId: 'def-001', verdict: 'passed',
+      judgedAt: '2026-05-25T10:00:05.000Z', startedAt: '2026-05-25T10:00:00.000Z', finishedAt: '2026-05-25T10:00:05.000Z',
+    });
+    const history = makeFakeHistoryStorage();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, resultService, historyStorage: history }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_DUR', [{ testCaseId: 'tc-dur', caseName: 'DUR用例' }]) });
+    await vi.waitFor(() => expect(history.updateCase).toHaveBeenCalled());
+
+    // 接入点2 的 updateCase 存了 startedAt;接入点3 应读它算 durationMs。
+    // fake updateCase mutate 了内存 case(已回填 startedAt/instanceId),接入点3 loadAll 能读到 startedAt。
+    // 验证:接入点3 调用时 patch.durationMs 与 (patch.finishedAt - 内存case.startedAt) 一致。
+    const point3Call = history.updateCase.mock.calls.at(-1)!;
+    const patch3 = point3Call[2] as Partial<PersistedTaskCase>;
+    const finishedAt = patch3.finishedAt!;
+    // 从内存状态读 startedAt(接入点2 写入的)
+    const batch = history._batches.find(b => b.taskId === 'T_DUR')!;
+    const storedStartedAt = batch.cases.find(c => c.testCaseId === 'tc-dur')!.startedAt;
+    expect(storedStartedAt).toBeTypeOf('number');
+    expect(patch3.durationMs).toBe(finishedAt - storedStartedAt);
+  });
+
+  it('无 historyStorage 时:reportTaskResult 链路照常(不抛错)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskService();
+    const resultService = makeMockResultService();
+    (resultService.collectResult as ReturnType<typeof vi.fn>).mockReturnValue({
+      instanceId: 'inst-001', taskDefinitionId: 'def-001', verdict: 'passed',
+      judgedAt: '2026-05-25T10:00:05.000Z', startedAt: '2026-05-25T10:00:00.000Z', finishedAt: '2026-05-25T10:00:05.000Z',
+    });
+    // 不传 historyStorage
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService, resultService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // setTestTask + reportTaskResult 全链路不抛错
+    await expect(handler({ method: 'POST', url: '/setTestTask', body: setTestTaskBody('T_NH', [{ testCaseId: 'tc-nh', caseName: 'NH' }]) })).resolves.toBeDefined();
     await vi.waitFor(() => expect(taskService.createTask).toHaveBeenCalledTimes(1));
   });
 });

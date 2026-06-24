@@ -196,6 +196,29 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     // P2.1: echo customer-issued taskId (T_xxx), not local instanceId.
     const customerTaskId = state.getCustomerTaskId(instanceId) ?? instanceId;
     const report = translateTaskResult(instance, verdict, testCaseId, customerTaskId, envelopeConfig());
+
+    // 接入点3(spec: 任务批次历史面板):用例跑完上报结果时,更新批次记录里的该用例。
+    // durationMs = finishedAt - 接入点2 存的 startedAt(从 storage 现有 case 读,一次性算好传进 patch)。
+    // stopped/abort 统一归 failed(粒度2 不细分,见 spec「已知债务」)。
+    // 在 removeMapping 之前更新(removeMapping 清临时映射,不影响批次持久化记录)。
+    const historyStorage = options.historyStorage;
+    if (historyStorage) {
+      const customerTaskIdForHistory = state.getCustomerTaskId(instanceId);
+      if (customerTaskIdForHistory) {
+        const existingBatch = historyStorage.loadAll().find(b => b.taskId === customerTaskIdForHistory);
+        const existingCase = existingBatch?.cases.find(c => c.testCaseId === testCaseId);
+        const startedAt = existingCase?.startedAt ?? null;
+        const finishedAt = Date.now();
+        const durationMs = startedAt !== null ? finishedAt - startedAt : null;
+        historyStorage.updateCase(customerTaskIdForHistory, testCaseId, {
+          status: verdict.verdict === 'passed' ? 'passed' : 'failed',
+          finishedAt,
+          durationMs,
+        });
+        historyStorage.recomputeBatchStatus(customerTaskIdForHistory);
+      }
+    }
+
     await postToCustomer('/admin/report/testCaseResultReport', report);
 
     // Generate TestReport, upload FTP, notify customer (R11: failure doesn't affect verdict)
