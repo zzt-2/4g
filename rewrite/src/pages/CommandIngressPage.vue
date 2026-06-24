@@ -272,18 +272,6 @@ function addHighlightRule(): void {
   ];
 }
 
-// ===== 中心对接 actions（docking 组件转发） =====
-function handleStopDockingTask(instanceId: string): void {
-  $q.dialog({
-    title: '确认停止',
-    message: '确定要停止该任务吗？',
-    cancel: true,
-    persistent: false,
-  }).onOk(() => {
-    docking.stopTask(instanceId);
-  });
-}
-
 // ===== 设备 CRUD（DeviceListPanel + DeviceEditDialog 转发） =====
 const deviceEditForm = ref<DeviceEditForm>({
   name: '', deviceId: '', type: '', ip: '', swVer: '', status: 'online',
@@ -544,8 +532,7 @@ onBeforeUnmount(() => {
       <div v-show="activeTab === 'docking'" class="flex flex-col h-full">
         <DockingToolbar v-model="dockingInnerTab" :connection-state="docking.connectionState.value" />
         <div class="flex-1 min-h-0 overflow-hidden">
-          <TaskListPanel v-if="dockingInnerTab === 'tasks'" :rows="docking.dockingTasks.value"
-            @stop-task="handleStopDockingTask" />
+          <TaskListPanel v-if="dockingInnerTab === 'tasks'" />
           <DeviceListPanel v-else-if="dockingInnerTab === 'devices'" :rows="docking.devices.value"
             @add="handleAddDevice" @edit="handleEditDevice" @delete="handleDeleteDevice" />
           <CatalogMappingPanel v-else :mappings="docking.catalogMappings.value" :all-templates="allTemplates"
