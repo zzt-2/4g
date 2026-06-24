@@ -43,20 +43,20 @@ export const SUB_SYS_TYPE_OPTIONS = [
 export const DEFAULT_DOCKING_CONFIG = {
   serverHost: '0.0.0.0',
   serverPort: 5001,
-  customerBaseUrl: 'http://ip/partner-api/',
+  customerBaseUrl: 'http://10.15.5.93/partner-api/',
   subSysType: 'laser',
   subSysId: 'JG',
-  loginUrl: 'http://ip/partner-api/auth/partner/login',
+  loginUrl: 'http://10.15.5.93/partner-api/auth/partner/login',
   clientId: '6af72c14148848b9b1c08220a6d8ee54',
   username: 'subsys',
-  password: '',
+  password: 'f6c230cb7cf848439a4d52817dff6d',
   grantType: 'partner',
   tenantId: '000000',
   // D006: FTP 配置(getTestCaseAll 用例数据走 FTP 文件传输 + TestReport 上传都用它)
-  ftpHost: '',
+  ftpHost: '10.15.5.93',
   ftpPort: 21,
-  ftpUsername: '',
-  ftpPassword: '',
+  ftpUsername: 'ftpuser',
+  ftpPassword: 'ABCXYZ123!@#',
   ftpBasePath: '/laser',
 };
 

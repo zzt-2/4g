@@ -20,6 +20,7 @@ const config: NorthboundTestCaseConfig = {
   menuId: 'menu-1',
   menuName: '功能验证',
   caseType: 'orbit',
+  runSubSys: 'LAS_001',
 };
 
 /** 构造 encode 源(模板定义 + 标识字段,不耦合 TaskTemplate) */
@@ -63,6 +64,20 @@ describe('encodeSourceToTestCase', () => {
     expect(parIds).toEqual(['step-delay.delay.durationMs', 'step-send.send.userFieldValues.power']);
   });
 
+  it('inputPars use CaseInfoInputPar shape with fallback metadata (cnName=last seg, defaultValue=current)', () => {
+    const source = makeSource();
+    const mapping = makeMapping(['step-send.send.userFieldValues.power']);
+    const { testCase } = encodeSourceToTestCase(source, mapping, config);
+    expect(testCase.inputPars).toHaveLength(1);
+    const par = testCase.inputPars[0];
+    expect(par.parId).toBe('step-send.send.userFieldValues.power');
+    expect(par.cnName).toBe('power'); // path 最后一段兜底
+    expect(par.defaultValue).toBe('50'); // 当前值
+    expect(par.type).toBe('');
+    expect(par.unit).toBe('');
+    expect(par.remark).toBe('');
+  });
+
   it('skips paths not found in definition', () => {
     const source = makeSource();
     const mapping = makeMapping(['step-nonexistent.send.userFieldValues.x']);
@@ -70,14 +85,16 @@ describe('encodeSourceToTestCase', () => {
     expect(testCase.inputPars).toHaveLength(0);
   });
 
-  it('fills caseTemplate fields from config', () => {
+  it('fills CaseInfoNode fields from config', () => {
     const source = makeSource();
     const mapping = makeMapping([]);
     const { testCase } = encodeSourceToTestCase(source, mapping, config);
-    expect(testCase.caseName).toBe('激光初始化');
-    expect(testCase.subSysName).toBe('激光载荷');
+    expect(testCase.name).toBe('激光初始化');
+    expect(testCase.id).toContain('tpl-1'); // id = outCaseId(快照反查键)
+    expect(testCase.type).toBe('orbit');
+    expect(testCase.runSubSys).toBe('LAS_001');
     expect(testCase.isParent).toBe(false);
-    expect(testCase.outCaseId).toContain('tpl-1');
+    expect(testCase.children).toEqual([]); // 用例节点 children 为空
   });
 
   it('returns snapshot with deep-copied definition', () => {
@@ -164,7 +181,10 @@ describe('decodeTestCaseToTaskDefinition', () => {
       'step-delay.delay.durationMs',
     ]);
     const { testCase, snapshot } = encodeSourceToTestCase(source, mapping, config);
-    const tc: TestCaseInfo = { testCaseId: snapshot.outCaseId, inputPars: testCase.inputPars };
+    // setTestTask 下发的 inputPars 是简单 {parId,value}(与文件里的 CaseInfoInputPar 不同构)。
+    // 这里模拟"甲方把当前值原样回传",value 取 encode 出的 defaultValue。
+    const inputPars = testCase.inputPars.map(p => ({ parId: p.parId, value: p.defaultValue }));
+    const tc: TestCaseInfo = { testCaseId: snapshot.outCaseId, inputPars };
     const { definition, warnings } = decodeTestCaseToTaskDefinition(tc, snapshot);
     expect(warnings).toHaveLength(0);
     expect(definition.steps).toEqual(source.definition.steps);

@@ -332,24 +332,54 @@ export interface SigLogEntry {
 
 // --- testcase-sync 相关类型 ---
 
-/** 上报给甲方的用例(caseTemplate 结构,对齐 04-任务管理.md) */
+/**
+ * 用例文件 testcase_all.json 里 inputPars 元素的描述性结构(CaseInfoInputPar)。
+ * 注意:与 setTestTask 下发回来的简单 InputPar{parId,value} 是两回事,不要混用。
+ * 我方无 cnName/type/unit/remark 的元数据来源,encode 时除 parId/defaultValue 外一律兜底空串。
+ */
+export interface CaseInfoInputPar {
+  readonly parId: string;
+  readonly cnName: string;
+  readonly type: string;
+  readonly defaultValue: string;
+  readonly unit: string;
+  readonly remark: string;
+}
+
+/**
+ * 上报给甲方的「用例节点」,对齐反编译 CaseInfoNode(03-用例管理.md 文件格式定义)。
+ * - id = outCaseId(快照反查键,保 decode 闭环)
+ * - name/id/type 字段名是甲方 syncNode 判定用的(原 outCaseId/caseName/caseType 已重命名)
+ * - isParent:false 表示用例节点;树形结构里它挂在菜单节点的 children 下
+ * - 节点级不再带 subSysId/subSysName/menuId/menuName:甲方不读这些,
+ *   菜单靠树形(外层 isParent:true 节点的 id/name + children)表达
+ */
 export interface CustomerTestCase {
-  readonly outCaseId: string;
-  readonly caseName: string;
-  readonly caseType: string;
-  readonly subSysId: string;
-  readonly subSysName: string;
-  readonly menuId: string;
-  readonly menuName: string;
+  readonly id: string;
+  readonly name: string;
+  readonly type: string;
+  readonly runSubSys: string;
+  readonly isParent: false;
   readonly depSubSys?: string;
   readonly depSubNe?: string;
   readonly durate: number;
   readonly satelliteCount: number;
   readonly stationCount: number;
-  readonly isParent: boolean;
-  readonly inputPars: readonly InputPar[];
   readonly execSteps?: string;
   readonly remark?: string;
+  readonly inputPars: readonly CaseInfoInputPar[];
+  readonly children: readonly never[];
+}
+
+/**
+ * 菜单节点(getTestCaseAll 文件 datas 顶层元素,isParent:true)。
+ * 用例作为它的 children。一个文件可有多个菜单节点,我方目前只产一个。
+ */
+export interface CustomerTestCaseMenu {
+  readonly id: string;
+  readonly name: string;
+  readonly isParent: true;
+  readonly children: readonly CustomerTestCase[];
 }
 
 /** laser 子系统的全局配置(subSysId/menuId 等) */
@@ -359,6 +389,8 @@ export interface NorthboundTestCaseConfig {
   readonly menuId: string;
   readonly menuName: string;
   readonly caseType: string;
+  /** 运行子系统类型,填 subSysId 的值(我方无"系统分类表",按 subSysId 复用) */
+  readonly runSubSys: string;
   readonly depSubSys?: string;
   readonly depSubNe?: string;
 }

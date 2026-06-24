@@ -840,12 +840,14 @@ describe('createNorthboundService — inbound stub handlers', () => {
     expect(ftpCall.password).toBe('laserpass');          // config.ftp.password
     // 路径:basePath/yyyy-mm-dd/testcase_all.json(日期是今天)
     expect(ftpCall.remotePath).toMatch(/^\/laser\/testcase\/\d{4}-\d{2}-\d{2}\/testcase_all\.json$/);
-    // 内容是 {datas:[...]} 包裹(D006 gap1:之前是裸数组)
+    // 内容是 {datas:[...]} 包裹,树形:datas[0] 是菜单节点(isParent:true),用例在 children 里
     const content = JSON.parse(ftpCall.content);
     expect(content.datas).toBeDefined();
     expect(Array.isArray(content.datas)).toBe(true);
     expect(content.datas).toHaveLength(1);
-    expect(content.datas[0].caseName).toBe('Case1');
+    expect(content.datas[0].isParent).toBe(true);        // 菜单节点
+    expect(content.datas[0].children).toHaveLength(1);
+    expect(content.datas[0].children[0].name).toBe('Case1');
 
     // 上传后调 fileTranslationComplete 通知甲方(D006 gap3:之前完全没接)
     // postToCustomer 走 httpFacade.sendRequest,第二次调用(fileTranslationComplete)
@@ -939,15 +941,15 @@ describe('createNorthboundService — inbound stub handlers', () => {
     expect(parsed.statusCode).toBe(1);
     expect(parsed.datas).toBeUndefined();
 
-    // 从 FTP 上传内容验证 datas 过滤逻辑
+    // 从 FTP 上传内容验证 datas 过滤逻辑(树形:datas[0] 是菜单,用例在 children)
     const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const content = JSON.parse(ftpCall.content);
-    expect(content.datas).toHaveLength(1); // 只 tpl-on(enabled 且模板存在);tpl-off disabled、tpl-gone 模板缺失都跳过
-    expect(content.datas[0].caseName).toBe('On');
-    // S014: testCaseConfig 现从 activeConfig 派生。subSysName 用激光子系统默认值('激光载荷'),
-    // subSysId 用 defaultConfig.subSysId='ADS_001'(startAndGetHandler 传入的)。
-    expect(content.datas[0].subSysName).toBe('激光载荷');
-    expect(content.datas[0].subSysId).toBe('ADS_001');
+    expect(content.datas).toHaveLength(1); // 一个菜单节点
+    expect(content.datas[0].children).toHaveLength(1); // 只 tpl-on(enabled 且模板存在);tpl-off disabled、tpl-gone 模板缺失都跳过
+    expect(content.datas[0].children[0].name).toBe('On');
+    // S014: testCaseConfig 现从 activeConfig 派生。runSubSys 用 defaultConfig.subSysId='ADS_001'(startAndGetHandler 传入的,我方无独立子系统类型来源)。
+    expect(content.datas[0].children[0].runSubSys).toBe('ADS_001');
+    expect(content.datas[0].name).toBe('激光测试'); // 菜单名 = LASER_TEST_CASE_DEFAULTS.menuName
   });
 
   // S014 回归测试: 锁住 runtime wiring gap(testCaseConfig 漏接线)。
@@ -984,14 +986,14 @@ describe('createNorthboundService — inbound stub handlers', () => {
     const parsed = JSON.parse(resp.body as string);
     expect(parsed.statusCode).toBe(1);
 
-    // 从 FTP 上传内容验证 datas 产出(S014 testCaseConfig 派生是否生效)
+    // 从 FTP 上传内容验证 datas 产出(S014 testCaseConfig 派生是否生效)。树形:datas[0] 菜单,用例在 children。
     const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const content = JSON.parse(ftpCall.content);
     expect(content.datas).toBeDefined();
     expect(content.datas).toHaveLength(1);
-    expect(content.datas[0].caseName).toBe('Case1');
-    // subSysId 必须从 activeConfig 派生(真源),不是硬编码
-    expect(content.datas[0].subSysId).toBe('ADS_001');
+    expect(content.datas[0].children[0].name).toBe('Case1');
+    // runSubSys 必须从 activeConfig.subSysId 派生(真源),不是硬编码
+    expect(content.datas[0].children[0].runSubSys).toBe('ADS_001');
   });
 
   it('setTestTask decodes testCase with parameter override from snapshot', async () => {
@@ -1014,7 +1016,7 @@ describe('createNorthboundService — inbound stub handlers', () => {
       },
     };
     const mapping = { templateId: 'tpl-x', enabled: true, overridablePaths: ['step-send.send.userFieldValues.power'] };
-    const { snapshot } = encodeSourceToTestCase(source, mapping, { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit' });
+    const { snapshot } = encodeSourceToTestCase(source, mapping, { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit', runSubSys:'LAS_001' });
     reportedSnapshotStorage.save(snapshot);
 
     const service = createNorthboundService(makeOptions({ httpFacade, taskService, reportedSnapshotStorage }));

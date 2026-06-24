@@ -38,6 +38,7 @@ import type { EncodeSource } from '../core/testcase-sync-translator';
 import type { CatalogMapping } from '@/features/command-ingress/core';
 import { selectEnabledMappings } from '@/features/command-ingress/core';
 import type { NorthboundTestCaseConfig } from '../core/types';
+import type { CustomerTestCaseMenu } from '../core/types';
 import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
 import type { ReportDataCollector } from './report-data-collector';
 import { createAuthService, type AuthService, type AuthConfig } from './auth';
@@ -76,17 +77,18 @@ const LASER_TEST_CASE_DEFAULTS = {
   menuId: 'laser-menu',
   menuName: '激光测试',
   caseType: 'orbit',
-} as const satisfies Omit<NorthboundTestCaseConfig, 'subSysId'>;
+} as const satisfies Omit<NorthboundTestCaseConfig, 'subSysId' | 'runSubSys'>;
 
 /**
  * S014: 从 activeConfig 派生 testCaseConfig。
  * subSysId 用真源(start(config) 时用户填的值,存在 activeConfig.subSysId);
+ * runSubSys(运行子系统类型)无独立来源,按 subSysId 复用(我方无"系统分类表");
  * 其余字段用激光子系统固定默认值。
  * 返回 null 仅当 activeConfig 还没建立(start() 未调用)——此时 getTestCaseAll 本就不该被处理。
  */
 function deriveTestCaseConfig(cfg: NorthboundConfig | null): NorthboundTestCaseConfig | null {
   if (!cfg) return null;
-  return { subSysId: cfg.subSysId, ...LASER_TEST_CASE_DEFAULTS };
+  return { subSysId: cfg.subSysId, runSubSys: cfg.subSysId, ...LASER_TEST_CASE_DEFAULTS };
 }
 
 export interface FtpFacade {
@@ -552,8 +554,16 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
     const basePath = cfg.ftp.basePath.replace(/\/+$/, '');
     const remotePath = `${basePath}/${today}/testcase_all.json`;
-    // D006: 文件内容是 {datas:[...]} 包裹(03-用例管理.md L158-163 文件格式定义)
-    const fileContent = JSON.stringify({ datas: testCases });
+    // 文件内容是 {datas:[...]} 包裹(03-用例管理.md L158-163 文件格式定义)。
+    // 树形结构:datas 顶层是菜单节点(isParent:true),用例作为它的 children。
+    // 甲方 syncNode 靠节点 id 去重/落库,菜单 id 用 config.menuId,用例 id = outCaseId(快照反查键)。
+    const menu: CustomerTestCaseMenu = {
+      id: testCaseConfig.menuId,
+      name: testCaseConfig.menuName,
+      isParent: true,
+      children: testCases,
+    };
+    const fileContent = JSON.stringify({ datas: [menu] });
 
     try {
       await ftp.uploadFile({

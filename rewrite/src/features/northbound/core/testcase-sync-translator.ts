@@ -1,7 +1,7 @@
 import type { TaskDefinition, TaskStepDefinition } from '@/features/task/core';
 import { createDelayStep, createTaskDefinition } from '@/features/task/core';
 import type { CatalogMapping } from '@/features/command-ingress/core';
-import type { TestCaseInfo, InputPar } from './types';
+import type { TestCaseInfo, CaseInfoInputPar } from './types';
 import type {
   CustomerTestCase,
   NorthboundTestCaseConfig,
@@ -51,7 +51,13 @@ function resolveStepPathValue(def: TaskDefinition, path: string): unknown {
   return getPathValue(step.config, rest.join('.'));
 }
 
-/** 上报: (模板定义 + 映射) → CustomerTestCase + 快照。overridablePaths 来自 mapping(D004)。 */
+/**
+ * 上报: (模板定义 + 映射) → CustomerTestCase(用例节点) + 快照。overridablePaths 来自 mapping(D004)。
+ *
+ * 用例节点字段对齐甲方 CaseInfoNode:id/name/type/isParent 等(03-用例管理.md 文件格式定义)。
+ * id = outCaseId,是快照反查键,保证 decode 闭环(setTestTask 下发的 testCaseId = 文件 id)。
+ * 菜单包裹(外层 isParent:true 节点)由调用方(northbound-service)负责,这里只产单个用例节点。
+ */
 export function encodeSourceToTestCase(
   source: EncodeSource,
   mapping: CatalogMapping,
@@ -65,32 +71,40 @@ export function encodeSourceToTestCase(
   const snapshotDef: TaskDefinition = JSON.parse(JSON.stringify(def));
   const overridablePaths = mapping.overridablePaths;
 
-  // 仅为白名单路径生成 inputPars(取不到值的跳过)
-  const inputPars: InputPar[] = [];
+  // 仅为白名单路径生成 inputPars(CaseInfoInputPar 富结构,取不到值的跳过)。
+  // 我方无 cnName/type/unit/remark 元数据来源:parId 既是路径又是键,
+  // cnName 取 path 最后一段兜底,defaultValue 取当前值,其余空串。
+  const inputPars: CaseInfoInputPar[] = [];
   for (const path of overridablePaths) {
     const value = resolveStepPathValue(def, path);
     if (value !== undefined) {
-      inputPars.push({ parId: path, value: String(value) });
+      const lastSeg = path.split('.').pop() ?? path;
+      inputPars.push({
+        parId: path,
+        cnName: lastSeg,
+        type: '',
+        defaultValue: String(value),
+        unit: '',
+        remark: '',
+      });
     }
   }
 
   const testCase: CustomerTestCase = {
-    outCaseId,
-    caseName: source.templateName,
-    caseType: config.caseType,
-    subSysId: config.subSysId,
-    subSysName: config.subSysName,
-    menuId: config.menuId,
-    menuName: config.menuName,
+    id: outCaseId,
+    name: source.templateName,
+    type: config.caseType,
+    runSubSys: config.runSubSys,
+    isParent: false,
     depSubSys: config.depSubSys,
     depSubNe: config.depSubNe,
     durate: 600,
     satelliteCount: 1,
     stationCount: 1,
-    isParent: false,
-    inputPars,
     execSteps: summarizeExecSteps(def.steps),
     remark: source.templateTags.length > 0 ? source.templateTags.join(', ') : undefined,
+    inputPars,
+    children: [],
   };
 
   const snapshot: ReportedSnapshot = {
