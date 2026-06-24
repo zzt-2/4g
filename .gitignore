@@ -61,6 +61,7 @@ yarn-error.log*
 /rewrite/build-output*.log
 /rewrite/tsc-out.txt
 /rewrite/probe-resolve*.mjs
+/rewrite/ftp_probe.mjs
 /rewrite/package.json.bak
 /rewrite/public.zip
 /rewrite/nul
