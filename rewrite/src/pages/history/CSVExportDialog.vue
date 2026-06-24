@@ -7,7 +7,7 @@ import type { FileFacade } from '@/platform/files';
 interface Props {
   modelValue: boolean;
   storageService: StorageLocalService;
-  filesFacade: FileFacade;
+  filesFacade: FileFacade | null;
   timeRange: { start: Date; end: Date };
   selectedItems: Set<string>;
   recordCount: number;
@@ -78,6 +78,11 @@ async function exportCsv(): Promise<void> {
 
     if (!result.ok || !result.material) {
       notify.error('CSV 生成失败');
+      return;
+    }
+
+    if (!props.filesFacade) {
+      notify.error('文件系统不可用');
       return;
     }
 

@@ -3,6 +3,7 @@ import type { FrameAsset } from '@/features/frame';
 import type { TransportConfig } from '@/features/connection';
 import type { SendFrameInstance } from '@/features/send';
 import type { DisplayPreferences } from '@/features/display';
+import { readJsonWithBackup, writeJsonWithBackup } from '@/shared/utils/json-storage';
 
 export interface PersistedFeatureState {
   readonly frames?: { readonly frames: readonly FrameAsset[]; readonly selectedFrameId?: string };
@@ -31,28 +32,32 @@ export interface FeaturePersistence {
   saveSendInstances(): Promise<void>;
   saveDisplayPreferences(): Promise<void>;
   saveAll(): Promise<void>;
+  /**
+   * 确保所有最新快照落盘(S012 根因 A3)。
+   * 当前实现 = saveAll(全量并发)。beforeunload 等关闭时机调它,即使异步被打断,
+   * 已写的文件因原子写(A1)也是完整的,下次启动不丢。
+   */
+  flushPending(): Promise<void>;
 }
 
 function dataPath(dataDir: string, feature: string): string {
   return `${dataDir}/state/${feature}.json`;
 }
 
-async function safeReadJson(fileFacade: FileFacade, filePath: string): Promise<unknown | null> {
-  try {
-    const text = await fileFacade.readTextFile(filePath);
-    return JSON.parse(text) as unknown;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('ENOENT')) return null;
-    console.error(`[persistence] Failed to read ${filePath}:`, msg);
-    return null;
-  }
+/**
+ * 读 JSON + .bak 损坏恢复(S012 根因 A2)。返回值归一化:
+ * - ok / recovered → 取 value
+ * - missing / corrupted → undefined(load 把 undefined 视为"该 feature 无数据")
+ */
+async function readPersistedValue(fileFacade: FileFacade, filePath: string): Promise<unknown | undefined> {
+  const result = await readJsonWithBackup(fileFacade, filePath);
+  if (result.status === 'ok' || result.status === 'recovered') return result.value;
+  return undefined;
 }
 
 async function safeWriteJson(fileFacade: FileFacade, filePath: string, value: unknown): Promise<void> {
   try {
-    const text = JSON.stringify(value, null, 2);
-    await fileFacade.writeTextFile(filePath, text);
+    await writeJsonWithBackup(fileFacade, filePath, value);
   } catch (err: unknown) {
     console.error(`[persistence] Failed to write ${filePath}:`, err instanceof Error ? err.message : err);
   }
@@ -66,12 +71,12 @@ export function createFeaturePersistence(
   return {
     async load(): Promise<PersistedFeatureState> {
       const [frameData, connData, settingsData, storageHighspeedData, sendInstancesData, displayPrefsData] = await Promise.all([
-        safeReadJson(fileFacade, dataPath(dataDir, 'frames')),
-        safeReadJson(fileFacade, dataPath(dataDir, 'connections')),
-        safeReadJson(fileFacade, dataPath(dataDir, 'settings')),
-        safeReadJson(fileFacade, dataPath(dataDir, 'storage-highspeed')),
-        safeReadJson(fileFacade, dataPath(dataDir, 'send-instances')),
-        safeReadJson(fileFacade, dataPath(dataDir, 'display-preferences')),
+        readPersistedValue(fileFacade, dataPath(dataDir, 'frames')),
+        readPersistedValue(fileFacade, dataPath(dataDir, 'connections')),
+        readPersistedValue(fileFacade, dataPath(dataDir, 'settings')),
+        readPersistedValue(fileFacade, dataPath(dataDir, 'storage-highspeed')),
+        readPersistedValue(fileFacade, dataPath(dataDir, 'send-instances')),
+        readPersistedValue(fileFacade, dataPath(dataDir, 'display-preferences')),
       ]);
 
       return {
@@ -126,6 +131,12 @@ export function createFeaturePersistence(
         this.saveDisplayPreferences(),
       ]);
     },
+
+    async flushPending(): Promise<void> {
+      // 当前 saveAll 已是全量并发(不是 debounce 增量),flushPending 直接调它
+      // 确保"所有最新快照落盘"。后续若引入 debounce 写队列,这里改为 flush 队列。
+      await this.saveAll();
+    },
   };
 }
 
@@ -162,5 +173,6 @@ export function createNoOpPersistence(): FeaturePersistence {
     async saveSendInstances() {},
     async saveDisplayPreferences() {},
     async saveAll() {},
+    async flushPending() {},
   };
 }

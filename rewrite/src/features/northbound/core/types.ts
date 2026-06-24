@@ -302,7 +302,9 @@ export interface FileTranslationCompleteOutbound extends OutboundEnvelope {
   readonly fileType: string;
   readonly fileIndex: number;
   readonly filePath: string;
-  readonly ftpServerIp: string;
+  // S013: 甲方实现按 ftpServerIP(大写P)取值,V1.0.4 文档 L4161/L4215 写的是小写 ftpServerIp——
+  // 文档与实现打架,日志(WARN "ftpServerIP 为空")证明实现取的是大写,故对齐实现。
+  readonly ftpServerIP: string;
 }
 
 // 9. sigReport

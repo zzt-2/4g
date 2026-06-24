@@ -60,6 +60,16 @@ export interface TaskService extends TaskReader {
   instanciateTemplate(templateId: string): TaskInstanceState;
   clearHistory(): void;
   subscribe(handlers: TaskEventHandlers): Unsubscribe;
+  /**
+   * 运行时注入模板存储(S012 根因 D):wireFeatures 同步初始化时无 fileFacade,
+   * bootstrap 异步创建文件后端后注入。注入后 debounce 写入走新 storage。
+   */
+  setTemplateStorage(storage: TaskTemplateStorage): void;
+  /**
+   * 批量灌入模板(S012 根因 D):bootstrap 从文件 hydrate 后调,替代构造时同步 loadAll。
+   * 会清空当前 state 的模板再灌入(bootstrap 专用,正常 CRUD 不用)。
+   */
+  hydrateTemplates(templates: readonly TaskTemplate[]): void;
 }
 
 export interface CreateTaskServiceOptions {
@@ -89,7 +99,9 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
   );
   const now = options.now ?? (() => new Date().toISOString());
   const fieldValueProvider = options.fieldValueProvider;
-  const templateStorage = options.templateStorage;
+  // templateStorage 可运行时替换(S012 根因 D):wireFeatures 同步初始化时无 fileFacade,
+  // 传 undefined;bootstrap 异步读到文件后端后调 setTemplateStorage 注入。
+  let templateStorage = options.templateStorage;
 
   // 持久化：启动时 loadAll 灌进 state；变更后 debounce 500ms 写入
   if (templateStorage) {
@@ -419,6 +431,17 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
 
     subscribe(handlers) {
       return state.subscribe(handlers);
+    },
+
+    setTemplateStorage(storage) {
+      templateStorage = storage;
+    },
+
+    hydrateTemplates(templates) {
+      // 整体替换 state 的模板集(bootstrap hydrate 专用)。replaceTemplates 先清空再灌入,
+      // 保证文件里的模板和 state 完全一致(避免构造时空 state 残留 + 旧模板混在一起)。
+      // storage 已被 bootstrap 先 hydrate 过(读取文件),这里只灌 state。
+      state.replaceTemplates(templates);
     },
   };
 }

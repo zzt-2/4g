@@ -40,6 +40,7 @@ const IPC_WRITE_TEXT_FILE = 'file:write-text';
 const IPC_SHOW_SAVE_DIALOG = 'file:show-save-dialog';
 const IPC_SHOW_OPEN_DIALOG = 'file:show-open-dialog';
 const IPC_GET_USER_DATA_PATH = 'file:get-user-data-path';
+const IPC_GET_DEFAULT_FRAMES = 'file:get-default-frames';
 
 const IPC_HTTP_START_SERVER = 'http:start-server';
 const IPC_HTTP_STOP_SERVER = 'http:stop-server';
@@ -157,6 +158,9 @@ const fileBridge: FileBridge = {
   },
   async getUserDataPath(): Promise<string> {
     return ipcRenderer.invoke(IPC_GET_USER_DATA_PATH);
+  },
+  async getDefaultFrames(): Promise<string> {
+    return ipcRenderer.invoke(IPC_GET_DEFAULT_FRAMES);
   },
 };
 

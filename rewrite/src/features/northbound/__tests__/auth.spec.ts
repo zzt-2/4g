@@ -112,4 +112,25 @@ describe('createAuthService', () => {
     expect(auth.isAuthenticated()).toBe(false);
     expect(auth.getToken()).toBeUndefined();
   });
+
+  // S013 防御:password 缺失/空时不应静默发出会被 JSON.stringify 省略的 body(甲方 400 参数校验异常,
+  // 同 S011 复发)。必须抛明确错误,杜绝 undefined 被 JSON.stringify 吞掉导致请求体缺字段。
+  it('login throws when password is undefined (defense against silent field omission)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const cfg = { ...makeConfig(), password: undefined as unknown as string };
+    const auth = createAuthService(httpFacade, cfg);
+
+    await expect(auth.login()).rejects.toThrow(/password/i);
+    expect(httpFacade.sendRequest).not.toHaveBeenCalled();
+    expect(auth.isAuthenticated()).toBe(false);
+  });
+
+  it('login throws when password is empty string', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const cfg = { ...makeConfig(), password: '' };
+    const auth = createAuthService(httpFacade, cfg);
+
+    await expect(auth.login()).rejects.toThrow(/password/i);
+    expect(httpFacade.sendRequest).not.toHaveBeenCalled();
+  });
 });

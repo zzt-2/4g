@@ -130,7 +130,6 @@ onMounted(() => {
   <q-page class="connection-page p-6 min-h-full">
     <section class="connection-page__content gap-4 mx-auto">
       <div class="connection-page__header">
-        <h1 class="connection-page__title">连接管理</h1>
         <q-btn
           unelevated
           color="primary"
@@ -212,14 +211,6 @@ onMounted(() => {
   align-items: center;
   display: flex;
   justify-content: space-between;
-}
-
-.connection-page__title {
-  color: var(--rw-color-text-primary);
-  font-size: var(--rw-font-size-title-lg);
-  font-weight: var(--rw-font-weight-semibold);
-  line-height: var(--rw-line-height-title-lg);
-  margin: 0;
 }
 
 .connection-page__section {

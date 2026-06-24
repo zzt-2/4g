@@ -1,5 +1,6 @@
-import type { TaskTemplate, TaskDefinition, TaskStepDefinition } from '@/features/task/core';
+import type { TaskDefinition, TaskStepDefinition } from '@/features/task/core';
 import { createDelayStep, createTaskDefinition } from '@/features/task/core';
+import type { CatalogMapping } from '@/features/command-ingress/core';
 import type { TestCaseInfo, InputPar } from './types';
 import type {
   CustomerTestCase,
@@ -8,6 +9,18 @@ import type {
   OverrideWarning,
 } from './types';
 import { getPathValue, setPathValue } from './path-resolver';
+
+/**
+ * Encode 输入源:模板定义 + 标识字段。
+ * 刻意不导入 TaskTemplate(D004:task feature 不感知甲方),
+ * 由调用方(northbound-service)从 TaskTemplate 拆出这几个字段传入。
+ */
+export interface EncodeSource {
+  readonly definition: TaskDefinition;
+  readonly templateId: string;
+  readonly templateName: string;
+  readonly templateTags: readonly string[];
+}
 
 /** 生成 outCaseId:绑定 templateId + 上报时间,用于反查快照 */
 export function makeOutCaseId(templateId: string, reportedAt: number): string {
@@ -38,18 +51,19 @@ function resolveStepPathValue(def: TaskDefinition, path: string): unknown {
   return getPathValue(step.config, rest.join('.'));
 }
 
-/** 上报: TaskTemplate → CustomerTestCase + 快照 */
-export function encodeTaskTemplateToTestCase(
-  template: TaskTemplate,
+/** 上报: (模板定义 + 映射) → CustomerTestCase + 快照。overridablePaths 来自 mapping(D004)。 */
+export function encodeSourceToTestCase(
+  source: EncodeSource,
+  mapping: CatalogMapping,
   config: NorthboundTestCaseConfig,
 ): { testCase: CustomerTestCase; snapshot: ReportedSnapshot } {
   const reportedAt = Date.now();
-  const outCaseId = makeOutCaseId(template.templateId, reportedAt);
-  const def = template.definition;
+  const outCaseId = makeOutCaseId(source.templateId, reportedAt);
+  const def = source.definition;
 
   // 深拷贝 definition 作为快照
   const snapshotDef: TaskDefinition = JSON.parse(JSON.stringify(def));
-  const overridablePaths = template.customerSync?.overridablePaths ?? [];
+  const overridablePaths = mapping.overridablePaths;
 
   // 仅为白名单路径生成 inputPars(取不到值的跳过)
   const inputPars: InputPar[] = [];
@@ -62,7 +76,7 @@ export function encodeTaskTemplateToTestCase(
 
   const testCase: CustomerTestCase = {
     outCaseId,
-    caseName: template.name,
+    caseName: source.templateName,
     caseType: config.caseType,
     subSysId: config.subSysId,
     subSysName: config.subSysName,
@@ -76,12 +90,12 @@ export function encodeTaskTemplateToTestCase(
     isParent: false,
     inputPars,
     execSteps: summarizeExecSteps(def.steps),
-    remark: template.tags.length > 0 ? template.tags.join(', ') : undefined,
+    remark: source.templateTags.length > 0 ? source.templateTags.join(', ') : undefined,
   };
 
   const snapshot: ReportedSnapshot = {
     outCaseId,
-    templateId: template.templateId,
+    templateId: source.templateId,
     definition: snapshotDef,
     overridablePaths,
     reportedAt,

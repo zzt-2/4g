@@ -51,3 +51,16 @@ export {
 // Highlight
 export { calculateHighlights } from './highlight';
 export type { HighlightRule, HighlightRuleConfig, Highlight, HighlightSeverity } from './highlight';
+
+// Catalog mapping (D004: task 模板 → 甲方用例 映射表)
+export {
+  CATALOG_MAPPINGS_KEY,
+  loadCatalogMappings,
+  persistCatalogMappings,
+  upsertMapping,
+  removeMapping,
+  findMapping,
+  selectEnabledMappings,
+  markReported,
+} from './catalog-mapping';
+export type { CatalogMapping } from './catalog-mapping';

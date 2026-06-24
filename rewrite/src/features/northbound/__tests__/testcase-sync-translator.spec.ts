@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  encodeTaskTemplateToTestCase,
+  encodeSourceToTestCase,
   decodeTestCaseToTaskDefinition,
   makeOutCaseId,
 } from '../core/testcase-sync-translator';
-import type { TaskTemplate, CustomerSyncMeta } from '@/features/task/core';
+import type { EncodeSource } from '../core/testcase-sync-translator';
+import type { CatalogMapping } from '@/features/command-ingress/core';
 import {
   createTaskDefinition,
   createSendStep,
@@ -21,7 +22,8 @@ const config: NorthboundTestCaseConfig = {
   caseType: 'orbit',
 };
 
-function makeTemplate(overridable: string[]): TaskTemplate {
+/** 构造 encode 源(模板定义 + 标识字段,不耦合 TaskTemplate) */
+function makeSource(): EncodeSource {
   const def = createTaskDefinition({
     id: 'def-1',
     name: 'laser-init',
@@ -36,38 +38,42 @@ function makeTemplate(overridable: string[]): TaskTemplate {
     schedule: { kind: 'immediate' },
     errorPolicy: { onFailure: 'stop' },
   });
-  const customerSync: CustomerSyncMeta = { enabled: true, overridablePaths: overridable };
   return {
-    templateId: 'tpl-1',
-    name: '激光初始化',
-    tags: ['laser'],
     definition: def,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-    customerSync,
+    templateId: 'tpl-1',
+    templateName: '激光初始化',
+    templateTags: ['laser'],
   };
 }
 
-describe('encodeTaskTemplateToTestCase', () => {
+/** 构造映射(可覆盖字段白名单) */
+function makeMapping(overridable: string[], enabled = true): CatalogMapping {
+  return { templateId: 'tpl-1', enabled, overridablePaths: overridable };
+}
+
+describe('encodeSourceToTestCase', () => {
   it('generates inputPars only for whitelisted paths', () => {
-    const tpl = makeTemplate([
+    const source = makeSource();
+    const mapping = makeMapping([
       'step-send.send.userFieldValues.power',
       'step-delay.delay.durationMs',
     ]);
-    const { testCase } = encodeTaskTemplateToTestCase(tpl, config);
+    const { testCase } = encodeSourceToTestCase(source, mapping, config);
     const parIds = testCase.inputPars.map(p => p.parId).sort();
     expect(parIds).toEqual(['step-delay.delay.durationMs', 'step-send.send.userFieldValues.power']);
   });
 
   it('skips paths not found in definition', () => {
-    const tpl = makeTemplate(['step-nonexistent.send.userFieldValues.x']);
-    const { testCase } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping(['step-nonexistent.send.userFieldValues.x']);
+    const { testCase } = encodeSourceToTestCase(source, mapping, config);
     expect(testCase.inputPars).toHaveLength(0);
   });
 
   it('fills caseTemplate fields from config', () => {
-    const tpl = makeTemplate([]);
-    const { testCase } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping([]);
+    const { testCase } = encodeSourceToTestCase(source, mapping, config);
     expect(testCase.caseName).toBe('激光初始化');
     expect(testCase.subSysName).toBe('激光载荷');
     expect(testCase.isParent).toBe(false);
@@ -75,24 +81,38 @@ describe('encodeTaskTemplateToTestCase', () => {
   });
 
   it('returns snapshot with deep-copied definition', () => {
-    const tpl = makeTemplate([]);
-    const { snapshot } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping([]);
+    const { snapshot } = encodeSourceToTestCase(source, mapping, config);
     expect(snapshot.templateId).toBe('tpl-1');
-    expect(snapshot.definition).not.toBe(tpl.definition); // 不同引用(深拷贝)
-    expect(snapshot.definition.steps).toEqual(tpl.definition.steps); // 但内容相等
+    expect(snapshot.definition).not.toBe(source.definition); // 不同引用(深拷贝)
+    expect(snapshot.definition.steps).toEqual(source.definition.steps); // 但内容相等
+  });
+
+  it('snapshot overridablePaths come from mapping, not template', () => {
+    const source = makeSource();
+    const mapping = makeMapping([
+      'step-send.send.userFieldValues.power',
+      'step-delay.delay.durationMs',
+    ]);
+    const { snapshot } = encodeSourceToTestCase(source, mapping, config);
+    // 关键不变量:overridablePaths 来源是 mapping(command-ingress),不是模板字段
+    expect(snapshot.overridablePaths).toEqual(mapping.overridablePaths);
   });
 
   it('generates execSteps summary', () => {
-    const tpl = makeTemplate([]);
-    const { testCase } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping([]);
+    const { testCase } = encodeSourceToTestCase(source, mapping, config);
     expect(testCase.execSteps).toBe('send rc-laser-on; wait-condition tm-temp; delay');
   });
 });
 
 describe('decodeTestCaseToTaskDefinition', () => {
   it('overrides whitelisted values', () => {
-    const tpl = makeTemplate(['step-send.send.userFieldValues.power']);
-    const { snapshot } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping(['step-send.send.userFieldValues.power']);
+    const { snapshot } = encodeSourceToTestCase(source, mapping, config);
     const tc: TestCaseInfo = {
       testCaseId: snapshot.outCaseId,
       inputPars: [{ parId: 'step-send.send.userFieldValues.power', value: '99' }],
@@ -107,8 +127,9 @@ describe('decodeTestCaseToTaskDefinition', () => {
   });
 
   it('ignores inputPars not in whitelist + warns', () => {
-    const tpl = makeTemplate([]); // 白名单空
-    const { snapshot } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping([]); // 白名单空
+    const { snapshot } = encodeSourceToTestCase(source, mapping, config);
     const tc: TestCaseInfo = {
       testCaseId: snapshot.outCaseId,
       inputPars: [{ parId: 'step-send.send.userFieldValues.power', value: '99' }],
@@ -119,8 +140,9 @@ describe('decodeTestCaseToTaskDefinition', () => {
   });
 
   it('preserves non-overridable fields from snapshot', () => {
-    const tpl = makeTemplate(['step-send.send.userFieldValues.power']);
-    const { snapshot } = encodeTaskTemplateToTestCase(tpl, config);
+    const source = makeSource();
+    const mapping = makeMapping(['step-send.send.userFieldValues.power']);
+    const { snapshot } = encodeSourceToTestCase(source, mapping, config);
     const tc: TestCaseInfo = {
       testCaseId: snapshot.outCaseId,
       inputPars: [{ parId: 'step-send.send.userFieldValues.power', value: '99' }],
@@ -134,17 +156,18 @@ describe('decodeTestCaseToTaskDefinition', () => {
   });
 
   it('round-trip: encode then decode with no overrides = original', () => {
-    const tpl = makeTemplate([
+    const source = makeSource();
+    const mapping = makeMapping([
       'step-send.send.userFieldValues.power',
       'step-send.send.userFieldValues.mode',
       'step-wait.wait-condition.conditions[0].threshold',
       'step-delay.delay.durationMs',
     ]);
-    const { testCase, snapshot } = encodeTaskTemplateToTestCase(tpl, config);
+    const { testCase, snapshot } = encodeSourceToTestCase(source, mapping, config);
     const tc: TestCaseInfo = { testCaseId: snapshot.outCaseId, inputPars: testCase.inputPars };
     const { definition, warnings } = decodeTestCaseToTaskDefinition(tc, snapshot);
     expect(warnings).toHaveLength(0);
-    expect(definition.steps).toEqual(tpl.definition.steps);
+    expect(definition.steps).toEqual(source.definition.steps);
   });
 });
 

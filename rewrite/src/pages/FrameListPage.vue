@@ -73,6 +73,19 @@ function onBatchDelete(): void {
   });
 }
 
+// 退出批量模式：清批量选中。单选 selectedFrameIds 不在此清（切回单选时由 onSelectionChange 自然重置）。
+function exitBatchMode(): void {
+  batchMode.value = false;
+  batchSelectedRows.value = [];
+}
+
+// 切换批量模式：进入时额外清单选残留（避免单选选中在批量模式下显示不一致）。
+function toggleBatchMode(): void {
+  batchMode.value = !batchMode.value;
+  batchSelectedRows.value = [];
+  selectedFrameIds.value = [];
+}
+
 // Derived data
 const frameList = computed<FrameAssetSummary[]>(() => {
   void refreshKey.value;
@@ -270,44 +283,67 @@ function onEditFrame(frameId: string): void {
           </template>
 
           <template #actions>
-            <q-btn
-              outline
-              color="primary"
-              icon="o_add"
-              label="新建"
-              dense
-              no-caps
-              @click="onEditFrame('new')"
-            />
-            <q-btn
-              outline
-              color="primary"
-              icon="o_upload"
-              label="导入"
-              dense
-              no-caps
-              @click="showImportDialog = true"
-            />
-            <q-btn
-              outline
-              color="primary"
-              icon="o_download"
-              label="导出"
-              dense
-              no-caps
-              :disable="frameList.length === 0"
-              @click="onExport"
-            />
-            <q-btn
-              flat
-              dense
-              no-caps
-              size="sm"
-              :icon="batchMode ? 'o_close' : 'o_checklist'"
-              :label="batchMode ? '退出批量' : '批量管理'"
-              :color="batchMode ? 'negative' : 'grey'"
-              @click="batchMode = !batchMode; batchSelectedRows = []; selectedFrameIds = []"
-            />
+            <template v-if="batchMode">
+              <!-- 批量模式：替换式 actions（新建/导入/导出临时隐藏） -->
+              <q-btn
+                flat dense no-caps
+                icon="o_delete"
+                label="删除选中"
+                color="negative"
+                size="sm"
+                :disable="batchSelectedRows.length === 0"
+                @click="onBatchDelete"
+              />
+              <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
+              <q-space />
+              <q-btn
+                flat dense no-caps
+                label="退出批量模式"
+                size="sm"
+                @click="exitBatchMode"
+              />
+            </template>
+            <template v-else>
+              <!-- 正常模式：原 actions -->
+              <q-btn
+                outline
+                color="primary"
+                icon="o_add"
+                label="新建"
+                dense
+                no-caps
+                @click="onEditFrame('new')"
+              />
+              <q-btn
+                outline
+                color="primary"
+                icon="o_upload"
+                label="导入"
+                dense
+                no-caps
+                @click="showImportDialog = true"
+              />
+              <q-btn
+                outline
+                color="primary"
+                icon="o_download"
+                label="导出"
+                dense
+                no-caps
+                :disable="frameList.length === 0"
+                @click="onExport"
+              />
+              <q-btn
+                flat
+                dense
+                no-caps
+                size="sm"
+                :icon="batchMode ? 'o_close' : 'o_checklist'"
+                :label="batchMode ? '退出批量' : '批量管理'"
+                :color="batchMode ? 'negative' : 'grey'"
+                @click="toggleBatchMode"
+              />
+            </template>
           </template>
         </TableToolbar>
       </div>
@@ -316,27 +352,6 @@ function onEditFrame(frameId: string): void {
       <div class="flex flex-1 overflow-hidden">
         <!-- Data table -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          <!-- Batch mode toolbar -->
-          <div v-if="batchMode" class="flex items-center gap-2 px-4 py-2 rw-divider-b flex-shrink-0">
-            <q-btn
-              flat dense no-caps
-              icon="o_delete"
-              label="删除选中"
-              color="negative"
-              size="sm"
-              :disable="batchSelectedRows.length === 0"
-              @click="onBatchDelete"
-            />
-            <span class="rw-text-desc text-xs">{{ batchSelectedRows.length }} 项已选中</span>
-            <div class="flex-1" />
-            <q-btn
-              flat dense no-caps
-              label="退出批量模式"
-              size="sm"
-              @click="batchMode = false; batchSelectedRows = []"
-            />
-          </div>
-
           <DataTable
             :columns="frameListColumns"
             :rows="tableRows"

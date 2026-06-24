@@ -1,0 +1,940 @@
+{
+  "schemaVersion": 1,
+  "frames": [
+    {
+      "id": "rc-test-waveform-6",
+      "name": "测试(发) - 波形图 6 通道数值",
+      "direction": "send",
+      "fields": [
+        {
+          "id": "sync",
+          "name": "RS422 帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "RS422 固定帧同步字 0x1ACFFC1D，高字节先发送",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x1ACFFC1D",
+          "bigEndian": true
+        },
+        {
+          "id": "length",
+          "name": "payload 字节数",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "应用层 payload 字节数 = (1 header + 6 data word) x 4 = 28",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x0000001C",
+          "bigEndian": true
+        },
+        {
+          "id": "header",
+          "name": "应用层 header word0",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "位域 [31:28]version=1 [27:24]msg_type [23:20]module_id=0xF [19:12]group_id=0x90 [11:4]param_count [3:0]reserve=0",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x12F90060",
+          "bigEndian": true
+        },
+        {
+          "id": "ch0-voltage",
+          "name": "通道0 电压",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word0 bit[31:0]：uint32 原始码值（单位 mV，模拟量）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000BB8",
+          "bigEndian": true
+        },
+        {
+          "id": "ch1-current",
+          "name": "通道1 电流",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word1 bit[31:0]：uint32 原始码值（单位 mA，模拟量）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x000001F4",
+          "bigEndian": true
+        },
+        {
+          "id": "ch2-temp",
+          "name": "通道2 温度",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word2 bit[31:0]：uint32 原始码值（单位 0.01℃，模拟量）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00009C40",
+          "bigEndian": true
+        },
+        {
+          "id": "ch3-power",
+          "name": "通道3 功率",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word3 bit[31:0]：uint32 原始码值（单位 0.1W，模拟量）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000064",
+          "bigEndian": true
+        },
+        {
+          "id": "ch4-pressure",
+          "name": "通道4 压力",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word4 bit[31:0]：uint32 原始码值（单位 Pa，模拟量）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x0000EA60",
+          "bigEndian": true
+        },
+        {
+          "id": "ch5-snr",
+          "name": "通道5 信噪比",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word5 bit[31:0]：uint32 原始码值（单位 0.01dB，模拟量）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x000007D0",
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "frame_header + length + 所有 payload word 的 32-bit 累加和，溢出自然回卷",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true,
+          "validOption": {
+            "isChecksum": true,
+            "startFieldIndex": 0,
+            "endFieldIndex": 8,
+            "checksumMethod": "sum32"
+          }
+        }
+      ],
+      "description": "收发回环测试帧（module_id=0xF test_block group_id=0x90）：send+receive 一对，header word0=0x12F90060 相同。6 个 uint32 数值字段（电压/电流/温度/功率/压力/信噪比）。send 帧（rc-test-waveform-6）数值可编辑，编码发出的字节经回环被 receive 帧（tm-test-waveform-6）按 identifierRules 匹配解析，喂 display waveform 图画曲线。",
+      "frameType": "dongfanghong-rc",
+      "protocol": "rs422-fixed",
+      "options": {
+        "autoChecksum": true,
+        "bigEndian": true,
+        "includeLengthField": false
+      },
+      "identifierRules": [
+        {
+          "startIndex": 0,
+          "endIndex": 3,
+          "operator": "eq",
+          "value": "0x1ACFFC1D",
+          "logicOperator": "and"
+        },
+        {
+          "startIndex": 8,
+          "endIndex": 11,
+          "operator": "eq",
+          "value": "0x12F90060",
+          "logicOperator": "and"
+        }
+      ]
+    },
+    {
+      "id": "rc-test-waveform-8",
+      "name": "测试(发) - 波形图 8 通道数值",
+      "direction": "send",
+      "fields": [
+        {
+          "id": "sync",
+          "name": "RS422 帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "RS422 固定帧同步字 0x1ACFFC1D，高字节先发送",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x1ACFFC1D",
+          "bigEndian": true
+        },
+        {
+          "id": "length",
+          "name": "payload 字节数",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "应用层 payload 字节数 = (1 header + 8 data word) x 4 = 36",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000024",
+          "bigEndian": true
+        },
+        {
+          "id": "header",
+          "name": "应用层 header word0",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "位域 [31:28]version=1 [27:24]msg_type [23:20]module_id=0xF [19:12]group_id=0x91 [11:4]param_count [3:0]reserve=0",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x12F91080",
+          "bigEndian": true
+        },
+        {
+          "id": "ch0-sin",
+          "name": "通道0 正弦",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word0 bit[31:0]：uint32 原始码值（建议发送侧填正弦采样）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00008000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch1-cos",
+          "name": "通道1 余弦",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word1 bit[31:0]：uint32 原始码值（建议发送侧填余弦采样）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00008000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch2-triangle",
+          "name": "通道2 三角",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word2 bit[31:0]：uint32 原始码值（建议发送侧填三角波采样）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch3-ramp",
+          "name": "通道3 锯齿",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word3 bit[31:0]：uint32 原始码值（建议发送侧填锯齿波采样）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch4-square",
+          "name": "通道4 方波",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word4 bit[31:0]：uint32 原始码值（建议发送侧填方波采样）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch5-noise",
+          "name": "通道5 噪声",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word5 bit[31:0]：uint32 原始码值（建议发送侧填随机噪声）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch6-envelope",
+          "name": "通道6 包络",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word6 bit[31:0]：uint32 原始码值（建议发送侧填包络采样）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch7-dc",
+          "name": "通道7 直流",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word7 bit[31:0]：uint32 原始码值（建议发送侧填直流偏置）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00008000",
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "frame_header + length + 所有 payload word 的 32-bit 累加和，溢出自然回卷",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true,
+          "validOption": {
+            "isChecksum": true,
+            "startFieldIndex": 0,
+            "endFieldIndex": 10,
+            "checksumMethod": "sum32"
+          }
+        }
+      ],
+      "description": "收发回环测试帧（module_id=0xF test_block group_id=0x91）：send+receive 一对，header word0=0x12F91080 相同。8 个 uint32 数值字段，通道名标注建议波形（正弦/余弦/三角/锯齿/方波/噪声/包络/直流），便于多通道 waveform 图叠加对比。",
+      "frameType": "dongfanghong-rc",
+      "protocol": "rs422-fixed",
+      "options": {
+        "autoChecksum": true,
+        "bigEndian": true,
+        "includeLengthField": false
+      },
+      "identifierRules": [
+        {
+          "startIndex": 0,
+          "endIndex": 3,
+          "operator": "eq",
+          "value": "0x1ACFFC1D",
+          "logicOperator": "and"
+        },
+        {
+          "startIndex": 8,
+          "endIndex": 11,
+          "operator": "eq",
+          "value": "0x12F91080",
+          "logicOperator": "and"
+        }
+      ]
+    },
+    {
+      "id": "rc-test-constellation",
+      "name": "测试(发) - 星座图 I/Q 数据流",
+      "direction": "send",
+      "fields": [
+        {
+          "id": "sync",
+          "name": "RS422 帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "RS422 固定帧同步字 0x1ACFFC1D，高字节先发送",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x1ACFFC1D",
+          "bigEndian": true
+        },
+        {
+          "id": "length",
+          "name": "payload 字节数",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "应用层 payload 字节数 = (1 header + 12 data word) x 4 = 52",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000034",
+          "bigEndian": true
+        },
+        {
+          "id": "header",
+          "name": "应用层 header word0",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "位域 [31:28]version=1 [27:24]msg_type [23:20]module_id=0xF [19:12]group_id=0x92 [11:4]param_count [3:0]reserve=0",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x12F920C0",
+          "bigEndian": true
+        },
+        {
+          "id": "test-iq-i",
+          "name": "I 路采样",
+          "dataType": "bytes",
+          "length": 24,
+          "description": "word0..5（24 字节）：I 路采样字节流，scatter 按 bitWidth 切多点（scatter iSource 选此）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00030F5A77637FF7635A730F000CF1A5989D80189DA59CF1",
+          "bigEndian": true
+        },
+        {
+          "id": "test-iq-q",
+          "name": "Q 路采样",
+          "dataType": "bytes",
+          "length": 24,
+          "description": "word6..11（24 字节）：Q 路采样字节流，scatter 按 bitWidth 切多点（scatter qSource 选此）",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x7FF7635A730F000CF1A5989D80189DA59CF100030F5A7763",
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "frame_header + length + 所有 payload word 的 32-bit 累加和，溢出自然回卷",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true,
+          "validOption": {
+            "isChecksum": true,
+            "startFieldIndex": 0,
+            "endFieldIndex": 4,
+            "checksumMethod": "sum32"
+          }
+        }
+      ],
+      "description": "收发回环测试帧（module_id=0xF test_block group_id=0x92）：send+receive 一对。I/Q 各 24 字节 bytes 字段，scatter 按 bitWidth 切多点（bitWidth=8 切 24 点，bitWidth=12 切 16 点）。send 帧 I/Q 可编辑 hex，回环后 receive 帧解析，display scatter 选 iSource=test-iq-i、qSource=test-iq-q。",
+      "frameType": "dongfanghong-rc",
+      "protocol": "rs422-fixed",
+      "options": {
+        "autoChecksum": true,
+        "bigEndian": true,
+        "includeLengthField": false
+      },
+      "identifierRules": [
+        {
+          "startIndex": 0,
+          "endIndex": 3,
+          "operator": "eq",
+          "value": "0x1ACFFC1D",
+          "logicOperator": "and"
+        },
+        {
+          "startIndex": 8,
+          "endIndex": 11,
+          "operator": "eq",
+          "value": "0x12F920C0",
+          "logicOperator": "and"
+        }
+      ]
+    },
+    {
+      "id": "tm-test-waveform-6",
+      "name": "测试(收) - 波形图 6 通道数值",
+      "direction": "receive",
+      "fields": [
+        {
+          "id": "sync",
+          "name": "RS422 帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "RS422 固定帧同步字 0x1ACFFC1D，高字节先发送",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x1ACFFC1D",
+          "bigEndian": true
+        },
+        {
+          "id": "length",
+          "name": "payload 字节数",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "应用层 payload 字节数 = (1 header + 6 data word) x 4 = 28",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x0000001C",
+          "bigEndian": true
+        },
+        {
+          "id": "header",
+          "name": "应用层 header word0",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "位域 [31:28]version=1 [27:24]msg_type [23:20]module_id=0xF [19:12]group_id=0x90 [11:4]param_count [3:0]reserve=0",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x12F90060",
+          "bigEndian": true
+        },
+        {
+          "id": "ch0-voltage",
+          "name": "通道0 电压",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word0 bit[31:0]：uint32 原始码值（单位 mV，模拟量）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch1-current",
+          "name": "通道1 电流",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word1 bit[31:0]：uint32 原始码值（单位 mA，模拟量）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch2-temp",
+          "name": "通道2 温度",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word2 bit[31:0]：uint32 原始码值（单位 0.01℃，模拟量）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch3-power",
+          "name": "通道3 功率",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word3 bit[31:0]：uint32 原始码值（单位 0.1W，模拟量）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch4-pressure",
+          "name": "通道4 压力",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word4 bit[31:0]：uint32 原始码值（单位 Pa，模拟量）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch5-snr",
+          "name": "通道5 信噪比",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word5 bit[31:0]：uint32 原始码值（单位 0.01dB，模拟量）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "frame_header + length + 所有 payload word 的 32-bit 累加和，溢出自然回卷",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true,
+          "validOption": {
+            "isChecksum": true,
+            "startFieldIndex": 0,
+            "endFieldIndex": 8,
+            "checksumMethod": "sum32"
+          }
+        }
+      ],
+      "description": "收发回环测试帧（module_id=0xF test_block group_id=0x90）：send+receive 一对，header word0=0x12F90060 相同。6 个 uint32 数值字段（电压/电流/温度/功率/压力/信噪比）。send 帧（rc-test-waveform-6）数值可编辑，编码发出的字节经回环被 receive 帧（tm-test-waveform-6）按 identifierRules 匹配解析，喂 display waveform 图画曲线。",
+      "frameType": "dongfanghong-tm",
+      "protocol": "rs422-fixed",
+      "identifierRules": [
+        {
+          "startIndex": 0,
+          "endIndex": 3,
+          "operator": "eq",
+          "value": "0x1ACFFC1D",
+          "logicOperator": "and"
+        },
+        {
+          "startIndex": 8,
+          "endIndex": 11,
+          "operator": "eq",
+          "value": "0x12F90060",
+          "logicOperator": "and"
+        }
+      ]
+    },
+    {
+      "id": "tm-test-waveform-8",
+      "name": "测试(收) - 波形图 8 通道数值",
+      "direction": "receive",
+      "fields": [
+        {
+          "id": "sync",
+          "name": "RS422 帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "RS422 固定帧同步字 0x1ACFFC1D，高字节先发送",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x1ACFFC1D",
+          "bigEndian": true
+        },
+        {
+          "id": "length",
+          "name": "payload 字节数",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "应用层 payload 字节数 = (1 header + 8 data word) x 4 = 36",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000024",
+          "bigEndian": true
+        },
+        {
+          "id": "header",
+          "name": "应用层 header word0",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "位域 [31:28]version=1 [27:24]msg_type [23:20]module_id=0xF [19:12]group_id=0x91 [11:4]param_count [3:0]reserve=0",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x12F91080",
+          "bigEndian": true
+        },
+        {
+          "id": "ch0-sin",
+          "name": "通道0 正弦",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word0 bit[31:0]：uint32 原始码值（建议发送侧填正弦采样）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch1-cos",
+          "name": "通道1 余弦",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word1 bit[31:0]：uint32 原始码值（建议发送侧填余弦采样）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch2-triangle",
+          "name": "通道2 三角",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word2 bit[31:0]：uint32 原始码值（建议发送侧填三角波采样）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch3-ramp",
+          "name": "通道3 锯齿",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word3 bit[31:0]：uint32 原始码值（建议发送侧填锯齿波采样）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch4-square",
+          "name": "通道4 方波",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word4 bit[31:0]：uint32 原始码值（建议发送侧填方波采样）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch5-noise",
+          "name": "通道5 噪声",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word5 bit[31:0]：uint32 原始码值（建议发送侧填随机噪声）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch6-envelope",
+          "name": "通道6 包络",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word6 bit[31:0]：uint32 原始码值（建议发送侧填包络采样）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "ch7-dc",
+          "name": "通道7 直流",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "word7 bit[31:0]：uint32 原始码值（建议发送侧填直流偏置）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "frame_header + length + 所有 payload word 的 32-bit 累加和，溢出自然回卷",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true,
+          "validOption": {
+            "isChecksum": true,
+            "startFieldIndex": 0,
+            "endFieldIndex": 10,
+            "checksumMethod": "sum32"
+          }
+        }
+      ],
+      "description": "收发回环测试帧（module_id=0xF test_block group_id=0x91）：send+receive 一对，header word0=0x12F91080 相同。8 个 uint32 数值字段，通道名标注建议波形（正弦/余弦/三角/锯齿/方波/噪声/包络/直流），便于多通道 waveform 图叠加对比。",
+      "frameType": "dongfanghong-tm",
+      "protocol": "rs422-fixed",
+      "identifierRules": [
+        {
+          "startIndex": 0,
+          "endIndex": 3,
+          "operator": "eq",
+          "value": "0x1ACFFC1D",
+          "logicOperator": "and"
+        },
+        {
+          "startIndex": 8,
+          "endIndex": 11,
+          "operator": "eq",
+          "value": "0x12F91080",
+          "logicOperator": "and"
+        }
+      ]
+    },
+    {
+      "id": "tm-test-constellation",
+      "name": "测试(收) - 星座图 I/Q 数据流",
+      "direction": "receive",
+      "fields": [
+        {
+          "id": "sync",
+          "name": "RS422 帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "RS422 固定帧同步字 0x1ACFFC1D，高字节先发送",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x1ACFFC1D",
+          "bigEndian": true
+        },
+        {
+          "id": "length",
+          "name": "payload 字节数",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "应用层 payload 字节数 = (1 header + 12 data word) x 4 = 52",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000034",
+          "bigEndian": true
+        },
+        {
+          "id": "header",
+          "name": "应用层 header word0",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "位域 [31:28]version=1 [27:24]msg_type [23:20]module_id=0xF [19:12]group_id=0x92 [11:4]param_count [3:0]reserve=0",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x12F920C0",
+          "bigEndian": true
+        },
+        {
+          "id": "test-iq-i",
+          "name": "I 路采样",
+          "dataType": "bytes",
+          "length": 24,
+          "description": "word0..5（24 字节）：I 路采样字节流，scatter 按 bitWidth 切多点（scatter iSource 选此）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00030F5A77637FF7635A730F000CF1A5989D80189DA59CF1",
+          "bigEndian": true
+        },
+        {
+          "id": "test-iq-q",
+          "name": "Q 路采样",
+          "dataType": "bytes",
+          "length": 24,
+          "description": "word6..11（24 字节）：Q 路采样字节流，scatter 按 bitWidth 切多点（scatter qSource 选此）",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x7FF7635A730F000CF1A5989D80189DA59CF100030F5A7763",
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "description": "frame_header + length + 所有 payload word 的 32-bit 累加和，溢出自然回卷",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "defaultValue": "0x00000000",
+          "bigEndian": true,
+          "validOption": {
+            "isChecksum": true,
+            "startFieldIndex": 0,
+            "endFieldIndex": 4,
+            "checksumMethod": "sum32"
+          }
+        }
+      ],
+      "description": "收发回环测试帧（module_id=0xF test_block group_id=0x92）：send+receive 一对。I/Q 各 24 字节 bytes 字段，scatter 按 bitWidth 切多点（bitWidth=8 切 24 点，bitWidth=12 切 16 点）。send 帧 I/Q 可编辑 hex，回环后 receive 帧解析，display scatter 选 iSource=test-iq-i、qSource=test-iq-q。",
+      "frameType": "dongfanghong-tm",
+      "protocol": "rs422-fixed",
+      "identifierRules": [
+        {
+          "startIndex": 0,
+          "endIndex": 3,
+          "operator": "eq",
+          "value": "0x1ACFFC1D",
+          "logicOperator": "and"
+        },
+        {
+          "startIndex": 8,
+          "endIndex": 11,
+          "operator": "eq",
+          "value": "0x12F920C0",
+          "logicOperator": "and"
+        }
+      ]
+    }
+  ]
+}

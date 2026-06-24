@@ -489,14 +489,6 @@ onUnmounted(() => {
 
 <template>
   <q-page class="display-page p-page flex flex-col h-full">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex items-center gap-3">
-        <h1 class="display-page__title m-0">实时测试</h1>
-        <StatusBadge :status="lifecycle" :status-map="receiveLifecycleMap" />
-      </div>
-    </div>
-
     <!-- Dual panel area -->
     <div class="display-page__panels">
       <DisplayPanel
@@ -609,10 +601,7 @@ onUnmounted(() => {
         <span class="display-page__bottom-divider" />
 
         <span class="rw-text-desc">刷新: {{ prefs.refreshCadenceMs }}ms</span>
-        <StatusBadge
-          :status="displayRefresh.availability.value.available ? 'receiving' : 'idle'"
-          :status-map="{ idle: { label: '无数据源', color: 'grey' }, receiving: { label: '数据就绪', color: 'positive' } }"
-        />
+        <StatusBadge :status="lifecycle" :status-map="receiveLifecycleMap" />
       </div>
     </div>
 
@@ -642,13 +631,6 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .display-page {
   background: var(--rw-color-surface-app);
-}
-
-.display-page__title {
-  color: var(--rw-color-text-primary);
-  font-size: var(--rw-font-size-title-lg);
-  font-weight: var(--rw-font-weight-semibold);
-  line-height: var(--rw-line-height-title-lg);
 }
 
 .display-page__stat-item {

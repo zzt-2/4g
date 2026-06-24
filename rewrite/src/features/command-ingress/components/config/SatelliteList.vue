@@ -46,13 +46,9 @@ function onSelect(rows: Record<string, unknown>[]): void {
 </script>
 
 <template>
-  <div class="satellite-list flex flex-col h-full min-h-0 px-6 py-3">
+  <div class="satellite-list flex flex-col h-full px-4 py-3">
     <!-- 工具栏：搜索 + 添加/导入/导出 -->
-    <TableToolbar
-      v-model:search-model-value="searchText"
-      search-placeholder="搜索卫星..."
-      class="flex-shrink-0"
-    >
+    <TableToolbar v-model:search-model-value="searchText" search-placeholder="搜索卫星..." class="flex-shrink-0">
       <template #actions>
         <q-btn flat dense icon="o_add" color="primary" size="sm" @click="emit('add')">
           <q-tooltip>添加卫星</q-tooltip>
@@ -68,28 +64,17 @@ function onSelect(rows: Record<string, unknown>[]): void {
 
     <!-- 列表：flex 撑满 -->
     <div class="flex-1 min-h-0 mt-2 overflow-hidden">
-      <DataTable
-        :columns="satelliteColumns"
-        :rows="filteredRows"
-        row-key="satelliteId"
-        selection="single"
-        :selected="selectedArray()"
-        container-height="100%"
-        @update:selected="onSelect"
-        @row-click="(row: Record<string, unknown>) => emit('update:selected', (row as SatelliteRow).satelliteId)"
-      >
+      <DataTable :columns="satelliteColumns" :rows="filteredRows" row-key="satelliteId" selection="single"
+        :selected="selectedArray()" container-height="100%" @update:selected="onSelect"
+        @row-click="(row: Record<string, unknown>) => emit('update:selected', (row as SatelliteRow).satelliteId)">
         <template #body-cell-actions="props">
           <q-td :props="props">
-            <q-btn
-              flat dense icon="o_content_copy" color="grey" size="xs"
-              @click.stop="emit('duplicate', (props.row as SatelliteRow).satelliteId)"
-            >
+            <q-btn flat dense icon="o_content_copy" color="grey" size="xs"
+              @click.stop="emit('duplicate', (props.row as SatelliteRow).satelliteId)">
               <q-tooltip>复制</q-tooltip>
             </q-btn>
-            <q-btn
-              flat dense icon="o_delete" color="grey" size="xs"
-              @click.stop="emit('delete', (props.row as SatelliteRow).satelliteId)"
-            >
+            <q-btn flat dense icon="o_delete" color="grey" size="xs"
+              @click.stop="emit('delete', (props.row as SatelliteRow).satelliteId)">
               <q-tooltip>删除</q-tooltip>
             </q-btn>
           </q-td>

@@ -16,7 +16,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['test/**/*.spec.ts', 'src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts', 'src/**/*.spec.ts', 'src-electron/**/*.spec.ts'],
     testTimeout: 10000,
   },
 });

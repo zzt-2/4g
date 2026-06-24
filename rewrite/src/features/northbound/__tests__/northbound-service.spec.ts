@@ -5,6 +5,7 @@ import type { ResultService } from '@/features/result';
 import type { HttpFacade, HttpResponse } from '@/platform';
 import type { TaskInstanceState, TaskDefinition, TaskStepResult, TaskEventHandlers } from '@/features/task/core';
 import type { CaseVerdict } from '@/features/result';
+import type { EncodeSource } from '../core/testcase-sync-translator';
 
 // ---------------------------------------------------------------------------
 // Mock factories
@@ -122,11 +123,28 @@ const defaultConfig: NorthboundConfig = {
     grantType: 'partner',
     tenantId: '000000',
   },
+  // D006: getTestCaseAll 用例数据走 FTP 文件传输,FTP 地址我们自己配
+  ftp: {
+    host: 'ftp.example.com',
+    port: 21,
+    username: 'laser',
+    password: 'laserpass',
+    basePath: '/laser/testcase',
+  },
 };
 
 /** Start the service and return the onRequest handler so we can simulate inbound requests. */
 async function startAndGetHandler(service: ReturnType<typeof createNorthboundService>, httpFacade: HttpFacade): Promise<(req: { method: string; url: string; body?: string }) => Promise<HttpResponse>> {
   await service.start(defaultConfig);
+  const onRequestCalls = (httpFacade.onRequest as ReturnType<typeof vi.fn>).mock.calls;
+  return onRequestCalls[0][1] as (req: { method: string; url: string; body?: string }) => Promise<HttpResponse>;
+}
+
+/** D006: 同 startAndGetHandler,但用【无 ftp 配置】的 config start(测 getTestCaseAll 无 FTP 时的报错)。 */
+async function startAndGetHandlerNoFtp(service: ReturnType<typeof createNorthboundService>, httpFacade: HttpFacade): Promise<(req: { method: string; url: string; body?: string }) => Promise<HttpResponse>> {
+  const { ftp: _omit, ...configWithoutFtp } = defaultConfig;
+  void _omit;
+  await service.start(configWithoutFtp);
   const onRequestCalls = (httpFacade.onRequest as ReturnType<typeof vi.fn>).mock.calls;
   return onRequestCalls[0][1] as (req: { method: string; url: string; body?: string }) => Promise<HttpResponse>;
 }
@@ -623,7 +641,7 @@ describe('createNorthboundService — report methods', () => {
     const service = await startAndClear(httpFacade);
 
     await service.reportFileTranslationComplete({
-      tranType: 'upload', result: 'success', fileType: 'WRPSig', fileIndex: 1, filePath: '/data/test.csv', ftpServerIp: '192.168.0.1',
+      tranType: 'upload', result: 'success', fileType: 'WRPSig', fileIndex: 1, filePath: '/data/test.csv', ftpServerIP: '192.168.0.1',
     });
 
     const call = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -631,7 +649,7 @@ describe('createNorthboundService — report methods', () => {
     const body = JSON.parse(call.body as string);
     expect(body.method).toBe('fileTranslationComplete');
     expect(body.tranType).toBe('upload');
-    expect(body.ftpServerIp).toBe('192.168.0.1');
+    expect(body.ftpServerIP).toBe('192.168.0.1');
   });
 
   it('reportSigReport POSTs correct structure', async () => {
@@ -786,46 +804,69 @@ describe('createNorthboundService — inbound stub handlers', () => {
     expect(parsed.statusCode).toBe(1);
   });
 
-  it('getTestCaseAll without FTP returns success', async () => {
-    const httpFacade = makeMockHttpFacade();
-    const service = createNorthboundService(makeOptions({ httpFacade }));
-    const handler = await startAndGetHandler(service, httpFacade);
+  // D006: getTestCaseAll 用例数据走 FTP 文件传输(不是 HTTP 响应体字段)。
+  // 响应体只有信封字段(无 datas),用例数据序列化成 {datas:[...]} 上传到我们 config.ftp 配的 FTP,
+  // 路径 basePath/yyyy-mm-dd/testcase_all.json,上传后调 fileTranslationComplete 通知甲方。
 
-    const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
-      method: 'getTestCaseAll', requestId: 5009, subSysType: 'ADS', subSysId: 'ADS_001',
-    }) });
-
-    const parsed = JSON.parse(resp.body as string);
-    expect(parsed.method).toBe('getTestCaseAllResponse');
-    expect(parsed.statusCode).toBe(1);
-  });
-
-  it('getTestCaseAll with FTP uploads and returns success', async () => {
+  it('getTestCaseAll uploads {datas:[...]} to config.ftp, response body has NO datas, calls fileTranslationComplete', async () => {
     const httpFacade = makeMockHttpFacade();
     const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockResolvedValue(undefined) };
-    const service = createNorthboundService(makeOptions({ httpFacade, ftpFacade }));
+    const taskService = makeMockTaskService();
+    taskService.getTemplate = vi.fn((id: string) => {
+      if (id === 'tpl-1') return { templateId: 'tpl-1', name: 'Case1', tags: [], definition: { id:'d', name:'n', steps:[{ kind:'delay', id:'s', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'' };
+      return undefined;
+    });
+    const service = createNorthboundService(makeOptions({ httpFacade, ftpFacade, taskService }));
+    service.setCatalogMappings([{ templateId: 'tpl-1', enabled: true, overridablePaths: [] }]);
     const handler = await startAndGetHandler(service, httpFacade);
 
     const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
-      method: 'getTestCaseAll', requestId: 5010, subSysType: 'ADS', subSysId: 'ADS_001',
-      ftpInfo: { ip: '192.168.1.50', port: 21, username: 'ftpuser', password: 'ftppass', dir: '/data' },
+      method: 'getTestCaseAll', requestId: 5010, subSysType: 'LAS', subSysId: 'LAS_001',
+      // 注意:不带 ftpInfo —— D006 用我们 config.ftp,不用请求里的
     }) });
 
     const parsed = JSON.parse(resp.body as string);
+    // 响应体只有信封字段,【无 datas】(D006:datas 是 FTP 文件内容,不是响应体字段)
+    expect(parsed.method).toBe('getTestCaseAllResponse');
     expect(parsed.statusCode).toBe(1);
+    expect(parsed.datas).toBeUndefined();
+
+    // FTP 上传被调用,用 config.ftp(我们配的),路径 basePath/yyyy-mm-dd/testcase_all.json
     expect(ftpFacade.uploadFile).toHaveBeenCalledOnce();
     const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(ftpCall.host).toBe('192.168.1.50');
-    expect(ftpCall.port).toBe(21);
-    expect(ftpCall.username).toBe('ftpuser');
-    expect(ftpCall.remotePath).toBe('/data/testcase_all.json');
+    expect(ftpCall.host).toBe('ftp.example.com');       // config.ftp.host
+    expect(ftpCall.port).toBe(21);                       // config.ftp.port
+    expect(ftpCall.username).toBe('laser');              // config.ftp.username
+    expect(ftpCall.password).toBe('laserpass');          // config.ftp.password
+    // 路径:basePath/yyyy-mm-dd/testcase_all.json(日期是今天)
+    expect(ftpCall.remotePath).toMatch(/^\/laser\/testcase\/\d{4}-\d{2}-\d{2}\/testcase_all\.json$/);
+    // 内容是 {datas:[...]} 包裹(D006 gap1:之前是裸数组)
     const content = JSON.parse(ftpCall.content);
-    // 数据源已改为 listTemplates(默认空),FTP 上传空用例数组
-    expect(Array.isArray(content)).toBe(true);
-    expect(content).toHaveLength(0);
+    expect(content.datas).toBeDefined();
+    expect(Array.isArray(content.datas)).toBe(true);
+    expect(content.datas).toHaveLength(1);
+    expect(content.datas[0].caseName).toBe('Case1');
+
+    // 上传后调 fileTranslationComplete 通知甲方(D006 gap3:之前完全没接)
+    // postToCustomer 走 httpFacade.sendRequest,第二次调用(fileTranslationComplete)
+    const sendCalls = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls;
+    // 第一次是 login,找 fileTranslationComplete 那次
+    const ftcCall = sendCalls.find(c => {
+      const arg = c[0] as { url: string };
+      return arg.url.includes('/fileTranslationComplete');
+    });
+    expect(ftcCall, 'fileTranslationComplete should be called after FTP upload').toBeDefined();
+    const ftcBody = JSON.parse((ftcCall![0] as { body: string }).body);
+    expect(ftcBody.method).toBe('fileTranslationComplete');
+    expect(ftcBody.tranType).toBe('upload');
+    expect(ftcBody.result).toBe('success');
+    expect(ftcBody.filePath).toBe(ftpCall.remotePath);  // filePath = 上传路径
+    // S015: fileType 必须是文件类型标识表(表2-1)合法值;'TestCase' 不在表里 → 甲方判"暂不支持该文件类型"。
+    // testcase_all.json 是用例属性数据 → CfgParam(表第18项)。
+    expect(ftcBody.fileType).toBe('CfgParam');
   });
 
-  it('getTestCaseAll FTP failure returns error envelope', async () => {
+  it('getTestCaseAll FTP failure returns statusCode 2 (config.ftp, not request ftpInfo)', async () => {
     const httpFacade = makeMockHttpFacade();
     const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockRejectedValue(new Error('connection refused')) };
     const service = createNorthboundService(makeOptions({ httpFacade, ftpFacade }));
@@ -833,41 +874,124 @@ describe('createNorthboundService — inbound stub handlers', () => {
 
     const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
       method: 'getTestCaseAll', requestId: 5011, subSysType: 'ADS', subSysId: 'ADS_001',
-      ftpInfo: { ip: '192.168.1.50' },
     }) });
 
     const parsed = JSON.parse(resp.body as string);
     expect(parsed.statusCode).toBe(2);
     expect(parsed.msg).toBe('FTP upload failed');
+
+    // S015: 失败分支也通知甲方,且 fileType 同样必须是 CfgParam(表2-1合法值)
+    const sendCalls = (httpFacade.sendRequest as ReturnType<typeof vi.fn>).mock.calls;
+    const ftcCall = sendCalls.find(c => (c[0] as { url: string }).url.includes('/fileTranslationComplete'));
+    expect(ftcCall, 'failure should still notify customer').toBeDefined();
+    const ftcBody = JSON.parse((ftcCall![0] as { body: string }).body);
+    expect(ftcBody.result).toBe('fail');
+    expect(ftcBody.fileType).toBe('CfgParam');
   });
 
-  it('getTestCaseAll returns datas from listTemplates with customerSync enabled', async () => {
+  it('getTestCaseAll without config.ftp or ftpFacade returns statusCode 2 (FTP required by D006)', async () => {
+    // D006: getTestCaseAll 本就该走 FTP。没配 config.ftp 或没 ftpFacade 时应报错(不是静默成功)
     const httpFacade = makeMockHttpFacade();
+    // 不传 ftpFacade
+    const service = createNorthboundService(makeOptions({ httpFacade }));
+    const handler = await startAndGetHandlerNoFtp(service, httpFacade); // 用无 ftp 的 config start
+
+    const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
+      method: 'getTestCaseAll', requestId: 5012, subSysType: 'ADS', subSysId: 'ADS_001',
+    }) });
+    const parsed = JSON.parse(resp.body as string);
+    expect(parsed.statusCode).toBe(2);
+    expect(parsed.msg).toContain('FTP');
+  });
+
+  it('getTestCaseAll uploads datas from catalog mappings (enabled filter) + templates to FTP', async () => {
+    // D004: 数据源是映射表 + D006: 数据走 FTP 文件。本测试断言 FTP 上传内容的 datas 过滤逻辑。
+    const httpFacade = makeMockHttpFacade();
+    const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockResolvedValue(undefined) };
     const taskService = makeMockTaskService();
     const { createReportedSnapshotStorage } = await import('../services/reported-snapshot-storage');
     const reportedSnapshotStorage = createReportedSnapshotStorage(makeMemStorage());
-    // 注入一个 enabled 模板 + 一个 disabled 模板
-    taskService.listTemplates = vi.fn().mockReturnValue([
-      { templateId: 'tpl-on', name: 'On', tags: [], definition: { id:'d', name:'n', steps:[{ kind:'delay', id:'s', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'', customerSync:{ enabled:true, overridablePaths:[] } },
-      { templateId: 'tpl-off', name: 'Off', tags: [], definition: { id:'d2', name:'n2', steps:[{ kind:'delay', id:'s2', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'', customerSync:{ enabled:false } },
-    ]);
+    // 注入模板(getTemplate 按 id 返回);映射表里一个 enabled + 一个 disabled + 一个指向已删模板
+    taskService.getTemplate = vi.fn((id: string) => {
+      if (id === 'tpl-on') return { templateId: 'tpl-on', name: 'On', tags: [], definition: { id:'d', name:'n', steps:[{ kind:'delay', id:'s', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'' };
+      if (id === 'tpl-off') return { templateId: 'tpl-off', name: 'Off', tags: [], definition: { id:'d2', name:'n2', steps:[{ kind:'delay', id:'s2', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'' };
+      return undefined; // tpl-gone 映射指向的模板已删
+    });
     const service = createNorthboundService(makeOptions({
       httpFacade,
+      ftpFacade,
       taskService,
-      testCaseConfig: { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit' },
       reportedSnapshotStorage,
     }));
+    // D004: 数据源是映射表(由 command-ingress 喂入),不是模板的 customerSync 字段
+    service.setCatalogMappings([
+      { templateId: 'tpl-on', enabled: true, overridablePaths: [] },
+      { templateId: 'tpl-off', enabled: false, overridablePaths: [] },
+      { templateId: 'tpl-gone', enabled: true, overridablePaths: [] },
+    ]);
     const handler = await startAndGetHandler(service, httpFacade);
 
     const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
       method: 'getTestCaseAll', requestId: 5012, subSysType: 'LAS', subSysId: 'LAS_001',
     }) });
     const parsed = JSON.parse(resp.body as string);
+    // 响应体无 datas(D006)
+    expect(parsed.statusCode).toBe(1);
+    expect(parsed.datas).toBeUndefined();
 
-    expect(parsed.datas).toBeDefined();
-    expect(parsed.datas).toHaveLength(1);
-    expect(parsed.datas[0].caseName).toBe('On');
-    expect(parsed.datas[0].subSysName).toBe('激光');
+    // 从 FTP 上传内容验证 datas 过滤逻辑
+    const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const content = JSON.parse(ftpCall.content);
+    expect(content.datas).toHaveLength(1); // 只 tpl-on(enabled 且模板存在);tpl-off disabled、tpl-gone 模板缺失都跳过
+    expect(content.datas[0].caseName).toBe('On');
+    // S014: testCaseConfig 现从 activeConfig 派生。subSysName 用激光子系统默认值('激光载荷'),
+    // subSysId 用 defaultConfig.subSysId='ADS_001'(startAndGetHandler 传入的)。
+    expect(content.datas[0].subSysName).toBe('激光载荷');
+    expect(content.datas[0].subSysId).toBe('ADS_001');
+  });
+
+  // S014 回归测试: 锁住 runtime wiring gap(testCaseConfig 漏接线)。
+  // 重现真实运行场景: feature-wiring.ts 构造 service 时不传 testCaseConfig(只有 start(config) 带 subSysId)。
+  // 修复前: options.testCaseConfig 永远 undefined → L533 return null → FTP 内容 datas 空(blocker bug)。
+  // 修复后: handleGetTestCaseAll 从 activeConfig.subSysId 派生 testCaseConfig → FTP 内容有 datas。
+  // D006 后:datas 走 FTP 文件(不再走响应体),所以从 FTP 上传内容验证。
+  it('S014 regression: getTestCaseAll derives testCaseConfig from activeConfig.subSysId (verify FTP content)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockResolvedValue(undefined) };
+    const taskService = makeMockTaskService();
+    const { createReportedSnapshotStorage } = await import('../services/reported-snapshot-storage');
+    const reportedSnapshotStorage = createReportedSnapshotStorage(makeMemStorage());
+    taskService.getTemplate = vi.fn((id: string) => {
+      if (id === 'tpl-1') return { templateId: 'tpl-1', name: 'Case1', tags: [], definition: { id:'d', name:'n', steps:[{ kind:'delay', id:'s', config:{ durationMs:1000 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'' };
+      return undefined;
+    });
+    // ⚠️ 关键: 不传 testCaseConfig —— 模拟 feature-wiring.ts:183-189 的真实构造路径
+    const service = createNorthboundService(makeOptions({
+      httpFacade,
+      ftpFacade,
+      taskService,
+      reportedSnapshotStorage,
+      // testCaseConfig 故意省略
+    }));
+    service.setCatalogMappings([
+      { templateId: 'tpl-1', enabled: true, overridablePaths: [] },
+    ]);
+    const handler = await startAndGetHandler(service, httpFacade); // start(defaultConfig) → activeConfig.subSysId='ADS_001'
+
+    const resp = await handler({ method: 'POST', url: '/getTestCaseAll', body: JSON.stringify({
+      method: 'getTestCaseAll', requestId: 5100, subSysType: 'LAS', subSysId: 'LAS_001',
+    }) });
+    const parsed = JSON.parse(resp.body as string);
+    expect(parsed.statusCode).toBe(1);
+
+    // 从 FTP 上传内容验证 datas 产出(S014 testCaseConfig 派生是否生效)
+    const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const content = JSON.parse(ftpCall.content);
+    expect(content.datas).toBeDefined();
+    expect(content.datas).toHaveLength(1);
+    expect(content.datas[0].caseName).toBe('Case1');
+    // subSysId 必须从 activeConfig 派生(真源),不是硬编码
+    expect(content.datas[0].subSysId).toBe('ADS_001');
   });
 
   it('setTestTask decodes testCase with parameter override from snapshot', async () => {
@@ -876,22 +1000,21 @@ describe('createNorthboundService — inbound stub handlers', () => {
     const { createReportedSnapshotStorage } = await import('../services/reported-snapshot-storage');
     const reportedSnapshotStorage = createReportedSnapshotStorage(makeMemStorage());
 
-    // 先 encode 一个带可覆盖字段的模板,存快照
-    const { encodeTaskTemplateToTestCase } = await import('../core/testcase-sync-translator');
-    const tpl = {
+    // 先 encode 一个带可覆盖字段的模板,存快照(D004: 入参是 source + mapping,不是 TaskTemplate)
+    const { encodeSourceToTestCase } = await import('../core/testcase-sync-translator');
+    const source: EncodeSource = {
       templateId: 'tpl-x',
-      name: 'X',
-      tags: [],
+      templateName: 'X',
+      templateTags: [] as readonly string[],
       definition: {
         id: 'd', name: 'n',
         steps: [{ kind: 'send' as const, id: 'step-send', config: { frameId: 'rc-laser-on', userFieldValues: { power: 50 } } }],
         schedule: { kind: 'immediate' as const },
         errorPolicy: { onFailure: 'stop' as const },
       },
-      createdAt: '', updatedAt: '',
-      customerSync: { enabled: true, overridablePaths: ['step-send.send.userFieldValues.power'] },
     };
-    const { snapshot } = encodeTaskTemplateToTestCase(tpl as any, { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit' });
+    const mapping = { templateId: 'tpl-x', enabled: true, overridablePaths: ['step-send.send.userFieldValues.power'] };
+    const { snapshot } = encodeSourceToTestCase(source, mapping, { subSysId:'LAS_001', subSysName:'激光', menuId:'m1', menuName:'功能', caseType:'orbit' });
     reportedSnapshotStorage.save(snapshot);
 
     const service = createNorthboundService(makeOptions({ httpFacade, taskService, reportedSnapshotStorage }));

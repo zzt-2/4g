@@ -63,6 +63,11 @@ export interface TaskStateContainer {
   getTemplate(templateId: string): TaskTemplate | undefined;
   upsertTemplate(template: TaskTemplate): TaskTemplate;
   removeTemplate(templateId: string): boolean;
+  /**
+   * 用给定模板列表整体替换当前模板集(S012 根因 D bootstrap hydrate 用)。
+   * 先清空再灌入,语义不同于 upsertTemplate 的逐个合并。
+   */
+  replaceTemplates(templates: readonly TaskTemplate[]): void;
   subscribe(handlers: TaskEventHandlers): Unsubscribe;
 }
 
@@ -275,6 +280,13 @@ export function createTaskState(
 
     removeTemplate(templateId) {
       return templates.delete(templateId);
+    },
+
+    replaceTemplates(next) {
+      templates.clear();
+      for (const tpl of next) {
+        templates.set(tpl.templateId, deepClone(tpl));
+      }
     },
 
     subscribe(handlers) {

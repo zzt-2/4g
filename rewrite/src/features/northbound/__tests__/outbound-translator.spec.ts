@@ -278,7 +278,7 @@ describe('translateFileTranslationComplete', () => {
       fileType: 'WRPSig',
       fileIndex: 1,
       filePath: '/data/test.csv',
-      ftpServerIp: '192.168.0.1',
+      ftpServerIP: '192.168.0.1',
     };
     const report = translateFileTranslationComplete(file, defaultEnvelope);
 

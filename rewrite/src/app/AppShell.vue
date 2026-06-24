@@ -12,14 +12,20 @@ const route = useRoute();
 const router = useRouter();
 const drawerOpen = ref(false);
 
+// 持久化 hydrate 完成前不渲染业务路由(S012 根因 C):否则子路由在 ready resolve 前
+// 渲染空状态,数据到位后再跳变 = 启动闪烁。ready 后切 hydrated=true 显示 router-view。
+const hydrated = ref(false);
+
 const navigationItems = [
   { label: '总览', to: '/', icon: 'dashboard' },
   { label: '连接管理', to: '/connection', icon: 'link' },
   { label: '帧定义', to: '/frames', icon: 'view_agenda' },
   { label: '帧发送', to: '/send', icon: 'send' },
-  { label: '实时测试', to: '/display', icon: 'monitor_heart' },
   { label: '任务管理', to: '/tasks', icon: 'assignment' },
+  { label: '实时测试', to: '/display', icon: 'monitor_heart' },
+  { label: '历史分析', to: '/history', icon: 'o_analytics' },
   { label: '指令接入', to: '/command-ingress', icon: 'settings_input_antenna' },
+  { label: '系统设置', to: '/settings', icon: 'o_settings' },
 ] as const;
 
 const activePath = computed(() => route.path);
@@ -69,6 +75,7 @@ async function onClose(): Promise<void> {
 
 onMounted(async () => {
   await ready;
+  hydrated.value = true;
   runtime.startTickDriver();
 
   // 取初始最大化态 + 订阅后续变化(系统 Snap/双击标题栏或按钮触发都推送),图标随之切。
@@ -88,7 +95,10 @@ onUnmounted(() => {
 });
 
 window.addEventListener('beforeunload', () => {
-  void runtime.persistence.saveAll();
+  // 关闭前确保最新快照落盘(S012 根因 A3)。flushPending = saveAll 全量并发。
+  // Electron 下 beforeunload 的 async 不保证跑完,但原子写(A1)保证已写的文件完整,
+  // 即使被打断,下次启动数据不丢。flushPending 是锦上添花。
+  void runtime.persistence.flushPending();
 });
 </script>
 
@@ -137,7 +147,11 @@ window.addEventListener('beforeunload', () => {
     </q-drawer>
 
     <q-page-container class="app-shell__page-container">
-      <router-view />
+      <!-- hydrate 完成前显示 loading,避免子路由在 ready 前渲染空状态闪屏(S012 根因 C) -->
+      <div v-if="!hydrated" class="app-shell__boot-loading" role="status" aria-live="polite">
+        <q-spinner color="var(--rw-color-accent-primary)" size="2em" />
+      </div>
+      <router-view v-else />
     </q-page-container>
   </q-layout>
 </template>
@@ -214,5 +228,14 @@ window.addEventListener('beforeunload', () => {
   height: 100%;
   padding-top: 50px;
   overflow-y: auto;
+}
+
+/* 启动 hydrate 期间的 loading 占位(S012 根因 C):铺满内容区居中,
+   替代子路由在数据就绪前的空状态闪烁。 */
+.app-shell__boot-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 </style>

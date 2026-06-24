@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "selectedFrameId": "TST-ACC-001",
+  "frames": [
+    {
+      "id": "TST-ACC-001",
+      "name": "【测试】累加测试帧",
+      "direction": "send",
+      "description": "H008 累加测试用。速度字段自引用 expressionConfig(速度+步进),任务里配 accumulation resolver 验证 0→1→2→3。对应 H008 v2 验收【问题一】。",
+      "fields": [
+        {
+          "id": "Yy7fpxZHxcB3itjqdGM7",
+          "name": "帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x1acf8004",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true,
+          "factor": 1
+        },
+        {
+          "id": "N3VXW3Use8KfW8HYWdlS",
+          "name": "速度步进",
+          "dataType": "float",
+          "length": 4,
+          "defaultValue": "1",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "indirect",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "YbTsU6ZCBRgE6RMeSSPH",
+          "name": "速度",
+          "dataType": "float",
+          "length": 4,
+          "defaultValue": "0",
+          "inputType": "expression",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "indirect",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "expressionConfig": {
+            "expressions": [
+              { "condition": "true", "expression": "速度+步进" }
+            ],
+            "variables": [
+              { "identifier": "步进", "sourceType": "current_field", "sourceId": "N3VXW3Use8KfW8HYWdlS", "frameId": "", "fieldId": "" },
+              { "identifier": "速度", "sourceType": "current_field", "sourceId": "YbTsU6ZCBRgE6RMeSSPH", "frameId": "", "fieldId": "" }
+            ]
+          },
+          "bigEndian": true
+        }
+      ],
+      "frameType": "custom",
+      "protocol": "custom",
+      "isFavorite": true,
+      "createdAt": "2026-06-18T00:00:00.000Z",
+      "updatedAt": "2026-06-18T00:00:00.000Z",
+      "options": { "autoChecksum": true, "bigEndian": false, "includeLengthField": false }
+    },
+    {
+      "id": "TST-VAR-001",
+      "name": "【测试】可变参数测试帧",
+      "direction": "send",
+      "description": "H008 字段级可变参数测试用。2 个 configurable 数值字段(振幅/频率),任务里配 variation resolver 验证字段级值列表 + clamp 到最后一个。对应 H008 v2 验收【问题二】。",
+      "fields": [
+        {
+          "id": "p9Gk1bjI303Omm-aRtsA",
+          "name": "帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x1acf8004",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true,
+          "factor": 1
+        },
+        {
+          "id": "Qbuy89PWJKbylNheW9I3",
+          "name": "振幅",
+          "dataType": "float",
+          "length": 4,
+          "defaultValue": "0",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "t2j42qqyfCJsBv2HevLq",
+          "name": "频率",
+          "dataType": "float",
+          "length": 4,
+          "defaultValue": "0",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        }
+      ],
+      "frameType": "custom",
+      "protocol": "custom",
+      "isFavorite": true,
+      "createdAt": "2026-06-18T00:00:00.000Z",
+      "updatedAt": "2026-06-18T00:00:00.000Z",
+      "options": { "autoChecksum": true, "bigEndian": false, "includeLengthField": false }
+    }
+  ]
+}

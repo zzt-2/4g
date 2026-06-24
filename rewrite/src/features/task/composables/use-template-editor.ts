@@ -9,7 +9,6 @@ import type {
   SendStepConfig,
   ConditionTerm,
   StepRepeat,
-  CustomerSyncMeta,
 } from '../core';
 import { validateTaskDefinition, createTaskDefinition, cloneStepDefinition, applyDefaultTargetOverride } from '../core';
 import type { TaskValidationIssue } from '../core/task-validation';
@@ -36,10 +35,6 @@ export function useTemplateEditor(taskService: TaskService) {
     onFailure: 'stop',
   });
   const defaultTargetId = ref<string | null>(null);
-
-  // customerSync 状态(上报给甲方)
-  const syncEnabled = ref(false);
-  const overridablePathsText = ref(''); // 每行一个路径
 
   const validationIssues = shallowRef<TaskValidationIssue[]>([]);
 
@@ -104,8 +99,6 @@ export function useTemplateEditor(taskService: TaskService) {
     stopCondition.value = {};
     errorPolicy.value = { onFailure: 'stop' };
     defaultTargetId.value = null;
-    syncEnabled.value = false;
-    overridablePathsText.value = '';
     validationIssues.value = [];
   }
 
@@ -123,10 +116,6 @@ export function useTemplateEditor(taskService: TaskService) {
     templateName.value = tpl.name;
     templateTags.value = [...tpl.tags];
     tagInput.value = '';
-
-    // 加载 customerSync 状态
-    syncEnabled.value = tpl.customerSync?.enabled ?? false;
-    overridablePathsText.value = (tpl.customerSync?.overridablePaths ?? []).join('\n');
 
     const def = tpl.definition;
     scheduleKind.value = def.schedule.kind;
@@ -161,28 +150,17 @@ export function useTemplateEditor(taskService: TaskService) {
     isSaving.value = true;
     try {
       const def = buildDefinition();
-      // 构建 customerSync(仅当启用时)
-      const overridablePaths = overridablePathsText.value
-        .split('\n').map(s => s.trim()).filter(s => s.length > 0);
-      const customerSync: CustomerSyncMeta | undefined = syncEnabled.value
-        ? { enabled: true, overridablePaths }
-        : undefined;
 
       if (editingTemplateId.value) {
         taskService.updateTemplate(editingTemplateId.value, {
           name: templateName.value,
           tags: [...templateTags.value],
           definition: def,
-          customerSync,
         });
         isEditing.value = false;
         return editingTemplateId.value;
       }
       const tpl = taskService.createTemplate(templateName.value, def, templateTags.value);
-      // 新建模板若启用上报,立即 update 写入 customerSync
-      if (customerSync) {
-        taskService.updateTemplate(tpl.templateId, { customerSync });
-      }
       isEditing.value = false;
       return tpl.templateId;
     } finally {
@@ -312,8 +290,6 @@ export function useTemplateEditor(taskService: TaskService) {
     stopCondition,
     errorPolicy,
     defaultTargetId,
-    syncEnabled,
-    overridablePathsText,
     validationIssues,
     hasErrors,
     openNew,

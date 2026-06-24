@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "templateId": "tst-acc-task",
+      "name": "【测试】累加任务(速度 0→1→2→3→4)",
+      "tags": ["测试", "H008", "accumulation"],
+      "definition": {
+        "id": "tst-acc-task-def",
+        "name": "累加任务",
+        "steps": [
+          {
+            "kind": "send",
+            "id": "step-send",
+            "name": "发送累加帧",
+            "config": {
+              "frameId": "TST-ACC-001",
+              "userFieldValues": {
+                "N3VXW3Use8KfW8HYWdlS": 1,
+                "YbTsU6ZCBRgE6RMeSSPH": 0
+              },
+              "repeat": {
+                "intervalMs": 500,
+                "maxCount": 5
+              },
+              "fieldResolvers": [
+                { "kind": "accumulation", "fieldId": "YbTsU6ZCBRgE6RMeSSPH", "initial": 0 }
+              ]
+            }
+          }
+        ],
+        "schedule": { "kind": "immediate" },
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-18T00:00:00.000Z",
+      "updatedAt": "2026-06-18T00:00:00.000Z"
+    },
+    {
+      "templateId": "tst-var-task",
+      "name": "【测试】可变参数任务(振幅3值/频率5值 clamp)",
+      "tags": ["测试", "H008", "variation"],
+      "definition": {
+        "id": "tst-var-task-def",
+        "name": "可变参数任务",
+        "steps": [
+          {
+            "kind": "send",
+            "id": "step-send",
+            "name": "发送可变参数帧",
+            "config": {
+              "frameId": "TST-VAR-001",
+              "repeat": {
+                "intervalMs": 500,
+                "maxCount": 6
+              },
+              "fieldResolvers": [
+                { "kind": "variation", "fieldId": "Qbuy89PWJKbylNheW9I3", "values": [10, 20, 30] },
+                { "kind": "variation", "fieldId": "t2j42qqyfCJsBv2HevLq", "values": [100, 200, 300, 400, 500] }
+              ]
+            }
+          }
+        ],
+        "schedule": { "kind": "immediate" },
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-18T00:00:00.000Z",
+      "updatedAt": "2026-06-18T00:00:00.000Z"
+    },
+    {
+      "templateId": "tst-aba-task",
+      "name": "【测试】a-b-a 重置任务(第二个 a 从 0 重新累加)",
+      "tags": ["测试", "H008", "accumulation", "step边界重置"],
+      "definition": {
+        "id": "tst-aba-task-def",
+        "name": "a-b-a 重置任务",
+        "steps": [
+          {
+            "kind": "send",
+            "id": "step-a1",
+            "name": "第一个 a",
+            "config": {
+              "frameId": "TST-ACC-001",
+              "userFieldValues": {
+                "N3VXW3Use8KfW8HYWdlS": 1,
+                "YbTsU6ZCBRgE6RMeSSPH": 0
+              },
+              "repeat": {
+                "intervalMs": 500,
+                "maxCount": 5
+              },
+              "fieldResolvers": [
+                { "kind": "accumulation", "fieldId": "YbTsU6ZCBRgE6RMeSSPH", "initial": 0 }
+              ]
+            }
+          },
+          {
+            "kind": "delay",
+            "id": "step-b",
+            "name": "间隔(delay 当 b)",
+            "config": { "durationMs": 1000 }
+          },
+          {
+            "kind": "send",
+            "id": "step-a2",
+            "name": "第二个 a",
+            "config": {
+              "frameId": "TST-ACC-001",
+              "userFieldValues": {
+                "N3VXW3Use8KfW8HYWdlS": 1,
+                "YbTsU6ZCBRgE6RMeSSPH": 0
+              },
+              "repeat": {
+                "intervalMs": 500,
+                "maxCount": 5
+              },
+              "fieldResolvers": [
+                { "kind": "accumulation", "fieldId": "YbTsU6ZCBRgE6RMeSSPH", "initial": 0 }
+              ]
+            }
+          }
+        ],
+        "schedule": { "kind": "immediate" },
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-18T00:00:00.000Z",
+      "updatedAt": "2026-06-18T00:00:00.000Z"
+    }
+  ]
+}

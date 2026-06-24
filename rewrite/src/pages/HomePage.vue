@@ -130,9 +130,6 @@ onMounted(() => {
     <section class="home-page__content gap-4 mx-auto">
       <!-- Header -->
       <div class="home-page__header gap-4">
-        <div>
-          <h1 class="home-page__title m-0">运行总览</h1>
-        </div>
         <q-btn flat round icon="refresh" aria-label="刷新" @click="refreshData" />
       </div>
 
@@ -219,13 +216,6 @@ onMounted(() => {
   color: var(--rw-color-text-muted);
   font-size: var(--rw-font-size-label);
   line-height: var(--rw-line-height-body);
-}
-
-.home-page__title {
-  color: var(--rw-color-text-primary);
-  font-size: var(--rw-font-size-title-lg);
-  font-weight: var(--rw-font-weight-semibold);
-  line-height: var(--rw-line-height-title-lg);
 }
 
 .home-page__section {

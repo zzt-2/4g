@@ -570,10 +570,12 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       await reportFileTranslationCompleteSafe({
         tranType: 'upload',
         result: 'fail',
-        fileType: 'TestCase',
+        // fileType 必须取文件类型标识表(表2-1)合法值;'TestCase' 不在表里,甲方 worker 判"暂不支持该文件类型"。
+        // testcase_all.json 是测试用例属性数据 → 对应表中第18项 CfgParam(测试用例配置参数文件, json)。
+        fileType: 'CfgParam',
         fileIndex: 0,
         filePath: remotePath,
-        ftpServerIp: cfg.ftp.host,
+        ftpServerIP: cfg.ftp.host,
       });
       return buildResponse(envelope, 2, 'FTP upload failed');
     }
@@ -582,10 +584,12 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     await reportFileTranslationCompleteSafe({
       tranType: 'upload',
       result: 'success',
-      fileType: 'TestCase',
+      // fileType 必须取文件类型标识表(表2-1)合法值;'TestCase' 不在表里会被甲方判"暂不支持该文件类型"。
+      // testcase_all.json 是测试用例属性数据 → 对应表中第18项 CfgParam(测试用例配置参数文件, json)。
+      fileType: 'CfgParam',
       fileIndex: 0,
       filePath: remotePath,
-      ftpServerIp: cfg.ftp.host,
+      ftpServerIP: cfg.ftp.host,
     });
 
     // 响应体只有信封字段,无 datas(D006)

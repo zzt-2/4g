@@ -103,6 +103,7 @@ function patchField<K extends keyof DockingConfigForm>(field: K, value: DockingC
               <q-input
                 :model-value="config.password"
                 dense outlined label="密码" type="password"
+                :rules="[val => !!val || '请输入密码(甲方第三方应用 app_secret)']"
                 @update:model-value="(v: string | number | null) => patchField('password', String(v ?? ''))"
               />
               <div class="flex gap-3">
@@ -117,6 +118,51 @@ function patchField<K extends keyof DockingConfigForm>(field: K, value: DockingC
                   @update:model-value="(v: string | number | null) => patchField('tenantId', String(v ?? ''))"
                 />
               </div>
+            </div>
+          </q-expansion-item>
+
+          <!-- D006: FTP 配置(getTestCaseAll 用例数据走 FTP 文件传输 + TestReport 上传) -->
+          <q-expansion-item
+            dense switch-toggle-side
+            label="FTP 配置" caption="用例/报告文件传输(可选)"
+            header-class="rw-text-label text-sm"
+            class="mb-2"
+          >
+            <div class="flex flex-col gap-2 pt-2">
+              <div class="text-desc text-xs q-mb-xs">
+                用例同步(getTestCaseAll)与测试报告上传走 FTP 文件传输。请填甲方 vsftpd 地址。
+                不填则用例同步会返回错误(需配置 FTP)。
+              </div>
+              <div class="flex gap-3">
+                <q-input
+                  :model-value="config.ftpHost"
+                  dense outlined label="FTP 地址" placeholder="10.15.5.93" class="flex-1"
+                  @update:model-value="(v: string | number | null) => patchField('ftpHost', String(v ?? ''))"
+                />
+                <q-input
+                  :model-value="config.ftpPort"
+                  dense outlined label="端口" type="number" class="w-32"
+                  @update:model-value="(v: string | number | null) => patchField('ftpPort', Number(v) || 21)"
+                />
+              </div>
+              <div class="flex gap-3">
+                <q-input
+                  :model-value="config.ftpUsername"
+                  dense outlined label="用户名" class="flex-1"
+                  @update:model-value="(v: string | number | null) => patchField('ftpUsername', String(v ?? ''))"
+                />
+                <q-input
+                  :model-value="config.ftpPassword"
+                  dense outlined label="密码" type="password" class="flex-1"
+                  @update:model-value="(v: string | number | null) => patchField('ftpPassword', String(v ?? ''))"
+                />
+              </div>
+              <q-input
+                :model-value="config.ftpBasePath"
+                dense outlined label="基础路径" placeholder="/laser"
+                hint="文件上传到此路径下,自动加日期子目录"
+                @update:model-value="(v: string | number | null) => patchField('ftpBasePath', String(v ?? ''))"
+              />
             </div>
           </q-expansion-item>
         </q-form>
