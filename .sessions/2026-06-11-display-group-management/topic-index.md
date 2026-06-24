@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-22 S009 实时测试页布局调整
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-24 S010 星座图刷新间隔接通+点大小配置
 
 ## 进展线索
 
@@ -10,6 +10,7 @@
 - **S006** v2 审查反馈修复 (06-12)：4 blocker + 4 major + 2 minor 全部修复。lint display 0 error / display test 66 pass（含 8 新增验收场景）/ v2 引入 tsc error 全清
 - **S008** 接收页鬼畜修复 (06-21)：H001 已收口（主干测试转绿）。修复 emergent 分组 label 裸 frameId + buildPlaceholderRows 对 emergent 返空 + display buffer 整体覆盖三个连环缺陷。2 条偏离设计的决策（D-buffer-accumulate / D-emergent-from-frame-def）。test 105/105、lint 净
 - **S009** 实时测试页布局调整 (06-22)：三处纯 UI 调整（3 轮迭代）——标题"实时展示"→"实时测试"（含 AppShell 菜单同步）、stat 并入底栏录制行不再单独成块、表格行高压缩（DataTable compact prop 双保险：dense + scoped CSS，行高 36→20px）。行高前 2 次 scoped :deep 因选择器落在子组件根元素上失效，根因已记。无 D###。test 61/61、lint 净
+- **S010** 星座图刷新间隔接通+点大小配置 (06-24)：刷新间隔"半成品"接通——4 个互相打架的刷新概念（scatter/chart/顶层/写死）收敛为三视图各自独立节奏（D001）。两层存储 bug 修复（normalize scatter 合并漏字段 + clone 白名单漏 pointSize）；消费层重写（删写死 cadenceMs=200，改三组独立 cadence + watch 重启）；点大小加 pref+滑块（默认4，原写死6）。默认间隔 100/200→2000ms。推翻主对话"统一到 C"预判，改用用户拍板的"各自独立"。test display 69/69 + 集成 38/38、lint 0 新增、tsc src 0 错。待运行时实测
 
 ## 已确认结论
 
@@ -20,6 +21,7 @@
 - S002：图表累积移到 composable 层（Map buffer + numeric 过滤 + maxPoints 裁剪）；删除 projectChartSeries/projectChartInstances/getChartInstances/getChartSeries/selectChartInstances/selectChartSeries/3个clone函数/DisplayProjection.charts；类型保留给 history 共用；新增 getSourceFields() 给 composable 读未过滤数据
 - S006：R19 vs 设计 5.8 冲突通过 page 层 enrich 解决（bridge push 保留作 shape 冗余但 UI 不直接信任；projection toRow 删 fieldName；DisplayPage fieldNameLookup + enrichRows 从 frameReader 静态 lookup 覆盖）。getFieldName 硬失败 '[Unknown Field]' 防 UUID 泄漏。WaveformChart emptyVariant prop 区分 no-selection vs no-data。ScatterConfigDialog availableFields 加 binding 字段，toBinding 用 find lookup 不分割字符串。
 - S008：emergent 分组从接收帧定义生成（不依赖运行时数据，label=帧名）；buildPlaceholderRows 对 emergent 分组按 frameId 兜底；display buffer 改按 dataItemId 累积（upsert），与图表 chartBuffer 累积语义对齐。根因是静态帧定义与动态接收数据流耦合（D7 精神未贯彻到 buffer/emergent 两处）。决策 D-buffer-accumulate / D-emergent-from-frame-def 偏离设计文档 line 100/171/258/182，留待设计文档修订同步。
+- S010：刷新间隔三视图各自独立节奏（D001）——星座图←scatter.refreshIntervalMs、波形图←charts min refreshIntervalMs、表格←固定500ms；顶层 refreshCadenceMs 弃用（底栏不再显示）。两层存储根因（normalize scatter 合并漏字段 + clone 白名单漏 pointSize）+ 消费层写死 cadenceMs=200 全部接通。pointSize 新 pref（默认4，弹窗滑块1-12）。projectScatter 签名收窄 Pick（pointSize/refreshIntervalMs 非投影输入）
 
 ## 未决项
 
@@ -31,4 +33,4 @@
 
 ## 当前位置
 
-S009 完成：实时测试页三处 UI 调整（标题改名 + stat 移位单行 + 行间距减半）已交付，test 61/61、lint 净。等用户运行时回测视觉效果。S008 的鬼畜修复等用户回测确认行为（两条决策已在 S008/voice.md 落档）。
+S010 完成：星座图刷新间隔接通生效 + 点大小配置 + 默认间隔≥2s 已交付。刷新间隔"半成品"彻底接通——4 个打架的刷新概念收敛为三视图各自独立节奏（D001），两层存储 bug + 消费层写死值全部修复，点大小加 pref+滑块。test display 69/69 + 集成 38/38、lint 0 新增、tsc src 0 错。等用户运行时实测（改刷新间隔→保存→再开是新值；图表节奏变慢；点变小；滑块调点大小）。S008/S009 仍待运行时回测。

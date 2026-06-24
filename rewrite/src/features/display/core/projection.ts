@@ -63,9 +63,11 @@ function toRow(f: DisplayFieldMaterial): TableRowProjection {
  *   - 点数上限取 min(iValues.length, qValues.length, preference.sampleCount)。
  *   - bitWidth/sampleCount 由 ScatterConfigDialog 配置（默认 8/256）。
  */
+// 投影只依赖 I/Q 绑定 + sampleCount/bitWidth；refreshIntervalMs/pointSize 是渲染/UI 参数，
+// 与投影计算无关，故签名收窄为 Pick 子集（S010）。
 export function projectScatter(
   fields: readonly DisplayFieldMaterial[],
-  preference: ScatterDisplayPreference,
+  preference: Pick<ScatterDisplayPreference, 'iSource' | 'qSource' | 'sampleCount' | 'bitWidth'>,
 ): ScatterProjection {
   const iField = findFieldByBinding(fields, preference.iSource);
   const qField = findFieldByBinding(fields, preference.qSource);

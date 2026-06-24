@@ -8,7 +8,8 @@ export const DEFAULT_CHART_INSTANCE: Readonly<ChartInstancePreference> = {
   title: '',
   selectedItems: [],
   yAxis: { autoScale: true, min: undefined, max: undefined },
-  performance: { maxPoints: 500, refreshIntervalMs: 200 },
+  // S010: refreshIntervalMs 默认 ≥2000ms（用户要求默认间隔至少 2 秒）。
+  performance: { maxPoints: 500, refreshIntervalMs: 2000 },
 } as const;
 
 const DEFAULT_DISPLAY: DisplaySnapshot = {
@@ -24,7 +25,9 @@ const DEFAULT_DISPLAY: DisplaySnapshot = {
       qSource: { groupId: '', dataItemId: '' },
       sampleCount: 256,
       bitWidth: 8,
-      refreshIntervalMs: 100,
+      // S010: 星座图独立刷新节奏，默认 ≥2000ms；pointSize 散点直径默认 4（原写死 6 偏大）。
+      refreshIntervalMs: 2000,
+      pointSize: 4,
     },
     refreshCadenceMs: 500,
     groups: [],

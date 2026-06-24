@@ -1,4 +1,4 @@
-import { onUnmounted, readonly, shallowRef, type Ref } from 'vue';
+import { onUnmounted, readonly, shallowRef, watch, type Ref } from 'vue';
 import type {
   ChartInstanceProjection,
   ChartPoint,
@@ -33,10 +33,33 @@ function splitDataItemId(dataItemId: string): { frameId: string; fieldId: string
   return { frameId: dataItemId.slice(0, sep), fieldId: dataItemId.slice(sep + 1) };
 }
 
+// S010: 表格无独立刷新配置入口，固定节奏 500ms（用户拍板）。
+// 顶层 refreshCadenceMs 不再驱动任何视图（弃用，底栏不再显示）。
+const TABLE_CADENCE_MS = 500;
+// 下限：节奏再小也不低于 1 帧，避免 cadence 被设成 0/负数导致死循环。
+const MIN_CADENCE_MS = 16;
+
+// S010 export 供单测：cadence 计算/钳制是纯函数，独立验证比驱动整个 rAF 更可靠。
+export function clampCadence(value: number): number {
+  return Number.isFinite(value) && value > 0 ? Math.max(value, MIN_CADENCE_MS) : TABLE_CADENCE_MS;
+}
+
+// 图表 cadence = 所有 chart.performance.refreshIntervalMs 的最小值。
+// chartBuffer 是共享的，多图表必须统一节奏，否则不同 cadence 累积会错乱。
+// 无图表或全部无效时回退表格节奏。
+export function computeChartCadence(charts: readonly { performance: { refreshIntervalMs: number } }[]): number {
+  if (charts.length === 0) return TABLE_CADENCE_MS;
+  let min = Infinity;
+  for (const c of charts) {
+    const v = c.performance.refreshIntervalMs;
+    if (Number.isFinite(v) && v > 0 && v < min) min = v;
+  }
+  return min === Infinity ? TABLE_CADENCE_MS : Math.max(min, MIN_CADENCE_MS);
+}
+
 export function useDisplayRefresh(
   service: DisplayService,
   frameReader: ChartSelectionFrameLookup,
-  cadenceMs = 200,
 ): DisplayRefreshState & { start: () => void; stop: () => void } {
   // table1/table2 rows stored enriched (fieldName resolved from frameReader at refresh time).
   // Exposed only via getTable1Rows()/getTable2Rows() which return fresh deep copies (Selector immutability).
@@ -48,13 +71,35 @@ export function useDisplayRefresh(
   const availability = shallowRef<DisplaySourceAvailability>({ available: false });
   const preferences = shallowRef<DisplayPreferences>(service.getPreferences());
 
+  // S010: 三视图各自独立节奏。
+  // 散点 ← scatter.refreshIntervalMs（星座图弹窗）；图表 ← 各 chart.performance.refreshIntervalMs
+  // 的最小值（chartBuffer 共享，必须统一节奏，否则不同 cadence 累积会错乱）；表格 ← 固定 500ms。
+  // 三者互不影响。顶层 refreshCadenceMs 不再驱动任何视图（弃用）。
+  const scatterCadence = shallowRef(clampCadence(preferences.value.scatter.refreshIntervalMs));
+  const chartCadence = shallowRef(computeChartCadence(preferences.value.charts));
+  const tableCadence = shallowRef(TABLE_CADENCE_MS);
+
   // Chart time-series accumulation buffer: compositeKey → points (fieldName resolved at projection time from frameReader)
   const chartBuffer = new Map<string, ChartPoint[]>();
   let lastSignature = '';
 
   let rafId = 0;
-  let lastTime = 0;
+  // 各视图独立的"上次刷新时间"。cadence 变化时重置对应 lastTime，让新值立即生效（S010 reactive）。
+  let lastScatterTime = 0;
+  let lastChartTime = 0;
+  let lastTableTime = 0;
   let disposed = false;
+
+  // cadence 变化 → 重置对应 lastTime 为 0，下一帧 tick 立即按新节奏刷新（不等老间隔走完）。
+  watch(scatterCadence, () => { lastScatterTime = 0; });
+  watch(chartCadence, () => { lastChartTime = 0; });
+  watch(tableCadence, () => { lastTableTime = 0; });
+
+  // preferences 变了（用户保存配置）→ 更新 cadence（watch 会触发上面的 lastTime 重置）。
+  watch(preferences, (prefs) => {
+    scatterCadence.value = clampCadence(prefs.scatter.refreshIntervalMs);
+    chartCadence.value = computeChartCadence(prefs.charts);
+  });
 
   // Resolve fieldName for a single row via frameReader (R19: static metadata from config layer).
   // Falls back to '[Unknown Field]' when frame/field is not found, never returns raw fieldId (V5).
@@ -88,14 +133,14 @@ export function useDisplayRefresh(
     });
   }
 
-  function refresh(): void {
+  function refreshTables(): void {
     table1Rows.value = enrichTableRows(service.getTable1Rows());
     table2Rows.value = enrichTableRows(service.getTable2Rows());
+  }
+
+  function refreshScatter(): void {
     scatter.value = service.getScatterProjection();
     availability.value = service.getAvailability();
-    preferences.value = service.getPreferences();
-
-    refreshCharts(service.getSourceFields(), preferences.value);
   }
 
   function refreshCharts(sourceFields: readonly DisplayFieldMaterial[], prefs: DisplayPreferences): void {
@@ -165,18 +210,40 @@ export function useDisplayRefresh(
 
   function tick(now: number): void {
     if (disposed) return;
-    if (now - lastTime >= cadenceMs) {
-      refresh();
-      lastTime = now;
+    if (now - lastTableTime >= tableCadence.value) {
+      refreshTables();
+      lastTableTime = now;
+    }
+    if (now - lastScatterTime >= scatterCadence.value) {
+      refreshScatter();
+      lastScatterTime = now;
+    }
+    if (now - lastChartTime >= chartCadence.value) {
+      preferences.value = service.getPreferences();
+      refreshCharts(service.getSourceFields(), preferences.value);
+      lastChartTime = now;
     }
     rafId = requestAnimationFrame(tick);
+  }
+
+  // 全量刷新：start() 首帧 + clearChartData() 用。一次拉取所有视图，保证首屏不空。
+  function refreshAll(): void {
+    preferences.value = service.getPreferences();
+    table1Rows.value = enrichTableRows(service.getTable1Rows());
+    table2Rows.value = enrichTableRows(service.getTable2Rows());
+    scatter.value = service.getScatterProjection();
+    availability.value = service.getAvailability();
+    refreshCharts(service.getSourceFields(), preferences.value);
   }
 
   function start(): void {
     if (disposed) return;
     stop();
-    lastTime = performance.now();
-    refresh();
+    const now = performance.now();
+    lastTableTime = now;
+    lastScatterTime = now;
+    lastChartTime = now;
+    refreshAll();
     rafId = requestAnimationFrame(tick);
   }
 
@@ -191,7 +258,8 @@ export function useDisplayRefresh(
   // 数据从零重新累积。供工具栏"清空折线图数据"按钮调用。
   function clearChartData(): void {
     chartBuffer.clear();
-    refresh();
+    preferences.value = service.getPreferences();
+    refreshCharts(service.getSourceFields(), preferences.value);
   }
 
   onUnmounted(() => {

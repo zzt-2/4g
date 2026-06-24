@@ -190,6 +190,39 @@ describe('display core normalize', () => {
     expect(result.snapshot.preferences.table1.selectedItems).toEqual(['frame1:voltage', 'frame1:current']);
     expect(result.snapshot.preferences.table2).toEqual(defaultDisplayFixture.preferences.table2);
   });
+
+  // S010 复现测试：星座图弹窗改 refreshIntervalMs 必须能存住（问题 1 存储层根因）。
+  // 之前 applyDisplayPreferencesPatch 的 scatter 合并只展开 iSource/qSource，
+  // 漏了 refreshIntervalMs/sampleCount/bitWidth/pointSize，导致改的值在合并阶段被丢弃。
+  it('preserves scatter refreshIntervalMs/sampleCount/bitWidth/pointSize across patch merge', () => {
+    const result = applyDisplayPreferencesPatch(defaultDisplayFixture, {
+      scatter: {
+        refreshIntervalMs: 3000,
+        sampleCount: 512,
+        bitWidth: 16,
+        pointSize: 6,
+      },
+    });
+    const scatter = result.snapshot.preferences.scatter;
+    expect(scatter.refreshIntervalMs).toBe(3000);
+    expect(scatter.sampleCount).toBe(512);
+    expect(scatter.bitWidth).toBe(16);
+    expect(scatter.pointSize).toBe(6);
+  });
+
+  // S010：scatter 合并必须保留未传入字段（只改 pointSize 不应清掉 iSource 等）。
+  it('scatter patch merge keeps omitted fields untouched', () => {
+    const base = applyDisplayPreferencesPatch(defaultDisplayFixture, {
+      scatter: { iSource: { groupId: 'g1', dataItemId: 'f1:i' }, qSource: { groupId: 'g1', dataItemId: 'f1:q' } },
+    });
+    const after = applyDisplayPreferencesPatch(base.snapshot, { scatter: { pointSize: 8 } });
+    const scatter = after.snapshot.preferences.scatter;
+    expect(scatter.pointSize).toBe(8);
+    expect(scatter.iSource).toEqual({ groupId: 'g1', dataItemId: 'f1:i' });
+    expect(scatter.qSource).toEqual({ groupId: 'g1', dataItemId: 'f1:q' });
+    expect(scatter.refreshIntervalMs).toBe(2000);
+    expect(scatter.sampleCount).toBe(256);
+  });
 });
 
 // --- State isolation tests ---

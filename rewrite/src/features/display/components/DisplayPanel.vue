@@ -25,6 +25,8 @@ interface Props {
   rows: readonly TableRowProjection[];
   chartInstance: ChartInstanceProjection | null;
   scatter: ScatterProjection;
+  /** S010: 散点直径(px)，透传给 ScatterChart 的 symbolSize。 */
+  scatterPointSize?: number;
   canUseConstellation: boolean;
   reorderMode: boolean;
   visibleColumns: readonly string[];
@@ -299,6 +301,7 @@ const allColumnNames = panelTableColumns
         <div v-else-if="mode === 'special'" class="h-full p-2">
           <ScatterChart
             :data="scatter"
+            :point-size="scatterPointSize"
             height="100%"
           />
         </div>

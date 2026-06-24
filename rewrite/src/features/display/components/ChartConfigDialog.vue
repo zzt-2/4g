@@ -35,7 +35,8 @@ const autoScale = ref(true);
 const yMin = ref<number | undefined>(undefined);
 const yMax = ref<number | undefined>(undefined);
 const maxPoints = ref(500);
-const refreshIntervalMs = ref(200);
+// S010: 波形图独立刷新节奏，默认 ≥2000ms。
+const refreshIntervalMs = ref(2000);
 
 const frames = computed<FrameGroup[]>(() => {
   const map = new Map<string, { id: string; name: string; fields: FieldOption[] }>();

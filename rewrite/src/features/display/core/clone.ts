@@ -61,6 +61,7 @@ export function cloneScatterDisplayPreference(
     sampleCount: pref.sampleCount,
     bitWidth: pref.bitWidth,
     refreshIntervalMs: pref.refreshIntervalMs,
+    pointSize: pref.pointSize,
   };
 }
 

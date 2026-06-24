@@ -499,6 +499,7 @@ onUnmounted(() => {
         :rows="panel1Rows"
         :chart-instance="chart1"
         :scatter="displayRefresh.scatter.value"
+        :scatter-point-size="scatterPreference.pointSize"
         :can-use-constellation="canPanel1UseConstellation"
         :reorder-mode="reorderMode1"
         :visible-columns="visibleColumns1"
@@ -522,6 +523,7 @@ onUnmounted(() => {
         :rows="panel2Rows"
         :chart-instance="chart2"
         :scatter="displayRefresh.scatter.value"
+        :scatter-point-size="scatterPreference.pointSize"
         :can-use-constellation="canPanel2UseConstellation"
         :reorder-mode="reorderMode2"
         :visible-columns="visibleColumns2"
@@ -600,7 +602,6 @@ onUnmounted(() => {
 
         <span class="display-page__bottom-divider" />
 
-        <span class="rw-text-desc">刷新: {{ prefs.refreshCadenceMs }}ms</span>
         <StatusBadge :status="lifecycle" :status-map="receiveLifecycleMap" />
       </div>
     </div>

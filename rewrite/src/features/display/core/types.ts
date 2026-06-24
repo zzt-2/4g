@@ -66,6 +66,8 @@ export interface ScatterDisplayPreference {
   readonly sampleCount: number;
   readonly bitWidth: number;
   readonly refreshIntervalMs: number;
+  /** 散点直径(px)。echarts symbolSize。S010 新增。 */
+  readonly pointSize: number;
 }
 
 export interface DisplayPreferences {

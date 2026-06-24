@@ -251,6 +251,7 @@ function normalizeScatterPreference(
       sampleCount: fallback.sampleCount,
       bitWidth: fallback.bitWidth,
       refreshIntervalMs: fallback.refreshIntervalMs,
+      pointSize: fallback.pointSize,
     };
   }
 
@@ -260,6 +261,7 @@ function normalizeScatterPreference(
     sampleCount: positiveNumberValue(raw.sampleCount, fallback.sampleCount, 'scatter.sampleCount', 'display.scatter.sampleCountInvalid', issues),
     bitWidth: positiveNumberValue(raw.bitWidth, fallback.bitWidth, 'scatter.bitWidth', 'display.scatter.bitWidthInvalid', issues),
     refreshIntervalMs: positiveNumberValue(raw.refreshIntervalMs, fallback.refreshIntervalMs, 'scatter.refreshIntervalMs', 'display.scatter.refreshIntervalInvalid', issues),
+    pointSize: positiveNumberValue(raw.pointSize, fallback.pointSize, 'scatter.pointSize', 'display.scatter.pointSizeInvalid', issues),
   };
 }
 
@@ -386,10 +388,17 @@ export function applyDisplayPreferencesPatch(
 
   let scatter = currentPrefs.scatter;
   if (patch.scatter) {
+    // S010: 之前只合并 iSource/qSource，漏了 sampleCount/bitWidth/refreshIntervalMs/pointSize
+    // → 导致星座图弹窗改的刷新间隔在合并阶段被丢弃，存不住（问题 1 存储层根因）。
+    // 现在所有标量字段也参与合并（undefined 保留旧值）。
     scatter = {
       ...scatter,
       ...(patch.scatter.iSource ? { iSource: { ...scatter.iSource, ...patch.scatter.iSource } } : {}),
       ...(patch.scatter.qSource ? { qSource: { ...scatter.qSource, ...patch.scatter.qSource } } : {}),
+      ...(patch.scatter.sampleCount !== undefined ? { sampleCount: patch.scatter.sampleCount } : {}),
+      ...(patch.scatter.bitWidth !== undefined ? { bitWidth: patch.scatter.bitWidth } : {}),
+      ...(patch.scatter.refreshIntervalMs !== undefined ? { refreshIntervalMs: patch.scatter.refreshIntervalMs } : {}),
+      ...(patch.scatter.pointSize !== undefined ? { pointSize: patch.scatter.pointSize } : {}),
     };
   }
 

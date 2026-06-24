@@ -14,14 +14,15 @@ export const defaultDisplayFixture: DisplaySnapshot = {
     table1: { displayMode: 'table', selectedGroupId: '', selectedItems: [] },
     table2: { displayMode: 'table', selectedGroupId: '', selectedItems: [] },
     charts: [
-      { id: 'chart-1', title: '图表1', selectedItems: [], yAxis: { autoScale: true }, performance: { maxPoints: 500, refreshIntervalMs: 200 } },
+      { id: 'chart-1', title: '图表1', selectedItems: [], yAxis: { autoScale: true }, performance: { maxPoints: 500, refreshIntervalMs: 2000 } },
     ],
     scatter: {
       iSource: { groupId: '', dataItemId: '' },
       qSource: { groupId: '', dataItemId: '' },
       sampleCount: 256,
       bitWidth: 8,
-      refreshIntervalMs: 100,
+      refreshIntervalMs: 2000,
+      pointSize: 4,
     },
     refreshCadenceMs: 500,
     groups: [],

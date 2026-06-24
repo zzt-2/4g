@@ -27,7 +27,9 @@ const iSourceField = ref('');
 const qSourceField = ref('');
 const bitWidth = ref(8);
 const sampleCount = ref(256);
-const refreshIntervalMs = ref(100);
+// S010: 星座图独立刷新节奏，默认 ≥2000ms；pointSize 散点直径默认 4。
+const refreshIntervalMs = ref(2000);
+const pointSize = ref(4);
 
 watch(() => props.modelValue, (open) => {
   if (open && props.scatterPreference) {
@@ -41,6 +43,7 @@ watch(() => props.modelValue, (open) => {
     bitWidth.value = p.bitWidth;
     sampleCount.value = p.sampleCount;
     refreshIntervalMs.value = p.refreshIntervalMs;
+    pointSize.value = p.pointSize;
   }
 });
 
@@ -64,6 +67,7 @@ function save(): void {
     bitWidth: bitWidth.value,
     sampleCount: sampleCount.value,
     refreshIntervalMs: refreshIntervalMs.value,
+    pointSize: pointSize.value,
   });
 }
 
@@ -131,6 +135,21 @@ function close(): void {
             outlined
             dense
             class="flex-1"
+          />
+        </div>
+
+        <!-- 点大小（S010）：散点直径，echarts symbolSize。 -->
+        <div class="q-mt-md">
+          <div class="rw-text-label q-mb-sm">点大小：{{ pointSize }}px</div>
+          <q-slider
+            v-model.number="pointSize"
+            :min="1"
+            :max="12"
+            :step="1"
+            markers
+            snap
+            label
+            label-always
           />
         </div>
       </q-card-section>
