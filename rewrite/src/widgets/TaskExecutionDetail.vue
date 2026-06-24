@@ -7,6 +7,7 @@ import { TASK_STATUS_MAP } from '@/features/task/components/taskStatusMap';
 import { isStepResultFailed } from '@/features/task';
 import { SEND_RESULT_STATUS_MAP } from '@/features/send/components/sendStatusMap';
 import { formatElapsed } from '@/shared/utils/format';
+import { formatProgressPct, formatProgressLabel } from '@/shared/utils/task-progress-format';
 
 const props = defineProps<{
   readonly instance: TaskInstanceState;
@@ -111,24 +112,10 @@ function delayRemainingText(stepIndex: number): string | null {
   return `剩余 ${mins}m${secs % 60}s`;
 }
 
-const progressPct = computed(() => {
-  if (!props.progress) return 0;
-  // 优先按"发送次数"(sendsTotal 非 null 时反映 repeat 细粒度),回退 step 完成维度。
-  if (props.progress.sendsTotal !== null && props.progress.sendsTotal > 0) {
-    return Math.round((props.progress.sendsCompleted / props.progress.sendsTotal) * 100);
-  }
-  const total = props.progress.stepsTotal || 1;
-  return Math.round((props.progress.stepsCompleted / total) * 100);
-});
-
-// 进度 n/m 标签:优先 sends(发送次数),回退 steps(step 完成数)。
-const progressLabel = computed(() => {
-  if (!props.progress) return '';
-  if (props.progress.sendsTotal !== null) {
-    return `${props.progress.sendsCompleted}/${props.progress.sendsTotal}`;
-  }
-  return `${props.progress.stepsCompleted}/${props.progress.stepsTotal}`;
-});
+// 进度百分比/标签:抽到纯函数 formatProgressPct/formatProgressLabel(D004 进度双维度:
+// 优先 sends 维度,回退 steps),TaskCaseRow 共用同一套逻辑。
+const progressPct = computed(() => formatProgressPct(props.progress));
+const progressLabel = computed(() => formatProgressLabel(props.progress));
 </script>
 
 <template>
