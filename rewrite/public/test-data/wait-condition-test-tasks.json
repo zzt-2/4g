@@ -1,0 +1,720 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "templateId": "wt-eq",
+      "name": "[等待条件] eq 数值相等",
+      "tags": ["wait-condition-test", "operator-eq"],
+      "definition": {
+        "id": "wt-eq",
+        "name": "[等待条件] eq 数值相等",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-eq-wait",
+            "kind": "wait-condition",
+            "name": "等功率==100",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 100 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-eq-after",
+            "kind": "delay",
+            "name": "匹配后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-neq",
+      "name": "[等待条件] neq 数值不等",
+      "tags": ["wait-condition-test", "operator-neq"],
+      "definition": {
+        "id": "wt-neq",
+        "name": "[等待条件] neq 数值不等",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-neq-wait",
+            "kind": "wait-condition",
+            "name": "等功率!=50",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "neq", "threshold": 50 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-neq-after",
+            "kind": "delay",
+            "name": "匹配后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-gt-lt",
+      "name": "[等待条件] gt / lt 数值区间",
+      "tags": ["wait-condition-test", "operator-gt", "operator-lt"],
+      "definition": {
+        "id": "wt-gt-lt",
+        "name": "[等待条件] gt / lt 数值区间",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-gt-wait",
+            "kind": "wait-condition",
+            "name": "等功率>50 (发 100 应匹配)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "gt", "threshold": 50 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-lt-wait",
+            "kind": "wait-condition",
+            "name": "等功率<50 (再发 25 应匹配)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "lt", "threshold": 50 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-gt-lt-after",
+            "kind": "delay",
+            "name": "两个 wait 都通过",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-gte-lte",
+      "name": "[等待条件] gte / lte 边界",
+      "tags": ["wait-condition-test", "operator-gte", "operator-lte"],
+      "definition": {
+        "id": "wt-gte-lte",
+        "name": "[等待条件] gte / lte 边界",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-gte-wait",
+            "kind": "wait-condition",
+            "name": "等功率>=100 (发正好 100 应匹配)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "gte", "threshold": 100 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-lte-wait",
+            "kind": "wait-condition",
+            "name": "等功率<=100 (发正好 100 应匹配)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "lte", "threshold": 100 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-gte-lte-after",
+            "kind": "delay",
+            "name": "两个边界都通过",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-hex-threshold",
+      "name": "[等待条件] 十六进制 threshold 0x 解析",
+      "tags": ["wait-condition-test", "hex-threshold"],
+      "definition": {
+        "id": "wt-hex-threshold",
+        "name": "[等待条件] 十六进制 threshold 0x 解析",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-hex-eq",
+            "kind": "wait-condition",
+            "name": "等状态字==0x0001 (threshold 写十六进制)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-raw-status", "operator": "eq", "threshold": "0x0001" }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-hex-after",
+            "kind": "delay",
+            "name": "十六进制 threshold 被正确解析为 1",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-contains",
+      "name": "[等待条件] contains 子串包含",
+      "tags": ["wait-condition-test", "operator-contains"],
+      "definition": {
+        "id": "wt-contains",
+        "name": "[等待条件] contains 子串包含",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-contains-wait",
+            "kind": "wait-condition",
+            "name": "等状态串包含 OK 子串",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-status-text", "operator": "contains", "threshold": "OK" }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-contains-after",
+            "kind": "delay",
+            "name": "子串匹配后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-change",
+      "name": "[等待条件] change 变化检测",
+      "tags": ["wait-condition-test", "operator-change"],
+      "definition": {
+        "id": "wt-change",
+        "name": "[等待条件] change 变化检测",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-change-wait",
+            "kind": "wait-condition",
+            "name": "等计数变化 (threshold=0, 发非0值匹配)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-counter", "fieldId": "wt-count", "operator": "change", "threshold": 0 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-change-after",
+            "kind": "delay",
+            "name": "变化检测匹配后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-any",
+      "name": "[等待条件] any 字段有值",
+      "tags": ["wait-condition-test", "operator-any"],
+      "definition": {
+        "id": "wt-any",
+        "name": "[等待条件] any 字段有值",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-any-wait",
+            "kind": "wait-condition",
+            "name": "等可选字段有值 (any, threshold 被忽略)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-optional-payload", "operator": "any", "threshold": 0 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-any-after",
+            "kind": "delay",
+            "name": "字段有值匹配后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-null-field",
+      "name": "[等待条件] null 字段 eq 应永不匹配",
+      "tags": ["wait-condition-test", "null-field"],
+      "definition": {
+        "id": "wt-null-field",
+        "name": "[等待条件] null 字段 eq 应永不匹配",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-null-wait",
+            "kind": "wait-condition",
+            "name": "等可选字段==100 (发不含该字段的帧 → null → 应超时)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-optional-payload", "operator": "eq", "threshold": 100 }
+              ],
+              "timeoutMs": 500,
+              "onTimeout": "skip"
+            }
+          },
+          {
+            "id": "wt-null-after",
+            "kind": "delay",
+            "name": "null 字段超时 skip 后应推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-and-group",
+      "name": "[等待条件] AND 组合 全满足才通过",
+      "tags": ["wait-condition-test", "and-group"],
+      "definition": {
+        "id": "wt-and-group",
+        "name": "[等待条件] AND 组合 全满足才通过",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-and-wait",
+            "kind": "wait-condition",
+            "name": "等功率==100 AND 状态字==1 (必须同帧全满足)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 100 },
+                { "frameId": "wt-status", "fieldId": "wt-raw-status", "operator": "eq", "threshold": 1 }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-and-after",
+            "kind": "delay",
+            "name": "AND 全满足后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-or-group",
+      "name": "[等待条件] OR 组合 任一满足即通过",
+      "tags": ["wait-condition-test", "or-group"],
+      "definition": {
+        "id": "wt-or-group",
+        "name": "[等待条件] OR 组合 任一满足即通过",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-or-wait",
+            "kind": "wait-condition",
+            "name": "等功率==100 OR 辅助标志==1 (任一帧满足即通过)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 100 },
+                { "frameId": "wt-aux", "fieldId": "wt-aux-flag", "operator": "eq", "threshold": 1, "logicOperator": "or" }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-or-after",
+            "kind": "delay",
+            "name": "OR 任一满足后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-frame-id-isolation",
+      "name": "[等待条件] frameId 隔离 (等A来B不匹配)",
+      "tags": ["wait-condition-test", "frame-id-isolation"],
+      "definition": {
+        "id": "wt-frame-id-isolation",
+        "name": "[等待条件] frameId 隔离 (等A来B不匹配)",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-iso-wait",
+            "kind": "wait-condition",
+            "name": "等 wt-status.power==100 (发 wt-aux 同值帧不该匹配)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 100 }
+              ],
+              "timeoutMs": 1000,
+              "onTimeout": "skip"
+            }
+          },
+          {
+            "id": "wt-iso-after",
+            "kind": "delay",
+            "name": "隔离验证后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-timeout-continue",
+      "name": "[等待条件] onTimeout=continue 超时正常推进",
+      "tags": ["wait-condition-test", "timeout-continue"],
+      "definition": {
+        "id": "wt-timeout-continue",
+        "name": "[等待条件] onTimeout=continue 超时正常推进",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-tc-wait",
+            "kind": "wait-condition",
+            "name": "500ms 超时不发帧 (continue)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 99999 }
+              ],
+              "timeoutMs": 500,
+              "onTimeout": "continue"
+            }
+          },
+          {
+            "id": "wt-tc-after",
+            "kind": "delay",
+            "name": "超时 continue 后应正常推进到这里 (无 skip 标记)",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-timeout-skip",
+      "name": "[等待条件] onTimeout=skip 超时标记 skip 推进",
+      "tags": ["wait-condition-test", "timeout-skip"],
+      "definition": {
+        "id": "wt-timeout-skip",
+        "name": "[等待条件] onTimeout=skip 超时标记 skip 推进",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-ts-wait",
+            "kind": "wait-condition",
+            "name": "500ms 超时不发帧 (skip)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 99999 }
+              ],
+              "timeoutMs": 500,
+              "onTimeout": "skip"
+            }
+          },
+          {
+            "id": "wt-ts-after",
+            "kind": "delay",
+            "name": "超时 skip 后应推进到这里 (wait step 标 appliedPolicy=skip-step)",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-timeout-fail",
+      "name": "[等待条件] onTimeout=fail 超时触发 errorPolicy",
+      "tags": ["wait-condition-test", "timeout-fail"],
+      "definition": {
+        "id": "wt-timeout-fail",
+        "name": "[等待条件] onTimeout=fail 超时触发 errorPolicy",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-tf-wait",
+            "kind": "wait-condition",
+            "name": "500ms 超时不发帧 (fail → errorPolicy stop)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 99999 }
+              ],
+              "timeoutMs": 500,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-tf-after",
+            "kind": "delay",
+            "name": "fail+stop 时不应执行到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-timeout-fail-retry",
+      "name": "[等待条件] onTimeout=fail + errorPolicy retry",
+      "tags": ["wait-condition-test", "timeout-fail", "error-retry"],
+      "definition": {
+        "id": "wt-timeout-fail-retry",
+        "name": "[等待条件] onTimeout=fail + errorPolicy retry",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-tfr-wait",
+            "kind": "wait-condition",
+            "name": "300ms 超时 (fail → errorPolicy retry 2 次)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 99999 }
+              ],
+              "timeoutMs": 300,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-tfr-after",
+            "kind": "delay",
+            "name": "retry 用尽后(或最终匹配)推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "retry", "retryCount": 2, "retryDelayMs": 50 }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-forever-wait",
+      "name": "[等待条件] timeoutMs 省略 永久等待",
+      "tags": ["wait-condition-test", "forever-wait"],
+      "definition": {
+        "id": "wt-forever-wait",
+        "name": "[等待条件] timeoutMs 省略 永久等待",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-fw-wait",
+            "kind": "wait-condition",
+            "name": "无超时永久等 (timeoutMs 省略)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 100 }
+              ],
+              "onTimeout": "continue"
+            }
+          },
+          {
+            "id": "wt-fw-after",
+            "kind": "delay",
+            "name": "条件满足或手动 stop 中断后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-interrupt-stop",
+      "name": "[等待条件] 被 stop 中断 (interrupted 路径)",
+      "tags": ["wait-condition-test", "interrupt"],
+      "definition": {
+        "id": "wt-interrupt-stop",
+        "name": "[等待条件] 被 stop 中断 (interrupted 路径)",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-is-wait",
+            "kind": "wait-condition",
+            "name": "无超时永久等, 跑起来后手动 stop 验证中断",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-status", "fieldId": "wt-power", "operator": "eq", "threshold": 99999 }
+              ],
+              "timeoutMs": 60000,
+              "onTimeout": "continue"
+            }
+          },
+          {
+            "id": "wt-is-after",
+            "kind": "delay",
+            "name": "stop 中断后任务终态, 不应执行到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-source-filter",
+      "name": "[等待条件] sourceId 来源过滤",
+      "tags": ["wait-condition-test", "source-filter"],
+      "definition": {
+        "id": "wt-source-filter",
+        "name": "[等待条件] sourceId 来源过滤",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-sf-wait",
+            "kind": "wait-condition",
+            "name": "只匹配 sourceId=source-A 的帧 (UI 无入口, 靠编辑 JSON)",
+            "config": {
+              "conditions": [
+                { "frameId": "wt-counter", "fieldId": "wt-count", "operator": "eq", "threshold": 5, "sourceId": "source-A" }
+              ],
+              "timeoutMs": 5000,
+              "onTimeout": "fail"
+            }
+          },
+          {
+            "id": "wt-sf-after",
+            "kind": "delay",
+            "name": "指定来源帧匹配后推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-repeat-until",
+      "name": "[等待条件][疑似缺口] repeat.until 退出条件",
+      "tags": ["wait-condition-test", "repeat-until", "known-gap"],
+      "definition": {
+        "id": "wt-repeat-until",
+        "name": "[等待条件][疑似缺口] repeat.until 退出条件",
+        "schedule": { "kind": "immediate" },
+        "steps": [
+          {
+            "id": "wt-ru-send",
+            "kind": "send",
+            "name": "重复发送, 直到收到 wt-count==3 退出",
+            "config": {
+              "frameId": "wt-status",
+              "repeat": {
+                "intervalMs": 200,
+                "maxCount": 20,
+                "until": [
+                  { "frameId": "wt-counter", "fieldId": "wt-count", "operator": "eq", "threshold": 3 }
+                ]
+              }
+            }
+          },
+          {
+            "id": "wt-ru-after",
+            "kind": "delay",
+            "name": "repeat.until 命中后退出循环推进到这里",
+            "config": { "durationMs": 10 }
+          }
+        ],
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    },
+    {
+      "templateId": "wt-exit-condition",
+      "name": "[等待条件][疑似缺口] 任务级 exitCondition 提前退出",
+      "tags": ["wait-condition-test", "exit-condition", "known-gap"],
+      "definition": {
+        "id": "wt-exit-condition",
+        "name": "[等待条件][疑似缺口] 任务级 exitCondition 提前退出",
+        "schedule": { "kind": "timer", "intervalMs": 300 },
+        "steps": [
+          {
+            "id": "wt-ec-send",
+            "kind": "send",
+            "name": "定时发送, 收到 wt-count>=5 时任务整体提前退出",
+            "config": { "frameId": "wt-status" }
+          }
+        ],
+        "stopCondition": {
+          "maxIterations": 20,
+          "exitCondition": [
+            { "frameId": "wt-counter", "fieldId": "wt-count", "operator": "gte", "threshold": 5 }
+          ]
+        },
+        "errorPolicy": { "onFailure": "stop" }
+      },
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "updatedAt": "2026-06-24T00:00:00.000Z"
+    }
+  ]
+}

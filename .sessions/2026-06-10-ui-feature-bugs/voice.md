@@ -161,3 +161,7 @@
 - "翻译后人话" → S013（表达式公式变量映射来源字段名,否决原样显示 identifier）
 - "依然是完全撑开" / "没用啊?它依然会给顶起来" / "依然不行,不管了" → D011（ExecutionListPage 右栏高度 5 次失败,用户决定搁置）
 
+
+## 2026-06-24（S014 任务模板等待条件测试）
+
+- "我希望来一个对话,帮我测一下任务的那些条件。我的意思是,任务模板的等待条件。我需要一套帧定义和任务定义去测、去试它能不能用。" → S014（造 receive 测试帧 + 21 任务模板覆盖 9 operator + and/or + 3 onTimeout + 永久等待 + 中断 + sourceId + repeat.until + exitCondition,实测验证行为,发现 fieldValueProvider 生产未接线 bug）
