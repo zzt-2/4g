@@ -2,7 +2,7 @@
 // 任务管理页顶部 toolbar：一级分段控件（左）+ 搜索框（中）+ 按当前 tab 动态切换的操作按钮（右）。
 // 砍掉原 H1「任务管理」（左侧导航已标当前页），单行约 48px，左右 px-6 padding。
 // 按钮按 tab 切换解决"按钮脱离作用对象"——按钮天然带上下文（S010 CiToolbar 范式）。
-// templates → 新建/编辑/导入/导出/批量管理；executions → 从模板创建/空白任务/全部停止/批量管理。
+// templates → 新建/编辑/导入/导出/批量管理；executions → 从模板创建/空白任务/全部停止。
 
 type TaskTab = 'templates' | 'executions';
 
@@ -23,8 +23,6 @@ interface Props {
   // --- executions tab 按钮状态 ---
   /** 活动任务数（全部停止按钮 enable 用） */
   activeTaskCount: number;
-  /** executions tab 批量模式开关 */
-  executionsBatchMode: boolean;
 }
 
 const props = defineProps<Props>();
@@ -42,7 +40,6 @@ const emit = defineEmits<{
   'create-from-template': [];
   'new-blank-task': [];
   'stop-all': [];
-  'toggle-executions-batch': [];
 }>();
 
 const TABS: ReadonlyArray<{ value: TaskTab; label: string; icon: string }> = [
@@ -110,13 +107,6 @@ function onSearchInput(value: string | number | null): void {
         <q-btn unelevated no-caps color="primary" icon="o_library_add" label="从模板创建" @click="emit('create-from-template')" />
         <q-btn flat no-caps icon="o_add" label="空白任务" @click="emit('new-blank-task')" />
         <q-btn flat no-caps icon="o_stop_circle" label="全部停止" :disable="activeTaskCount === 0" @click="emit('stop-all')" />
-        <q-btn
-          flat no-caps
-          :icon="executionsBatchMode ? 'o_close' : 'o_checklist'"
-          :label="executionsBatchMode ? '退出批量' : '批量管理'"
-          :color="executionsBatchMode ? 'negative' : 'grey'"
-          @click="emit('toggle-executions-batch')"
-        />
       </template>
     </div>
   </div>

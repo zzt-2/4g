@@ -31,7 +31,7 @@ const emit = defineEmits<{
       :columns="historyColumns"
       :rows="rows"
       row-key="instanceId"
-      selection="single"
+      selection="none"
       :selected="selected"
       container-height="100%"
       @row-click="(row: HistoryTableRow) => emit('row-click', row)"

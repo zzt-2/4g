@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // 执行监控 active tab：活动任务表格 + 行内生命周期操作（启动/暂停/恢复/停止/编辑/删除）。
 // 对齐 S010 TaskListPanel 范式：纯表格 + emit 操作给 page。
-// selection 支持批量模式（batchMode 时切 multiple）。
 
 import DataTable from '@/widgets/DataTable.vue';
 import StatusBadge from '@/widgets/StatusBadge.vue';
@@ -13,8 +12,6 @@ import type { TaskTableRow } from '@/features/task/components/task-columns';
 interface Props {
   rows: readonly TaskTableRow[];
   selected: readonly TaskTableRow[];
-  batchMode: boolean;
-  batchSelected: readonly TaskTableRow[];
   targetLabelMap: Record<string, string>;
   templateNameMap: Record<string, string>;
   isOperating: (id: string) => boolean;
@@ -25,7 +22,6 @@ defineProps<Props>();
 const emit = defineEmits<{
   'row-click': [row: TaskTableRow];
   'selection-change': [selected: TaskTableRow[]];
-  'update:batchSelected': [rows: TaskTableRow[]];
   start: [id: string];
   pause: [id: string];
   resume: [id: string];
@@ -41,11 +37,11 @@ const emit = defineEmits<{
       :columns="taskColumns"
       :rows="rows"
       row-key="instanceId"
-      :selection="batchMode ? 'multiple' : 'single'"
-      :selected="batchMode ? batchSelected : selected"
+      selection="none"
+      :selected="selected"
       container-height="100%"
-      @row-click="(row: TaskTableRow) => { if (!batchMode) emit('row-click', row) }"
-      @update:selected="batchMode ? emit('update:batchSelected', $event as TaskTableRow[]) : emit('selection-change', $event as TaskTableRow[])"
+      @row-click="(row: TaskTableRow) => emit('row-click', row)"
+      @update:selected="(s: TaskTableRow[]) => emit('selection-change', s)"
     >
       <template #no-data>
         <div class="text-center w-full p-4 rw-text-label">暂无活动任务</div>
@@ -93,7 +89,7 @@ const emit = defineEmits<{
 
       <template #body-cell-_actions="props">
         <q-td :props="props">
-          <div v-if="!batchMode" class="flex items-center justify-center gap-1">
+          <div class="flex items-center justify-center gap-1">
             <q-btn v-if="props.row.lifecycle === 'created'" flat round dense icon="o_play_arrow" size="sm"
               color="positive" :loading="isOperating(`start-${props.row.instanceId}`)"
               @click.stop="emit('start', props.row.instanceId)">

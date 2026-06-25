@@ -10,7 +10,7 @@ import { useQuasar } from 'quasar';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useAsyncAction, useNotify, usePolling } from '@/shared/composables';
 import { isTerminal, calculateProgress, applyDefaultTargetOverride } from '@/features/task/core';
-import type { TaskTemplate, TaskDefinition } from '@/features/task/core';
+import type { TaskTemplate } from '@/features/task/core';
 import { exportTemplates, parseImportedFile } from '@/features/task/services/task-template-io';
 import { TASK_STATUS_MAP, resolveDisplayStatus } from '@/features/task/components/taskStatusMap';
 import { SCHEDULE_KIND_MAP } from '@/features/task/components/scheduleKindMap';
@@ -71,9 +71,6 @@ const activeRows = shallowRef<TaskTableRow[]>([]);
 const historyRows = shallowRef<HistoryTableRow[]>([]);
 const selectedActiveRow = shallowRef<TaskTableRow[]>([]);
 const selectedHistoryRow = shallowRef<HistoryTableRow[]>([]);
-// 执行批量模式（active tab）
-const executionsBatchMode = ref(false);
-const batchSelectedActiveRows = shallowRef<TaskTableRow[]>([]);
 
 // ===== 弹窗显隐 =====
 const isTemplateEditOpen = ref(false);
@@ -81,10 +78,9 @@ const isTaskEditOpen = ref(false);
 const isTemplatePickerOpen = ref(false);
 const templatePickerRows = shallowRef<readonly TaskTemplate[]>([]);
 const templatePickerSearch = ref('');
-// 批量设置发送目标（两页共用，scope 区分文案）
+// 批量设置发送目标（仅模板批量用）
 const isBatchTargetOpen = ref(false);
 const batchTargetId = ref<string | null>(null);
-const batchTargetScope = ref<'template' | 'task'>('template');
 
 // ===== 派生：label 查找表 =====
 // targetId → label（两页列展示「默认发送目标」用）
@@ -391,8 +387,33 @@ function onOpenBatchSetTargetTemplates(): void {
     return;
   }
   batchTargetId.value = null;
-  batchTargetScope.value = 'template';
   isBatchTargetOpen.value = true;
+}
+
+// ===== 模板批量：设置发送目标确认 =====
+function onConfirmBatchSetTarget(): void {
+  if (!batchTargetId.value) {
+    notify.warning('请选择一个发送目标');
+    return;
+  }
+  let updated = 0;
+  let affectedSteps = 0;
+  for (const row of batchSelectedTemplateRows.value) {
+    const original = row._original;
+    const nextDef = applyDefaultTargetOverride(original.definition, batchTargetId.value);
+    const result = taskService.updateTemplate(original.templateId, { definition: nextDef });
+    if (result) {
+      updated++;
+      for (const step of nextDef.steps) {
+        if (step.kind === 'send') affectedSteps++;
+      }
+    }
+  }
+  isBatchTargetOpen.value = false;
+  batchSelectedTemplateRows.value = [];
+  selectedTemplateRow.value = [];
+  refreshTemplateRows();
+  notify.success(`已更新 ${updated} 个模板的默认发送目标（影响 ${affectedSteps} 个 send 步骤）`);
 }
 
 // ===== 执行 tab actions =====
@@ -569,88 +590,6 @@ function onTaskEditorSaveAndStart(): void {
   }
 }
 
-// ===== 执行批量模式 =====
-function onToggleExecutionsBatch(): void {
-  executionsBatchMode.value = !executionsBatchMode.value;
-  batchSelectedActiveRows.value = [];
-  selectedActiveRow.value = [];
-}
-
-function onOpenBatchSetTargetTasks(): void {
-  if (batchSelectedActiveRows.value.length === 0) {
-    notify.warning('请先选择至少一个任务');
-    return;
-  }
-  // updateTask 仅允许 lifecycle === 'created' 的实例更新——非 created 的跳过
-  const editable = batchSelectedActiveRows.value.filter((r) => r.lifecycle === 'created');
-  if (editable.length === 0) {
-    notify.warning('选中的任务都不是待启动状态，无法修改');
-    return;
-  }
-  let sendStepCount = 0;
-  for (const row of editable) {
-    for (const step of row._original.definitionRef.steps) {
-      if (step.kind === 'send') sendStepCount++;
-    }
-  }
-  if (sendStepCount === 0) {
-    notify.warning('选中的任务里没有 send 步骤，无需设置发送目标');
-    return;
-  }
-  batchTargetId.value = null;
-  batchTargetScope.value = 'task';
-  isBatchTargetOpen.value = true;
-}
-
-function onConfirmBatchSetTarget(): void {
-  if (!batchTargetId.value) {
-    notify.warning('请选择一个发送目标');
-    return;
-  }
-  if (batchTargetScope.value === 'template') {
-    let updated = 0;
-    let affectedSteps = 0;
-    for (const row of batchSelectedTemplateRows.value) {
-      const original = row._original;
-      const nextDef = applyDefaultTargetOverride(original.definition, batchTargetId.value);
-      const result = taskService.updateTemplate(original.templateId, { definition: nextDef });
-      if (result) {
-        updated++;
-        for (const step of nextDef.steps) {
-          if (step.kind === 'send') affectedSteps++;
-        }
-      }
-    }
-    isBatchTargetOpen.value = false;
-    batchSelectedTemplateRows.value = [];
-    selectedTemplateRow.value = [];
-    refreshTemplateRows();
-    notify.success(`已更新 ${updated} 个模板的默认发送目标（影响 ${affectedSteps} 个 send 步骤）`);
-  } else {
-    const editable = batchSelectedActiveRows.value.filter((r) => r.lifecycle === 'created');
-    const skipped = batchSelectedActiveRows.value.length - editable.length;
-    let updated = 0;
-    let affectedSteps = 0;
-    for (const row of editable) {
-      const inst = row._original;
-      const nextDef = applyDefaultTargetOverride(inst.definitionRef as TaskDefinition, batchTargetId.value);
-      const result = taskService.updateTask(inst.instanceId, nextDef);
-      if (result) {
-        updated++;
-        for (const step of nextDef.steps) {
-          if (step.kind === 'send') affectedSteps++;
-        }
-      }
-    }
-    isBatchTargetOpen.value = false;
-    batchSelectedActiveRows.value = [];
-    selectedActiveRow.value = [];
-    refreshExecutionLists();
-    const skipNote = skipped > 0 ? `，跳过 ${skipped} 个非待启动任务` : '';
-    notify.success(`已更新 ${updated} 个任务的默认发送目标（影响 ${affectedSteps} 个 send 步骤${skipNote}）`);
-  }
-}
-
 // ===== 行选中（列表 → 选中状态） =====
 function onTemplateRowClick(row: TemplateTableRow): void {
   selectedTemplateRow.value = [row];
@@ -677,7 +616,6 @@ function onHistoryRowClick(row: HistoryTableRow): void {
       :is-exporting="isOperating('export-templates')"
       :templates-batch-mode="templatesBatchMode"
       :active-task-count="activeRows.length"
-      :executions-batch-mode="executionsBatchMode"
       @update:search-text="onSearchInput"
       @new-template="onNewTemplate"
       @edit-template="onEditTemplate"
@@ -687,7 +625,6 @@ function onHistoryRowClick(row: HistoryTableRow): void {
       @create-from-template="onCreateFromTemplate"
       @new-blank-task="onNewBlankTask"
       @stop-all="onStopAll"
-      @toggle-executions-batch="onToggleExecutionsBatch"
     />
 
     <!-- tab 内容区（flex 撑满剩余高度） -->
@@ -728,32 +665,20 @@ function onHistoryRowClick(row: HistoryTableRow): void {
 
         <!-- 主体：左列表 + 右详情，gap-6 不贴死，no-wrap 防换行 -->
         <div class="flex flex-1 min-h-0 gap-6 no-wrap">
-          <!-- 左：列表区（活动/历史二级 tab 切换，批量工具条） -->
+          <!-- 左：列表区（活动/历史二级 tab 切换） -->
           <div class="exec-list-pane flex flex-col flex-1 min-w-0 min-h-0">
-            <!-- 批量模式工具条（仅 active tab + 批量模式开） -->
-            <div v-if="executionsInnerTab === 'active' && executionsBatchMode"
-              class="flex items-center gap-2 px-6 py-2 rw-divider-b flex-shrink-0">
-              <q-btn flat dense no-caps icon="o_send" label="设置发送目标" color="primary" size="sm"
-                :disable="batchSelectedActiveRows.length === 0" @click="onOpenBatchSetTargetTasks" />
-              <span class="rw-text-desc text-xs">{{ batchSelectedActiveRows.length }} 项已选中（仅待启动状态可修改）</span>
-              <div class="flex-1" />
-              <q-btn flat dense no-caps label="退出批量模式" size="sm" @click="onToggleExecutionsBatch" />
-            </div>
 
             <!-- 活动任务表 -->
             <ActiveTaskTable
               v-if="executionsInnerTab === 'active'"
               :rows="activeRows"
               :selected="selectedActiveRow"
-              :batch-mode="executionsBatchMode"
-              :batch-selected="batchSelectedActiveRows"
               :target-label-map="targetLabelMap"
               :template-name-map="templateNameMap"
               :is-operating="isOperating"
               class="flex-1 min-h-0"
               @row-click="onActiveRowClick"
               @selection-change="selectedActiveRow = $event"
-              @update:batch-selected="batchSelectedActiveRows = $event"
               @start="onStart"
               @pause="onPause"
               @resume="onResume"
@@ -829,13 +754,12 @@ function onHistoryRowClick(row: HistoryTableRow): void {
       @pick="onPickTemplate"
     />
 
-    <!-- 批量设置发送目标弹窗（两页共用，scope 区分文案） -->
+    <!-- 批量设置发送目标弹窗（仅模板批量） -->
     <BatchSetTargetDialog
       v-model="isBatchTargetOpen"
       :target-id="batchTargetId"
       :connection-service="connectionService"
-      :selected-count="batchTargetScope === 'template' ? batchSelectedTemplateRows.length : batchSelectedActiveRows.length"
-      :scope="batchTargetScope"
+      :selected-count="batchSelectedTemplateRows.length"
       @update:target-id="batchTargetId = $event"
       @confirm="onConfirmBatchSetTarget"
     />
