@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { SendResult } from '@/features/send';
-import type { TaskDefinition } from '../core';
+import type { TaskDefinition, TaskInstanceState } from '../core';
 import { timedTaskDef, makeSendResult } from '../fixtures/task-fixtures';
 import { createFakeSendService } from '../adapters/test-exports';
 import { createFakeReceiveEventSource } from '../adapters/test-exports';
 import { createTaskService, type TaskService } from '../services/task-service';
+import type { TaskHistoryStorage } from '../services/task-history-storage';
 import {
   selectTaskInstances,
   selectTaskHistory,
@@ -111,5 +112,96 @@ describe('现象2 复现：停止的实例在历史记录里是否可见', () =>
 
     const history = selectTaskHistory(service.getSnapshot());
     expect(history.some((i) => i.instanceId === instance.instanceId)).toBe(true);
+  });
+});
+
+// ===========================================================================
+// 现象2 根因回归：instanceId 跨重启复用，撞上持久化历史被去重丢掉
+// ===========================================================================
+// 根因（运行时快照坐实，2026-06-25）：
+//   task-service.ts `let nextInstanceId = 1` 是模块级变量，进程重启后从 1 重置；
+//   而 historyStorage 跨重启累积。每次重启新建实例从 task-inst-1 重新编号，
+//   与 history 里旧的 task-inst-1..N 撞 id。
+//   selectTaskHistory 去重按 instanceId 字符串比对 → 新 stopped 实例被当重复丢掉
+//   = 用户现象「活动看得见、停了就没了」。
+//
+// 这组测试模拟「重启」：用 fake historyStorage 注入上次的持久化历史（高 id），
+// 再新建实例，断言新 id 单调递增不撞车、停止后能进历史。
+
+/** 造一个「上次会话」持久化的终态实例（模拟重启时 loadAll 读回的数据）。 */
+function makePersistedInstance(instanceId: string): TaskInstanceState {
+  return {
+    instanceId,
+    definitionRef: timedTaskDef(),
+    lifecycle: 'stopped',
+    currentStepIndex: 0,
+    currentIteration: 0,
+    stepResults: [],
+    startedAt: '2026-06-24T10:00:00.000Z',
+    currentStepStartedAt: '2026-06-24T10:00:00.000Z',
+    stoppedAt: '2026-06-24T10:00:01.000Z',
+  };
+}
+
+function createFakeHistoryStorage(persisted: readonly TaskInstanceState[] = []): TaskHistoryStorage {
+  let data = [...persisted];
+  return {
+    loadAll: () => [...data],
+    saveAll: (history) => { data = [...history]; },
+    clear: () => { data = []; },
+  };
+}
+
+describe('现象2 根因回归：重启后新实例 id 必须接续持久化历史的最大 id', () => {
+  it('注入 history 含 task-inst-11 后，新建实例 id 应 > 11（不撞车）', () => {
+    // 模拟重启：上次历史里有 task-inst-1..task-inst-11
+    const persisted = Array.from({ length: 11 }, (_, i) => makePersistedInstance(`task-inst-${i + 1}`));
+    const fakeSend = createFakeSendService({ results: [makeSentResult()] });
+    const service = createTaskService({
+      sendService: fakeSend,
+      receiveEventSource: createFakeReceiveEventSource(),
+      historyStorage: createFakeHistoryStorage(persisted),
+      now: () => '2026-06-25T06:00:00.000Z',
+    });
+
+    const inst = service.createTask(timedTaskDef());
+    // 根因修复前：nextInstanceId 从 1 开始 → 新实例 = task-inst-1 → 撞 history[0]
+    const idNum = Number(inst.instanceId.replace('task-inst-', ''));
+    expect(idNum).toBeGreaterThan(11);
+  });
+
+  it('重启后新建实例停止，必须出现在 selectTaskHistory 里（不被去重丢掉）', async () => {
+    // 上次历史已含 task-inst-1..4（用户快照里的真实情形）
+    const persisted = [
+      makePersistedInstance('task-inst-1'),
+      makePersistedInstance('task-inst-2'),
+      makePersistedInstance('task-inst-3'),
+      makePersistedInstance('task-inst-4'),
+    ];
+    // 一个会立刻进入 running 又能被停掉的 immediate 任务
+    const def: TaskDefinition = {
+      ...timedTaskDef(),
+      stopCondition: { maxIterations: 1000 },
+      schedule: { kind: 'timer', intervalMs: 50 },
+    };
+    const results = Array.from({ length: 1000 * def.steps.length }, () => makeSentResult());
+    const fakeSend = createFakeSendService({ results });
+    const service = createTaskService({
+      sendService: fakeSend,
+      receiveEventSource: createFakeReceiveEventSource(),
+      historyStorage: createFakeHistoryStorage(persisted),
+      now: () => '2026-06-25T06:00:00.000Z',
+    });
+
+    const inst = service.createTask(def);
+    // 修复前：inst.instanceId === 'task-inst-1'，撞 history → 停了就消失
+    service.startTask(inst.instanceId);
+    await new Promise((r) => setTimeout(r, 30));
+    service.stopTask(inst.instanceId);
+    await settle(service, inst.instanceId, 200);
+
+    // 核心断言：停止后这条新实例必须在历史里可见
+    const history = selectTaskHistory(service.getSnapshot());
+    expect(history.some((i) => i.instanceId === inst.instanceId)).toBe(true);
   });
 });

@@ -85,7 +85,18 @@ export interface CreateTaskServiceOptions {
 
 // --- Factory ---
 
+// 模块级计数器仅作兜底;每个 service 实例初始化时按已有实例/历史最大 id 接续,
+// 避免跨重启 id 复用(现象2 根因:重启后新实例 task-inst-1 撞上持久化历史,被去重丢掉)。
 let nextInstanceId = 1;
+
+const INSTANCE_ID_PREFIX = 'task-inst-';
+
+/** 从 `task-inst-N` 提取数字 N;非本格式返回 -1。 */
+function parseInstanceSeq(id: string): number {
+  if (!id.startsWith(INSTANCE_ID_PREFIX)) return -1;
+  const n = Number(id.slice(INSTANCE_ID_PREFIX.length));
+  return Number.isFinite(n) ? n : -1;
+}
 
 export function createTaskService(options: CreateTaskServiceOptions): TaskService {
   const sendService = options.sendService;
@@ -97,6 +108,16 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       ? { snapshot: { instances: [], history: loadedHistory, statistics: emptyStatistics() } }
       : undefined,
   );
+  // 现象2 根因修复:nextInstanceId 接续到 history + instances 已用最大序列号之后,
+  // 不再从 1 重数,杜绝跨重启 id 撞车。
+  const seedSnapshot = state.getSnapshot();
+  const maxSeq = Math.max(
+    0,
+    ...seedSnapshot.history.map((i) => parseInstanceSeq(i.instanceId)),
+    ...seedSnapshot.instances.map((i) => parseInstanceSeq(i.instanceId)),
+  );
+  nextInstanceId = Math.max(nextInstanceId, maxSeq + 1);
+
   const now = options.now ?? (() => new Date().toISOString());
   const fieldValueProvider = options.fieldValueProvider;
   // templateStorage 可运行时替换(S012 根因 D):wireFeatures 同步初始化时无 fileFacade,

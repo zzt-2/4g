@@ -246,3 +246,39 @@ getInstanceIdByCustomerTaskId(customerTaskId) {
 - 不要在没定位根因前改 stopTask/历史表逻辑（systematic-debugging：先根因后修复）。
 - 不要假设候选 A 一定对 —— 上次 barrier 我就差点凭印象下结论，是重读代码才证伪的。
 
+---
+
+## 2026-06-25 续2：**根因已定位** —— instanceId 跨重启复用，撞上持久化历史
+
+### 排查过程（全部候选均证伪，最终靠运行时快照定位）
+
+| 步骤 | 结论 |
+|---|---|
+| grep `\.removeTask\(` | 候选 A 证伪：生产代码只有手动删除弹窗调用，无终态自动 remove |
+| grep `moveToHistory` | 生产代码零调用，实例永不被挪进 history |
+| 复现测试 `issue2-stop-invisible-in-history.spec.ts` | 引擎层正确：stopped 实例**进** selectTaskHistory（2 测试通过）|
+| 诊断钩子 `window.__rw.taskSnapshot()`（commit f738dac）| 用户在运行时打出的真实快照 = 决定性证据 |
+
+### 根因（运行时快照坐实）
+
+`task-service.ts:88` `let nextInstanceId = 1;` 是**模块级变量**，进程重启后**永远从 1 重置**。
+而 history 持久化跨重启累积（`loadedHistory` 灌回 state.history）。
+
+每次重启后新建实例从 `task-inst-1` 重新编号，与 history 里旧的 `task-inst-1..N` **id 字符串撞车**。
+历史表去重 `selectTaskHistory`（task-selectors.ts:38）按 instanceId 字符串比对，撞了就丢：
+```ts
+const merged = [...snapshot.history, ...terminated.filter(i => !historyIds.has(i.instanceId))];
+//  新 stopped 实例 id(task-inst-1..4) 全在 historyIds 里 → 被滤成空
+```
+
+### 用户快照证据（2026-06-25 运行时）
+
+- `instances`：task-inst-1..4，全是 stopped（刚停的 4 个用例）
+- `history`：task-inst-1..11（跨重启累积，含 `snapshot-missing` 残留）
+- `statistics.totalCreated: 4`（重启后只建 4 个），但 history 有 11 条 → 计数器与历史来源不一致
+- **task-inst-1..4 同时在两个数组** → 去重丢行 = 「活动看得见、停了就没了」的全部成因
+
+### 修复方向
+
+`nextInstanceId` 初始化时接续到 history + instances 已用最大 id 之后，而非永远从 1。走 TDD。
+

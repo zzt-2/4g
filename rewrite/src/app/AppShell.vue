@@ -78,14 +78,6 @@ onMounted(async () => {
   hydrated.value = true;
   runtime.startTickDriver();
 
-  // ⚠️ 临时调试(现象2:停止后实例在历史里消失)——只读诊断,排查完即删。
-  // Console 跑: __rw.taskSnapshot()  看 instances 里那条停止的实例在不在 / lifecycle 是什么。
-  if (typeof window !== 'undefined') {
-    (window as unknown as { __rw?: { taskSnapshot: () => unknown } }).__rw = {
-      taskSnapshot: () => runtime.features.taskService.getSnapshot(),
-    };
-  }
-
   // 取初始最大化态 + 订阅后续变化(系统 Snap/双击标题栏或按钮触发都推送),图标随之切。
   const ctrl = getWindowControl();
   if (ctrl) {
