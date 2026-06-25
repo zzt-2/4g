@@ -38,9 +38,9 @@ import { encodeSourceToTestCase, decodeTestCaseToTaskDefinition, createPlacehold
 import type { EncodeSource } from '../core/testcase-sync-translator';
 import type { CatalogMapping } from '@/features/command-ingress/core';
 import { selectEnabledMappings } from '@/features/command-ingress/core';
-// 仅类型引用(command-ingress 批次历史记录的形状),type-only import 编译期擦除,
-// northbound 运行时不耦合 command-ingress 的 storage 实现。
-import type { PersistedTaskBatch, PersistedTaskCase } from '@/features/command-ingress/services/docking-task-history-storage';
+// 仅类型引用(command-ingress 批次元信息的形状),type-only import 编译期擦除,
+// northbound 运行时不耦合 command-ingress 的 registry 实现。
+import type { DockingBatchCaseMeta } from '@/features/command-ingress';
 import type { NorthboundTestCaseConfig } from '../core/types';
 import type { CustomerTestCaseMenu } from '../core/types';
 import type { ReportedSnapshotStorage } from './reported-snapshot-storage';
@@ -100,17 +100,14 @@ export interface FtpFacade {
 }
 
 /**
- * 中心下发「任务批次历史」持久化的最小消费接口(spec: 任务批次历史面板)。
+ * 中心下发「批次元信息」内存映射表的最小消费接口(spec: 批次历史改内存派生)。
  *
- * 用结构接口承载 command-ingress storage 的形状(northbound 是被注入方,不拥有批次历史存储细节)。
- * 接入点 handleSetTestTask / createAndStartTask / reportTaskResult 调用这些方法叠加记录,
- * 不动现有 setTestTask/resultReport 链路。
+ * northbound 在接入点1(handleSetTestTask)建 meta、接入点2(createAndStartTask)回填 instanceId。
+ * 接入点3/4 已删除:reportTaskResult/controlTestTask 不再写 registry(case 状态从 taskService 实例派生)。
  */
-export interface DockingTaskHistorySink {
-  insertBatch(batch: PersistedTaskBatch): boolean;
-  updateCase(taskId: string, testCaseId: string, patch: Partial<PersistedTaskCase>): void;
-  recomputeBatchStatus(taskId: string): void;
-  loadAll(): readonly PersistedTaskBatch[];
+export interface DockingBatchRegistryPort {
+  insertBatch(meta: { taskId: string; taskName: string; receivedAt: number; cases: readonly DockingBatchCaseMeta[] }): boolean;
+  setInstance(taskId: string, testCaseId: string, instanceId: string): void;
 }
 
 export interface NorthboundServiceOptions {
@@ -121,8 +118,8 @@ export interface NorthboundServiceOptions {
   readonly connectionSnapshot: () => { readonly status: string };
   readonly reportedSnapshotStorage?: ReportedSnapshotStorage;
   readonly reportDataCollector?: ReportDataCollector;
-  /** 中心下发任务批次历史持久化(可选,注入后在 setTestTask/reportTaskResult 链路叠加记录)。 */
-  readonly historyStorage?: DockingTaskHistorySink;
+  /** 中心下发批次元信息内存映射表(可选,注入后在 setTestTask 链路建 meta + 回填 instanceId)。 */
+  readonly batchRegistry?: DockingBatchRegistryPort;
 }
 
 export interface NorthboundService {
@@ -197,27 +194,8 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const customerTaskId = state.getCustomerTaskId(instanceId) ?? instanceId;
     const report = translateTaskResult(instance, verdict, testCaseId, customerTaskId, envelopeConfig());
 
-    // 接入点3(spec: 任务批次历史面板):用例跑完上报结果时,更新批次记录里的该用例。
-    // durationMs = finishedAt - 接入点2 存的 startedAt(从 storage 现有 case 读,一次性算好传进 patch)。
-    // stopped/abort 统一归 failed(粒度2 不细分,见 spec「已知债务」)。
-    // 在 removeMapping 之前更新(removeMapping 清临时映射,不影响批次持久化记录)。
-    const historyStorage = options.historyStorage;
-    if (historyStorage) {
-      const customerTaskIdForHistory = state.getCustomerTaskId(instanceId);
-      if (customerTaskIdForHistory) {
-        const existingBatch = historyStorage.loadAll().find(b => b.taskId === customerTaskIdForHistory);
-        const existingCase = existingBatch?.cases.find(c => c.testCaseId === testCaseId);
-        const startedAt = existingCase?.startedAt ?? null;
-        const finishedAt = Date.now();
-        const durationMs = startedAt !== null ? finishedAt - startedAt : null;
-        historyStorage.updateCase(customerTaskIdForHistory, testCaseId, {
-          status: verdict.verdict === 'passed' ? 'passed' : 'failed',
-          finishedAt,
-          durationMs,
-        });
-        historyStorage.recomputeBatchStatus(customerTaskIdForHistory);
-      }
-    }
+    // 接入点3 已删除(spec: 批次历史改内存派生):用例结果改由面板从实例 lifecycle 派生,不再写 registry。
+    // reportTaskResult 函数本身保留:上报 testCaseResultReport + 上传 TestReport + 清映射(见下)。
 
     await postToCustomer('/admin/report/testCaseResultReport', report);
 
@@ -366,27 +344,24 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const customerTaskId = parsed.taskId ?? '';
     const sortedLayers = [...layers].sort((a, b) => a.layer - b.layer);
 
-    // 接入点1(spec: 任务批次历史面板):收到 setTestTask、创建实例之前,建一条批次记录。
-    // 按 layer 升序遍历所有 node 平铺成 cases(顺序 = 拓扑序 = 执行顺序),全部 status: 'pending'。
-    // caseName 直接从 node.name 取(甲方真实报文 node 是 {id,name,type},node.name 就是用例名);
-    // 字符串 node 无 name → 回落 testCaseId。insertBatch 内部按 taskId 去重(重复下发不重复插)。
-    if (options.historyStorage && customerTaskId) {
-      const cases: PersistedTaskCase[] = [];
+    // 接入点1(spec: 批次历史改内存派生):收到 setTestTask、创建实例之前,建一条批次元信息。
+    // 按 layer 升序遍历所有 node 平铺成 cases(顺序 = 拓扑序 = 执行顺序),instanceId 全 null(接入点2 回填)。
+    // caseName 直接从 node.name 取(甲方真实报文 node 是 {id,name,type});字符串 node 无 name → 回落 testCaseId。
+    // 只存元信息(taskId/taskName/receivedAt/caseName/instanceId 关联),不存 status/结果——面板运行时从 taskService 派生。
+    // insertBatch 内部按 taskId 去重(重复下发不重复插)。
+    if (options.batchRegistry && customerTaskId) {
+      const cases: DockingBatchCaseMeta[] = [];
       for (const layer of sortedLayers) {
         for (const node of layer.nodes) {
           const id = typeof node === 'string' ? node : node.id;
           const name = typeof node === 'string' ? id : (node.name ?? id);
-          cases.push({
-            testCaseId: id, caseName: name, status: 'pending',
-            instanceId: null, startedAt: null, finishedAt: null, durationMs: null,
-          });
+          cases.push({ testCaseId: id, caseName: name, instanceId: null });
         }
       }
-      options.historyStorage.insertBatch({
+      options.batchRegistry.insertBatch({
         taskId: customerTaskId,
         taskName: parsed.taskName ?? customerTaskId,
         receivedAt: Date.now(),
-        status: 'running',
         cases,
       });
     }
@@ -470,14 +445,10 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       // P2.1: remember the customer-issued taskId so testCaseResultReport can echo it.
       state.mapTaskId(instance.instanceId, customerTaskId);
     }
-    // 接入点2(spec: 任务批次历史面板):实例创建后回填 instanceId/status=running/startedAt。
-    // 只回填 instanceId/status/startedAt,不回填 caseName(建批次时已从 node.name 取定)。
+    // 接入点2(spec: 批次历史改内存派生):实例创建后回填 instanceId 到批次元信息。
+    // 只回填 instanceId(status/startedAt 不存,面板从 taskService 实例派生)。
     if (customerTaskId) {
-      options.historyStorage?.updateCase(customerTaskId, tc.testCaseId, {
-        instanceId: instance.instanceId,
-        status: 'running',
-        startedAt: Date.now(),
-      });
+      options.batchRegistry?.setInstance(customerTaskId, tc.testCaseId, instance.instanceId);
     }
     options.taskService.startTask(instance.instanceId);
     return { instanceId: instance.instanceId };
@@ -501,23 +472,8 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       case 'stop':
       case 'abort':
         options.taskService.stopTask(instanceId);
-        // 接入点4(spec: 任务批次历史面板):stop/abort → 该实例对应的用例标 failed + 重算批次 status。
-        // abort 统一归 failed(粒度2 不细分,见 spec「已知债务」)。
-        // durationMs 从 storage 现有 case 的 startedAt 读(接入点2 存的)。
-        if (options.historyStorage) {
-          const testCaseIdForHistory = state.getTestCaseId(instanceId);
-          if (testCaseIdForHistory) {
-            const existingBatch = options.historyStorage.loadAll().find(b => b.taskId === taskId);
-            const existingCase = existingBatch?.cases.find(c => c.testCaseId === testCaseIdForHistory);
-            const startedAt = existingCase?.startedAt ?? null;
-            const finishedAt = Date.now();
-            const durationMs = startedAt !== null ? finishedAt - startedAt : null;
-            options.historyStorage.updateCase(taskId, testCaseIdForHistory, {
-              status: 'failed', finishedAt, durationMs,
-            });
-            options.historyStorage.recomputeBatchStatus(taskId);
-          }
-        }
+        // 接入点4 已删除(spec: 批次历史改内存派生):stop/abort 直接动 taskService,
+        // 批次面板从实例 lifecycle 自动反映(stopped→failed),不再写 registry。
         break;
       case 'pause':
         options.taskService.pauseTask(instanceId);
