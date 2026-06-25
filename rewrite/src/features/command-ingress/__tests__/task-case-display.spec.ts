@@ -17,6 +17,13 @@ describe('task-case-display', () => {
       expect(d.icon).toBe('o_autorenew');
     });
 
+    it('paused → 已暂停 / warning / pause_circle 图标', () => {
+      const d = resolveCaseStatusDisplay('paused');
+      expect(d.label).toBe('已暂停');
+      expect(d.color).toBe('warning');
+      expect(d.icon).toBe('o_pause_circle');
+    });
+
     it('passed → 通过 / positive / check_circle 图标', () => {
       const d = resolveCaseStatusDisplay('passed');
       expect(d.label).toBe('通过');
@@ -31,15 +38,16 @@ describe('task-case-display', () => {
       expect(d.icon).toBe('o_cancel');
     });
 
-    it('四种状态都有映射(无遗漏)', () => {
-      const statuses = ['pending', 'running', 'passed', 'failed'] as const;
+    it('五种状态都有映射(无遗漏)', () => {
+      const statuses = ['pending', 'running', 'paused', 'passed', 'failed'] as const;
       for (const s of statuses) {
         expect(TASK_CASE_STATUS_MAP[s]).toBeDefined();
+        expect(resolveCaseStatusDisplay(s).icon).toBeTruthy();
       }
     });
 
-    it('颜色只用 Quasar brand 状态色(grey/primary/positive/negative),无硬编码 hex', () => {
-      const validColors = new Set(['grey', 'primary', 'positive', 'negative']);
+    it('颜色只用 Quasar brand 状态色(grey/primary/warning/positive/negative),无硬编码 hex', () => {
+      const validColors = new Set(['grey', 'primary', 'warning', 'positive', 'negative']);
       for (const key of Object.keys(TASK_CASE_STATUS_MAP) as Array<keyof typeof TASK_CASE_STATUS_MAP>) {
         expect(validColors.has(TASK_CASE_STATUS_MAP[key].color)).toBe(true);
       }
@@ -52,9 +60,10 @@ describe('task-case-display', () => {
       expect(isCaseFinished('failed')).toBe(true);
     });
 
-    it('pending/running → false(非终态,pending 无操作 / running 显示控制按钮)', () => {
+    it('pending/running/paused → false(非终态,显示控制按钮;paused 显示恢复按钮)', () => {
       expect(isCaseFinished('pending')).toBe(false);
       expect(isCaseFinished('running')).toBe(false);
+      expect(isCaseFinished('paused')).toBe(false);
     });
   });
 });

@@ -6,19 +6,20 @@
 
 import { computed } from 'vue';
 import type { TaskProgress } from '@/features/task';
-import type { PersistedTaskCase } from '../../services/docking-task-history-storage';
+import type { DockingCaseView } from '../../composables/use-docking-task-history';
 import { formatProgressPct, formatProgressLabel } from '@/shared/utils/task-progress-format';
 import { formatElapsed } from '@/shared/utils/format';
 import { resolveCaseStatusDisplay, isCaseFinished } from './task-case-display';
 
 const props = defineProps<{
-  readonly caseRow: PersistedTaskCase;
+  readonly caseRow: DockingCaseView;
   /** running 用例的实时进度(父组件从 taskService.getProgress 注入);非 running 传 null。 */
   readonly progress: TaskProgress | null;
 }>();
 
 const emit = defineEmits<{
   pause: [];
+  resume: [];
   stop: [];
   'view-detail': [];
 }>();
@@ -50,6 +51,11 @@ const durationLabel = computed(() => {
         </div>
       </q-item-label>
 
+      <!-- 已暂停:文案 -->
+      <q-item-label v-else-if="caseRow.status === 'paused'" caption class="rw-text-label text-xs">
+        已暂停
+      </q-item-label>
+
       <!-- 终态:耗时 -->
       <q-item-label v-else-if="finished" caption class="rw-text-label text-xs">
         耗时 {{ durationLabel }}
@@ -59,10 +65,13 @@ const durationLabel = computed(() => {
     </q-item-section>
 
     <q-item-section side>
-      <!-- 进行中:控制按钮(暂停/停止) -->
-      <div v-if="caseRow.status === 'running'" class="flex items-center no-wrap">
-        <q-btn flat round dense icon="o_pause" color="warning" size="sm" @click="emit('pause')">
+      <!-- 进行中/已暂停:控制按钮(running→暂停+停止;paused→恢复+停止) -->
+      <div v-if="caseRow.status === 'running' || caseRow.status === 'paused'" class="flex items-center no-wrap">
+        <q-btn v-if="caseRow.status === 'running'" flat round dense icon="o_pause" color="warning" size="sm" @click="emit('pause')">
           <q-tooltip>暂停</q-tooltip>
+        </q-btn>
+        <q-btn v-else flat round dense icon="o_play_arrow" color="primary" size="sm" @click="emit('resume')">
+          <q-tooltip>恢复</q-tooltip>
         </q-btn>
         <q-btn flat round dense icon="o_stop" color="negative" size="sm" @click="emit('stop')">
           <q-tooltip>停止</q-tooltip>
