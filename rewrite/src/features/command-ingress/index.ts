@@ -37,6 +37,10 @@ export { createCommandIngressState } from './core';
 // Handler dispatch
 export { dispatchCommand } from './core';
 
+// Docking batch registry(批次元信息内存映射表)
+export { createDockingBatchRegistry } from './core';
+export type { DockingBatchRegistry, DockingBatchMeta, DockingBatchCaseMeta } from './core';
+
 // Validation
 export {
   validateGlobalConfig,
