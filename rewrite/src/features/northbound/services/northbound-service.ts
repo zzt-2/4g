@@ -418,14 +418,22 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
 
     for (const layer of layers) {
       if (layer.parallel) {
-        // 并发启动；reportTaskResult 由 onTaskSettled 事件触发
-        const tasks: Promise<{ readonly instanceId: string }>[] = [];
+        // 并发启动本层所有用例;reportTaskResult 由 onTaskSettled 事件触发。
+        // D018: 跨层 barrier —— 本层全部用例必须到达终态,才进入下一层。
+        // (旧实现 await Promise.all(tasks) 只等 createAndStartTask 返回,即「已 startTask」,
+        //  不等执行完成 → 下一层在本层还 running 时就被启动,跨层屏障失效。)
+        // 这里只并发启动、收集 instanceId;终态等待放后面统一做。
+        const startedIds: string[] = [];
         for (const node of layer.nodes) {
           const tc = resolveNode(node);
           if (!tc || state.hasTestCase(tc.testCaseId)) continue;
-          tasks.push(createAndStartTask(tc, customerTaskId));
+          const { instanceId } = await createAndStartTask(tc, customerTaskId);
+          startedIds.push(instanceId);
         }
-        await Promise.all(tasks);
+        // 层间屏障:等本层全部终态。onSettled 对已终态实例立即 resolve(见 task-service onSettled)。
+        if (startedIds.length > 0) {
+          await Promise.all(startedIds.map(id => options.taskService.onSettled(id)));
+        }
       } else {
         // 顺序：等前一个终态才启动下一个；reportTaskResult 由 onTaskSettled 事件触发
         for (const node of layer.nodes) {

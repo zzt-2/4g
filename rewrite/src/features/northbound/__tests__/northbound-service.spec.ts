@@ -1211,3 +1211,133 @@ function makeMemStorage(): Storage {
     length: 0,
   } as Storage;
 }
+
+// ---------------------------------------------------------------------------
+// 跨层 barrier(D018 修复):parallel:true 分支必须等本层全部终态才进下一层
+// ---------------------------------------------------------------------------
+
+/**
+ * 可控终态的 taskService mock:startTask 不自动 settle,onSettled 返回的 promise
+ * 只有在调 settle(instanceId) 时才 resolve。用来精确观察 processLayers 跨层屏障。
+ */
+function makeMockTaskServiceControllable(): TaskService & {
+  settle(id: string): void;
+  createdIds(): string[];
+} {
+  const handlersList: TaskEventHandlers[] = [];
+  const settleResolvers = new Map<string, () => void>();
+  let nextId = 0;
+  const created: string[] = [];
+  const mock = {
+    createTask: vi.fn(() => {
+      nextId += 1;
+      const id = `inst-${String(nextId).padStart(3, '0')}`;
+      created.push(id);
+      return makeMockInstance({ instanceId: id, lifecycle: 'running' });
+    }),
+    startTask: vi.fn(),
+    stopTask: vi.fn(),
+    pauseTask: vi.fn(),
+    resumeTask: vi.fn(),
+    getInstance: vi.fn((id: string) => makeMockInstance({ instanceId: id, lifecycle: 'running' })),
+    // onSettled: 注册 resolver,只有 settle(id) 调用才 resolve —— 模拟任务持续 running
+    onSettled: vi.fn((id: string) => new Promise<void>((resolve) => {
+      settleResolvers.set(id, resolve);
+    })),
+    settle(id: string) {
+      const r = settleResolvers.get(id);
+      if (r) { settleResolvers.delete(id); r(); }
+    },
+    removeTask: vi.fn(),
+    retryTask: vi.fn().mockReturnValue(undefined),
+    updateTask: vi.fn().mockReturnValue(undefined),
+    stopAll: vi.fn().mockReturnValue(0),
+    getSnapshot: vi.fn().mockReturnValue({ instances: [] }),
+    getProgress: vi.fn().mockReturnValue(undefined),
+    getStatistics: vi.fn().mockReturnValue({ total: 0, active: 0, completed: 0, failed: 0 }),
+    subscribe: vi.fn((handlers: TaskEventHandlers) => {
+      handlersList.push(handlers);
+      return () => {
+        const idx = handlersList.indexOf(handlers);
+        if (idx >= 0) handlersList.splice(idx, 1);
+      };
+    }),
+    createTemplate: vi.fn(),
+    listTemplates: vi.fn().mockReturnValue([]),
+    getTemplate: vi.fn().mockReturnValue(undefined),
+    updateTemplate: vi.fn().mockReturnValue(undefined),
+    deleteTemplate: vi.fn().mockReturnValue(false),
+    instanciateTemplate: vi.fn().mockReturnValue(makeMockInstance()),
+    createdIds: () => [...created],
+  };
+  return mock as unknown as TaskService & { settle(id: string): void; createdIds(): string[] };
+}
+
+describe('createNorthboundService — 跨层 barrier (D018)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('parallel:true 分支:本层用例未全部终态前,下一层 createTask 不被调用', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskServiceControllable();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // 两层,每层一个用例,都 parallel:true。
+    // 真实场景:layer1 的用例还在跑(layer1 未终态),layer2 不应启动。
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 1, subSysType: 'ADS', subSysId: 'ADS_001',
+      taskId: 'T_barrier_1', taskName: 'Barrier', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'tc-L1', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+        { testCaseId: 'tc-L2', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [
+          { layer: 1, parallel: true, nodes: ['tc-L1'] },
+          { layer: 2, parallel: true, nodes: ['tc-L2'] },
+        ],
+      },
+    }) });
+
+    // 让 microtask 推进(layer1 的 createAndStartTask + Promise.all 应已跑)。
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // layer1 的 inst-001 已创建;layer2 的 inst-002 此刻【不应】被创建(layer1 未 settle)
+    expect(taskService.createdIds()).toEqual(['inst-001']);
+
+    // 现在 settle layer1 → 屏障放行 → layer2 才被创建
+    taskService.settle('inst-001');
+    await vi.waitFor(() => expect(taskService.createdIds()).toEqual(['inst-001', 'inst-002']));
+  });
+
+  it('parallel:true 分支:层内多个用例并发启动(不等彼此终态,只等层间屏障)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const taskService = makeMockTaskServiceControllable();
+    const service = createNorthboundService(makeOptions({ httpFacade, taskService }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // 单层 parallel:true,两个用例 —— 应并发创建(都 startTask),不等彼此终态
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 2, subSysType: 'ADS', subSysId: 'ADS_001',
+      taskId: 'T_barrier_2', taskName: 'Intra', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'tc-A', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+        { testCaseId: 'tc-B', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      executionPlan: {
+        layers: [{ layer: 1, parallel: true, nodes: ['tc-A', 'tc-B'] }],
+      },
+    }) });
+
+    // 层内并发:两个都创建了,且都没 settle(并发启动不等彼此)
+    await vi.waitFor(() => expect(taskService.createdIds()).toEqual(['inst-001', 'inst-002']));
+    expect(taskService.startTask).toHaveBeenCalledTimes(2);
+  });
+});

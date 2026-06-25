@@ -73,7 +73,7 @@ interface PersistedTaskCase {
 2. 对每个 testCaseId,从 `testCaseInfo[]` 找到对应项(按 testCaseId 匹配)补全;匹配不到仍记录该用例(用 testCaseId 做 caseName 回落)
 3. node 的 `layer`/`parallel` 信息**不入库**。理由(已用真实拓扑报文核实,非 YAGNI 砍除):
    - **layer 编号承载依赖拓扑**:甲方按 `node.layer = max(所有前驱的 layer) + 1` 编号(实测:加一条 5G LDPC→1.25G RS 依赖后,1.25G RS 从 layer2 跳到 layer3)。
-   - 因此 `processLayers` 的 barrier 语义(本层全完才下层)是**正确的**,不是 bug——它靠 layer 编号 + 屏障完整表达了 DAG,**报文不需要 edges 字段**。
+   - 因此 `processLayers` 的 barrier 语义(本层全完才下层)**应当成立**——它靠 layer 编号 + 屏障完整表达了 DAG,**报文不需要 edges 字段**。(注:`parallel:true` 分支曾实现错为「只等创建不等终态」,D018 已修,见文末勘误。)
    - 历史列表只看"这次下了哪些用例 + 各自结果",不承担依赖可视化(那是执行监控实时页的职责)。且 cases 数组按 layer 升序遍历,平铺顺序天然 = 拓扑序 = 执行顺序,用户视觉顺序合理。
    - `parallel` 字段亦不入库:它表示"本 layer 内 node 互不依赖可并行启动",对历史结果展示无意义。
 
@@ -278,8 +278,23 @@ interface PersistedTaskCase {
 - `executionPlan.layers[].layer` 编号 = `max(该 node 所有前驱的 layer) + 1`(拓扑层级)。
 - 实测铁证:加一条 `5G LDPC → 1.25G RS` 依赖边后,`1.25G RS` 的 layer 从 2 跳到 3(它有两个前驱:2.5G LDPC@L1、5G LDPC@L2 → max+1=3)。
 - 因此报文**不需要 edges/dependency 字段**:layer 编号 + barrier 执行语义已完整表达 DAG。
-- **`processLayers`(northbound-service.ts:331)的 barrier 语义是正确的**:本层全完才下层 = 保证所有前驱完成。这不是 bug,勿改。
-- `parallel:true` = 本 layer 内 node 互不依赖;`parallel:false` = 本层内串行。两者对跨层 barrier 拓扑正确性无影响。
+- `parallel:true` = 本 layer 内 node 互不依赖、并发启动;`parallel:false` = 本层内串行。
+- **跨层 barrier 必须成立**:无论 `parallel` 取值,本层全部用例到达终态后才进入下一层(layer 编号承载依赖拓扑,屏障 = 保证所有前驱完成)。
+
+### ⚠️ D018 勘误:processLayers 的 `parallel:true` 分支曾有 barrier bug(已修)
+
+原 spec 写「processLayers 的 barrier 语义是正确的,勿改」——此结论的前提(代码已实现跨层屏障)**经 2026-06-25 代码复查证伪**:
+
+- `parallel:false` 分支用 `await onSettled(instanceId)`,跨层屏障成立(正确)。
+- `parallel:true` 分支旧实现 `await Promise.all(createAndStartTask(...))` 只等「已 startTask」(创建完成),
+  不等执行完成 → 下一层在本层用例还 running 时就被启动,**跨层屏障失效**。用户实测
+  「2.5G LDPC / 5G RS 还没跑完,5G LDPC 就同时开了」即此 bug。
+- git blame:该分支为既有代码(`4cfaf38f` 2026-06-11),非任务批次历史面板 9-Task 引入。
+
+**D018 修复**(`northbound-service.ts` processLayers):`parallel:true` 分支改为
+「并发启动收集 instanceId → `await Promise.all(ids.map(onSettled))`」,层内并发、层间等全部终态。
+回归测试:`northbound-service.spec.ts` 「跨层 barrier (D018)」两条。
+
 
 ## 风险与缓解
 
