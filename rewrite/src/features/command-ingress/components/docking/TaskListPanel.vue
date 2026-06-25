@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// 中心对接「任务批次历史面板」(spec: 中心对接任务批次历史面板,方案 B + B1)。
+// 中心对接「任务批次历史面板」(spec: 批次历史改内存派生)。
 //
-// 从「活跃实例表」改造成「按任务批次(T_xxx)分组、可收放、带历史」的列表:
+// 按任务批次(T_xxx)分组、可收放、带历史的列表:
 //  - 一级 = 任务批次(q-expansion-item),按 receivedAt 倒序,进行中默认展开。
-//  - 二级(展开)= 该批次下的用例,用 TaskCaseRow 渲染(四状态)。
+//  - 二级(展开)= 该批次下的用例,用 TaskCaseRow 渲染(五状态含 paused)。
 //
-// 数据源 + 控制动作走 use-docking-task-history composable(historyStorage + taskService + router)。
-// 停止/暂停走二次确认($q.dialog, conventions Q5),与执行监控页一致。
+// 数据源从 taskService 实例 + batchRegistry 内存映射表派生(use-docking-task-history)。
+// 停止走二次确认($q.dialog, conventions Q5);暂停/恢复直接执行(可逆操作)。
 //
 // 规范 D007:外层容器 flex:1 1 0; min-height:0; overflow-y:auto(不靠 max-height:100%),
 // q-expansion-item 全量渲染会撑开,必须钳制。
@@ -17,7 +17,7 @@ import { useRouter } from 'vue-router';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { usePolling } from '@/shared/composables';
 import { useDockingTaskHistory } from '@/features/command-ingress/composables/use-docking-task-history';
-import type { PersistedTaskBatch, PersistedTaskCase } from '@/features/command-ingress/services/docking-task-history-storage';
+import type { DockingBatchView, DockingCaseView } from '@/features/command-ingress/composables/use-docking-task-history';
 import TaskCaseRow from './TaskCaseRow.vue';
 
 // ===== Service 引用 =====
@@ -26,13 +26,13 @@ const router = useRouter();
 const runtime = useRewriteRuntime();
 
 // ===== 数据源 + 控制动作 =====
-const { sortedBatches, progressOf, pauseCase, stopCase, viewDetail, refresh } = useDockingTaskHistory({
-  historyStorage: runtime.features.dockingTaskHistoryStorage,
+const { sortedBatches, progressOf, pauseCase, resumeCase, stopCase, viewDetail, refresh } = useDockingTaskHistory({
+  batchRegistry: runtime.features.batchRegistry,
   taskService: runtime.features.taskService,
   router,
 });
 
-// 批次列表 + 进行中用例进度需要周期性刷新(storage 在接入点更新,面板读最新缓存)。
+// 批次列表 + 进行中用例进度需要周期性刷新(case 状态从 taskService 实例派生,实例变化需重读)。
 // 用 usePolling(rAF 节流 + 自动 onUnmounted 清理,conventions CM2),与 TaskManagePage 同频。
 const polling = usePolling(refresh, 1000);
 polling.start();
@@ -44,7 +44,7 @@ onBeforeUnmount(() => {
 const hasBatches = computed(() => sortedBatches.value.length > 0);
 
 /** 批次状态徽章配色(●进行中 / ✓完成 / ⚠部分失败 / ✗失败)。模块级映射,不放 setup(O4)。 */
-function batchStatusDisplay(status: PersistedTaskBatch['status']): { label: string; color: 'primary' | 'positive' | 'warning' | 'negative' } {
+function batchStatusDisplay(status: DockingBatchView['status']): { label: string; color: 'primary' | 'positive' | 'warning' | 'negative' } {
   switch (status) {
     case 'running': return { label: '进行中', color: 'primary' };
     case 'completed': return { label: '完成', color: 'positive' };
@@ -54,7 +54,7 @@ function batchStatusDisplay(status: PersistedTaskBatch['status']): { label: stri
 }
 
 /** 批次完成计数(完成数/总数)。 */
-function batchProgress(batch: PersistedTaskBatch): string {
+function batchProgress(batch: DockingBatchView): string {
   const finished = batch.cases.filter(c => c.status === 'passed' || c.status === 'failed').length;
   return `${finished}/${batch.cases.length}`;
 }
@@ -75,11 +75,15 @@ function shortReceivedAt(receivedAt: number): string {
 }
 
 // ===== 操作(进行中用例控制 + 详情跳转) =====
-function onPauseCase(c: PersistedTaskCase): void {
+function onPauseCase(c: DockingCaseView): void {
   pauseCase(c);
 }
 
-function onStopCase(c: PersistedTaskCase): void {
+function onResumeCase(c: DockingCaseView): void {
+  resumeCase(c);
+}
+
+function onStopCase(c: DockingCaseView): void {
   $q.dialog({
     title: '确认停止',
     message: '确定要停止该用例吗？',
@@ -90,7 +94,7 @@ function onStopCase(c: PersistedTaskCase): void {
   });
 }
 
-function onViewDetail(c: PersistedTaskCase): void {
+function onViewDetail(c: DockingCaseView): void {
   viewDetail(c);
 }
 </script>
@@ -130,6 +134,7 @@ function onViewDetail(c: PersistedTaskCase): void {
             :case-row="c"
             :progress="progressOf(c)"
             @pause="onPauseCase(c)"
+            @resume="onResumeCase(c)"
             @stop="onStopCase(c)"
             @view-detail="onViewDetail(c)"
           />
