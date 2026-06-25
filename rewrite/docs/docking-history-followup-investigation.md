@@ -201,3 +201,48 @@ getInstanceIdByCustomerTaskId(customerTaskId) {
 1. 现象 1 是否授权修 processLayers `parallel:true` 分支（用方向 1，最小改动 + 同步改 spec 红线注记）。
 2. 现象 2：controlTestTask 的 1:1 覆盖映射 bug 是否一并修（改成 1:N：customerTaskId → instanceId[]，stop 时遍历）。
 3. 现象 2 请用户补充：停用例的入口、停后是否刷新、停的那条是否在 active 表里还在跑。
+
+---
+
+# 2026-06-25 续：现象1 已修 + 重构后现象2 仍在
+
+## 进展
+- **现象1（barrier）已修并提交**：D018（commit `d65d9fd`），processLayers parallel:true 改等终态。用户确认「dag 对了」✓。
+- **批次历史改内存派生重构已完成**（commit `8733576`..`fcdcdbe`，5 Task）：删 docking-task-history-storage.ts，批次面板走 batchRegistry + taskService 派生，暂停态零同步成本。
+
+## 现象2：**仍未解决** —— 用户 2026-06-25 确认「停止甲方发过来的实例后，历史记录里依然没有」
+
+### 重构后必须重新定位（数据源变了）
+重构改变了批次面板的数据源，但**执行监控的历史表是另一条独立路径**（不经过 batchRegistry）：
+- 批次面板（TaskListPanel）= batchRegistry + taskService.getInstance 派生
+- 执行监控历史表（HistoryTaskTable）= `taskService.getSnapshot()` → `instances 中终态的 ∪ history`（TaskManagePage.vue refreshExecutionLists）
+
+用户说的「历史记录」**是哪个面板？** 这决定排查方向（压缩后首要回问）：
+- (a) **批次面板**（TaskListPanel，中心对接页）：走 batchRegistry 派生，stopped→case.status=failed（deriveCaseStatus）。重构后应该能看到。
+- (b) **执行监控历史 tab**（TaskManagePage 执行监控）：走 taskService.snapshot.instances。stopped 实例按代码应进历史表。
+
+### 仍待核实的根因候选（压缩后用新上下文重查，不信任仓促判断）
+
+**候选 A：实例被 removeTask 清掉了（最可能）**
+- `removeTask`(task-service.ts:327) 会 `state.removeInstance` + `removeFromHistory`。如果某处对 stopped 实例自动调 removeTask，实例就从 instances 消失、也不在 history → 两边都看不到。
+- **必查**：grep 生产代码里所有调 `taskService.removeTask` 的地方，看是否有「终态后自动 remove」的逻辑（比如某个 onTaskSettled 订阅者清理实例）。
+- 特别查 northbound：reportTaskResult/handleTaskSettled 链路里有没有 removeTask（重构后接入点3 删了写 registry，但 reportTaskResult 末尾有 `state.removeMapping`/`removeTaskIdMapping`——这是清 northbound 映射不是 task 实例，但要确认没误删实例）。
+
+**候选 B：controlTestTask 的 1:1 覆盖映射（上文已确认的 bug）**
+- stop 一个 taskId 只命中批里最后一个 instanceId，其余用例继续 running → 非终态 → 不进历史。
+- 但用户说的是「停止的实例」看不到，不是「没停的那些」—— 所以这条解释力有限，除非用户观察的是「整批都该停但只停了一个」。
+
+**候选 C：执行监控历史 tab 的筛选/搜索把 stopped 滤掉了**
+- TaskManagePage refreshExecutionLists(L170-189) 有 searchText + statusFilter。若用户开了筛选可能滤掉。但要用户主动开筛选才会，不太可能是默认行为。
+
+### 压缩后排查 checklist（新上下文执行）
+1. **回问用户**：历史记录指哪个面板（批次面板 / 执行监控历史 tab）？停的入口（controlTestTask / 执行监控停止按钮 / 批次面板停止按钮）？停后那条在 active tab 还在不在？
+2. **查 removeTask 调用点**：grep `\.removeTask\(` 全 src，确认有无终态后自动清实例的逻辑（候选 A）。
+3. **查 onTaskSettled 订阅者**：northbound handleTaskSettled + 任何其他订阅者，看终态事件后有没有删实例。
+4. **写复现测试**：stopTask 后查 taskService.getSnapshot().instances，确认实例是否还在 + lifecycle=stopped。若不在 → 候选 A 坐实。
+5. **DevTools 实测**（D011 方法论）：用户停一个用例后，在 console 查 taskService 状态，看实例到底去哪了。
+
+### 不要做的事
+- 不要在没定位根因前改 stopTask/历史表逻辑（systematic-debugging：先根因后修复）。
+- 不要假设候选 A 一定对 —— 上次 barrier 我就差点凭印象下结论，是重读代码才证伪的。
+
