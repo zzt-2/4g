@@ -165,3 +165,11 @@
 ## 2026-06-24（S014 任务模板等待条件测试）
 
 - "我希望来一个对话,帮我测一下任务的那些条件。我的意思是,任务模板的等待条件。我需要一套帧定义和任务定义去测、去试它能不能用。" → S014（造 receive 测试帧 + 21 任务模板覆盖 9 operator + and/or + 3 onTimeout + 永久等待 + 中断 + sourceId + repeat.until + exitCondition,实测验证行为,发现 fieldValueProvider 生产未接线 bug）
+
+### S014 续接:三处修复决策
+
+- "1可以修" → D012（fieldValueProvider 生产接线修复）
+- "2感觉是不是弄成符合直觉比较好？" → D012（onTimeout=fail 终态改 failed）
+- "似乎目前没有已停止的计数？我指的是执行监控的那个计数。" → D012（ExecutionKpiBar 加「已停止」计数）
+- "还有,你是不是没给我能用的发送帧？只有接收帧呢？这我咋测" → S014 续接（补 2 个 send 镜像帧 + echo server 手测 README；应用无内置回环入口）
+- "全部一起修（一个 commit）" → D012（三处修复一个 commit 落地）

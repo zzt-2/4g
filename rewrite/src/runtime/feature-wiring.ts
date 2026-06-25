@@ -151,6 +151,10 @@ export function wireFeatures(
   const taskService = createTaskService({
     sendService,
     receiveEventSource: receiveEventSourceBridge,
+    // S014: 接线 fieldValueProvider, 让 repeat.until / exitCondition 在生产生效。
+    // 这两者不走 push registry, 只能 pull 当前字段值快照; 不接则永不触发。
+    // wait-condition step 不依赖它(走 registry.processInput push 模型)。
+    fieldValueProvider: () => receiveEventSourceBridge.getLatestFieldValues(),
     // templateStorage 不在此注入(S012 根因 D):wireFeatures 同步初始化时无 fileFacade,
     // 启动模板为空。bootstrap 异步读到文件后端后调 setTemplateStorage + hydrateTemplates 注入。
     historyStorage: createTaskHistoryStorage(),

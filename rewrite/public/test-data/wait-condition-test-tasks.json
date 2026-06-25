@@ -655,19 +655,19 @@
     },
     {
       "templateId": "wt-repeat-until",
-      "name": "[等待条件][疑似缺口] repeat.until 退出条件",
-      "tags": ["wait-condition-test", "repeat-until", "known-gap"],
+      "name": "[等待条件] repeat.until 退出条件(fieldValueProvider 已接线)",
+      "tags": ["wait-condition-test", "repeat-until"],
       "definition": {
         "id": "wt-repeat-until",
-        "name": "[等待条件][疑似缺口] repeat.until 退出条件",
+        "name": "[等待条件] repeat.until 退出条件(fieldValueProvider 已接线)",
         "schedule": { "kind": "immediate" },
         "steps": [
           {
             "id": "wt-ru-send",
             "kind": "send",
-            "name": "重复发送, 直到收到 wt-count==3 退出",
+            "name": "重复发送计数器帧, 直到收到 wt-count==3 退出",
             "config": {
-              "frameId": "wt-status",
+              "frameId": "wt-counter-cmd",
               "repeat": {
                 "intervalMs": 200,
                 "maxCount": 20,
@@ -691,18 +691,18 @@
     },
     {
       "templateId": "wt-exit-condition",
-      "name": "[等待条件][疑似缺口] 任务级 exitCondition 提前退出",
-      "tags": ["wait-condition-test", "exit-condition", "known-gap"],
+      "name": "[等待条件] 任务级 exitCondition 提前退出(fieldValueProvider 已接线)",
+      "tags": ["wait-condition-test", "exit-condition"],
       "definition": {
         "id": "wt-exit-condition",
-        "name": "[等待条件][疑似缺口] 任务级 exitCondition 提前退出",
+        "name": "[等待条件] 任务级 exitCondition 提前退出(fieldValueProvider 已接线)",
         "schedule": { "kind": "timer", "intervalMs": 300 },
         "steps": [
           {
             "id": "wt-ec-send",
             "kind": "send",
-            "name": "定时发送, 收到 wt-count>=5 时任务整体提前退出",
-            "config": { "frameId": "wt-status" }
+            "name": "定时发送计数器帧, 收到 wt-count>=5 时任务整体提前退出",
+            "config": { "frameId": "wt-counter-cmd" }
           }
         ],
         "stopCondition": {

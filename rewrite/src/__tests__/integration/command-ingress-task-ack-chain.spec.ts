@@ -319,7 +319,9 @@ describe('T005: command-ingress → task → send → ACK chain', () => {
     });
 
     const settled = features.taskService.getInstance(taskInstance!.instanceId);
-    expect(settled?.lifecycle).toBe('stopped');
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分。
+    // bad target → send 失败 → errorPolicy stop → failed(原 stopped)。
+    expect(settled?.lifecycle).toBe('failed');
 
     const stats = ciService.getScoeStatistics();
     expect(stats.commandSuccessCount).toBe(0);

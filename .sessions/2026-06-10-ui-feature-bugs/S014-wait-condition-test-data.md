@@ -122,3 +122,46 @@
 - **待用户决定**:发现 #1(fieldValueProvider wiring 缺口)是否单独开任务修。这是唯一确认的真代码 bug,影响 repeat.until/exitCondition(任务级退出条件 + send step 重复退出),wait-condition step 不受影响。
 - **用户可自行手测**:数据 JSON 已通过应用真实导入路径验证可导入,用户导入应用后可用串口/回环做真实硬件手测(测试数据已备好,21 任务覆盖全维度)。
 - onTimeout=fail 终态反直觉(#2)是否要 UI 加提示,等用户决定。
+
+---
+
+## 续接:三处修复落地 (2026-06-24)
+
+> 2026-06-24 续接 | 修复 | 状态: 完成
+
+### 目标
+
+用户反馈 S014 报告的 4 个问题:"1可以修"(fieldValueProvider)、"2感觉是不是弄成符合直觉比较好"(onTimeout 终态)、"似乎目前没有已停止的计数"(KPI stopped)、"你是不是没给我能用的发送帧?只有接收帧呢?这我咋测"(数据缺 send 帧)。用户拍板"全部一起修(一个 commit)"。
+
+### 修复(见 D012)
+
+1. **fieldValueProvider 接线(真 bug)**:`feature-wiring.ts:146` 加 `fieldValueProvider: () => bridge.getLatestFieldValues()`;`receive-event-source-bridge.ts` 加 `getLatestFieldValues()`(emit 时按 fieldId 扁平 merge)。
+2. **onTimeout=fail 终态 failed**:`task-error-policy.ts:32` 'stop' 分支 `updateLifecycle('stop')`→`updateLifecycle('fail',{error})`。手动 stopTask 不变(仍 stopped)。
+3. **KPI 加「已停止」计数**:`ExecutionKpiBar.vue` 历史区加 stopped 项。
+4. **数据修正**:frames.json 补 2 个 send 镜像帧(wt-status-cmd/wt-counter-cmd,字节布局与 receive 帧一致供 echo 回环);tasks.json 修 repeat.until/exitCondition 的 send step 引用(原误引 receive 帧 wt-status → 改 wt-counter-cmd)+ 去掉 known-gap 标记;新增 `wait-condition-test-README.md` echo server 手测指南(应用无内置回环入口,需本地 TCP echo server)。
+
+### 验证
+
+- task 全套 **317/317** + 受影响集成(task-error-strategies/command-ingress-task-ack-chain/connection-lifecycle-boundaries)**19/19** 全过。
+- 新增 6 回归用例(bridge.getLatestFieldValues 3 + repeat.until/exitCondition 接线生效 2 + 手动 stopTask 仍 stopped 1),wait-condition-coverage **37/37**。
+- 终态断言更新 10 处(errorPolicy stop 触发的错误失败 stopped→failed),全是错误失败用例,手动 stop 用例不变。
+- JSON 经应用真实导入路径验证:5 帧(2 send+3 receive) ok:issues:0;21 模板可解析;所有 send step 引用 send 帧。
+- lint 0 / tsc(我的文件)0 错。
+- **pre-existing 5 失败**(tcp-receive-datapath 4 + event-truncation 1)经 baseline 比对(stash 我的改动跑同 spec)确认与本修复无关——baseline 同样失败。
+
+### 关键发现:并发提交
+
+本轮发现 HEAD 已被并行会话推进 8 个 commit(northbound docking/command-ingress 批次历史),我的 S014 commit `1a7dcf2` 仍在历史中(position 10)。本轮修复作为未提交 working tree 变更叠在新 HEAD 上。无冲突(并行会话改 northbound/command-ingress,我改 task error-policy/bridge/KPI,无文件重叠)。
+
+### 决策引用
+
+- D012(新建):三处修复 —— fieldValueProvider 接线 + onTimeout=fail 终态 failed + KPI stopped 计数。
+
+### 范围确认
+
+- 本轮在 scope boundary 内:是(S014 测试发现的 bug 修复,归本专题)。
+
+### 后续
+
+- 用户可导入数据 + 起 echo server 做真实硬件回环手测(README 已备)。
+- fieldValueProvider pull 路径的 fieldId 全局唯一约束(跨帧重名覆盖)记在 D012 + bridge 注释,后续若多帧 fieldId 重名场景需注意。

@@ -326,7 +326,8 @@ describe('TaskService - wait-condition timeout', () => {
     await settle(service, instance.instanceId, 500);
 
     const final = service.getInstance(instance.instanceId);
-    expect(final?.lifecycle).toBe('stopped');
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分
+    expect(final?.lifecycle).toBe('failed');
   });
 
   it('onTimeout=skip skips the step', async () => {
@@ -368,7 +369,8 @@ describe('TaskService - error policies', () => {
     await settle(service, instance.instanceId, 500);
 
     const final = service.getInstance(instance.instanceId);
-    expect(final?.lifecycle).toBe('stopped');
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分
+    expect(final?.lifecycle).toBe('failed');
   });
 
   it('skip-step policy continues to next step', async () => {

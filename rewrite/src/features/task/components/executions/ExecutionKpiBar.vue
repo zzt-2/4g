@@ -47,6 +47,10 @@ function count(rows: readonly TaskTableRow[], lifecycle: string): number {
       <span class="rw-text-label">失败</span>
       <strong class="rw-text-value">{{ props.historyRows.filter((r) => r.lifecycle === 'failed').length }}</strong>
     </div>
+    <div class="exec-kpi-bar__item exec-kpi-bar__item--stopped">
+      <span class="rw-text-label">已停止</span>
+      <strong class="rw-text-value">{{ props.historyRows.filter((r) => r.lifecycle === 'stopped').length }}</strong>
+    </div>
   </div>
 </template>
 
@@ -77,6 +81,7 @@ function count(rows: readonly TaskTableRow[], lifecycle: string): number {
     &--paused strong { color: var(--rw-color-status-warning); }
     &--done strong { color: var(--rw-color-status-success); }
     &--failed strong { color: var(--rw-color-status-danger); }
+    &--stopped strong { color: var(--rw-color-text-secondary); }
   }
 
   &__divider {

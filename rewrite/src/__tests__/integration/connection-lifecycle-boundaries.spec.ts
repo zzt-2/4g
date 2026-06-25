@@ -261,7 +261,8 @@ describe('T024d: disconnect does NOT auto-pause active tasks (known gap)', () =>
 
     const finalInstance = features.taskService.getInstance(instance.instanceId);
     // The send step fails (target unavailable), errorPolicy 'stop' triggers
-    expect(finalInstance?.lifecycle).toBe('stopped');
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分
+    expect(finalInstance?.lifecycle).toBe('failed');
   });
 
   it('task send fails after disconnect', async () => {
@@ -303,6 +304,7 @@ describe('T024d: disconnect does NOT auto-pause active tasks (known gap)', () =>
 
     const finalInstance = features.taskService.getInstance(instance.instanceId);
     // Send fails because target is unavailable, errorPolicy triggers stop
-    expect(finalInstance?.lifecycle).toBe('stopped');
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分
+    expect(finalInstance?.lifecycle).toBe('failed');
   });
 });

@@ -103,7 +103,8 @@ describe('T017: task error strategies', () => {
     await settle((id) => service.getInstance(id), instance.instanceId);
 
     const final = service.getInstance(instance.instanceId);
-    expect(final?.lifecycle).toBe('stopped');
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分
+    expect(final?.lifecycle).toBe('failed');
   });
 
   it('pause policy: send fails → task paused', async () => {
@@ -404,7 +405,8 @@ describe('T024b: onTimeout vs errorPolicy interaction', () => {
     await settle((id) => service.getInstance(id), instance.instanceId);
 
     const final = service.getInstance(instance.instanceId);
-    // onTimeout=fail triggers errorPolicy.applyErrorPolicy → stop
-    expect(final?.lifecycle).toBe('stopped');
+    // onTimeout=fail triggers errorPolicy.applyErrorPolicy → stop → failed
+    // S014: errorPolicy 'stop' 分支现在走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分
+    expect(final?.lifecycle).toBe('failed');
   });
 });

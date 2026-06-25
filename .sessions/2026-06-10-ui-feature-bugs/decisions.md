@@ -699,3 +699,45 @@ interface WindowControlBridge {
 - 用户证据:"除了最上面的激光模拟器标题栏,别的都被撑开" + body 出竖向滚动条 + 撑到 q-page-container 层
 - 触发原话:"依然是完全撑开" / "没用啊?它依然会给顶起来" / "依然不行,不管了"(搁置)
 - 5 次失败 commit:009f271 / 104c917 / 7202e5d(已 revert) / 97e6d74(已 revert) / 6feae8e+b40e2b8(未验证)
+
+## D012: 等待条件三处修复 —— fieldValueProvider 接线 + onTimeout=fail 终态改 failed + KPI 加已停止计数
+
+> status: active
+> date: 2026-06-24
+> 取代：无
+> 被取代：无
+
+### 决策
+
+S014 测试发现的三处问题,用户拍板"全部一起修",三条一并落地:
+
+1. **fieldValueProvider 生产接线(真 bug 修复)**:`runtime/feature-wiring.ts:146` 的 `createTaskService` 加 `fieldValueProvider: () => receiveEventSourceBridge.getLatestFieldValues()`;`ReceiveEventSourceBridge` 加 `getLatestFieldValues()`(emit 时按 fieldId 扁平 merge 维护最新快照)。让 `repeat.until` / `exitCondition` 在生产生效(原 bug: 未接 → 永不触发)。
+2. **onTimeout=fail 终态改 failed(符合直觉)**:`task-error-policy.ts:32` 的 `'stop'` 分支从 `updateLifecycle('stop')`(=stopped) 改成 `updateLifecycle('fail', {error})`(=failed)。手动 `stopTask` 仍走 `'stop'`→stopped, 与错误失败区分。
+3. **KPI 加「已停止」计数**:`ExecutionKpiBar.vue` 在历史区加「已停止」项(stopped 任务原在 KPI 凭空消失)。
+
+### 理由
+
+1. fieldValueProvider:`StepRepeat.until` / `TaskStopCondition.exitCondition` 的数据模型、UI、求值逻辑都完整,唯独生产 wiring 漏接——这是 S014 实测确认的真 bug(三向验证:无 provider 时 repeat.until 跳过/exitCondition return false;有 provider 时都生效)。wait-condition step 不受影响(走 push registry)。bridge 是值的自然汇聚点(唯一 emit 调用点上游),且已连 taskService,接 `getLatestFieldValues()` 最小侵入。
+2. onTimeout 终态:`onTimeout:'fail'` + `errorPolicy.onFailure:'stop'` 原终态是 stopped(非直觉——"fail" 暗示失败却显示"已停止")。根因:手动 stop 和 errorPolicy stop 共用 `updateLifecycle('stop')`→stopped,只有 retry 用尽才 failed。最小改法是 errorPolicy 的 stop 分支改走 fail——手动 stopTask 完全不受影响(仍 stopped),两者自然区分,不需要给 action 加 stopReason 的大改。
+3. KPI stopped:stopped 任务(selectors `TERMINATED_LIFECYCLES` 含 stopped)会进历史表(显示"已停止"灰),但 KPI 只统计 completed/failed → stopped 在 KPI 消失,用户(原话"似乎目前没有已停止的计数")看不到手动停止/中断的任务数。加一项补全。
+
+### 排除的替代方案
+
+- **fieldValueProvider 数据源**:否决"从 receiveService/storage 取最新帧"——那些是 raw 字节/outcome,未解码成 fieldValues;bridge.getLatestFieldValues 是已解码标量(routing-tick 构造 matchInput 时已解码),最直接。否决"新建独立 latestFieldValues store"——bridge 已是汇聚点,重复造。
+- **onTimeout 终态**:否决"给 action 'stop' 加 stopReason: 'manual'|'error-policy'"——影响面扩到 types/状态机/state/历史过滤/UI map,太大。否决"保持现状只加 UI 提示"——治标不治本,反直觉终态仍在。选最小改法(error-policy stop→fail),手动 stop 语义不变。
+- **fieldId 冲突**:pull 路径(getLatestFieldValues 按 fieldId 扁平)跨帧重名会覆盖,这是现有 ConditionMatchInput.fieldValues 契约的固有约束(push 路径靠 registry frameId 索引隔离,pull 路径 fieldId 需用户保证全局唯一)。不为此改契约。
+
+### 影响范围
+
+- `runtime/bridges/receive-event-source-bridge.ts`:加 `getLatestFieldValues()` + `latestFieldValues` 字段 + emit 维护 + clear 清空。
+- `runtime/feature-wiring.ts:146-152`:createTaskService 加 fieldValueProvider。
+- `features/task/services/task-error-policy.ts:31-33`:'stop' 分支改 'fail'。
+- `features/task/components/executions/ExecutionKpiBar.vue`:加「已停止」项 + `--stopped` 样式。
+- 测试断言更新(终态 stopped→failed):`task-service-state-selector.spec.ts`(2 处)、`task-error-strategies.spec.ts`(2 处)、`command-ingress-task-ack-chain.spec.ts`(1 处)、`connection-lifecycle-boundaries.spec.ts`(2 处)、`wait-condition-coverage.spec.ts`(3 处)。全是 errorPolicy stop 触发的错误失败用例(手动 stop 用例不变)。
+- 新增回归测试:`wait-condition-coverage.spec.ts` 加 fieldValueProvider 接线生效(bridge.getLatestFieldValues + repeat.until/exitCondition)+ 手动 stopTask 仍 stopped(共 6 用例)。
+
+### 来源
+
+- S014 实测发现(fieldValueProvider 三向验证)+ 用户原话决策("1可以修"/"2感觉是不是弄成符合直觉比较好"/"全部一起修")
+- 触发原话:"似乎目前没有已停止的计数"(→ KPI stopped 计数)
+- 验证数据:task 全套 317/317 + 受影响集成 19/19 全过;pre-existing 5 失败(tcp-receive-datapath 4 + event-truncation 1)经 baseline 比对确认与本修复无关

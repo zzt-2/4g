@@ -3,6 +3,156 @@
   "selectedFrameId": "wt-status",
   "frames": [
     {
+      "id": "wt-status-cmd",
+      "name": "[等待条件测试] 状态遥测帧-发送镜像(回环用)",
+      "direction": "send",
+      "description": "S014 手测回环用。本帧是 wt-status(receive) 的字节镜像:同字段布局/类型/字节序/同步字 0x1ACFFC1D。用法——用 TCP 连本地 echo server,发本帧→echo 打回→receive 侧按 0x1ACFFC1D 识别成 wt-status→触发等待条件。改 wt-power/wt-raw-status/wt-status-text/wt-optional-payload 的值即可构造不同匹配输入。注意:此帧仅用于产生 wt-status 的字节,任务模板的 send step 用它;等待条件仍等 receive 的 wt-status。",
+      "fields": [
+        {
+          "id": "wt-cmd-sync",
+          "name": "帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x1ACFFC1D",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "wt-power",
+          "name": "功率值(回环改这里)",
+          "dataType": "uint16",
+          "length": 2,
+          "description": "与 receive wt-status.wt-power 同 id 同位置, echo 后 receive 解出同字段值。手测: 改成 100 测 eq, 150 测 gt, 等。",
+          "defaultValue": "100",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "wt-raw-status",
+          "name": "原始状态字(回环改这里)",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x00000001",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "wt-status-text",
+          "name": "状态串(回环改这里)",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "1",
+          "inputType": "select",
+          "configurable": true,
+          "options": [
+            { "value": "0", "label": "STANDBY" },
+            { "value": "1", "label": "OK" },
+            { "value": "2", "label": "ERROR" }
+          ],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "wt-optional-payload",
+          "name": "可选遥测(回环改这里)",
+          "dataType": "uint16",
+          "length": 2,
+          "defaultValue": "0",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x00000000",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": true, "startFieldIndex": 0, "endFieldIndex": 4, "checksumMethod": "sum32" },
+          "bigEndian": true
+        }
+      ],
+      "frameType": "wt-test",
+      "protocol": "rs422-fixed",
+      "options": { "autoChecksum": true, "bigEndian": true, "includeLengthField": false },
+      "identifierRules": [
+        { "startIndex": 0, "endIndex": 3, "operator": "eq", "value": "0x1ACFFC1D", "logicOperator": "and" }
+      ]
+    },
+    {
+      "id": "wt-counter-cmd",
+      "name": "[等待条件测试] 计数器帧-发送镜像(回环用)",
+      "direction": "send",
+      "description": "S014 手测回环用。wt-counter(receive) 的字节镜像, 同步字 0x3ACFFC1D。echo 后被识别成 wt-counter。用来测 change/any/sourceId, 以及 repeat.until/exitCondition 的退出条件(发本帧让计数到达 threshold)。",
+      "fields": [
+        {
+          "id": "wt-cmd-sync",
+          "name": "帧头",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x3ACFFC1D",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "wt-count",
+          "name": "计数值(回环改这里)",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "5",
+          "inputType": "input",
+          "configurable": true,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": false, "startFieldIndex": 0, "endFieldIndex": 0, "checksumMethod": "sum8" },
+          "bigEndian": true
+        },
+        {
+          "id": "checksum",
+          "name": "checksum",
+          "dataType": "uint32",
+          "length": 4,
+          "defaultValue": "0x00000000",
+          "inputType": "input",
+          "configurable": false,
+          "options": [],
+          "dataParticipationType": "direct",
+          "validOption": { "isChecksum": true, "startFieldIndex": 0, "endFieldIndex": 1, "checksumMethod": "sum32" },
+          "bigEndian": true
+        }
+      ],
+      "frameType": "wt-test",
+      "protocol": "rs422-fixed",
+      "options": { "autoChecksum": true, "bigEndian": true, "includeLengthField": false },
+      "identifierRules": [
+        { "startIndex": 0, "endIndex": 3, "operator": "eq", "value": "0x3ACFFC1D", "logicOperator": "and" }
+      ]
+    },
+    {
       "id": "wt-status",
       "name": "[等待条件测试] 状态遥测帧",
       "direction": "receive",

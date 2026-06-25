@@ -29,7 +29,10 @@ export function createErrorPolicyHandler(ctx: ErrorPolicyContext) {
   ): Promise<{ result: TaskStepResult; shouldStop: boolean } | null> {
     switch (policy.onFailure) {
       case 'stop':
-        ctx.updateLifecycle(instanceId, 'stop');
+        // S014: 错误策略触发的停止走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分。
+        // 手动 stopTask 仍调 updateLifecycle('stop')→stopped; 此处错误停止→failed,
+        // 让"超时/发送失败等错误终止"在 UI 显示为失败(红)并计入 KPI 失败数, 符合直觉。
+        ctx.updateLifecycle(instanceId, 'fail', { error: 'Task stopped by error policy' });
         return { result: { ...failedResult, appliedPolicy: 'stop' }, shouldStop: true };
 
       case 'pause':

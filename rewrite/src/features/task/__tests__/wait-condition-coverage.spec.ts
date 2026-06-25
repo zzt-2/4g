@@ -267,10 +267,9 @@ describe('S014 wait-condition: null field behavior', () => {
   let svc: ReturnType<typeof buildService>;
   beforeEach(() => { svc = buildService(); });
 
-  it('字段 null 时 eq 不匹配(超时 → onTimeout=fail → errorPolicy stop → stopped)', async () => {
-    // 实测发现(非直觉): onTimeout=fail + errorPolicy.onFailure=stop → 终态是 'stopped' 而非 'failed'。
-    // 根因: errorPolicy 的 'stop' 分支调 updateLifecycle('stop') (task-error-policy.ts:32),
-    // 只有 'retry' 用尽才会 updateLifecycle('fail') (line 88)。
+  it('字段 null 时 eq 不匹配(超时 → onTimeout=fail → errorPolicy stop → failed)', async () => {
+    // S014 修复: errorPolicy 的 'stop' 分支现在走 updateLifecycle('fail') → 终态 'failed'
+    // (task-error-policy.ts:32), 与手动 stopTask(=stopped)区分, 符合直觉。
     const def = waitTask('null-eq', [
       { frameId: 'wt-status', fieldId: 'wt-optional-payload', operator: 'eq', threshold: 100 },
     ], { timeoutMs: 200, onTimeout: 'fail' });
@@ -279,10 +278,10 @@ describe('S014 wait-condition: null field behavior', () => {
     await new Promise((r) => setTimeout(r, 5));
 
     svc.receiveEventSource.emit({ frameId: 'wt-status', fieldValues: { 'wt-optional-payload': null } });
-    expect(await settle(svc.taskService, inst.instanceId)).toBe('stopped');
+    expect(await settle(svc.taskService, inst.instanceId)).toBe('failed');
   });
 
-  it('字段 undefined(缺失)时 gt 不匹配(超时 → stopped)', async () => {
+  it('字段 undefined(缺失)时 gt 不匹配(超时 → failed)', async () => {
     const def = waitTask('null-gt', [
       { frameId: 'wt-status', fieldId: 'wt-power', operator: 'gt', threshold: 50 },
     ], { timeoutMs: 200, onTimeout: 'fail' });
@@ -292,7 +291,7 @@ describe('S014 wait-condition: null field behavior', () => {
 
     // 整个字段不在 fieldValues 里 → undefined → 不匹配
     svc.receiveEventSource.emit({ frameId: 'wt-status', fieldValues: {} });
-    expect(await settle(svc.taskService, inst.instanceId)).toBe('stopped');
+    expect(await settle(svc.taskService, inst.instanceId)).toBe('failed');
   });
 });
 
@@ -403,17 +402,16 @@ describe('S014 wait-condition: onTimeout strategies', () => {
     expect(waitResult.appliedPolicy).toBe('skip-step');
   });
 
-  it('onTimeout=fail + errorPolicy stop: 超时 → 终态 stopped (非 failed), 后续 step 不执行', async () => {
-    // 实测发现(非直觉, 见报告): onTimeout=fail 走 errorPolicy, 'stop' 分支终态是 'stopped'。
-    // 只有 errorPolicy=retry 用尽才 'failed'。
+  it('onTimeout=fail + errorPolicy stop: 超时 → 终态 failed (S014 修复后符合直觉), 后续 step 不执行', async () => {
+    // S014 修复: errorPolicy 'stop' 分支改走 'fail' 终态(=failed), 与手动 stopTask(=stopped)区分。
     const def = waitTask('tf', [
       { frameId: 'wt-status', fieldId: 'wt-power', operator: 'eq', threshold: 99999 },
     ], { timeoutMs: 200, onTimeout: 'fail' });
     const inst = svc.taskService.createTask(def);
     svc.taskService.startTask(inst.instanceId);
 
-    expect(await settle(svc.taskService, inst.instanceId)).toBe('stopped');
-    // 只执行了 wait step(超时→stop), delay step 没执行
+    expect(await settle(svc.taskService, inst.instanceId)).toBe('failed');
+    // 只执行了 wait step(超时→fail), delay step 没执行
     expect(svc.taskService.getInstance(inst.instanceId)!.stepResults.length).toBe(1);
   });
 
@@ -722,5 +720,143 @@ describe('S014 wait-condition: cleanup', () => {
     // vi 的 fake timers 未启用, 真实 setTimeout 在终态后被 unregisterGroup 清掉。
     // 这里只验证终态正确, 不强制断言内部 registry(它不暴露 size)。
     expect(['completed', 'failed', 'stopped']).toContain(svc.taskService.getInstance(inst.instanceId)!.lifecycle);
+  });
+});
+
+// ============================================================
+// S014 修复回归: ReceiveEventSourceBridge.getLatestFieldValues 接线
+// 验证生产 wireFeatures 把 bridge.getLatestFieldValues 作为 fieldValueProvider 后,
+// repeat.until / exitCondition 能在收到帧后生效(原 bug: provider 未接 → 永不生效)。
+// ============================================================
+
+import { ReceiveEventSourceBridge } from '@/runtime/bridges/receive-event-source-bridge';
+
+describe('S014 修复: ReceiveEventSourceBridge.getLatestFieldValues', () => {
+  it('emit 后 getLatestFieldValues 返回最新字段值快照', () => {
+    const bridge = new ReceiveEventSourceBridge();
+    expect(bridge.getLatestFieldValues()).toEqual({});
+
+    bridge.emit([{ frameId: 'wt-status', fieldValues: { 'wt-power': 100, 'wt-raw-status': 1 } }]);
+    expect(bridge.getLatestFieldValues()).toEqual({ 'wt-power': 100, 'wt-raw-status': 1 });
+
+    // 后到的帧 merge, 同名字段覆盖, 新字段追加
+    bridge.emit([{ frameId: 'wt-counter', fieldValues: { 'wt-count': 5 } }]);
+    expect(bridge.getLatestFieldValues()).toEqual({ 'wt-power': 100, 'wt-raw-status': 1, 'wt-count': 5 });
+
+    // 覆盖同名
+    bridge.emit([{ frameId: 'wt-status', fieldValues: { 'wt-power': 200 } }]);
+    expect(bridge.getLatestFieldValues()['wt-power']).toBe(200);
+    expect(bridge.getLatestFieldValues()['wt-count']).toBe(5); // 其它字段保留
+  });
+
+  it('null 值也被如实记录(不丢字段)', () => {
+    const bridge = new ReceiveEventSourceBridge();
+    bridge.emit([{ frameId: 'wt-status', fieldValues: { 'wt-optional-payload': null } }]);
+    expect(bridge.getLatestFieldValues()).toEqual({ 'wt-optional-payload': null });
+  });
+
+  it('clear 清空快照', () => {
+    const bridge = new ReceiveEventSourceBridge();
+    bridge.emit([{ frameId: 'wt-status', fieldValues: { 'wt-power': 100 } }]);
+    bridge.clear();
+    expect(bridge.getLatestFieldValues()).toEqual({});
+  });
+});
+
+describe('S014 修复回归: bridge 接线后 repeat.until 生效(等价生产 wireFeatures)', () => {
+  // 模拟 feature-wiring.ts 的接线: fieldValueProvider 读 bridge.getLatestFieldValues
+  function buildWiredService() {
+    const bridge = new ReceiveEventSourceBridge();
+    const sendService = createFakeSendService();
+    const taskService = createTaskService({
+      sendService,
+      receiveEventSource: bridge,
+      fieldValueProvider: () => bridge.getLatestFieldValues(), // ← 生产接线方式
+    });
+    return { taskService, sendService, bridge };
+  }
+
+  it('repeat.until: 发满足帧后提前退出(而非跑满 maxCount)', async () => {
+    const { taskService, sendService, bridge } = buildWiredService();
+    const def: TaskDefinition = {
+      id: 'ru-wired',
+      name: 'ru-wired',
+      schedule: { kind: 'immediate' },
+      steps: [
+        {
+          id: 'ru-send',
+          kind: 'send',
+          name: 'repeat send',
+          config: {
+            frameId: 'wt-counter-cmd',
+            repeat: {
+              intervalMs: 30,
+              maxCount: 20,
+              until: [{ frameId: 'wt-counter', fieldId: 'wt-count', operator: 'eq', threshold: 3 }],
+            },
+          },
+        },
+      ],
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const inst = taskService.createTask(def);
+    taskService.startTask(inst.instanceId);
+
+    // 第一次发送后, 模拟收到满足 until 的帧 → bridge 快照更新 → until 命中
+    await new Promise((r) => setTimeout(r, 5));
+    bridge.emit([{ frameId: 'wt-counter', fieldValues: { 'wt-count': 3 } }]);
+
+    await taskService.onSettled(inst.instanceId);
+
+    // 修复后: until 命中 → 提前退出, 远少于 maxCount=20
+    expect(sendService.calls.length).toBeLessThan(20);
+    expect(sendService.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('exitCondition: 发满足帧后任务提前退出(而非跑满 maxIterations)', async () => {
+    const { taskService, sendService, bridge } = buildWiredService();
+    const def: TaskDefinition = {
+      id: 'ec-wired',
+      name: 'ec-wired',
+      schedule: { kind: 'timer', intervalMs: 30 },
+      steps: [
+        { id: 'ec-send', kind: 'send', name: 'send', config: { frameId: 'wt-counter-cmd' } },
+      ],
+      stopCondition: {
+        maxIterations: 20,
+        exitCondition: [{ frameId: 'wt-counter', fieldId: 'wt-count', operator: 'gte', threshold: 5 }],
+      },
+      errorPolicy: { onFailure: 'stop' },
+    };
+    const inst = taskService.createTask(def);
+    taskService.startTask(inst.instanceId);
+
+    // 发满足 exitCondition 的帧
+    bridge.emit([{ frameId: 'wt-counter', fieldValues: { 'wt-count': 99 } }]);
+
+    await taskService.onSettled(inst.instanceId);
+
+    // 修复后: exitCondition 命中 → 提前退出, 远少于 maxIterations=20
+    expect(sendService.calls.length).toBeLessThan(20);
+    expect(sendService.calls.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ============================================================
+// S014 修复回归: 手动 stopTask 仍是 stopped(不被 errorPolicy 改动影响)
+// ============================================================
+
+describe('S014 修复回归: 手动 stopTask 终态仍是 stopped', () => {
+  it('手动 stopTask → stopped (与 errorPolicy 失败的 failed 区分)', async () => {
+    const svc = buildService();
+    const def = waitTask('manual-stop', [
+      { frameId: 'wt-status', fieldId: 'wt-power', operator: 'eq', threshold: 99999 },
+    ], { timeoutMs: 60000, onTimeout: 'continue' });
+    const inst = svc.taskService.createTask(def);
+    svc.taskService.startTask(inst.instanceId);
+    await new Promise((r) => setTimeout(r, 20));
+
+    svc.taskService.stopTask(inst.instanceId);
+    expect(await settle(svc.taskService, inst.instanceId)).toBe('stopped');
   });
 });
