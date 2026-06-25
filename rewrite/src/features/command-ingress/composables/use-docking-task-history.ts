@@ -1,91 +1,149 @@
 import { ref, computed } from 'vue';
-import type { TaskProgress } from '@/features/task';
-import type { DockingTaskHistoryStorage, PersistedTaskBatch, PersistedTaskCase } from '../services/docking-task-history-storage';
+import type { TaskProgress, TaskInstanceState } from '@/features/task';
+import type { DockingBatchRegistry, DockingBatchMeta } from '../core/docking-batch-registry';
 
 /**
- * 中心对接「任务批次历史面板」的数据源 + 控制动作(spec: 任务批次历史面板)。
+ * 中心对接「任务批次历史面板」数据源 + 控制动作(spec: 批次历史改内存派生)。
  *
- * 职责:
- *  - batches:从 historyStorage.loadAll() 读批次(响应式,refresh 时重读)。
- *  - sortedBatches:按 receivedAt 倒序(最新在前)的派生视图(面板 v-for 用)。
- *  - progressOf(c):对 running 用例,从 taskService.getProgress(instanceId) 取实时进度(供 TaskCaseRow 进度条)。
- *  - pauseCase/stopCase:转发 taskService 的控制 API(进行中用例的控制按钮)。
- *  - viewDetail:跳转执行监控页(/tasks,路由无 name,最小跳转;精确定位列为后续)。
- *
- * 路由事实(routes.ts):TaskManagePage 在 path '/tasks',无 route name。
- * 所以 viewDetail 用 { path: '/tasks' }(spec「跳转」段:倾向最小跳转)。
+ * 数据源:batchRegistry(批次元信息)+ taskService(实例 lifecycle/进度/结果)派生。
+ * case.status 实时从实例 lifecycle 算(含 paused),暂停/停止/恢复零同步成本。
+ * 控制动作直接打 taskService,下一秒 polling 自然反映。
  */
+export type DockingCaseStatus = 'pending' | 'running' | 'paused' | 'passed' | 'failed';
 
-/** taskService 最小消费接口(只取本 composable 用到的方法)。 */
+export interface DockingCaseView {
+  readonly testCaseId: string;
+  readonly caseName: string;
+  readonly instanceId: string | null;
+  readonly status: DockingCaseStatus;
+  readonly durationMs: number | null;
+}
+
+export type DockingBatchStatus = 'running' | 'completed' | 'partial-failed' | 'failed';
+
+export interface DockingBatchView {
+  readonly taskId: string;
+  readonly taskName: string;
+  readonly receivedAt: number;
+  readonly status: DockingBatchStatus;
+  readonly cases: readonly DockingCaseView[];
+}
+
+/** taskService 最小消费接口(返回完整实例含 lifecycle/时间戳)。 */
 export interface DockingTaskHistoryTaskServicePort {
-  getInstance(id: string): { definitionRef: { name: string } } | undefined;
+  getInstance(id: string): TaskInstanceState | undefined;
   pauseTask(id: string): void;
+  resumeTask(id: string): void;
   stopTask(id: string): void;
-  /** 进度查询(可选:旧 taskService 可能无此方法,用可选链兜底)。 */
   getProgress?(id: string): TaskProgress | undefined;
 }
 
-/** router 最小消费接口。 */
-export interface DockingTaskHistoryRouterPort {
+export interface DockingHistoryRouterPort {
   push(to: unknown): unknown;
 }
 
 export interface UseDockingTaskHistoryOptions {
-  readonly historyStorage: DockingTaskHistoryStorage;
+  readonly batchRegistry: DockingBatchRegistry;
   readonly taskService: DockingTaskHistoryTaskServicePort;
-  readonly router: DockingTaskHistoryRouterPort;
+  readonly router: DockingHistoryRouterPort;
 }
 
 export interface UseDockingTaskHistory {
-  /** 原序批次(从 storage 读,refresh 时更新)。 */
-  readonly batches: ReturnType<typeof ref<readonly PersistedTaskBatch[]>>;
-  /** 按 receivedAt 倒序的派生视图(面板渲染用)。 */
-  readonly sortedBatches: ReturnType<typeof computed<readonly PersistedTaskBatch[]>>;
-  /** running 用例的实时进度(非 running / 无 instanceId / getProgress 缺失 → null)。 */
-  progressOf(c: PersistedTaskCase): TaskProgress | null;
-  /** 暂停用例(转发 taskService.pauseTask;无 instanceId 跳过)。 */
-  pauseCase(c: PersistedTaskCase): void;
-  /** 停止用例(转发 taskService.stopTask;无 instanceId 跳过)。 */
-  stopCase(c: PersistedTaskCase): void;
-  /** 跳转执行监控页(/tasks,最小跳转)。 */
-  viewDetail(c: PersistedTaskCase): void;
-  /** 重读 storage(页面 polling 调,刷新 batches)。 */
+  readonly sortedBatches: ReturnType<typeof computed<readonly DockingBatchView[]>>;
+  progressOf(c: DockingCaseView): TaskProgress | null;
+  pauseCase(c: DockingCaseView): void;
+  resumeCase(c: DockingCaseView): void;
+  stopCase(c: DockingCaseView): void;
+  viewDetail(c: DockingCaseView): void;
   refresh(): void;
 }
 
+/** lifecycle → DockingCaseStatus 映射(spec 映射表)。 */
+function deriveCaseStatus(instanceId: string | null, instance: TaskInstanceState | undefined): DockingCaseStatus {
+  if (!instanceId) return 'pending';
+  if (!instance) return 'failed'; // 异常兜底:实例被清/映射残留
+  switch (instance.lifecycle) {
+    case 'created': return 'running';   // 建完就 start,几乎见不到,归 running
+    case 'running': return 'running';
+    case 'paused': return 'paused';
+    case 'completed': return 'passed';
+    case 'failed': return 'failed';
+    case 'stopped': return 'failed';     // 粒度2 不细分
+    default: return 'failed';
+  }
+}
+
+/** 实例时间戳 → durationMs(终态: endRef - startedAt;非终态: null)。 */
+function deriveDurationMs(instance: TaskInstanceState | undefined): number | null {
+  if (!instance) return null;
+  const start = instance.startedAt ? new Date(instance.startedAt).getTime() : null;
+  if (start === null) return null;
+  const endRef = instance.completedAt ?? instance.stoppedAt ?? instance.failedAt;
+  if (!endRef) return null; // 非终态
+  return Math.max(0, new Date(endRef).getTime() - start);
+}
+
+/** 派生批次 status(spec 规则)。 */
+function deriveBatchStatus(cases: readonly DockingCaseView[]): DockingBatchStatus {
+  const hasActive = cases.some(c => c.status === 'pending' || c.status === 'running' || c.status === 'paused');
+  if (hasActive) return 'running';
+  const passed = cases.filter(c => c.status === 'passed').length;
+  const failed = cases.filter(c => c.status === 'failed').length;
+  if (failed === 0) return 'completed';
+  if (passed === 0) return 'failed';
+  return 'partial-failed';
+}
+
+function deriveBatchView(meta: DockingBatchMeta, ts: DockingTaskHistoryTaskServicePort): DockingBatchView {
+  const cases = meta.cases.map(c => {
+    const inst = c.instanceId ? ts.getInstance(c.instanceId) : undefined;
+    return {
+      testCaseId: c.testCaseId,
+      caseName: c.caseName,
+      instanceId: c.instanceId,
+      status: deriveCaseStatus(c.instanceId, inst),
+      durationMs: deriveDurationMs(inst),
+    } satisfies DockingCaseView;
+  });
+  return { taskId: meta.taskId, taskName: meta.taskName, receivedAt: meta.receivedAt, status: deriveBatchStatus(cases), cases };
+}
+
 export function useDockingTaskHistory(options: UseDockingTaskHistoryOptions): UseDockingTaskHistory {
-  const batches = ref<readonly PersistedTaskBatch[]>(options.historyStorage.loadAll());
+  // 触发器:每次 refresh 重新读 registry + 派生(让 sortedBatches 响应)。
+  const tick = ref(0);
 
-  // 按 receivedAt 倒序(最新在前)。receivedAt 相等时保持稳定(不二次排序)。
-  const sortedBatches = computed<readonly PersistedTaskBatch[]>(() =>
-    [...batches.value].sort((a, b) => b.receivedAt - a.receivedAt),
-  );
+  function refresh(): void {
+    tick.value++;
+  }
 
-  function progressOf(c: PersistedTaskCase): TaskProgress | null {
+  const sortedBatches = computed<readonly DockingBatchView[]>(() => {
+    void tick.value; // 依赖 tick,refresh 后重算
+    const metas = options.batchRegistry.loadAll();
+    const views = metas.map(meta => deriveBatchView(meta, options.taskService));
+    return views.sort((a, b) => b.receivedAt - a.receivedAt);
+  });
+
+  function progressOf(c: DockingCaseView): TaskProgress | null {
     if (c.status !== 'running' || !c.instanceId) return null;
     return options.taskService.getProgress?.(c.instanceId) ?? null;
   }
 
-  function pauseCase(c: PersistedTaskCase): void {
+  function pauseCase(c: DockingCaseView): void {
     if (!c.instanceId) return;
     options.taskService.pauseTask(c.instanceId);
   }
-
-  function stopCase(c: PersistedTaskCase): void {
+  function resumeCase(c: DockingCaseView): void {
+    if (!c.instanceId) return;
+    options.taskService.resumeTask(c.instanceId);
+  }
+  function stopCase(c: DockingCaseView): void {
     if (!c.instanceId) return;
     options.taskService.stopTask(c.instanceId);
   }
-
-  function viewDetail(c: PersistedTaskCase): void {
-    // 执行监控页在 /tasks(无 route name)。最小跳转;精确定位到具体 instance 列为后续。
-    // 参数 c 预留给未来精确定位(按 instanceId 选行),当前最小跳转未用。
+  function viewDetail(c: DockingCaseView): void {
     void c;
     options.router.push({ path: '/tasks' });
   }
 
-  function refresh(): void {
-    batches.value = options.historyStorage.loadAll();
-  }
-
-  return { batches, sortedBatches, progressOf, pauseCase, stopCase, viewDetail, refresh };
+  return { sortedBatches, progressOf, pauseCase, resumeCase, stopCase, viewDetail, refresh };
 }

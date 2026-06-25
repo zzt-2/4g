@@ -1,186 +1,126 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useDockingTaskHistory } from '../composables/use-docking-task-history';
-import type { DockingTaskHistoryStorage, PersistedTaskBatch, PersistedTaskCase } from '../services/docking-task-history-storage';
-import type { TaskProgress } from '@/features/task';
+import { createDockingBatchRegistry, type DockingBatchMeta } from '../core/docking-batch-registry';
+import type { TaskInstanceState } from '@/features/task';
 
-// ---------------------------------------------------------------------------
-// Fakes
-// ---------------------------------------------------------------------------
-
-function makeCase(over: Partial<PersistedTaskCase> = {}): PersistedTaskCase {
-  return { testCaseId: 'tc1', caseName: 'case1', status: 'pending', instanceId: null, startedAt: null, finishedAt: null, durationMs: null, ...over };
-}
-
-function makeBatch(over: Partial<PersistedTaskBatch> = {}): PersistedTaskBatch {
-  return { taskId: 'T_1', taskName: '批次1', receivedAt: 1000, status: 'running', cases: [makeCase()], ...over };
-}
-
-function makeFakeStorage(initial: PersistedTaskBatch[] = []): DockingTaskHistoryStorage & { _batches: PersistedTaskBatch[] } {
-  const batches = [...initial];
+// fake taskService:按 instanceId 映射到不同 lifecycle 实例(支持映射表全分支)
+function makeFakeTaskService(instances: Record<string, Partial<TaskInstanceState>> = {}) {
+  const store: Record<string, TaskInstanceState> = {};
+  for (const [id, over] of Object.entries(instances)) {
+    store[id] = {
+      instanceId: id,
+      definitionRef: { id: 'd', name: 'n', steps: [], schedule: { kind: 'immediate' }, errorPolicy: { onFailure: 'stop' } },
+      lifecycle: 'running', currentStepIndex: 0, currentIteration: 0, stepResults: [],
+      ...over,
+    } as TaskInstanceState;
+  }
   return {
-    _batches: batches,
-    async hydrate() { /* no-op */ },
-    loadAll: vi.fn(() => [...batches]),
-    saveAll: vi.fn((next: readonly PersistedTaskBatch[]) => { batches.length = 0; batches.push(...next); }),
-    insertBatch: vi.fn(),
-    updateCase: vi.fn(),
-    recomputeBatchStatus: vi.fn(),
+    store,
+    getInstance: vi.fn((id: string) => store[id] ? { ...store[id] } : undefined),
+    pauseTask: vi.fn(),
+    stopTask: vi.fn(),
+    resumeTask: vi.fn(),
+    getProgress: vi.fn().mockReturnValue(undefined),
   };
 }
-
-function makeFakeTaskService(over: Partial<{
-  getInstance: ReturnType<typeof vi.fn>;
-  pauseTask: ReturnType<typeof vi.fn>;
-  stopTask: ReturnType<typeof vi.fn>;
-  getProgress: ReturnType<typeof vi.fn>;
-}> = {}) {
-  return {
-    getInstance: over.getInstance ?? vi.fn().mockReturnValue(undefined),
-    pauseTask: over.pauseTask ?? vi.fn(),
-    stopTask: over.stopTask ?? vi.fn(),
-    getProgress: over.getProgress ?? vi.fn().mockReturnValue(undefined),
-  };
+function makeFakeRouter() { return { push: vi.fn() }; }
+function makeMeta(over: Partial<DockingBatchMeta> = {}): DockingBatchMeta {
+  return { taskId: 'T_1', taskName: '批次1', receivedAt: 1000, cases: [{ testCaseId: 'tc-1', caseName: '用例1', instanceId: 'inst-1' }], ...over };
 }
-
-function makeFakeRouter() {
-  return { push: vi.fn() };
-}
-
-// ---------------------------------------------------------------------------
 
 describe('useDockingTaskHistory', () => {
-  it('batches 初始化从 storage.loadAll() 读 + 按 receivedAt 倒序', () => {
-    const storage = makeFakeStorage([
-      makeBatch({ taskId: 'T_OLD', receivedAt: 1000 }),
-      makeBatch({ taskId: 'T_NEW', receivedAt: 5000 }),
-      makeBatch({ taskId: 'T_MID', receivedAt: 3000 }),
-    ]);
-    const { batches } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService: makeFakeTaskService(),
-      router: makeFakeRouter(),
-    });
-
-    // 初始读取(未排序,原序)
-    expect(batches.value.map(b => b.taskId)).toEqual(['T_OLD', 'T_NEW', 'T_MID']);
+  it('batches 从 batchRegistry 派生,按 receivedAt 倒序', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta({ taskId: 'T_OLD', receivedAt: 1000 }));
+    reg.insertBatch(makeMeta({ taskId: 'T_NEW', receivedAt: 5000 }));
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService(), router: makeFakeRouter() });
+    expect(sortedBatches.value.map(b => b.taskId)).toEqual(['T_NEW', 'T_OLD']);
   });
 
-  it('sortedBatches 按 receivedAt 倒序(最新在前)', () => {
-    const storage = makeFakeStorage([
-      makeBatch({ taskId: 'T_OLD', receivedAt: 1000 }),
-      makeBatch({ taskId: 'T_NEW', receivedAt: 5000 }),
-      makeBatch({ taskId: 'T_MID', receivedAt: 3000 }),
-    ]);
-    const { sortedBatches } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService: makeFakeTaskService(),
-      router: makeFakeRouter(),
-    });
-
-    expect(sortedBatches.value.map(b => b.taskId)).toEqual(['T_NEW', 'T_MID', 'T_OLD']);
+  it('case.status 从实例 lifecycle 派生:running→running', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta());
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService({ 'inst-1': { lifecycle: 'running' } }), router: makeFakeRouter() });
+    expect(sortedBatches.value[0].cases[0].status).toBe('running');
   });
 
-  it('progressOf:running 用例 → 从 taskService.getProgress(instanceId) 取', () => {
-    const progress: TaskProgress = {
-      stepsTotal: 3, stepsCompleted: 1, sendsTotal: 15, sendsCompleted: 7,
-      stepsFailed: 0, stepsSkipped: 0, iterationsCompleted: 0, iterationsTotal: 1,
-      elapsedMs: 1000, estimatedRemainingMs: null, lastStepResult: undefined,
-    };
-    const storage = makeFakeStorage([makeBatch({ cases: [makeCase({ status: 'running', instanceId: 'inst-1' })] })]);
-    const taskService = makeFakeTaskService({ getProgress: vi.fn().mockReturnValue(progress) });
-    const { progressOf } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService,
-      router: makeFakeRouter(),
-    });
-
-    expect(progressOf(makeCase({ status: 'running', instanceId: 'inst-1' }))).toBe(progress);
-    // 非 running / 无 instanceId → null
-    expect(progressOf(makeCase({ status: 'pending', instanceId: null }))).toBeNull();
-    expect(progressOf(makeCase({ status: 'passed', instanceId: 'inst-2' }))).toBeNull();
+  it('case.status: paused→paused(本重构核心)', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta());
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService({ 'inst-1': { lifecycle: 'paused' } }), router: makeFakeRouter() });
+    expect(sortedBatches.value[0].cases[0].status).toBe('paused');
   });
 
-  it('progressOf:getProgress 不存在时回退 null(可选 API)', () => {
-    const storage = makeFakeStorage([makeBatch()]);
-    // taskService 不提供 getProgress
-    const taskService = { getInstance: vi.fn(), pauseTask: vi.fn(), stopTask: vi.fn() };
-    const { progressOf } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService,
-      router: makeFakeRouter(),
-    });
-
-    expect(progressOf(makeCase({ status: 'running', instanceId: 'inst-1' }))).toBeNull();
+  it('case.status: completed→passed, failed→failed, stopped→failed', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta({ cases: [
+      { testCaseId: 'tc-a', caseName: 'a', instanceId: 'inst-a' },
+      { testCaseId: 'tc-b', caseName: 'b', instanceId: 'inst-b' },
+      { testCaseId: 'tc-c', caseName: 'c', instanceId: 'inst-c' },
+    ] }));
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService({ 'inst-a': { lifecycle: 'completed' }, 'inst-b': { lifecycle: 'failed' }, 'inst-c': { lifecycle: 'stopped' } }), router: makeFakeRouter() });
+    const cs = sortedBatches.value[0].cases;
+    expect(cs[0].status).toBe('passed');
+    expect(cs[1].status).toBe('failed');
+    expect(cs[2].status).toBe('failed');
   });
 
-  it('pauseCase:转发 taskService.pauseTask(instanceId);无 instanceId 跳过', () => {
-    const storage = makeFakeStorage([makeBatch()]);
-    const pauseTask = vi.fn();
-    const taskService = makeFakeTaskService({ pauseTask });
-    const { pauseCase } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService,
-      router: makeFakeRouter(),
-    });
-
-    pauseCase(makeCase({ status: 'running', instanceId: 'inst-1' }));
-    expect(pauseTask).toHaveBeenCalledWith('inst-1');
-    pauseCase(makeCase({ status: 'pending', instanceId: null }));
-    expect(pauseTask).toHaveBeenCalledTimes(1); // 第二次跳过
+  it('case.status: instanceId=null → pending(未轮到执行)', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta({ cases: [{ testCaseId: 'tc-p', caseName: 'p', instanceId: null }] }));
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService(), router: makeFakeRouter() });
+    expect(sortedBatches.value[0].cases[0].status).toBe('pending');
   });
 
-  it('stopCase:转发 taskService.stopTask(instanceId);无 instanceId 跳过', () => {
-    const storage = makeFakeStorage([makeBatch()]);
-    const stopTask = vi.fn();
-    const taskService = makeFakeTaskService({ stopTask });
-    const { stopCase } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService,
-      router: makeFakeRouter(),
-    });
-
-    stopCase(makeCase({ status: 'running', instanceId: 'inst-1' }));
-    expect(stopTask).toHaveBeenCalledWith('inst-1');
-    stopCase(makeCase({ status: 'pending', instanceId: null }));
-    expect(stopTask).toHaveBeenCalledTimes(1);
+  it('case.status: 查不到实例 → failed(异常兜底)', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta({ cases: [{ testCaseId: 'tc-x', caseName: 'x', instanceId: 'inst-gone' }] }));
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService(), router: makeFakeRouter() }); // store 无 inst-gone
+    expect(sortedBatches.value[0].cases[0].status).toBe('failed');
   });
 
-  it('viewDetail:router.push 到 /tasks(执行监控页;路由无 name,用 path 最小跳转)', () => {
-    const storage = makeFakeStorage([makeBatch()]);
+  it('case.durationMs 从实例时间戳派生(completed: completedAt - startedAt)', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta());
+    const ts = makeFakeTaskService({ 'inst-1': { lifecycle: 'completed', startedAt: '2026-06-25T10:00:00.000Z', completedAt: '2026-06-25T10:00:05.000Z' } });
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: ts, router: makeFakeRouter() });
+    expect(sortedBatches.value[0].cases[0].durationMs).toBe(5000);
+  });
+
+  it('pauseCase 转发 taskService.pauseTask;resumeCase 转发 resumeTask;stopCase 转发 stopTask', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta());
+    const ts = makeFakeTaskService({ 'inst-1': { lifecycle: 'running' } });
+    const { pauseCase, resumeCase, stopCase } = useDockingTaskHistory({ batchRegistry: reg, taskService: ts, router: makeFakeRouter() });
+    const c = { testCaseId: 'tc-1', caseName: '用例1', instanceId: 'inst-1', status: 'running' as const, durationMs: null };
+    pauseCase(c); expect(ts.pauseTask).toHaveBeenCalledWith('inst-1');
+    resumeCase(c); expect(ts.resumeTask).toHaveBeenCalledWith('inst-1');
+    stopCase(c); expect(ts.stopTask).toHaveBeenCalledWith('inst-1');
+  });
+
+  it('pauseCase/resumeCase/stopCase 对 instanceId=null 静默跳过', () => {
+    const reg = createDockingBatchRegistry();
+    const ts = makeFakeTaskService();
+    const { pauseCase } = useDockingTaskHistory({ batchRegistry: reg, taskService: ts, router: makeFakeRouter() });
+    pauseCase({ testCaseId: 'tc', caseName: 'c', instanceId: null, status: 'pending', durationMs: null });
+    expect(ts.pauseTask).not.toHaveBeenCalled();
+  });
+
+  it('viewDetail 跳转 /tasks', () => {
+    const reg = createDockingBatchRegistry();
     const router = makeFakeRouter();
-    const { viewDetail } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService: makeFakeTaskService(),
-      router,
-    });
-
-    viewDetail(makeCase({ status: 'passed', instanceId: 'inst-1' }));
+    const { viewDetail } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService(), router });
+    viewDetail({ testCaseId: 'tc', caseName: 'c', instanceId: 'i', status: 'passed', durationMs: 1 });
     expect(router.push).toHaveBeenCalledWith({ path: '/tasks' });
   });
 
-  it('refresh:重新从 storage.loadAll() 读,更新 batches', () => {
-    const storage = makeFakeStorage([makeBatch({ taskId: 'T_1' })]);
-    const { batches, refresh } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService: makeFakeTaskService(),
-      router: makeFakeRouter(),
-    });
-    expect(batches.value).toHaveLength(1);
-
-    // 模拟 storage 写入新批次后 refresh
-    storage._batches.push(makeBatch({ taskId: 'T_2', receivedAt: 2000 }));
-    refresh();
-    expect(batches.value).toHaveLength(2);
-  });
-
-  it('空 storage:batches 空,sortedBatches 空', () => {
-    const storage = makeFakeStorage([]);
-    const { batches, sortedBatches } = useDockingTaskHistory({
-      historyStorage: storage,
-      taskService: makeFakeTaskService(),
-      router: makeFakeRouter(),
-    });
-    expect(batches.value).toEqual([]);
-    expect(sortedBatches.value).toEqual([]);
+  it('batch.status 派生:含 paused/running/pending → running;全 passed → completed', () => {
+    const reg = createDockingBatchRegistry();
+    reg.insertBatch(makeMeta({ cases: [
+      { testCaseId: 'tc-a', caseName: 'a', instanceId: 'inst-a' },
+      { testCaseId: 'tc-p', caseName: 'p', instanceId: 'inst-p' },
+    ] }));
+    const { sortedBatches } = useDockingTaskHistory({ batchRegistry: reg, taskService: makeFakeTaskService({ 'inst-a': { lifecycle: 'completed' }, 'inst-p': { lifecycle: 'paused' } }), router: makeFakeRouter() });
+    expect(sortedBatches.value[0].status).toBe('running'); // paused 算活跃
   });
 });
