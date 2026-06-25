@@ -237,7 +237,10 @@ D004 三层职责:
 
 ## 待实施核对项
 
-1. `stopped` lifecycle 归 `failed` 还是单独显示?(倾向 failed,粒度2 不细分,沿用旧决策)
-2. controlTestTask 的 1:1 覆盖映射(northbound-state mapTaskId 一批多用例只记最后)是否在本轮一并修?(独立 bug,见 docking-history-followup-investigation.md 现象2;倾向**不并入本重构**,单列)
+1. controlTestTask 的 1:1 覆盖映射(northbound-state mapTaskId 一批多用例只记最后)是否在本轮一并修?(独立 bug,见 docking-history-followup-investigation.md 现象2;倾向**不并入本重构**,单列)
+
+> 已拍板项(不再列待核对):
+> - `stopped` lifecycle → 归 `failed`(粒度2 不细分,沿用旧接入点4 决策;映射表 L87/L91 已写死)。
+> - instanceId 查不到实例 → `failed`(异常兜底;映射表 + 已知债务表均写死)。
 
 > 自检已闭合项:instanceId 查不到实例 → 已拍板 `failed`(映射表 + 已知债务表均写死,不再列待核对)。
