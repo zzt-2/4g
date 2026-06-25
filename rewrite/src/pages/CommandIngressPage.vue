@@ -7,7 +7,7 @@
 import { ref, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
-import { useAsyncAction, usePolling, useNotify } from '@/shared/composables';
+import { useAsyncAction, usePolling, useNotify, usePersistentTab } from '@/shared/composables';
 import { formatDateTime } from '@/shared/utils/format';
 import type { SatelliteConfig, ScoeCommandConfig, HighlightRuleConfig } from '@/features/command-ingress/core';
 import type { DeviceInfoItem } from '@/features/northbound/core/types';
@@ -42,7 +42,12 @@ const resultService = runtime.features.resultService;
 const frameService = runtime.features.frameService;
 
 // ===== 业务数据 / 状态 =====
-const activeTab = ref<'monitor' | 'config' | 'docking'>('monitor');
+// 一级 tab 持久化：切走/刷新后回来保持，见 usePersistentTab
+const activeTab = usePersistentTab<'monitor' | 'config' | 'docking'>(
+  'ci-active-tab',
+  'monitor',
+  ['monitor', 'config', 'docking'],
+);
 
 // ===== Composables =====
 const scoeConfig = useScoeConfig();
@@ -412,8 +417,12 @@ function handleDeleteMapping(templateId: string): void {
   });
 }
 
-// ===== Docking 内部 tab =====
-const dockingInnerTab = ref<'tasks' | 'devices' | 'catalog'>('tasks');
+// ===== Docking 内部 tab（持久化：切走/刷新后回来保持） =====
+const dockingInnerTab = usePersistentTab<'tasks' | 'devices' | 'catalog'>(
+  'ci-docking-inner-tab',
+  'tasks',
+  ['tasks', 'devices', 'catalog'],
+);
 
 // 进入用例目录 tab 时刷新模板列表（供映射列表显示模板名 + 添加弹窗多选）
 watch(dockingInnerTab, (tab) => {

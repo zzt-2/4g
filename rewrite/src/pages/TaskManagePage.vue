@@ -8,7 +8,7 @@
 import { ref, shallowRef, computed, onUnmounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
-import { useAsyncAction, useNotify, usePolling } from '@/shared/composables';
+import { useAsyncAction, useNotify, usePolling, usePersistentTab } from '@/shared/composables';
 import { isTerminal, calculateProgress, applyDefaultTargetOverride } from '@/features/task/core';
 import type { TaskTemplate } from '@/features/task/core';
 import { exportTemplates, parseImportedFile } from '@/features/task/services/task-template-io';
@@ -46,8 +46,12 @@ const taskService = runtime.features.taskService;
 const frameService = runtime.features.frameService;
 const connectionService = runtime.features.connectionService;
 
-// ===== 一级 tab 状态 =====
-const activeTab = ref<'templates' | 'executions'>('templates');
+// ===== 一级 tab 状态（持久化：切走/刷新后回来保持，见 usePersistentTab） =====
+const activeTab = usePersistentTab<'templates' | 'executions'>(
+  'task-active-tab',
+  'templates',
+  ['templates', 'executions'],
+);
 
 // ===== 编辑器（2 个 editor 实例） =====
 const templateEditor = useTemplateEditor(taskService);
@@ -65,7 +69,12 @@ const templatesBatchMode = ref(false);
 const batchSelectedTemplateRows = shallowRef<TemplateTableRow[]>([]);
 
 // ===== 执行列表数据 =====
-const executionsInnerTab = ref<'active' | 'history'>('active');
+// 二级 tab 持久化：切到执行监控的 history 子页后切走再切回，保持 history
+const executionsInnerTab = usePersistentTab<'active' | 'history'>(
+  'task-executions-inner-tab',
+  'active',
+  ['active', 'history'],
+);
 const executionsStatusFilter = ref('');
 const activeRows = shallowRef<TaskTableRow[]>([]);
 const historyRows = shallowRef<HistoryTableRow[]>([]);
