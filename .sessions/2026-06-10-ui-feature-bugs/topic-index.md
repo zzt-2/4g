@@ -1,6 +1,6 @@
 # UI 与 Feature Bug 集中修复
 
-> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-24 S014 续接:三处修复落地(D012)——fieldValueProvider 生产接线(repeat.until/exitCondition 生效)+ onTimeout=fail 终态改 failed(手动 stop 仍 stopped)+ KPI 加已停止计数 + 补 send 镜像帧 + echo server 手测指南。task 317/317 + 受影响集成 19/19 + 回归 6 用例全过,JSON 导入验证通过。前序 S014 测试数据(3 receive 帧 + 21 任务模板,31 集测)、S013 编辑弹窗、S012 storage 性能治本。
+> 状态: active | 创建: 2026-06-10 | 最后更新: 2026-06-25 S014 深查未决 bug:echo 回环发两次 wt-status-cmd 接收表格才更新(用户三确认)。Phase 1 取证已排除"测试数据字节不对齐"(诊断直接喂 20 字节 matchReceiveFrame 完整匹配)+ 发现根因线索 **matchReceiveFrame 只校验 sync 不校验帧长度**(只 4 字节 sync 也判 matched)→ 配合 field-parser truncated 字段跳过 → 第一次不完整 batch 字段缺 → 表格不更新。待续:确认"计数+2"是 matchedCount 还是别的 + 复现真实 echo 看每次 outcome。详见 S014「未决 bug 深查」。前序 S014 续接三处修复(D012)、S014 测试数据、S013、S012。
 
 ## 范围变更记录
 
@@ -120,7 +120,9 @@
 
 ## 当前位置
 
-**S014 续接:三处修复落地(2026-06-24,见 D012)**。用户拍板"全部一起修"。① fieldValueProvider 生产接线(真 bug 修复)——`feature-wiring.ts:146` 加 `fieldValueProvider:()=>bridge.getLatestFieldValues()` + `receive-event-source-bridge.ts` 加 `getLatestFieldValues()` → repeat.until/exitCondition 生产生效。② onTimeout=fail 终态改 failed——`task-error-policy.ts:32` 'stop' 分支改 'fail',手动 stopTask 仍 stopped,两者区分。③ KPI 加「已停止」计数。④ 数据修正:补 2 send 镜像帧 + 修 repeat.until/exitCondition 的 send step 引用 + echo server 手测 README。验证:task **317/317** + 受影响集成 **19/19** + wait-condition-coverage **37/37**(新增 6 回归)。终态断言更新 10 处。JSON 导入验证通过。lint 0 / tsc 0。详见 S014 续接 + D012。
+**S014 深查未决 bug:echo 回环发两次接收表格才更新(2026-06-25,systematic-debugging Phase 1 取证,待续)**。用户实测三确认:"发两次 wt-status-cmd(echo 回环),两次是同一实例,接收计数+2,但表格/条件第二次才更新"。已排除"测试数据字节不对齐"(诊断直接喂 20 字节 matchReceiveFrame 完整匹配 wt-status)。**根因线索**:`matchReceiveFrame`(receive/core/frame-matcher.ts)只校验 identifierRules(sync 字节)**不校验帧总长度**——诊断证实只有 sync 前 4 字节的不完整帧也判 matched。配合 field-parser.ts:185-194 truncated 字段被跳过 → 第一次不完整 batch 数据字段缺 → routing-tick.ts:56-58 fieldValues 不含 wt-power → 表格不更新/条件不满足;第二次完整才更新。**待续(下一上下文首要)**:① 确认"计数+2"是 receive matchedCount 还是 connection rxBytes(决定假设方向)② 复现真实 echo 回环连发两次,打印每次 routingTick 的 outcome.kind+fields+matchedCount delta ③ 若确认不完整 batch 误判 matched → 修 matchReceiveFrame 加帧长度校验。详见 S014「未决 bug 深查」。
+
+前序:S014 续接:三处修复落地(2026-06-24,见 D012)**。用户拍板"全部一起修"。① fieldValueProvider 生产接线(真 bug 修复)——`feature-wiring.ts:146` 加 `fieldValueProvider:()=>bridge.getLatestFieldValues()` + `receive-event-source-bridge.ts` 加 `getLatestFieldValues()` → repeat.until/exitCondition 生产生效。② onTimeout=fail 终态改 failed——`task-error-policy.ts:32` 'stop' 分支改 'fail',手动 stopTask 仍 stopped,两者区分。③ KPI 加「已停止」计数。④ 数据修正:补 2 send 镜像帧 + 修 repeat.until/exitCondition 的 send step 引用 + echo server 手测 README。验证:task **317/317** + 受影响集成 **19/19** + wait-condition-coverage **37/37**(新增 6 回归)。终态断言更新 10 处。JSON 导入验证通过。lint 0 / tsc 0。详见 S014 续接 + D012。
 
 前序:S014 任务模板等待条件全覆盖测试数据 + 实测验证(2026-06-24)。用户原话"帮我测一下任务的那些条件…任务模板的等待条件…需要一套帧定义和任务定义去测、去试它能不能用"。造 `public/test-data/wait-condition-test-{frames,tasks}.json`(3 receive 帧 + 21 任务模板,9 operator 全覆盖 + and/or + 3 onTimeout + 永久等待 + 中断 + sourceId + repeat.until + exitCondition),两文件经应用真实导入路径验证可干净导入。实测 `task/__tests__/wait-condition-coverage.spec.ts` 31 用例跑真实执行路径(FakeReceiveEventSource.emit 模拟收帧)**31/31 全过**。**发现 1 真 bug**(fieldValueProvider 未接线,续接已修)+ 2 行为澄清(onTimeout 终态续接已修 / 中断 step 不记 result 设计如此)。详见 S014。
 

@@ -165,3 +165,89 @@
 
 - 用户可导入数据 + 起 echo server 做真实硬件回环手测(README 已备)。
 - fieldValueProvider pull 路径的 fieldId 全局唯一约束(跨帧重名覆盖)记在 D012 + bridge 注释,后续若多帧 fieldId 重名场景需注意。
+
+---
+
+## 未决发现:发送帧需发两次接收侧才更新 (2026-06-25,待新对话排查)
+
+> 2026-06-25 | 用户实测反馈 | 状态: 未确认,转新对话
+
+### 症状(用户原话)
+
+"我试着发那个状态帧,每次都是得发送两次,接收那边才变?很奇怪。感觉哪里有问题。"
+
+即:用 `wt-status-cmd`(send 镜像帧)经 echo 回环发,接收侧 `wt-status` 的字段值**第一次发送不更新,第二次发送才更新**。确定性可复现("每次都是")。
+
+### 排查起点(给新对话,未验证,按可能性排序)
+
+1. **receive 帧识别/缓冲 off-by-one(最可能符合"必须两次")**:routing-tick.ts drain → receiveService.drainInputSource 的帧匹配,若第一次 echo 的字节因粘包/残留/缓冲未对齐到 sync 边界,第一次 drain 只拿到不完整帧被丢/挂起,第二次发的字节补齐才识别成功。重点看 receive 帧匹配器的 sync 对齐 + 缓冲保留逻辑。
+2. **我的测试数据问题(需先排除,我造的数据)**:`wt-status-cmd`(send) 与 `wt-status`(receive) 字节布局声称对齐,但 ① identifierRules 都只查 sync 字节 0x1ACFFC1D,两者都匹配同一字节流(send 不进 receive 池所以不冲突,但要确认) ② autoChecksum sum32 的 startFieldIndex/endFieldIndex(0..4)是否覆盖正确字段 ③ 字段长度/字节序是否有细微差导致第一次帧校验失败第二次"撞上"。**新对话第一步应核对我的 frames.json 两帧字段布局是否真字节对齐**。
+3. **routingTick 轮询模型**:routingTick 是 setInterval(300-430ms/次)轮询 drain,发一次后字节要等下次 tick。但这只解释"延迟",不解释"必须两次",优先级低。
+4. **echo server 分块回显**:若 echo server 逐块而非整帧回显,第一次发可能只拿到半帧。取决于用户用的 echo server 实现。
+
+### 注意
+
+- 症状是确定性的("每次都是"),不是偶发 → 大概率不是性能/时序竞态,是逻辑/数据问题。
+- 若排查确认是 #2(我的测试数据字节不对齐),修 frames.json 即可,非代码 bug。
+- 若是 #1,是 receive 管线真 bug,可能影响所有 receive 帧(不只测试数据),优先级高。
+- 关联文件:routing-tick.ts / receiveService.drainInputSource / receive 帧匹配器 / public/test-data/wait-condition-test-frames.json
+
+---
+
+## 未决 bug 深查: 发两次接收表格才更新 (2026-06-25,取证阶段,未修复)
+
+> 2026-06-25 | systematic-debugging Phase 1 取证 | 状态: 根因未最终确认,待续
+
+### 症状(用户两次确认,确定性可复现)
+
+第一次反馈:"发那个状态帧,每次都是得发送两次,接收那边才变。"
+第二次反馈(关键澄清):"我手动发了两次 [等待条件测试] 状态遥测帧-发送镜像(回环用),我弄了两个实例,功率分别是 25 和 100,**我只有连续点两次发送,表格里的值才会变**。而且我确认**两次是一个**(同一实例),且接收那边**计数+2**。"
+第三次确认:"我确确实实发出了两个一样的帧,而第二次接收到表格内容才变。"
+
+**确定的事实**:
+- 发送的是 `wt-status-cmd`(send 镜像帧),echo 回环
+- 同一个发送实例点两次(功率 25 或 100 不变)
+- 接收侧**计数+2**(两次发送都被接收管线计数)
+- 但**表格/等待条件只在第二次发送后才更新**
+- 即:第一次发送的字节"到了"(计数+1)但字段值没进表格;第二次发送才进
+
+### 已排除的假设
+
+- ❌ **测试数据字节不对齐**:诊断测试(临时,已删)直接对 `matchReceiveFrame` 喂手工构造的 20 字节(sync+5字段),**完整匹配 wt-status,issues:[]**。字节布局正确,非数据问题。
+- ❌ **帧识别丢帧**:帧被识别了(否则计数不会 +2,且 matchReceiveFrame 对完整字节返回 matched)。
+
+### 关键证据(根因线索,指向 receive 帧匹配不校验完整性)
+
+诊断测试发现 `matchReceiveFrame`(receive/core/frame-matcher.ts)**只校验 identifierRules(sync 字节),不校验帧总长度**:
+- 完整 20 字节(sync+5字段)→ matched ✓
+- **只有 sync 前 4 字节(不完整帧)→ 也 matched!**(isRuleMatched 只看 startIndex/endIndex 的 sync,slice(0,4)够了就过)
+- 前导垃圾字节+帧 → unmatched(sync 不在 offset 0)
+
+→ 结论:**任何"前 4 字节是 sync"的 batch 都被判为 wt-status matched**,不管后面字段齐不齐。
+
+配合 field-parser.ts:185-194:字段 endOffset > bytes.length 时该字段**被 truncated 跳过**(不进 fields 输出)。routing-tick.ts:56-58 `fieldValues[fieldId]=value` 只对解码出的字段设值 → truncated 字段不在 fieldValues 里 → 表格无新值/条件不满足。
+
+### 当前最可能假设(待验证)
+
+第一次发送的字节被 TCP/echo **分片**,第一次 routingTick 拿到的 batch 只有 sync(4字节)或 sync+部分字段 → matchReceiveFrame 误判 matched(因不校验长度)→ field-parser 把数据字段全 truncated → fieldValues 缺 wt-power 等 → 表格不更新/条件不满足。第二次发送补齐(或完整到达)→ 字段齐全 → 表格更新。
+
+**但未验证的关键点**:
+1. 用户的 echo 是否真的分片?(localhost TCP 通常整包,但 socket.pipe(socket) + Node data 事件可能分片)
+2. "计数+2"到底是 matchedCount+2 还是别的计数器(rxBytes/表格行数)?若是 matchedCount+2 则两次都 matched(符合"不完整也 matched");若是别的计数器则假设不同。
+3. 是否 SendPage 发送侧有问题(如第一次 send 字节没真正写出,只有第二次写出)?——用户说"确确实实发出了两个一样的帧",倾向排除发送侧,但需确认"计数+2"是 receive 侧计数。
+
+### 待续(下一上下文)
+
+1. **首要**:确认"计数+2"是 receive 的 matchedCount(看 receive-state.ts 统计)还是 connection 的 rxBytes/事件数。这决定假设方向。
+2. 写诊断测试**复现真实 echo 回环**(参考 tcp-send-receive-loopback.spec.ts 的 sendAndWaitForEcho),连发两次同帧,打印每次 routingTick 的 outcome.kind + fields + matchedCount delta。看第一次到底是 matched+truncated 还是别的。
+3. 若确认是"不完整 batch 误判 matched",根因在 matchReceiveFrame 不校验帧长度 → 修法:matched 前校验 bytes.length >= 帧字段总长(field-parser 已有 truncated 检测,可在 matcher 层加长度门槛,或让 truncated 字段不触发 matched)。
+4. 若 batch 是完整的(20字节全到)但仍不更新表格 → 转向 display fanOut / Vue 响应性 / SendPage 发送侧排查。
+
+### 关联文件
+- receive/core/frame-matcher.ts(matchReceiveFrame,不校验长度)— 嫌疑#1
+- receive/core/field-parser.ts:185-194(truncated 字段跳过)
+- receive/core/processor.ts(processReceiveBatch,无跨 batch 缓冲)
+- runtime/routing-tick.ts:50-69(构造 matchInputs,只取 matched outcome 的 fields)
+- runtime/bridges/connection-to-receive.ts(每 data event 一个 batch)
+- public/test-data/wait-condition-test-frames.json(wt-status-cmd/wt-status,字节布局已验证正确)
+- 参考工作样本:src/__tests__/integration/tcp-send-receive-loopback.spec.ts(sendAndWaitForEcho 模式)
