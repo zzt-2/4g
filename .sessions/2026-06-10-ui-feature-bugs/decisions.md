@@ -611,7 +611,7 @@ interface WindowControlBridge {
 ## D010: 接收帧高频卡顿——storage appendLocalRecords O(N·M) 治本 + 测试基建范围扩张 + backgroundThrottling:false
 
 > status: active
-> date: 2026-06-23（续接 2026-06-23:补 backgroundThrottling:false 治"切走再回来卡"）
+> date: 2026-06-23（续接 2026-06-23:补 backgroundThrottling:false 治"切走再回来卡";续接 2026-06-25:二轮彻底治本,见末尾续接段）
 > 取代：无
 > 被取代：无
 
@@ -657,6 +657,52 @@ interface WindowControlBridge {
 - 用户补充新证据:"开久了卡"
 - 用户拍板范围扩张:"加 vue 插件到 vitest.config(推荐)" + "把那一堆日志该清的清一下?说是开久了卡(顺便想想还可能是啥)"
 - 触发原话:见 voice.md 2026-06-23
+
+### 续接(2026-06-25):二轮彻底治本——分离 appendRoutedRecords(snapshot-free)+ mutable push + id Set + clearLastIssue + 攒批写盘
+
+**背景**:用户报 backgroundThrottling 修复后"还是不行。依然卡",给新 trace(25MB)。新决定性证据:**"拔串口立刻好"** → 卡顿 100% 在"帧流入后的处理路径"。新 trace 最长 Long Task 617ms 内部全是单个 timer#4 回调纯 JS(consoleCall=0,推翻 log 假设;GC 仅 40ms)。
+
+**前一轮 fix(D010-B)为何没治本**:`canAppendInOrderFast` 只省了 merge+sort,**3 次全量深拷贝原封未动**:① `getSnapshot().records` 备份(回滚用)、② `appendRecords` 返回 snapshot、③ adapter `writeMaterial` 内 `cloneStorageValue`、④ 隐藏的 `setLastIssue(undefined)` 内部 `return snapshot()`。prod-scale 基准钉死:10k=99ms / 20k=203ms 完美 O(N) 线性。反推 prod 600ms ≈ 60k records。
+
+**根因盲区**:前三轮 Node 基准只测到 state.appendRecords 的 merge+sort(5.5ms),没测 service 完整调用链(深拷贝全漏),且 warmup 只 2000 records 看不到真实 O(N)。
+
+**治本(用户拍板 A 方案,routingTick 路径分离)**:
+1. 新增 `appendRoutedRecords`(snapshot-free,只返回 `{ ok }`):routingTick 经 fanOutToStorage 调它,彻底跳过被丢弃的 snapshot 深拷贝。`appendLocalRecords`(公开 API,返完整结果)保立即写盘 + 失败感知契约,给其它调用方。
+2. `appendRecords` 改 **mutable push**(O(新条数))取代 `[...全量, ...新]`(O(N) 数组重建)。
+3. `hasRecordId` 改 **Set 索引**(O(1))取代 O(N) 遍历(canAppendInOrderFast 每帧 id 冲突兜底)。
+4. 新增 `clearLastIssue`(O(1),不返 snapshot)取代路由路径的 `setLastIssue(undefined)`(返 snapshot = 全量深拷贝)——**这是前三轮漏掉的隐藏元凶**。
+5. 写盘失败回滚用 `truncateRecords`(`records.length = count`,O(1))取代 `getSnapshot().records` 全量备份。
+6. **攒批写盘**:appendRoutedRecords 累计 dirty 计数,阈值 50 才全量 writeMaterial 一次(摊销 O(1)/帧);runtime.destroy 调 `flushPendingWrites` 防丢数据。
+
+**效果(实测)**:路由路径 5k=0.01ms / 20k=0.01ms(旧 11.5/49.8ms),ratio 0.58(O(1)),降 5000 倍。prod 60k 单帧 ~600ms → ~0.01ms。
+
+**否决的替代方案**:
+- ❌ **B 方案(不可变结构共享/immer)**:大炮打蚊子。routingTick 的 snapshot 本被丢弃,不需要结构共享那么重;改动面大(重写 storage-state + 所有 clone + 重验隔离测试),性价比最差。
+- ❌ **C 方案(records 滚动上限)**:丢历史数据,History 页查不到早期记录,语义改变。
+- ❌ **appendLocalRecords 直接攒批**:破坏公开 API"立即感知写盘失败+回滚"契约(storage-service-state-selector 测试钉死)。改用分离 appendRoutedRecords 给路由路径。
+
+**契约影响**:
+- `StorageLocalService` 接口 +2 方法(appendRoutedRecords / flushPendingWrites),appendLocalRecords 签名不变(保完整契约)。
+- `StorageStateContainer` +4 方法(appendRecords 加 quickSnapshot 参数 / truncateRecords / getRecordCount / clearLastIssue),getSnapshot 深拷贝隔离契约**原样保留**(reader/History 页按需付代价)。
+- `fanOutToStorage` 改调 appendRoutedRecords(原调 appendLocalRecords);integration 测试 mock 从 spy appendLocalRecords 改 spy appendRoutedRecords + 加 flushPendingWrites 默认。
+
+### 影响范围(续接二轮)
+
+- `storage-local-baseline/services/storage-local-service.ts`:appendLocalRecords 重构走 applyRoutedAppend 共享核心 + 新增 appendRoutedRecords/flushPendingWrites + 攒批写盘。
+- `storage-local-baseline/state/storage-state.ts`:mutable push + id Set 索引(recordIds)+ truncateRecords/getRecordCount/clearLastIssue + appendRecords quickSnapshot 参数。
+- `runtime/bridges/receive-storage-bridge.ts`:fanOutToStorage 改调 appendRoutedRecords。
+- `runtime/index.ts`:destroy 调 flushPendingWrites。
+- `storage-local-baseline/__tests__/storage-append-no-growth.spec.ts`:治本回归测试(ratio + 绝对值)。
+- 5 个 integration/runtime 测试 mock 更新(fanout-consumer-order / routing-tick-regression / routing-tick-error-isolation / history-fieldname-resolution / runtime/helpers)。
+- `analyze-longtask.py`(新增 trace 内部事件树分析工具,扒 Long Task 内部定位元凶)。
+
+### 来源(续接二轮)
+
+- S012 续接二轮(2026-06-25)
+- 新 trace `rewrite/docs/Trace-20260625T171046.json`(25MB,prod,无 source map)+ analyze-longtask.py
+- 用户决定性证据:"拔串口立刻好"
+- prod-scale 基准:10k=99ms / 20k=203ms(旧)/ 0.01ms(新)
+- 触发原话:见 voice.md 2026-06-25
 
 ---
 

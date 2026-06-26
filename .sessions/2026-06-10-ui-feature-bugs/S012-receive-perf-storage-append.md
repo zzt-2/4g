@@ -98,3 +98,84 @@ state.replaceRecords(merged);  // ← 再深拷贝 N
 **下一步候选(B 方案,若 A 后仍卡)**:routingTick 单轮 drain 加批量上限(如 50 帧/轮,超出留给下一轮),分帧消化避免惊群尖峰。本次不做,记后续。
 
 **验证**:tsc 0 / lint 0(纯 webPreferences 配置,无测试依赖)。**待用户完全重启 dev server 实测**(main 进程改动 HMR 不生效,S009 同款老问题)。
+
+---
+
+## 续接二轮:真根因定位 + 彻底治本(2026-06-25)
+
+用户报告 backgroundThrottling 修复后"**还是不行。依然卡**",给了新 trace(`Trace-20260625T171046.json`,25MB)。
+
+### 决定性新证据:"拔串口立刻好"
+
+用户原话"说把串口拔了立刻好了,看起来是因为接收。可能某些东西触发太多?" —— **这是定性钉死**:卡顿 100% 来自"有帧流入后的处理路径"。拔串口 → 帧停 → 不卡。
+
+### 新 trace 分析(analyze-longtask.py 扒 Long Task 内部)
+
+写新脚本 `analyze-longtask.py` 扒最长 Long Task(617ms)内部事件树:
+- **616.7ms 全是单个 timer#4 回调**(`TimerFire → v8.callFunction → RunMicrotasks`),纯 JS 执行,0% Layout/Paint。
+- **consoleCall 事件 = 0**:推翻了"每帧 console.warn"假设(debug log 不是元凶)。
+- **GC 仅 ~40ms**:不是 GC。
+- prod 无 source map,trace 只到 timer 回调边界,看不到具体函数名 —— 必须靠代码 + 基准反查。
+
+### Node 基准的致命盲区(为什么前三轮全 falsify)
+
+前三轮的 Node 基准(`routing-tick-perf.spec`)测的是 `routingTick` 服务层 12 帧 = 5.5ms。但 prod 单次 600ms。差 100 倍。盲区:**基准只测到 state.appendRecords 的"merge+sort",没测 service 层的完整调用链**——`appendLocalRecords` 内部除了 merge+sort,还有 **3 次全量深拷贝**(getSnapshot 备份 / appendRecords 返回 snapshot / adapter writeMaterial 内 cloneStorageValue),这 3 次基准完全没覆盖。而且基准 warmup 只到 2000 records,prod 是 60000+。
+
+### 真根因(实证,prod-scale 基准钉死)
+
+写 prod-scale 基准(warmup 到 10k/20k,模拟 prod 数小时累积):
+```
+10k records: 单次 appendLocalRecords = 98.7ms
+20k records: 单次 appendLocalRecords = 202.7ms   ← 完美 O(N) 线性
+```
+反推 prod trace 600ms ≈ 60k records(运行数小时)。**D010-B 的 append-only fix 只治了 merge+sort,3 次全量深拷贝原封未动**。之前 2000 records 的 18ms 看着"已优化"是 warmup 规模太小没暴露真实 O(N)。
+
+分段定位(isolate 基准):
+- `state.appendRecords(1条)` = **0.003ms**(O(1),已优化)
+- `state.getSnapshot()` = **11.5ms@5k / 49.8ms@20k** ← 全量深拷贝,O(N)
+- **隐藏元凶**:`setLastIssue(undefined)` 内部 `return snapshot()` —— 每帧 append 成功后清错误标记,竟触发一次全量深拷贝!这是 service 完整调用才暴露、Node 基准完全漏掉的点。
+
+### 治本(TDD RED→GREEN)
+
+**RED**:`storage-append-no-growth.spec.ts` 钉住"路由路径 N 翻倍耗时不应线性翻倍"。旧实现 20k=193ms,ratio 4.5,**FAIL**。
+
+**治本(方案 A,用户拍板)**:routingTick 路径分离出 snapshot-free 的 `appendRoutedRecords`,与公开 `appendLocalRecords`(保完整契约)分流:
+1. **mutable push**:`appendRecords` 从 `[...全量, ...新]`(O(N) 数组重建)改 `records.push(...)`(O(新条数))。
+2. **id Set 索引**:`hasRecordId` 从 O(N) 遍历改 `Set.has`(O(1)),消除 canAppendInOrderFast 的 id 冲突兜底检查退化。
+3. **clearLastIssue**:新增 O(1) 清标记方法(不返回 snapshot),取代路由路径的 `setLastIssue(undefined)`(返回 snapshot = 全量深拷贝)。
+4. **truncateRecords 回滚**:写盘失败用 `records.length = count` 截断(O(1)),取代旧的 `getSnapshot().records` 全量深拷贝备份。
+5. **攒批写盘**:appendRoutedRecords 累计 dirty 计数,阈值 50 才全量 writeMaterial 一次(摊销 O(1)/帧);appendLocalRecords 保立即写(保"立即感知写盘失败+回滚"契约)。runtime.destroy 调 flushPendingWrites 防丢数据。
+
+**GREEN**:
+```
+路由路径(appendRoutedRecords):
+  5k records:  0.01ms    (旧 11.5ms)
+  20k records: 0.01ms    (旧 49.8ms)   ← 降 5000 倍,ratio 0.58(O(1))
+```
+prod 60k records 单帧从 ~600ms → ~0.01ms。
+
+### 验证
+
+- 治本回归测试(storage-append-no-growth):ratio < 1.6 ✓ / 绝对值 < 30ms ✓。
+- storage + runtime + 8 个 integration 测试套:**163/163 全过**。
+- tsc **0 错** / lint **0 错**(改动的 5 个源文件 + 5 个测试 mock)。
+- 受影响 mock 更新:integration 测试的 storage mock 从 spy `appendLocalRecords` 改 spy `appendRoutedRecords`(fanOutToStorage 现在调后者),加 `flushPendingWrites` 默认实现。
+
+### 排查的其它路径(子 agent 扫描 + 手查)
+
+派 Explore 子 agent 扫描整个 `rewrite/src`,按"集合是否无上限增长"判别器逐 feature 核查 routingTick 链。结论:**storage records 是唯一随运行时间无限累积的集合**,其它 feature 全有 cap 或键控常数:
+
+| feature | 集合 | cap/键 | 判定 |
+|---|---|---|---|
+| receive state | recentInputs / events | bounded 20 / 50 | OK |
+| receive state | frameStats/sourceStats/fieldValues | frameId/sourceId/fieldId 键控 | OK(常数) |
+| display service | buffer.sourceFields / 投影 | dataItemId 键控 / preferences.sampleCount(256) | OK |
+| connection state | events / configs / runtimeFacts | EVENT_LIMIT=50 / 连接键控 | OK |
+| task state | history / stepResults | MAX_HISTORY=50 / 100/实例 | OK(且不在每帧路径) |
+| send state | recentResults | MAX_RECENT_RESULTS=100 | OK(且不在接收 tick) |
+| result/ingress/northbound | — | instanceId/outCaseId 键控或任务事件驱动 | OK(非每帧) |
+| **storage records** | **无上限** | **无** | **问题(已治本)** |
+
+**子 agent 的时间错位说明**:子 agent 读的是启动快照,报告"appendLocalRecords:254 `const before` 仍在"——但该行已在后续 appendRoutedRecords + mutable push 改造中删除,现用 `prevCount = getRecordCount()` + truncateRecords(O(1))回滚。子 agent 也指出"prod 用 fake adapter,writeMaterial 内 cloneStorageValue 全量深拷贝每 tick 跑"——**已被攒批写盘摊销**(阈值 50,每 50 帧才一次全量深拷贝,摊销 ~1ms/帧 @ 60k records,远低于 16ms 帧预算)。
+
+**印证用户判断**:用户"我尽可能边界划分了,但可能哪里漏了"——边界划分确实到位,只有 storage 这一处无限累积漏网(已治本)。
