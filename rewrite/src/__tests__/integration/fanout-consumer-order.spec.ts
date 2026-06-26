@@ -30,7 +30,7 @@ import type { DisplayService, DisplayOperationResult } from '@/features/display'
 
 function createMockStorageService(
   overrides: {
-    appendLocalRecords?: (records: readonly unknown[]) => Promise<StorageLocalOperationResult>;
+    appendRoutedRecords?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
   } = {},
 ): StorageLocalService {
   return {
@@ -49,13 +49,15 @@ function createMockStorageService(
       validation: { valid: true, issues: [] },
       snapshot: {},
     }),
-    appendLocalRecords:
-      overrides.appendLocalRecords ??
-      (async () => ({
-        ok: true,
-        validation: { valid: true, issues: [] },
-        snapshot: {},
-      })),
+    appendLocalRecords: async () => ({
+      ok: true,
+      validation: { valid: true, issues: [] },
+      snapshot: {},
+    }),
+    appendRoutedRecords:
+      overrides.appendRoutedRecords ??
+      (async () => ({ ok: true })),
+    flushPendingWrites: async () => {},
     loadHistoryMaterials: async () => ({
       ok: true,
       validation: { valid: true, issues: [] },
@@ -153,13 +155,9 @@ describe('T002: fanOut correctness (display + storage)', () => {
   });
 
   it('fanOutToStorage receives correct records from receive outcomes', async () => {
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const storageService = createMockStorageService({
-      appendLocalRecords: appendSpy,
+      appendRoutedRecords: appendSpy,
     });
 
     const features = createMockWiredFeatures({
@@ -195,7 +193,7 @@ describe('T002: fanOut correctness (display + storage)', () => {
     });
 
     const storageService = createMockStorageService({
-      appendLocalRecords: async () => {
+      appendRoutedRecords: async () => {
         throw new Error('disk full');
       },
     });
@@ -233,13 +231,9 @@ describe('T002: fanOut correctness (display + storage)', () => {
       },
     });
 
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const storageService = createMockStorageService({
-      appendLocalRecords: appendSpy,
+      appendRoutedRecords: appendSpy,
     });
 
     const features = createMockWiredFeatures({
@@ -271,17 +265,13 @@ describe('T002: fanOut correctness (display + storage)', () => {
       validation: { valid: true, issues: [] },
       snapshot: {},
     });
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
 
     const displayService = createMockDisplayService({
       ingestSourceMaterial: ingestSpy,
     });
     const storageService = createMockStorageService({
-      appendLocalRecords: appendSpy,
+      appendRoutedRecords: appendSpy,
     });
 
     const features = createMockWiredFeatures({
@@ -353,7 +343,7 @@ describe('T016b: routingTick consumer order', () => {
       },
     });
     const storageService = createMockStorageService({
-      appendLocalRecords: async () => {
+      appendRoutedRecords: async () => {
         callOrder.push('fanout-storage');
         return { ok: true, validation: { valid: true, issues: [] }, snapshot: {} };
       },

@@ -28,6 +28,9 @@ export async function fanOutToStorage(
 
   if (records.length === 0) return 0;
 
-  const result = await service.appendLocalRecords(records);
+  // 治本"开久了卡"(S012 续):路由路径用 appendRoutedRecords(snapshot-free)。
+  // 旧调用 appendLocalRecords 会每帧返回被丢弃的全量深拷贝 snapshot,是 O(N) 退化根源。
+  // appendRoutedRecords 只增量 append + 攒批写盘,返回 { ok },彻底跳过 snapshot 生成。
+  const result = await service.appendRoutedRecords(records);
   return result.ok ? records.length : 0;
 }

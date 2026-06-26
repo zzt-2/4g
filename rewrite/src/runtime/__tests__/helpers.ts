@@ -219,6 +219,8 @@ export function createMockWiredFeatures(
       getLocalRecords: () => [],
       loadLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
       appendLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
+      appendRoutedRecords: async () => ({ ok: true }),
+      flushPendingWrites: async () => {},
       loadHistoryMaterials: async () => ({ ok: true, issues: [], snapshot: {} }),
       createCsvFromLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),
       clearLocalRecords: async () => ({ ok: true, issues: [], snapshot: {} }),

@@ -190,6 +190,9 @@ export function createRewriteRuntime(
       if (destroyed) return;
       destroyed = true;
       stopTick();
+      // 治本"开久了卡"(S012 续):appendRoutedRecords 攒批写盘,退出前 flush 防丢数据。
+      // fire-and-forget(destroy 同步语义不变);丢失仅限未 flush 的攒批,可接受。
+      void wiredFeatures.storageService.flushPendingWrites();
       void wiredFeatures.northboundService.stop();
       void wiredFeatures.highSpeedStorageService.deactivate();
       wiredFeatures.commandIngressService.dispose();

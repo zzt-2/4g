@@ -27,7 +27,7 @@ import type { StorageLocalService, StorageLocalOperationResult } from '@/feature
 describe('BF-1 regression: fanOutToStorage await propagation', () => {
   function createMockStorageService(
     overrides: {
-      appendLocalRecords?: (records: readonly unknown[]) => Promise<StorageLocalOperationResult>;
+      appendRoutedRecords?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
     } = {},
   ): StorageLocalService {
     return {
@@ -36,11 +36,9 @@ describe('BF-1 regression: fanOutToStorage await propagation', () => {
       getLocalRecord: () => undefined,
       getLastIssue: () => null,
       loadLocalRecords: async () => ({ ok: true, validation: { valid: true, issues: [] }, snapshot: {} as StorageLocalService['getSnapshot'] extends () => infer R ? R : never }),
-      appendLocalRecords: overrides.appendLocalRecords ?? (async () => ({
-        ok: true,
-        validation: { valid: true, issues: [] },
-        snapshot: {} as StorageLocalService['getSnapshot'] extends () => infer R ? R : never,
-      })),
+      appendLocalRecords: async () => ({ ok: true, validation: { valid: true, issues: [] }, snapshot: {} as StorageLocalService['getSnapshot'] extends () => infer R ? R : never }),
+      appendRoutedRecords: overrides.appendRoutedRecords ?? (async () => ({ ok: true })),
+      flushPendingWrites: async () => {},
       loadHistoryMaterials: async () => ({ ok: true, validation: { valid: true, issues: [] }, snapshot: {} as StorageLocalService['getSnapshot'] extends () => infer R ? R : never }),
       createCsvFromLocalRecords: async () => ({ ok: true, validation: { valid: true, issues: [] }, snapshot: {} as StorageLocalService['getSnapshot'] extends () => infer R ? R : never }),
       queryLocalRecords: () => [],
@@ -48,10 +46,10 @@ describe('BF-1 regression: fanOutToStorage await propagation', () => {
     } as unknown as StorageLocalService;
   }
 
-  it('when storage appendLocalRecords rejects, the error propagates (not silently swallowed)', async () => {
+  it('when storage appendRoutedRecords rejects, the error propagates (not silently swallowed)', async () => {
     const storageError = new Error('disk full');
     const storageService = createMockStorageService({
-      appendLocalRecords: async () => { throw storageError; },
+      appendRoutedRecords: async () => { throw storageError; },
     });
 
     const features = createMockWiredFeatures({
@@ -72,13 +70,9 @@ describe('BF-1 regression: fanOutToStorage await propagation', () => {
   });
 
   it('when fanOutToStorage succeeds, it was called with correct records', async () => {
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const storageService = createMockStorageService({
-      appendLocalRecords: appendSpy as StorageLocalService['appendLocalRecords'],
+      appendRoutedRecords: appendSpy as StorageLocalService['appendRoutedRecords'],
     });
 
     const features = createMockWiredFeatures({
@@ -103,11 +97,11 @@ describe('BF-1 regression: fanOutToStorage await propagation', () => {
     expect(appendSpy.mock.calls[0][0]).toHaveLength(1);
   });
 
-  it('fanOutToDisplay is called even when storage appendLocalRecords rejects', async () => {
+  it('fanOutToDisplay is called even when storage appendRoutedRecords rejects', async () => {
     const ingestSpy = vi.fn().mockReturnValue({ ok: true, issues: [], snapshot: {} });
 
     const storageService = createMockStorageService({
-      appendLocalRecords: async () => { throw new Error('disk full'); },
+      appendRoutedRecords: async () => { throw new Error('disk full'); },
     });
 
     const features = createMockWiredFeatures({

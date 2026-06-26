@@ -35,7 +35,7 @@ import type { ConditionMatchInput } from '@/features/task';
 
 function createMockStorageService(
   overrides: {
-    appendLocalRecords?: (records: readonly unknown[]) => Promise<StorageLocalOperationResult>;
+    appendRoutedRecords?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
   } = {},
 ): StorageLocalService {
   return {
@@ -54,13 +54,15 @@ function createMockStorageService(
       validation: { valid: true, issues: [] },
       snapshot: {},
     }),
-    appendLocalRecords:
-      overrides.appendLocalRecords ??
-      (async () => ({
-        ok: true,
-        validation: { valid: true, issues: [] },
-        snapshot: {},
-      })),
+    appendLocalRecords: async () => ({
+      ok: true,
+      validation: { valid: true, issues: [] },
+      snapshot: {},
+    }),
+    appendRoutedRecords:
+      overrides.appendRoutedRecords ??
+      (async () => ({ ok: true })),
+    flushPendingWrites: async () => {},
     loadHistoryMaterials: async () => ({
       ok: true,
       validation: { valid: true, issues: [] },
@@ -119,7 +121,7 @@ function createMockDisplayService(
 
 function buildFeaturesWithSpies(opts: {
   displayIngest?: (material: unknown) => DisplayOperationResult;
-  storageAppend?: (records: readonly unknown[]) => Promise<StorageLocalOperationResult>;
+  storageAppend?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
   receiveOutcomes?: readonly unknown[];
   bridgeEmitSpy?: ReturnType<typeof vi.fn>;
 } = {}) {
@@ -132,17 +134,13 @@ function buildFeaturesWithSpies(opts: {
       });
   const appendSpy = opts.storageAppend
     ? vi.fn(opts.storageAppend)
-    : vi.fn().mockResolvedValue({
-        ok: true,
-        validation: { valid: true, issues: [] },
-        snapshot: {},
-      });
+    : vi.fn().mockResolvedValue({ ok: true });
 
   const displayService = createMockDisplayService({
     ingestSourceMaterial: ingestSpy,
   });
   const storageService = createMockStorageService({
-    appendLocalRecords: appendSpy,
+    appendRoutedRecords: appendSpy,
   });
 
   const features = createMockWiredFeatures({
@@ -201,11 +199,7 @@ describe('T016: routingTick error isolation', () => {
   });
 
   it('known-gap: display failure blocks storage write and bridge emit (sync throw)', async () => {
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const emitSpy = vi.fn();
 
     const { features } = buildFeaturesWithSpies({
@@ -302,18 +296,14 @@ describe('T016: routingTick error isolation', () => {
       validation: { valid: true, issues: [] },
       snapshot: {},
     });
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const emitSpy = vi.fn();
 
     const displayService = createMockDisplayService({
       ingestSourceMaterial: ingestSpy,
     });
     const storageService = createMockStorageService({
-      appendLocalRecords: appendSpy,
+      appendRoutedRecords: appendSpy,
     });
 
     const features = createMockWiredFeatures({
@@ -349,18 +339,14 @@ describe('T016: routingTick error isolation', () => {
       validation: { valid: true, issues: [] },
       snapshot: {},
     });
-    const appendSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
+    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const emitSpy = vi.fn();
 
     const displayService = createMockDisplayService({
       ingestSourceMaterial: ingestSpy,
     });
     const storageService = createMockStorageService({
-      appendLocalRecords: appendSpy,
+      appendRoutedRecords: appendSpy,
     });
 
     const features = createMockWiredFeatures({
