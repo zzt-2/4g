@@ -163,7 +163,9 @@ decodeFrameDefinitions(data: Uint8Array): FrameAsset[]       // 解码
 `useHistoryData.ts` 的 `loadData()`:
 - 现状:`storageService.listLocalRecords()` + `listHistoryHours()` + `loadHistoryMaterials()`。
 - 改后:`recordingReader.listRecordingFiles()` → 按时间范围筛 → 逐文件 `readRecordingFile()` → `parseRecordingToSeries()` → 产出 `StorageLocalRecord` 兼容形状(或直接改内部模型为"字段时间序列")。
-- `extractItemHierarchy` / `buildSeriesWithPoints`:适配新数据形状。**注意** key 格式从旧 `${channel}:${key}` 简化(新格式天然有 frameId,可重建 hierarchy)。
+- `extractItemHierarchy` / `buildSeriesWithPoints`:**直接重写为新内部模型**(帧×字段×时间点),不复用旧 `StorageLocalRecord` 形状(旧格式已废弃,无需兼容形状)。hierarchy 按帧分组(frameId 天然可得),series 按字段×时间点组织。
+
+> 决定(spec review 时已定):**内部模型直接换新**,不维持兼容形状。改动比"适配旧形状"大,但干净——旧 `StorageLocalRecord` 已废弃,没必要为它留适配层。
 
 ### 5.3 HistoryPage.vue 修拼写 bug
 
@@ -177,9 +179,11 @@ const storageService = runtime.features.storageService;       // ✅
 ```
 **但要确认**:改完读取层后,History 是否还用 storageService。若读取层全切到 recording-reader,可能 HistoryPage 不再需要 storageService——届时连同 `CSVExportDialog` 的 `:storage-service` prop 一起改成传 recording-reader。spec 落实时定。
 
-### 5.4 CSV 导出
+### 5.4 CSV 导出(本轮不做)
 
-`CSVExportDialog` 现从 `StorageLocalRecord` 导。改后从解析后的字段时间序列生成 CSV。复用现有导出逻辑,换数据源。
+`CSVExportDialog` 现从 `StorageLocalRecord` 导(`:74 createCsvFromLocalRecords`,吃 `StorageRecordQuery` + fieldKeys)。改成从新格式导需要**重写 CSV 生成的数据源**(storage-local 专有逻辑) + 重做 composite id 映射——**复杂,非改个 prop 可比**。用户判定"麻烦先不管"。
+
+**本轮 CSV 导出不做。** History 页 CSV 按钮可保留但置灰(或隐藏),提示"暂不支持新录制格式"。下轮单独做。`CSVExportDialog` 的 `storageService` prop 暂保留(它还依赖 storageService 做别的),不强行拆。
 
 ---
 
@@ -200,8 +204,7 @@ const storageService = runtime.features.storageService;       // ✅
 - `features/recording/services/recording-reader.ts` — ★新建读取服务
 - `features/recording/__tests__/recording-reader.spec.ts` — ★新建测试
 - `pages/history/useHistoryData.ts` — 数据源切到 recording-reader
-- `pages/HistoryPage.vue` — 修拼写 bug(:15)+ 适配新数据源 + CSV prop
-- `pages/history/CSVExportDialog.vue` — 数据源换 recording-reader
+- `pages/HistoryPage.vue` — 修拼写 bug(:15)+ 适配新数据源(CSV prop 暂保留,按钮置灰)
 
 ### 治理
 - `decisions.md` D002 — 更新"格式"部分(RCD1 → RCD1+帧定义块),记录自检推翻 RCD2 的教训
@@ -226,7 +229,7 @@ const storageService = runtime.features.storageService;       // ✅
 3. **History 能查看录制数据**:选时间范围 → 加载 → 选帧/字段 → 看到曲线。数据正确(和实时显示一致)。
 4. **帧定义漂移防护**:模拟帧定义变化后,旧 .bin 仍正确解析(用内嵌定义)。
 5. **老 .bin 跳过不崩**(无帧定义块 → 报错跳过)。
-6. **CSV 导出**:从新格式导出 CSV 正确。
+6. **CSV 导出**:本轮不做(spec §5.4),按钮置灰/隐藏提示。验收时确认按钮不崩。
 7. tsc src 0 错 / lint 0 新增 / 相关测试通过。
 8. **录制侧无回归**:录制功能(诉求①②③④)仍正常,录制出的新 .bin 含帧定义块。
 
@@ -238,8 +241,10 @@ const storageService = runtime.features.storageService;       // ✅
 
 ---
 
-## 八、待 spec review 时确认的点
+## 八、已确认的 spec review 决定
 
-1. **帧定义块 frameDefBlockLen 用 uint32**——足够大(单 session 帧定义块顶多几十 KB)。✅(已定)
-2. **HistoryPage 是否还需要 storageService**——取决于 CSV 导出和别的逻辑。落实施计划时确认。
-3. **"字段时间序列"内部模型**——是适配成 `StorageLocalRecord` 形状(改动小但别扭),还是直接把 `useHistoryData` 内部模型换成"帧×字段×时间点"(改动大但干净)。**倾向后者**(旧格式已废弃,没必要维持兼容形状)。实施时定。
+1. **帧定义块 frameDefBlockLen 用 uint32**——足够大(单 session 帧定义块顶多几十 KB)。✅
+2. **内部模型直接换新**(帧×字段×时间点),不维持 `StorageLocalRecord` 兼容形状。✅(旧格式已废弃)
+3. **CSV 导出本轮不做**——`createCsvFromLocalRecords` 是 storage-local 专有,重写数据源 = 麻烦,用户判定先不做。CSV 按钮置灰/隐藏。✅
+4. **读取粒度 = 整文件读**——最坏 2MB,解码个位数毫秒,不引入 mmap/流式。✅(自检验证)
+5. **HistoryPage storageService**:CSV 不做后,HistoryPage 是否还需要 storageService 待实施时确认;CSVExportDialog 的 `storageService` prop 暂保留(不强行拆)。
