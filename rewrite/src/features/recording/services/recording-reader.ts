@@ -35,6 +35,8 @@ export interface FieldTimePoint {
 /** 单帧的字段时间序列(每个 field 一组时间点)。 */
 export interface FrameFieldSeries {
   readonly frameId: string;
+  /** 帧显示名(从内嵌帧定义的 frame.name 取,R19:不泄漏 raw frameId)。 */
+  readonly frameName: string;
   readonly fields: {
     readonly fieldId: string;
     readonly fieldName: string;
@@ -109,6 +111,7 @@ export function parseRecordingToFieldSeries(
     }
     result.push({
       frameId,
+      frameName: frame.name || frameId,
       fields: Array.from(fieldMap.entries()).map(([fieldId, v]) => ({
         fieldId,
         fieldName: v.fieldName,

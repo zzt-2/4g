@@ -3,15 +3,18 @@ import type {
   ChartInstanceProjection,
   ChartSeriesProjection,
   ChartPoint,
-  ChartSelectedItem,
-  ChartSelectionFrameLookup,
   DisplayService,
 } from '@/features/display';
-import type {
-  StorageLocalService,
-  StorageLocalRecord,
-  StorageHourSummary,
-} from '@/features/storage-local-baseline';
+import type { RecordingService } from '@/features/recording';
+import {
+  parseRecordingFileBytes,
+  parseRecordingToFieldSeries,
+  type FrameFieldSeries,
+  type FieldTimePoint,
+} from '@/features/recording';
+
+// History 数据 composable。数据源是录制 .bin(原始帧字节),不再读旧 StorageLocalRecord。
+// 内部模型换新:帧×字段×时间点(spec §5.2)。旧 StorageLocalRecord 格式废弃,不向后兼容。
 
 // --- Hierarchy types ---
 
@@ -55,82 +58,66 @@ export function getDefaultTimeRange(): TimeRange {
   return { start, end };
 }
 
-// --- Hierarchy extraction ---
+// --- Internal model (帧×字段×时间点,spec §5.2) ---
+// 加载后所有文件的字段时间序列,按 frameId 聚合。frameName/fieldName 从录制时内嵌的
+// 帧定义拿(R19:静态元数据不从运行时数据流解析,不泄漏 raw frameId/UUID)。
 
-export function extractItemHierarchy(records: readonly StorageLocalRecord[]): DataItemGroup[] {
-  const groupMap = new Map<string, Map<string, DataItemInfo>>();
-
-  for (const record of records) {
-    if (!groupMap.has(record.channel)) {
-      groupMap.set(record.channel, new Map());
-    }
-    const items = groupMap.get(record.channel)!;
-    for (const field of record.fields) {
-      if (!items.has(field.key)) {
-        items.set(field.key, {
-          fieldId: `${record.channel}:${field.key}`,
-          key: field.key,
-          dataType: typeof field.value === 'number' ? 'numeric' : 'other',
-        });
-      }
-    }
-  }
-
-  return Array.from(groupMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([groupId, items]) => ({
-      groupId,
-      label: groupId,
-      items: Array.from(items.values()),
-    }));
+interface LoadedFrameSeries {
+  readonly frameId: string;
+  readonly frameName: string;
+  readonly fields: ReadonlyMap<string, { readonly fieldName: string; readonly points: readonly FieldTimePoint[] }>;
 }
 
-// --- Storage → ChartSeriesProjection bridge ---
+/** 复合 fieldId:History 页 hierarchy/charts 用 `${frameId}:${fieldId}` 作为选择 key
+ *  (内部计算用;ChartSelectedItem 结构化对象经 compositeFieldId 反查)。 */
+function compositeFieldId(frameId: string, fieldId: string): string {
+  return `${frameId}:${fieldId}`;
+}
 
-function buildSeriesWithPoints(
-  selectedItems: readonly ChartSelectedItem[],
-  records: readonly StorageLocalRecord[],
-  frameReader: ChartSelectionFrameLookup,
-): ChartSeriesProjection[] {
-  const fieldNameCache = new Map<string, string>();
-  function getFieldName(frameId: string, fieldId: string): string {
-    const cacheKey = `${frameId}:${fieldId}`;
-    const cached = fieldNameCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-    const refs = frameReader.listFieldReferences({ frameId });
-    const match = refs.find((r) => r.fieldId === fieldId);
-    const resolved = match ? match.fieldName : '[Unknown Field]';
-    if (!match) {
-      // Align with display composable (R19/V5): never leak raw fieldId/UUID to the UI.
-      console.warn('[history] chart series fieldName resolved to placeholder: field not found in frameReader', { frameId, fieldId });
+// 合并多个文件的 FrameFieldSeries → LoadedFrameSeries[]。
+// 同一 frameId+fieldId 的时间点合并(跨文件)。
+function mergeSeries(all: readonly FrameFieldSeries[]): LoadedFrameSeries[] {
+  const byFrame = new Map<string, LoadedFrameSeries>();
+  for (const s of all) {
+    const existing = byFrame.get(s.frameId);
+    if (!existing) {
+      const fieldMap = new Map<string, { fieldName: string; points: FieldTimePoint[] }>();
+      for (const f of s.fields) {
+        fieldMap.set(f.fieldId, { fieldName: f.fieldName, points: [...f.points] });
+      }
+      byFrame.set(s.frameId, { frameId: s.frameId, frameName: s.frameName, fields: fieldMap });
+      continue;
     }
-    fieldNameCache.set(cacheKey, resolved);
-    return resolved;
-  }
-
-  const sortedRecords = [...records].sort(
-    (a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt),
-  );
-
-  // history record.fields.key format: `${groupId}:${frameId}:${fieldId}:${fieldName}` (set at recording time)
-  return selectedItems.map((item) => {
-    const fieldName = getFieldName(item.frameId, item.fieldId);
-    const recordKey = `${item.groupId}:${item.frameId}:${item.fieldId}:${fieldName}`;
-    const points: ChartPoint[] = [];
-    for (const record of sortedRecords) {
-      for (const field of record.fields) {
-        if (field.key !== recordKey) continue;
-        if (typeof field.value === 'number') {
-          points.push({ timestamp: record.capturedAt, value: field.value });
-        }
+    // 合并字段时间点
+    for (const f of s.fields) {
+      const ef = existing.fields.get(f.fieldId);
+      if (!ef) {
+        (existing.fields as Map<string, { fieldName: string; points: FieldTimePoint[] }>).set(f.fieldId, {
+          fieldName: f.fieldName,
+          points: [...f.points],
+        });
+      } else {
+        (ef.points as FieldTimePoint[]).push(...f.points);
       }
     }
-    return {
-      fieldId: `${item.groupId}:${item.frameId}:${item.fieldId}`,
-      fieldName,
-      points,
-    };
-  });
+  }
+  return Array.from(byFrame.values());
+}
+
+// 从 loadedSeries 构建 hierarchy:按帧分组 → 每帧下是字段。
+// label 用 frameName(R19:不泄漏 raw frameId/UUID)。
+function buildHierarchyFromSeries(series: readonly LoadedFrameSeries[]): DataItemGroup[] {
+  return series
+    .map((s) => ({
+      groupId: s.frameId,
+      label: s.frameName || s.frameId, // R19:优先用帧名,无则降级(测试数据场景)
+      items: Array.from(s.fields.entries()).map(([fieldId, v]) => ({
+        fieldId: compositeFieldId(s.frameId, fieldId),
+        key: v.fieldName || fieldId, // R19:用字段名做显示 key
+        dataType: 'numeric' as const,
+      })),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 // --- Statistics computation ---
@@ -147,7 +134,6 @@ export function computeSeriesStats(points: readonly ChartPoint[]): { mean: numbe
 // --- Composable ---
 
 export interface HistoryDataState {
-  readonly hourSummaries: Readonly<Ref<readonly StorageHourSummary[]>>;
   readonly itemHierarchy: Readonly<Ref<readonly DataItemGroup[]>>;
   readonly enrichedCharts: Readonly<Ref<readonly ChartInstanceProjection[]>>;
   readonly chartStats: Readonly<Ref<readonly ChartStatistics[]>>;
@@ -158,16 +144,14 @@ export interface HistoryDataState {
 }
 
 export function useHistoryData(
-  storageService: StorageLocalService,
+  recordingService: RecordingService,
   displayService: DisplayService,
-  frameReader: ChartSelectionFrameLookup,
 ): HistoryDataState & {
   loadData(): Promise<void>;
   refreshCharts(): void;
 } {
   // ===== Business data =====
-  const records = shallowRef<StorageLocalRecord[]>([]);
-  const hourSummaries = shallowRef<StorageHourSummary[]>([]);
+  const loadedSeries = shallowRef<LoadedFrameSeries[]>([]);
   const itemHierarchy = shallowRef<DataItemGroup[]>([]);
   const enrichedCharts = shallowRef<ChartInstanceProjection[]>([]);
   const chartStats = shallowRef<ChartStatistics[]>([]);
@@ -180,18 +164,45 @@ export function useHistoryData(
   const loading = ref(false);
 
   // ===== Derived =====
-  const recordCount = computed(() => records.value.length);
+  const recordCount = computed(() =>
+    loadedSeries.value.reduce(
+      (sum, s) => sum + Array.from(s.fields.values()).reduce((n, f) => n + f.points.length, 0),
+      0,
+    ),
+  );
 
   function refreshCharts(): void {
     const prefs = displayService.getPreferences();
-    const from = timeRange.value.start.toISOString();
-    const to = timeRange.value.end.toISOString();
+    const series = loadedSeries.value;
 
-    const filteredRecords = storageService.listLocalRecords({ from, to });
+    // 构建快速查找:`frameId:fieldId` → 时间点(只保留 number 值,图表只画数字)。
+    // ChartSelectedItem 是结构化 {frameId, fieldId},经 compositeFieldId 反查。
+    const lookup = new Map<string, { fieldName: string; points: ChartPoint[] }>();
+    for (const frame of series) {
+      for (const [fieldId, f] of frame.fields) {
+        const numericPoints: ChartPoint[] = [];
+        for (const p of f.points) {
+          if (typeof p.value === 'number') {
+            // capturedAt 是 epoch 秒,转 ISO 字符串(ChartPoint.timestamp 是 string)
+            numericPoints.push({ timestamp: new Date(p.capturedAt * 1000).toISOString(), value: p.value });
+          }
+        }
+        if (numericPoints.length > 0) {
+          lookup.set(compositeFieldId(frame.frameId, fieldId), { fieldName: f.fieldName, points: numericPoints });
+        }
+      }
+    }
 
     const charts: ChartInstanceProjection[] = prefs.charts.map((chart) => ({
       id: chart.id,
-      series: buildSeriesWithPoints(chart.selectedItems, filteredRecords, frameReader),
+      series: chart.selectedItems
+        .map((item) => {
+          const key = compositeFieldId(item.frameId, item.fieldId);
+          const found = lookup.get(key);
+          if (!found) return null;
+          return { fieldId: key, fieldName: found.fieldName, points: found.points };
+        })
+        .filter((s): s is ChartSeriesProjection => s !== null),
     }));
     enrichedCharts.value = charts;
 
@@ -207,30 +218,39 @@ export function useHistoryData(
   async function loadData(): Promise<void> {
     loading.value = true;
     try {
-      const allHours = storageService.listHistoryHours();
+      // 列 recordings/ 目录下所有 .bin,按时间范围筛选(用 mtimeMs 近似;
+      // 单 session 文件 mtime 接近录制时间,够用)。
+      const fileList = await recordingService.listRecordingFiles();
       const fromMs = timeRange.value.start.getTime();
       const toMs = timeRange.value.end.getTime();
+      const inRange = fileList.filter((f) => f.mtimeMs >= fromMs && f.mtimeMs <= toMs);
 
-      const inRange = allHours.filter((h) => {
-        const hourMs = Date.parse(h.hourKey.replace('T', ' ') + ':00:00');
-        return hourMs >= fromMs && hourMs <= toMs;
-      });
+      if (inRange.length === 0) {
+        loadedSeries.value = [];
+        itemHierarchy.value = [];
+        refreshCharts();
+        return;
+      }
 
-      hourSummaries.value = inRange;
-
-      if (inRange.length > 0) {
-        const hourKeys = inRange.map((h) => h.hourKey);
-        const result = await storageService.loadHistoryMaterials(hourKeys);
-        if (!result.ok) {
-          console.error('[useHistoryData] loadHistoryMaterials failed:', result.validation.issues);
-          return;
+      // 逐文件读 + 解析。老格式/坏文件 catch 跳过(spec §3.4,不崩)。
+      const allSeries: FrameFieldSeries[] = [];
+      for (const f of inRange) {
+        const result = await recordingService.readRecordingFile(f.filePath);
+        if (!result.ok || result.bytes.length === 0) continue;
+        try {
+          const content = parseRecordingFileBytes(new Uint8Array(result.bytes));
+          // 默认加载所有帧(用户在 hierarchy 里再选具体字段;charts 按 prefs.selectedItems 过滤)
+          const frameIds = [...content.frameDefs.keys()];
+          const series = parseRecordingToFieldSeries(content, frameIds);
+          allSeries.push(...series);
+        } catch (err) {
+          // 老格式(无帧定义块)或解析失败 → 跳过该文件,继续处理其余
+          console.warn('[useHistoryData] skipping recording file (old format or parse error):', f.fileName, err);
         }
       }
 
-      const allRecords = storageService.listLocalRecords();
-      records.value = allRecords;
-      itemHierarchy.value = extractItemHierarchy(allRecords);
-
+      loadedSeries.value = mergeSeries(allSeries);
+      itemHierarchy.value = buildHierarchyFromSeries(loadedSeries.value);
       refreshCharts();
     } catch (err) {
       console.error('[useHistoryData] loadData error:', err);
@@ -240,7 +260,6 @@ export function useHistoryData(
   }
 
   return {
-    hourSummaries,
     itemHierarchy,
     enrichedCharts,
     chartStats,

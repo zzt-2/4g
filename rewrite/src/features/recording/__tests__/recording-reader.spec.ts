@@ -103,6 +103,7 @@ describe('recording-reader parseRecordingToFieldSeries', () => {
     const series = parseRecordingToFieldSeries(content, ['tf']);
     expect(series).toHaveLength(1); // 1 帧
     expect(series[0].frameId).toBe('tf');
+    expect(series[0].frameName).toBe('Test'); // R19:用内嵌帧定义的 name,不泄漏 raw id
     expect(series[0].fields).toHaveLength(1); // f1
     const f1 = series[0].fields[0];
     expect(f1.fieldId).toBe('f1');
