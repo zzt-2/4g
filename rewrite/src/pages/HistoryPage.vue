@@ -32,7 +32,8 @@ const configChartId = ref<string | null>(null);
 
 // ===== Operations =====
 async function handleLoad(): Promise<void> {
-  await history.loadData.value();
+  // loadData/refreshCharts 是 composable 返回的裸函数(非 ref),直接调用,不解包 .value。
+  await history.loadData();
   if (history.itemHierarchy.value.length > 0) {
     notify.success(`已加载 ${history.recordCount.value} 条记录`);
   } else {

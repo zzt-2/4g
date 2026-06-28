@@ -47,8 +47,10 @@ function openRecordingConfig() {
 function applyRecordingConfig(config: RecordingConfig) {
   recordingConfig.value = config;
   recordingService.setConfig(config);
-  // 同时落盘到 DisplayPreferences(跨会话持久化,T11 完成完整路径,此处先接 displayService)
+  // 落盘到 DisplayPreferences(跨会话持久化)。setRecordingConfig 改内存 preferences,
+  // 必须再 persistDisplay() 写盘,否则重启丢失选帧等录制配置。
   displayService.setRecordingConfig(config);
+  persistDisplay();
 }
 
 const displayRefresh = useDisplayRefresh(displayService, frameReader);
