@@ -385,6 +385,35 @@ describe('display service', () => {
     expect(result.ok).toBe(true);
     expect(service.getAvailability().available).toBe(true);
   });
+
+  // H014/S012/T11:录制配置往返 + 持久化等价路径(hydrate 走 updatePreferences)。
+  it('recording config round-trips through setRecordingConfig/getRecordingConfig and survives updatePreferences (hydrate path)', () => {
+    const service = createDisplayService();
+    // 默认 recording 存在(非 undefined)
+    const initial = service.getRecordingConfig();
+    expect(initial.selectedFrameIds).toEqual([]);
+    expect(initial.maxFileSizeMb).toBe(100);
+
+    // 设置选帧 + 改滚动参数
+    service.setRecordingConfig({
+      selectedFrameIds: ['frame-a', 'frame-b'],
+      maxFileSizeMb: 50,
+      enableRotation: false,
+      rotationCount: 3,
+    });
+    const after = service.getRecordingConfig();
+    expect(after.selectedFrameIds).toEqual(['frame-a', 'frame-b']);
+    expect(after.maxFileSizeMb).toBe(50);
+    expect(after.enableRotation).toBe(false);
+
+    // 模拟 hydrate:updatePreferences(hydrate 等价路径)后 recording 保留
+    const prefs = service.getPreferences();
+    service.updatePreferences({ refreshCadenceMs: 999 });
+    // recording 不应被这次无关 update 冲掉
+    expect(service.getRecordingConfig().selectedFrameIds).toEqual(['frame-a', 'frame-b']);
+    expect(service.getRecordingConfig().maxFileSizeMb).toBe(50);
+    void prefs;
+  });
 });
 
 // --- Multi-chart service tests ---
