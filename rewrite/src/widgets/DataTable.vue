@@ -9,9 +9,13 @@ interface DataTableProps {
   loading?: boolean;
   selection?: 'single' | 'multiple' | 'none';
   selected?: readonly T[];
+  /** 是否启用虚拟滚动。默认关闭——小表(几十~几百行)全量渲染更稳，
+   *  virtual-scroll 对小表是净负:itemSize 算不准会导致窗口偏移、底部斑马纹空白。
+   *  仅大数据量表(实时遥测/命令日志)显式开启，并配准 itemSize。 */
+  virtualScroll?: boolean;
   virtualScrollItemSize?: number;
   containerHeight?: string;
-  /** 紧凑行高：td 纵向 padding 压到 2px、line-height 1.15（约 20px/行，默认约 36px）。 */
+  /** 紧凑行高：td 纵向 padding 压到 2px、line-height 1.15（约 20px/行，默认约 48px）。 */
   compact?: boolean;
 }
 
@@ -19,7 +23,10 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   loading: false,
   selection: 'none',
   selected: () => [],
-  virtualScrollItemSize: 36,
+  virtualScroll: false,
+  // 默认按非紧凑实际行高校准(td padding 8px*2 + line-height ~32px ≈ 48px)。
+  // 旧默认 36px < 实际行高,导致 virtual-scroll 窗口算偏少行、底部斑马纹空白。
+  virtualScrollItemSize: 48,
   containerHeight: 'calc(100vh - 200px)',
   compact: false,
 });
@@ -50,7 +57,7 @@ const showSelection = computed(() => props.selection !== 'none');
     :loading="loading"
     :selection="showSelection ? selection : undefined"
     v-model:selected="computedSelected"
-    virtual-scroll
+    :virtual-scroll="virtualScroll"
     :virtual-scroll-item-size="virtualScrollItemSize"
     :rows-per-page-options="[0]"
     :style="{ maxHeight: containerHeight }"

@@ -236,6 +236,7 @@ const allColumnNames = panelTableColumns
           :rows="rows"
           row-key="dataItemId"
           container-height="100%"
+          virtual-scroll
           :virtual-scroll-item-size="20"
           compact
         >

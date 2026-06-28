@@ -53,6 +53,7 @@
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"@serialport/bindings-cpp",
+			"@parcel/watcher",
 			"electron",
 			"esbuild"
 		]
