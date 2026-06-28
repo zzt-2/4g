@@ -173,8 +173,17 @@ export function createRewriteRuntime(
 
     startTickDriver(intervalMs = ROUTING_TICK_DEFAULT_INTERVAL_MS) {
       if (tickIntervalId !== null || destroyed) return;
+      // 并发保护（D013）：setInterval 不等 async 回调完成就触发下一次，单次 tick 一旦
+      // 超过 intervalMs（如 display fan-out 重），下一 tick 照样起，并发 tick 各自抢
+      // 主线程 → 雪崩冻屏。用 in-flight flag 拦：上一 tick 未完成则跳过本次触发。
+      // 代价：tick 实际节奏可能慢于 intervalMs（被慢 tick 拖），但接受——绝不并发。
+      let tickInFlight = false;
       tickIntervalId = setInterval(() => {
-        routingTick(wiredFeatures).catch((err) => console.error('[routingTick]', err));
+        if (tickInFlight || destroyed) return;
+        tickInFlight = true;
+        routingTick(wiredFeatures)
+          .catch((err) => console.error('[routingTick]', err))
+          .finally(() => { tickInFlight = false; });
       }, intervalMs);
     },
 
@@ -190,9 +199,7 @@ export function createRewriteRuntime(
       if (destroyed) return;
       destroyed = true;
       stopTick();
-      // 治本"开久了卡"(S012 续):appendRoutedRecords 攒批写盘,退出前 flush 防丢数据。
-      // fire-and-forget(destroy 同步语义不变);丢失仅限未 flush 的攒批,可接受。
-      void wiredFeatures.storageService.flushPendingWrites();
+      // routingTick 不再写 storage records（D013），destroy 无需 flush。
       void wiredFeatures.northboundService.stop();
       void wiredFeatures.highSpeedStorageService.deactivate();
       wiredFeatures.commandIngressService.dispose();

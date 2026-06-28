@@ -36,8 +36,6 @@ function createFakeStorage(input: FakeStorageInput = {}): StorageLocalService {
     loadHistoryMaterials: async () =>
       ({ ok: true, snapshot: { materials: [] }, validation: { valid: true, issues: [] } } as unknown as StorageValidationResult),
     appendLocalRecords: () => {},
-    appendRoutedRecords: async () => ({ ok: true }),
-    flushPendingWrites: async () => {},
   } as unknown as StorageLocalService;
 }
 

@@ -2,13 +2,13 @@
  * routingTick 性能基准 — Phase 1 证据收集(不猜)。
  *
  * 目的:用真实 wiring + fake 连接适配器,推 N 帧过完整 routingTick 链,
- *      分段计时 drain / receive / display / storage,锁定 300-430ms 花在哪一步。
+ *      分段计时 drain / receive / display,定位耗时花在哪一步。
  *
- * 本文件是 bench(非断言单测),跑法:`npx vitest run --testNamePattern=perf src/runtime/__tests__/routing-tick-perf.bench.ts`
- * 默认不被 CI 强制(文件名 .bench.ts,看 vitest.config 是否纳入)。
+ * 注(D013):routingTick 不再把接收帧写进 storage records(B 路径根除)。
+ *      原 storage 段分段计时和"开久了卡"(records 累积 O(N))验证 bench 随之退役——
+ *      量已根除 bug 的基准没有保留价值。剩下的 drain/receive/display 分段计时仍有诊断价值。
  *
- * 红线:trace 显示 timer#4 耗时平稳(前1/3 327ms / 后1/3 330ms)→ 排除 O(n²) 累积;
- *      drain 空时 0.3ms → 瓶颈 100% 由"处理数据帧"触发。本基准验证这个判断。
+ * 本文件是 bench(非断言单测),仅 console.log,默认不阻断 CI。
  */
 import { describe, it } from 'vitest';
 import { createRewriteRuntime } from '../index';
@@ -84,8 +84,8 @@ describe('routingTick perf — Phase 1 evidence', () => {
     runtime.destroy();
   });
 
-  it('perf: 子步分段计时 — drain vs receive vs display vs storage', async () => {
-    // 直接调各 service,分段定位 300ms 花在哪。
+  it('perf: 子步分段计时 — drain vs receive vs display', async () => {
+    // 直接调各 service,分段定位耗时花在哪(routingTick 不再写 storage,D013)。
     const fake = createFakeConnectionTransportAdapter();
     const runtime = createRewriteRuntime({ connectionAdapter: fake });
     const f = runtime.features;
@@ -100,11 +100,9 @@ describe('routingTick perf — Phase 1 evidence', () => {
     const drainT: number[] = [];
     const receiveT: number[] = [];
     const displayT: number[] = [];
-    const storageT: number[] = [];
-    // 复刻 routing-tick.ts 的调用顺序但分段计时
+    // 复刻 routing-tick.ts 的调用顺序但分段计时(storage 段已移除,见 D013)
     const { ConnectionToReceiveInputSource } = await import('../bridges/connection-to-receive');
     const { fanOutToDisplay } = await import('../bridges/receive-display-bridge');
-    const { fanOutToStorage } = await import('../bridges/receive-storage-bridge');
 
     // warmup
     for (let i = 0; i < FRAMES; i++) fake.pushData('serial-1', bytes);
@@ -115,7 +113,6 @@ describe('routingTick perf — Phase 1 evidence', () => {
         const src = new ConnectionToReceiveInputSource(dataEvents);
         const out = await f.receiveService.drainInputSource(src);
         fanOutToDisplay(f.displayService, out.outcomes);
-        await fanOutToStorage(f.storageService, out.outcomes);
       }
     }
 
@@ -135,7 +132,7 @@ describe('routingTick perf — Phase 1 evidence', () => {
         const src = new ConnectionToReceiveInputSource(dataEvents);
         await f.receiveService.drainInputSource(src);
       }));
-      // receive 再跑一次拿 outcomes 给 display/storage 分段
+      // receive 再跑一次拿 outcomes 给 display 分段
       for (let i = 0; i < FRAMES; i++) fake.pushData('serial-1', bytes);
       const d2 = await f.connectionService.drainAdapterEvents();
       const de2 = d2.events.filter((e) => e.kind === 'data' && e.bytes !== undefined);
@@ -143,7 +140,6 @@ describe('routingTick perf — Phase 1 evidence', () => {
       const outcomes = (await f.receiveService.drainInputSource(src2)).outcomes;
 
       displayT.push(await timeMs(() => fanOutToDisplay(f.displayService, outcomes)));
-      storageT.push(await timeMs(() => fanOutToStorage(f.storageService, outcomes)));
     }
 
     const stat = (arr: number[]) => {
@@ -153,7 +149,6 @@ describe('routingTick perf — Phase 1 evidence', () => {
     console.log(`[PERF-STEP] drain (${FRAMES}帧):    ${stat(drainT)}`);
     console.log(`[PERF-STEP] receive (${FRAMES}帧):  ${stat(receiveT)}`);
     console.log(`[PERF-STEP] display (${FRAMES}帧):  ${stat(displayT)}`);
-    console.log(`[PERF-STEP] storage (${FRAMES}帧):  ${stat(storageT)}`);
 
     runtime.destroy();
   });
@@ -182,48 +177,4 @@ describe('routingTick perf — Phase 1 evidence', () => {
     console.log(`[PERF-1] 1帧/tick × ${ROUNDS}轮: avg=${avg.toFixed(2)}ms med=${t1[Math.floor(t1.length / 2)].toFixed(2)}ms max=${t1[t1.length - 1].toFixed(2)}ms`);
     runtime.destroy();
   });
-
-  it('perf: 开久了卡? — 持续推帧,看单 tick 是否随 storage 记录累积变慢(O(N·M) 验证)', async () => {
-    // 注:本测试推 2000 帧采样趋势,实测 O(N·M) 下约 60s,需放宽 testTimeout(默认 10s)。
-    // 这个 testTimeout 只对本用例生效,不影响其他测试。
-    // 假设:appendLocalRecords 每帧 [...existing, ...new] + mergeStorageLocalRecords(深拷贝全部+排序) +
-    //      writeMaterial(再深拷贝) + state.replaceRecords(再深拷贝) → 单 tick 耗时随总记录数 N 线性增长。
-    //      这是"开久了卡"的候选机制。推 2000 帧采样单 tick 耗时趋势验证。
-    const fake = createFakeConnectionTransportAdapter();
-    const runtime = createRewriteRuntime({ connectionAdapter: fake });
-    const f = runtime.features;
-
-    await f.connectionService.connect({ kind: 'serial', id: 'serial-1', portPath: '/dev/ttyUSB0', baudRate: 115200 });
-    f.receiveService.refreshFrameReferences([receiveFrame]);
-    const bytes = buildFrameBytes();
-
-    // warmup
-    fake.pushData('serial-1', bytes);
-    await runtime.routingTick();
-
-    const TOTAL = 2000;
-    const sampleAt = new Set([0, 500, 1000, 1500, TOTAL - 1]);
-    const samples: { records: number; tickMs: number }[] = [];
-
-    for (let i = 0; i < TOTAL; i++) {
-      fake.pushData('serial-1', bytes);
-      if (sampleAt.has(i)) {
-        const t = await timeMs(() => runtime.routingTick());
-        const records = f.storageService.getSnapshot().records.length;
-        samples.push({ records, tickMs: t });
-      } else {
-        await runtime.routingTick();
-      }
-    }
-
-    console.log('[PERF-GROWTH] 单 tick 耗时随 storage 记录数增长:');
-    for (const s of samples) {
-      const bars = 'X'.repeat(Math.min(50, Math.round(s.tickMs)));
-      console.log(`  records=${String(s.records).padStart(5)} → ${s.tickMs.toFixed(2)}ms ${bars}`);
-    }
-    const first = samples[0].tickMs;
-    const last = samples[samples.length - 1].tickMs;
-    console.log(`[PERF-GROWTH] 首个=${first.toFixed(2)}ms → 末个=${last.toFixed(2)}ms,倍数=${(last / first).toFixed(1)}x`);
-    runtime.destroy();
-  }, 120000);
 });

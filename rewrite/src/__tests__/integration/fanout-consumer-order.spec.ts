@@ -1,11 +1,13 @@
 /**
- * T002: fanOut correctness (display + storage).
+ * T002: fanOut correctness (display).
  * T016b: routingTick consumer order.
+ *
+ * 注(D013):routingTick 不再写 storage records(B 路径根除)。原 T002 的 storage 相关测试
+ * (fanOutToStorage receives records / storage failure isolation)随 B 路径退役删除。
+ * display 的 fanOut correctness 和 consumer order 测试保留。
  *
  * T002 verifies:
  * 1. fanOutToDisplay correctly passes sourceFields/chartHistory/scatterPoints
- * 2. fanOutToStorage correctly calls storage service write (BF-1 await fix verified)
- * 3. Error isolation — one fanOut failure does not affect the other
  *
  * T016b verifies:
  * 1. routingTick processes events in correct order (drain → filter → receive → fanout → bridge)
@@ -21,18 +23,14 @@ import {
   okOutcome,
   okReceiveOutcome,
 } from '@/runtime/__tests__/helpers';
-import type { StorageLocalService, StorageLocalOperationResult } from '@/features/storage-local-baseline';
+import type { StorageLocalService } from '@/features/storage-local-baseline';
 import type { DisplayService, DisplayOperationResult } from '@/features/display';
 
 // ---------------------------------------------------------------------------
 // Mock service factories
 // ---------------------------------------------------------------------------
 
-function createMockStorageService(
-  overrides: {
-    appendRoutedRecords?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
-  } = {},
-): StorageLocalService {
+function createMockStorageService(): StorageLocalService {
   return {
     getSnapshot: () => ({
       schemaVersion: 1,
@@ -54,10 +52,6 @@ function createMockStorageService(
       validation: { valid: true, issues: [] },
       snapshot: {},
     }),
-    appendRoutedRecords:
-      overrides.appendRoutedRecords ??
-      (async () => ({ ok: true })),
-    flushPendingWrites: async () => {},
     loadHistoryMaterials: async () => ({
       ok: true,
       validation: { valid: true, issues: [] },
@@ -154,124 +148,16 @@ describe('T002: fanOut correctness (display + storage)', () => {
     expect(ingestSpy).toHaveBeenCalled();
   });
 
-  it('fanOutToStorage receives correct records from receive outcomes', async () => {
-    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
-    const storageService = createMockStorageService({
-      appendRoutedRecords: appendSpy,
-    });
-
-    const features = createMockWiredFeatures({
-      connectionService: {
-        drainAdapterEvents: async () =>
-          okOutcome([dataEvent('conn-1', [0x01, 0x02, 0x03, 0x04])]),
-      },
-      receiveService: {
-        drainInputSource: async () =>
-          okReceiveOutcome([
-            matchedOutcome('frame-1', [
-              { fieldId: 'f1', value: 100 },
-            ], 'src-1'),
-          ]),
-      },
-    });
-    (features as Record<string, unknown>).storageService = storageService;
-
-    const result = await routingTick(features);
-
-    expect(result.ok).toBe(true);
-    expect(appendSpy).toHaveBeenCalled();
-  });
-
-  it('error isolation: storage failure does not block display update', async () => {
+  it('unmatched outcomes are not forwarded to fanOut (display)', async () => {
+    // 注(D013):routingTick 不再写 storage,本测试只验证 display fanOut 不被 unmatched 触发。
     const ingestSpy = vi.fn().mockReturnValue({
       ok: true,
       validation: { valid: true, issues: [] },
       snapshot: {},
     });
-    const displayService = createMockDisplayService({
-      ingestSourceMaterial: ingestSpy,
-    });
-
-    const storageService = createMockStorageService({
-      appendRoutedRecords: async () => {
-        throw new Error('disk full');
-      },
-    });
-
-    const features = createMockWiredFeatures({
-      connectionService: {
-        drainAdapterEvents: async () =>
-          okOutcome([dataEvent('conn-1', [0x01, 0x02])]),
-      },
-      receiveService: {
-        drainInputSource: async () =>
-          okReceiveOutcome([
-            matchedOutcome('frame-1', [
-              { fieldId: 'f1', value: 42 },
-            ], 'src-1'),
-          ]),
-      },
-    });
-    (features as Record<string, unknown>).displayService = displayService;
-    (features as Record<string, unknown>).storageService = storageService;
-
-    // fanOutToDisplay is called synchronously before fanOutToStorage
-    // fanOutToStorage throws (because of BF-1 await fix, error propagates)
-    // The display should have been called before storage failure
-    await expect(routingTick(features)).rejects.toThrow('disk full');
-
-    // Display was still called even though storage failed
-    expect(ingestSpy).toHaveBeenCalled();
-  });
-
-  it('error isolation: display failure does not prevent storage write', async () => {
-    const displayService = createMockDisplayService({
-      ingestSourceMaterial: () => {
-        throw new Error('display error');
-      },
-    });
-
-    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
-    const storageService = createMockStorageService({
-      appendRoutedRecords: appendSpy,
-    });
-
-    const features = createMockWiredFeatures({
-      connectionService: {
-        drainAdapterEvents: async () =>
-          okOutcome([dataEvent('conn-1', [0x01, 0x02])]),
-      },
-      receiveService: {
-        drainInputSource: async () =>
-          okReceiveOutcome([
-            matchedOutcome('frame-1', [
-              { fieldId: 'f1', value: 42 },
-            ], 'src-1'),
-          ]),
-      },
-    });
-    (features as Record<string, unknown>).displayService = displayService;
-    (features as Record<string, unknown>).storageService = storageService;
-
-    // fanOutToDisplay throws synchronously — this is a known limitation
-    // In the current implementation, display failure WILL prevent storage from being called
-    // because fanOutToDisplay is called before fanOutToStorage without try/catch
-    await expect(routingTick(features)).rejects.toThrow('display error');
-  });
-
-  it('unmatched outcomes are not forwarded to fanOut', async () => {
-    const ingestSpy = vi.fn().mockReturnValue({
-      ok: true,
-      validation: { valid: true, issues: [] },
-      snapshot: {},
-    });
-    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
 
     const displayService = createMockDisplayService({
       ingestSourceMaterial: ingestSpy,
-    });
-    const storageService = createMockStorageService({
-      appendRoutedRecords: appendSpy,
     });
 
     const features = createMockWiredFeatures({
@@ -294,14 +180,12 @@ describe('T002: fanOut correctness (display + storage)', () => {
       },
     });
     (features as Record<string, unknown>).displayService = displayService;
-    (features as Record<string, unknown>).storageService = storageService;
 
     const result = await routingTick(features);
     expect(result.ok).toBe(true);
 
-    // Unmatched outcomes should not trigger fanOut
+    // Unmatched outcomes should not trigger display fanOut
     expect(ingestSpy).not.toHaveBeenCalled();
-    expect(appendSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -335,21 +219,14 @@ describe('T016b: routingTick consumer order', () => {
       },
     });
 
-    // Track fanOut calls
+    // Track fanOut calls（注 D013:routingTick 不再写 storage,只剩 display fanOut）
     const displayService = createMockDisplayService({
       ingestSourceMaterial: () => {
         callOrder.push('fanout-display');
         return { ok: true, validation: { valid: true, issues: [] }, snapshot: {} };
       },
     });
-    const storageService = createMockStorageService({
-      appendRoutedRecords: async () => {
-        callOrder.push('fanout-storage');
-        return { ok: true, validation: { valid: true, issues: [] }, snapshot: {} };
-      },
-    });
     (features as Record<string, unknown>).displayService = displayService;
-    (features as Record<string, unknown>).storageService = storageService;
 
     // Track bridge emit
     const originalBridge = features.receiveEventSourceBridge;
@@ -367,12 +244,11 @@ describe('T016b: routingTick consumer order', () => {
     expect(result.eventsRouted).toBe(2);
     expect(result.matchesEmitted).toBe(1);
 
-    // Verify call order
+    // Verify call order（无 fanout-storage,见 D013）
     expect(callOrder).toEqual([
       'drain',
       'receive',
       'fanout-display',
-      'fanout-storage',
       'bridge-emit',
     ]);
   });

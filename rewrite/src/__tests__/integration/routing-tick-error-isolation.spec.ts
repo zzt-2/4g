@@ -6,16 +6,17 @@
  * other bridges should still execute correctly where the call order allows it,
  * and errors should be observable (not silently swallowed).
  *
- * Verification points:
- * 1. Storage failure does not block display update (display runs first, sync)
- * 2. Storage failure blocks bridge emit — known gap: fanOutToStorage rejection
- *    propagates up before bridge.emit() is reached. Test documents current behavior.
- * 3. Display failure blocks both storage and bridge — known gap: sync call throws
- *    before async stages run. Test documents current behavior.
+ * 注(D013):routingTick 不再写 storage records(B 路径根除)。原 verification 1/2
+ * (storage failure 隔离)随 B 路径删除——routingTick 不调 storage,不会触发 storage failure。
+ * verification 3 弱化(display failure 仍 reject,但 storage 相关断言去掉)。
+ *
+ * Verification points(保留):
+ * 3. Display failure blocks bridge emit — known gap: sync call throws before
+ *    async bridge.emit() runs. Test documents current behavior.
  * 4. Bridge handler failure: one throwing handler stops iteration of remaining
  *    handlers because bridge.emit() has no per-handler try/catch.
  *    Test documents current behavior.
- * 5. Receive failure prevents all downstream processing (display, storage, bridge).
+ * 5. Receive failure prevents all downstream processing (display, bridge).
  * 6. Connection drain failure returns ok: false with error message.
  */
 import { describe, it, expect, vi } from 'vitest';
@@ -29,15 +30,11 @@ import {
   okReceiveOutcome,
   failOutcome,
 } from '@/runtime/__tests__/helpers';
-import type { StorageLocalService, StorageLocalOperationResult } from '@/features/storage-local-baseline';
+import type { StorageLocalService } from '@/features/storage-local-baseline';
 import type { DisplayService, DisplayOperationResult } from '@/features/display';
 import type { ConditionMatchInput } from '@/features/task';
 
-function createMockStorageService(
-  overrides: {
-    appendRoutedRecords?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
-  } = {},
-): StorageLocalService {
+function createMockStorageService(): StorageLocalService {
   return {
     getSnapshot: () => ({
       schemaVersion: 1,
@@ -59,10 +56,6 @@ function createMockStorageService(
       validation: { valid: true, issues: [] },
       snapshot: {},
     }),
-    appendRoutedRecords:
-      overrides.appendRoutedRecords ??
-      (async () => ({ ok: true })),
-    flushPendingWrites: async () => {},
     loadHistoryMaterials: async () => ({
       ok: true,
       validation: { valid: true, issues: [] },
@@ -121,7 +114,6 @@ function createMockDisplayService(
 
 function buildFeaturesWithSpies(opts: {
   displayIngest?: (material: unknown) => DisplayOperationResult;
-  storageAppend?: (records: readonly unknown[]) => Promise<{ ok: boolean }>;
   receiveOutcomes?: readonly unknown[];
   bridgeEmitSpy?: ReturnType<typeof vi.fn>;
 } = {}) {
@@ -132,16 +124,12 @@ function buildFeaturesWithSpies(opts: {
         validation: { valid: true, issues: [] },
         snapshot: {},
       });
-  const appendSpy = opts.storageAppend
-    ? vi.fn(opts.storageAppend)
-    : vi.fn().mockResolvedValue({ ok: true });
 
   const displayService = createMockDisplayService({
     ingestSourceMaterial: ingestSpy,
   });
-  const storageService = createMockStorageService({
-    appendRoutedRecords: appendSpy,
-  });
+  // 注(D013):routingTick 不再调 storage,无需 spy。storageService 仍注入保持 features 完整。
+  const storageService = createMockStorageService();
 
   const features = createMockWiredFeatures({
     connectionService: {
@@ -168,51 +156,25 @@ function buildFeaturesWithSpies(opts: {
     };
   }
 
-  return { features, ingestSpy, appendSpy };
+  return { features, ingestSpy };
 }
 
 describe('T016: routingTick error isolation', () => {
-  it('storage failure does not block display update (display is called first)', async () => {
-    const { features, ingestSpy } = buildFeaturesWithSpies({
-      storageAppend: async () => {
-        throw new Error('disk full');
-      },
-    });
-
-    await expect(routingTick(features)).rejects.toThrow('disk full');
-
-    expect(ingestSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('known-gap: storage failure blocks bridge emit (error propagates before emit runs)', async () => {
-    const emitSpy = vi.fn();
-    const { features } = buildFeaturesWithSpies({
-      storageAppend: async () => {
-        throw new Error('disk full');
-      },
-      bridgeEmitSpy: emitSpy,
-    });
-
-    await expect(routingTick(features)).rejects.toThrow('disk full');
-
-    expect(emitSpy).not.toHaveBeenCalled();
-  });
-
-  it('known-gap: display failure blocks storage write and bridge emit (sync throw)', async () => {
-    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
+  it('known-gap: display failure blocks bridge emit (sync throw before emit runs)', async () => {
+    // 注(D013):原"display failure blocks storage write"测试随 B 路径删除弱化——
+    // routingTick 不再写 storage,appendSpy 断言去掉。display 同步 throw 仍会 reject
+    // 并阻断后续 bridge.emit(),本测试钉这个行为。
     const emitSpy = vi.fn();
 
     const { features } = buildFeaturesWithSpies({
       displayIngest: () => {
         throw new Error('render crash');
       },
-      storageAppend: appendSpy,
       bridgeEmitSpy: emitSpy,
     });
 
     await expect(routingTick(features)).rejects.toThrow('render crash');
 
-    expect(appendSpy).not.toHaveBeenCalled();
     expect(emitSpy).not.toHaveBeenCalled();
   });
 
@@ -296,15 +258,12 @@ describe('T016: routingTick error isolation', () => {
       validation: { valid: true, issues: [] },
       snapshot: {},
     });
-    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const emitSpy = vi.fn();
 
     const displayService = createMockDisplayService({
       ingestSourceMaterial: ingestSpy,
     });
-    const storageService = createMockStorageService({
-      appendRoutedRecords: appendSpy,
-    });
+    const storageService = createMockStorageService();
 
     const features = createMockWiredFeatures({
       connectionService: {
@@ -329,7 +288,6 @@ describe('T016: routingTick error isolation', () => {
     );
 
     expect(ingestSpy).not.toHaveBeenCalled();
-    expect(appendSpy).not.toHaveBeenCalled();
     expect(emitSpy).not.toHaveBeenCalled();
   });
 
@@ -339,15 +297,12 @@ describe('T016: routingTick error isolation', () => {
       validation: { valid: true, issues: [] },
       snapshot: {},
     });
-    const appendSpy = vi.fn().mockResolvedValue({ ok: true });
     const emitSpy = vi.fn();
 
     const displayService = createMockDisplayService({
       ingestSourceMaterial: ingestSpy,
     });
-    const storageService = createMockStorageService({
-      appendRoutedRecords: appendSpy,
-    });
+    const storageService = createMockStorageService();
 
     const features = createMockWiredFeatures({
       connectionService: {
@@ -369,7 +324,6 @@ describe('T016: routingTick error isolation', () => {
     expect(result.matchesEmitted).toBe(0);
 
     expect(ingestSpy).not.toHaveBeenCalled();
-    expect(appendSpy).not.toHaveBeenCalled();
     expect(emitSpy).not.toHaveBeenCalled();
   });
 });
