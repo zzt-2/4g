@@ -4,7 +4,7 @@ import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { usePolling } from '@/shared/composables';
 import StatusBadge from '@/widgets/StatusBadge.vue';
 import { useDisplayRefresh } from '@/features/display/composables';
-import receiveLifecycleMap from '@/features/receive/components/receiveStatusMap';
+import { receiveLifecycleMap } from '@/features/receive/components/receiveStatusMap';
 import DisplayPanel from '@/features/display/components/DisplayPanel.vue';
 import ChartConfigDialog from '@/features/display/components/ChartConfigDialog.vue';
 import ScatterConfigDialog from '@/features/display/components/ScatterConfigDialog.vue';
