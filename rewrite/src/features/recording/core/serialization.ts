@@ -74,3 +74,84 @@ export function decodeFrameRecords(data: Uint8Array): RecordingFrameRecord[] {
   }
   return records;
 }
+
+// ───── 帧定义块(spec §三.1) ─────
+// session 开始时一次性写,内嵌当时帧定义(防帧定义漂移)。
+// 录制时帧定义改了,旧 .bin 仍用它自己的内嵌定义解析,不依赖当前 frameReader。
+//
+// 布局: [uint16 count][count × (uint16 frameIdLen + frameId + uint32 jsonLen + json)]
+// 外层由 encodeFrameDefinitionBlock 包 uint32 frameDefBlockLen(总长,不含本字段)。
+// reader 解析时:magic → 读 frameDefBlockLen → 跳过那么多字节 → 剩余是帧记录流。
+
+export interface FrameDefinitionEntry {
+  /** 帧定义 id(与帧记录的 frameId 对应)。 */
+  readonly frameId: string;
+  /** 完整 FrameAsset 的 JSON 字符串(JSON.stringify(FrameAsset))。 */
+  readonly frameAssetJson: string;
+}
+
+// 编码帧定义块内容(不含外层 frameDefBlockLen 前缀)。frameId/json 超长度上限抛错。
+// 布局遵循 spec §三.1:每条 = [uint16 frameIdLen][frameId][uint32 jsonLen][json]
+// (jsonLen 在 frameId 之后,与 decode 顺序一致;不在前面拼连续 header)。
+export function encodeFrameDefinitions(defs: readonly FrameDefinitionEntry[]): Buffer {
+  const parts: Buffer[] = [];
+  for (const d of defs) {
+    const frameIdBuf = Buffer.from(d.frameId, 'utf8');
+    const jsonBuf = Buffer.from(d.frameAssetJson, 'utf8');
+    if (frameIdBuf.length > 0xffff) {
+      throw new Error(`frameId too long: ${frameIdBuf.length} bytes`);
+    }
+    if (jsonBuf.length > 0xffffffff) {
+      throw new Error(`frame asset json too long: ${jsonBuf.length} bytes`);
+    }
+    const frameIdLenBuf = Buffer.allocUnsafe(2);
+    frameIdLenBuf.writeUInt16LE(frameIdBuf.length, 0);
+    const jsonLenBuf = Buffer.allocUnsafe(4);
+    jsonLenBuf.writeUInt32LE(jsonBuf.length, 0);
+    parts.push(frameIdLenBuf, frameIdBuf, jsonLenBuf, jsonBuf);
+  }
+  const countBuf = Buffer.allocUnsafe(2);
+  countBuf.writeUInt16LE(defs.length, 0);
+  return Buffer.concat([countBuf, ...parts]);
+}
+
+// 解码帧定义块内容。数据不完整(截断)抛错——帧定义块是 session 头部一次性写的,
+// 正常文件不会截断;老格式(无帧定义块)在 reader 层读 frameDefBlockLen 时已判别。
+export function decodeFrameDefinitions(data: Uint8Array): FrameDefinitionEntry[] {
+  const buf = Buffer.from(data);
+  if (buf.length < 2) {
+    throw new Error('frame-definition block truncated: missing count');
+  }
+  const count = buf.readUInt16LE(0);
+  let offset = 2;
+  const defs: FrameDefinitionEntry[] = [];
+  for (let i = 0; i < count; i++) {
+    if (offset + 2 > buf.length) {
+      throw new Error(`frame-definition block truncated: entry ${i} frameIdLen`);
+    }
+    const frameIdLen = buf.readUInt16LE(offset); offset += 2;
+    if (offset + frameIdLen > buf.length) {
+      throw new Error(`frame-definition block truncated: entry ${i} frameId`);
+    }
+    const frameId = buf.subarray(offset, offset + frameIdLen).toString('utf8'); offset += frameIdLen;
+    if (offset + 4 > buf.length) {
+      throw new Error(`frame-definition block truncated: entry ${i} jsonLen`);
+    }
+    const jsonLen = buf.readUInt32LE(offset); offset += 4;
+    if (offset + jsonLen > buf.length) {
+      throw new Error(`frame-definition block truncated: entry ${i} json`);
+    }
+    const frameAssetJson = buf.subarray(offset, offset + jsonLen).toString('utf8'); offset += jsonLen;
+    defs.push({ frameId, frameAssetJson });
+  }
+  return defs;
+}
+
+// 帧定义块 + 总长前缀(uint32 frameDefBlockLen)打包,供 writer 写入文件头(magic 之后)。
+// reader 读 frameDefBlockLen 后跳过这么多字节即可定位帧记录流,无需额外 magic 分隔。
+export function encodeFrameDefinitionBlock(defs: readonly FrameDefinitionEntry[]): Buffer {
+  const inner = encodeFrameDefinitions(defs);
+  const lenBuf = Buffer.allocUnsafe(4);
+  lenBuf.writeUInt32LE(inner.length, 0);
+  return Buffer.concat([lenBuf, inner]);
+}

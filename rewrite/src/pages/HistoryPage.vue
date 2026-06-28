@@ -12,15 +12,17 @@ import { getFileFacade } from '@/platform';
 
 // ===== Service references =====
 const runtime = useRewriteRuntime();
-const storageService = runtime.features.storageLocalService;
+// H015:数据源切到录制 .bin,经 recordingService 读(useHistoryData 新签名)。
+// storageService 仅供 CSVExportDialog(spec §5.4:CSV 本轮不做,prop 暂保留不强行拆)。
+const storageService = runtime.features.storageService;
+const recordingService = runtime.features.recordingService;
 const displayService = runtime.features.displayService;
-const frameReader = runtime.features.frameReader;
 // files facade 走 getFileFacade()（项目标准写法，见 FrameListPage），
 // 旧代码 `runtime.platform.files` 是 stale——runtime 无 platform 层，访问必崩。
 const filesFacade = getFileFacade();
 
 // ===== Composable =====
-const history = useHistoryData(storageService, displayService, frameReader);
+const history = useHistoryData(recordingService, displayService);
 const notify = useNotify();
 
 // ===== UI state =====
@@ -110,14 +112,16 @@ onMounted(() => {
         />
         <div class="rw-divider-t" />
         <div class="p-4">
+          <!-- H015/spec §5.4:CSV 导出本轮不做(重写数据源=麻烦),按钮永久置灰 + tooltip。 -->
           <q-btn
             color="primary" no-caps outline
             icon="o_download"
             label="导出 CSV"
             class="full-width"
-            :disable="history.selectedGlobalItems.value.size === 0"
-            @click="showExportDialog = true"
-          />
+            disable
+          >
+            <q-tooltip>CSV 导出暂不支持新录制格式</q-tooltip>
+          </q-btn>
         </div>
       </div>
 
