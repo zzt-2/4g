@@ -8,8 +8,10 @@ import { registerFileHandlers, cleanupFileHandlers } from './file-handlers';
 import { registerHttpHandlers, cleanupHttpHandlers } from './http-handlers';
 import { registerFtpHandlers, cleanupFtpHandlers } from './ftp-handlers';
 import { registerStorageHandlers, cleanupStorageHandlers } from './storage-handlers';
+import { registerRecordingHandlers, cleanupRecordingHandlers } from './recording-handlers';
 import { registerWindowHandlers, cleanupWindowHandlers } from './window-handlers';
 import { storageFilter } from './storage-filter';
+import { recordingWriter } from './recording-writer';
 
 const platform = process.platform || os.platform();
 const currentDir = fileURLToPath(new URL('.', import.meta.url));
@@ -54,6 +56,7 @@ async function createWindow() {
   registerHttpHandlers();
   registerFtpHandlers();
   registerStorageHandlers();
+  registerRecordingHandlers();
   registerWindowHandlers(mainWindow);
 
   const appUrl = process.env.APP_URL;
@@ -86,7 +89,9 @@ async function createWindow() {
     cleanupHttpHandlers();
     cleanupFtpHandlers();
     cleanupStorageHandlers();
+    cleanupRecordingHandlers();
     storageFilter.cleanup();
+    recordingWriter.cleanup();
     mainWindow = undefined;
   });
 }
@@ -98,7 +103,9 @@ function cleanupAllPlatformResources(): void {
   cleanupHttpHandlers();
   cleanupFtpHandlers();
   cleanupStorageHandlers();
+  cleanupRecordingHandlers();
   storageFilter.cleanup();
+  recordingWriter.cleanup();
 }
 
 void app.whenReady().then(createWindow);

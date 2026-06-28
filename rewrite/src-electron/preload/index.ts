@@ -20,6 +20,10 @@ import {
   type StorageBridge,
   type StorageActivateRequest,
   type StorageConfigUpdate,
+  type RecordingBridge,
+  type RecordingActivateRequest,
+  type RecordingFrameInput,
+  type RecordingConfigUpdate,
   type WindowControlBridge,
 } from '../../src/shared/platform-bridge';
 
@@ -55,6 +59,13 @@ const IPC_STORAGE_DEACTIVATE = 'storage:deactivate';
 const IPC_STORAGE_GET_STATS = 'storage:get-stats';
 const IPC_STORAGE_RESET = 'storage:reset';
 const IPC_STORAGE_UPDATE_CONFIG = 'storage:update-config';
+
+const IPC_RECORDING_ACTIVATE = 'recording:activate';
+const IPC_RECORDING_DEACTIVATE = 'recording:deactivate';
+const IPC_RECORDING_APPEND = 'recording:append';
+const IPC_RECORDING_GET_STATS = 'recording:get-stats';
+const IPC_RECORDING_RESET = 'recording:reset';
+const IPC_RECORDING_UPDATE_CONFIG = 'recording:update-config';
 
 const IPC_WINDOW_MINIMIZE = 'window:minimize';
 const IPC_WINDOW_MAXIMIZE_TOGGLE = 'window:maximize-toggle';
@@ -237,6 +248,31 @@ const storageBridge: StorageBridge = {
   },
 };
 
+// --- Recording bridge ---
+// 实时录制:接收帧原始字节落盘(独立路径,不走 storage-local records,见 D013)。
+// activate 开始一个 session(开新 .bin + 写 magic 头),appendFrames 批量追加帧,
+// 达到 maxFileSize 滚动。renderer fire-and-forget,写盘在主进程。
+const recordingBridge: RecordingBridge = {
+  async activate(request: RecordingActivateRequest) {
+    return ipcRenderer.invoke(IPC_RECORDING_ACTIVATE, request);
+  },
+  async deactivate() {
+    return ipcRenderer.invoke(IPC_RECORDING_DEACTIVATE);
+  },
+  async appendFrames(frames: readonly RecordingFrameInput[]) {
+    return ipcRenderer.invoke(IPC_RECORDING_APPEND, frames);
+  },
+  async getStats() {
+    return ipcRenderer.invoke(IPC_RECORDING_GET_STATS);
+  },
+  async reset() {
+    return ipcRenderer.invoke(IPC_RECORDING_RESET);
+  },
+  async updateConfig(config: RecordingConfigUpdate) {
+    return ipcRenderer.invoke(IPC_RECORDING_UPDATE_CONFIG, config);
+  },
+};
+
 // --- Window control bridge ---
 // 最大化状态订阅:主进程在 maximize/unmaximize 时推送一次,renderer 图标跟着切。
 const maximizeChangeCallbacks: ((maximized: boolean) => void)[] = [];
@@ -279,6 +315,7 @@ const rewriteBridge = Object.freeze({
   http: httpBridge,
   ftp: ftpBridge,
   storage: storageBridge,
+  recording: recordingBridge,
   windowControl: windowControlBridge,
 });
 
