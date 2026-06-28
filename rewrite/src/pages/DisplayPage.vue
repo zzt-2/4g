@@ -451,6 +451,10 @@ onMounted(() => {
   if (prefs.value.charts.length < 2) {
     displayService.updateChartCount(2);
   }
+  // 挂载时把持久化的 recording 配置灌进 service，否则重启后 getSelectedFrameIds() 是空 Set，
+  // 用户不先打开设置弹窗直接点录制 → 什么都不录（持久化选帧形同虚设）。
+  recordingService.setConfig(displayService.getRecordingConfig());
+  recordingConfig.value = recordingService.getConfig();
   refreshStats();
   polling.start();
   displayRefresh.start();
