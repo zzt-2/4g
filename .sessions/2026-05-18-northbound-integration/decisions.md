@@ -487,7 +487,7 @@ TestReport(甲方第三层报告)的 checkPoints / statisticsItems / attachItems
 1. **配置独立,不耦合 CatalogMapping**:ReportConfig 是独立数据(`state/report-configs.json`),不塞进 CatalogMapping 对象。入口挂在用例目录的映射展开区(只显示有映射的用例,但 `enabled=false` 停用的也能配)。
 2. **三类别同构**:checkPoints / statisticsItems / attachItems 三类,内部统一用 `ReportItem`(name + frameId + fieldId + msg?),填报告时再映射成甲方各自字段名(checkPoint vs itemName)。分类"填哪个无所谓",数据结构先支持三类。
 3. **纯字段值,无文字类型**:每项的值都来自接收帧字段的 displayValue,无固定文字项。用户确认所有上报值都来自帧字段。
-4. **取 displayValue 非原始值**:复用表格(display feature)那边的解析——displayValue 在 receive 阶段算好(field-parser.ts:210 枚举 label),全量快照在 DisplayService.buffer.sourceFields(display-service.ts:196-211 累积),`getSourceFields()` 可读。key 用 `${frameId}:${fieldId}`(对齐 display 的 dataItemId 约定,无 fieldId 重名覆盖问题)。
+4. **取 displayValue 非原始值**:复用表格(display feature)那边的解析——displayValue 在 receive 阶段算好(field-parser.ts:148-156 的 `labelFor` resolve 枚举 label,如 0x01→"锁定"),全量快照在 DisplayService.buffer.sourceFields(display-service.ts:196-211 累积),`getSourceFields()` 可读。key 用 `${frameId}:${fieldId}`(对齐 display 的 dataItemId 约定,无 fieldId 重名覆盖问题)。
 5. **不做期望/判定**:checkPoint 的 expectValue / result 留空或不填,纯取值。判定逻辑(通过/不通过)属另一特性,本次不做。
 
 ### 推翻 H012 方向(失败方向记录)
@@ -511,8 +511,8 @@ H012 handoff 计划"接 reportDataCollector 从 task 执行链路采集真实数
 ### 影响范围(本特性落地)
 
 - **command-ingress**:新建 `core/report-config.ts`(ReportConfig/ReportItem 类型 + CRUD + isReportConfig 守卫)、`services/report-config-file-storage.ts`(state/report-configs.json)、`services/report-config-io.ts`(导入导出,参考 group-io.ts);CatalogMappingPanel.vue 加报告配置编辑区(挂法1,可覆盖字段下方)
-- **northbound**:NorthboundServiceOptions 加 `reportConfigProvider?`;uploadTestReportAndNotify 按 ReportConfig + displaySnapshot 取值填三类。test-report-generator.ts 的 GenerateTestReportInput 加 reportConfig/displaySnapshot,清:134-136 死代码,删 collected 分支依赖(保留接口兼容,collected* 自然 undefined)
-- **runtime**:feature-wiring.ts 给 createNorthboundService 注入 reportConfigProvider + displayService(displayService 早建于:165,补传)
+- **northbound**:NorthboundServiceOptions 加 `reportConfigProvider?` + `displayFieldReader?`;uploadTestReportAndNotify 按 ReportConfig + displaySnapshot 取值填三类。test-report-generator.ts 的 GenerateTestReportInput 加 reportConfig/displaySnapshot,清:134-136 死代码,删 collected 分支依赖(保留接口兼容,collected* 自然 undefined)
+- **runtime**:feature-wiring.ts 给 createNorthboundService 注入 reportConfigProvider + displayService(displayService 早建于:169,补传)。**reportConfigProvider 走 LazyHolder 模式**(照 `LazyDockingStorage`/`LazyPersistence`):feature-wiring 同步建空壳 holder,bootstrap 异步读 state/report-configs.json + hydrate + setDelegate;空壳阶段 provider 返回 undefined(报告三类空,诚实非造假)。这是防 S014/S017 同病的关键——同步初始化时文件还没读到
 - **task / display**:零改动(守 D004)
 - **联调**:留用户跑,代码过单测后标"待联调"
 

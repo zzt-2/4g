@@ -80,7 +80,15 @@ interface ReportItem {
 }
 ```
 
-照 `task-template-file-storage.ts` 范式:带 `version`、atomic write(`writeJsonWithBackup`)、`.bak` 备份、启动时同步读。**不开新 localStorage key**(那是被废弃方向,见 docking-file-storage.ts 的迁移逻辑)。可被用户直接编辑文件(改完下次启动 atomic read 读到)。
+照 `task-template-file-storage.ts` 范式:带 `version`、atomic write(`writeJsonWithBackup`)、`.bak` 备份、启动时同步读。**不开新 localStorage key**(那是被废弃方向,S016 已把 4 份对接数据从 localStorage 迁到文件)。
+
+**存储位置抉择(为什么单独文件,不合写进 docking.json)**:S016 已把对接的 4 份数据(config/devices/catalogMappings/legacy)合写进 `state/docking.json`(`docking-file-storage.ts`)。ReportConfig 是第 5 份,但选择**单独存 `state/report-configs.json`**,理由:
+- docking.json 已是"对接配置"复合体,再加一份报告内容(可能很长,三类各 N 项)会让它更臃肿
+- ReportConfig 的读写频率独立于对接配置(只在配报告时写、报告生成时读),独立文件读写互不锁
+- 单独文件可直接编辑(你的需求"能直接改 json 文件"),不必混在复合 json 里翻找
+- 走独立的 `report-config-file-storage.ts` + `LazyReportConfigStorage` holder(见接线缺口 2),与 docking-file-storage 同范式但独立实例
+
+可被用户直接编辑文件(改完下次启动 atomic read 读到)。
 
 ### 导入导出文件格式
 
@@ -113,25 +121,42 @@ task 跑完 settled
 
 ### 取值真源(已查实)
 
-- **displayValue 在 receive 阶段算好**:`field-parser.ts:210` `labelFor` resolve 枚举 label(0x01→"锁定"),`field-parser.ts:128-146` 处理 float/bytes 等格式。不是在 display 层才算。
+- **displayValue 在 receive 阶段算好**:枚举 label 由 `field-parser.ts:148-156` 的 `labelFor`(`:150-153` 按 rawHex 匹配 `field.options[].value` 返回 `option.label`,如 0x01→"锁定")resolve;`parseReceiveFrameFields` 在 `:210` 处用 `displayValue: label ?? displayValueFor(field, value)` 组装。`field-parser.ts:128-146` 的 `displayValueFor` 处理 float(toFixed(2))/double/bytes 等格式。不是在 display 层才算。
 - **全量快照在 DisplayService.buffer.sourceFields**:`receive-display-bridge.ts:55` `fanOutToDisplay` 产出 material → `display-service.ts:196-211` `ingestSourceMaterial` 按 dataItemId upsert 累积(保留最后已知值)。
 - **读取接口**:`display-service.ts:251-256` `getSourceFields()` 返回全量快照深拷贝。报告生成时构 `Map<dataItemId, displayValue>` 一次,逐项查。
 - **DisplayService 是纯 TS(非 reactive)**:northbound 纯 TS 链路可直接读,无 Vue 跨越。
 
-### 接线缺口(1 处)
+### 接线缺口(2 类,已查实)
 
-`feature-wiring.ts:233-242` 的 `createNorthboundService` 调用**没传 displayService**(displayService 早已建在 `:165`,只是没注入 northbound)。补这一行,报告生成时即可 `getSourceFields()` 取值。
+**缺口 1:displayService 没注入 northbound(简单)**
+`feature-wiring.ts:237-246` 的 `createNorthboundService` 调用**没传 displayService**(displayService 早已建在 `:169`,只是没注入 northbound)。补传这一项,报告生成时即可 `getSourceFields()` 取值。displayService 是纯同步对象,L2 建好即可用,无时序坑。
+
+**缺口 2:reportConfigProvider 的异步 hydrate 时序(要害,直接关系 S014/S017 温床)**
+
+ReportConfig 走文件存储(`state/report-configs.json`),但 `feature-wiring.ts:114 wireFeatures` 是**同步初始化**(立即返回 WiredFeatures),而文件存储要 bootstrap **异步 hydrate**——这就是 S014/S017 静默失败的根:**同步建 service 时文件还没读到,provider 闭包读文件返回空,报告静默生成空三类**。
+
+必须照项目既有的 **LazyHolder 模式**(不是新发明):
+- `rewriteRuntime.ts:26` `LazyPersistence`(通用 holder:建空壳→bootstrap hydrate→`setDelegate`)
+- `docking-file-storage.ts:71` `LazyDockingStorage`(同款,command-ingress 的对接存储就用这个,bootstrap 异步拿到 fileFacade+dataDir 后建真 storage+hydrate+setDelegate,见 `rewriteRuntime.ts:343`)
+
+ReportConfig 照此建一个 `LazyReportConfigStorage` holder:
+- `feature-wiring.ts` 同步建空壳 holder(`new LazyReportConfigStorage()`),northbound 的 `reportConfigProvider` 闭包调 `holder.getByTemplateId(templateId)`
+- 空壳阶段:provider 返回 undefined(报告三类空,**这是诚实空着,不是 fallback 假数据**,与"不 fallback DEFAULT_MOCK_CONFIG"一致)
+- bootstrap 异步读 `state/report-configs.json` + hydrate + `holder.setDelegate(realStorage)`,之后 provider 返回真实配置
+- **接线测试必须覆盖"setDelegate 前 provider 返回 undefined"这条分支**(正是 S014/S017 漏掉的那条——别让它静默)
+
+> 这就是为什么 spec 验收标准写"防 S014/S017 同病"——必须显式测 hydrate 前的 provider 行为,不是只测 hydrate 后。
 
 ### ReportConfig 传入 northbound 的注入
 
-`NorthboundServiceOptions` 需要能按 templateId 拿到 ReportConfig。新增可选字段(同 batchRegistry 的注入方式):
+`NorthboundServiceOptions`(`northbound-service.ts:113-123`)新增可选字段:
 
 ```ts
-// northbound-service.ts NorthboundServiceOptions 新增
 readonly reportConfigProvider?: (templateId: string) => ReportConfig | undefined;
+readonly displayFieldReader?: { getSourceFields(): readonly DisplayFieldMaterial[] };
 ```
 
-`uploadTestReportAndNotify` 里 `options.reportConfigProvider?.(instance.templateId)` 取配置。`feature-wiring.ts` 传一个从 report-configs 存储读的 provider。
+`uploadTestReportAndNotify` 里 `options.reportConfigProvider?.(instance.templateId)` 取配置(空壳阶段返回 undefined,见上)。`feature-wiring.ts:237-246` 把 `LazyReportConfigStorage` holder 和 `displayService`(`:169`)一并传进去。
 
 ## 架构分层(同 D004 不变量)
 
@@ -149,8 +174,8 @@ readonly reportConfigProvider?: (templateId: string) => ReportConfig | undefined
 - `feature-wiring.ts` **不接** reportDataCollector(H012 的"接水龙头"不做)。
 - `northbound-service.ts:220` 的 `options.reportDataCollector?.collect(...)` 可选链自然短路,`collectedCheckPoints/collectedProcessSteps` 保持 undefined。
 - `generateTestReport` 的 collected 分支不触发,改由本设计的 ReportConfig 驱动填三类。
-- **report-data-collector.ts / report-data-collector.spec.ts 暂不删除**(避免本次范围爆炸),标记为 dead code,后续清理轮处理。
-- `test-report-generator.ts:134-136` 的三元两分支同体死代码,本次顺手清掉。
+- **report-data-collector.ts / report-data-collector.spec.ts 暂不删除**(避免本次范围爆炸),标记为 dead code,后续清理轮处理。**实施时注意:不要删 collector 的现有单测**(否则 baseline 会动),collector 相关代码全留着不碰。
+- `test-report-generator.ts:134-136` 的三元两分支同体死代码,本次顺手清掉。**清理边界**:`:126` 定义的 `usingCollected` 变量、`collectedCheckPoints/collectedProcessSteps` 入参在三元的 collected 分支被删后会变成未使用——`usingCollected` 一并删,但 `collected*` 入参**保留**(接口兼容,实际 undefined 不触发)。
 
 ## generateTestReport 改造
 
@@ -169,7 +194,8 @@ interface GenerateTestReportInput {
 generator 内,当 `reportConfig` 提供时:
 - `checkPoints` = reportConfig.checkPoints 映射(name→checkPoint, 取值→testValue, msg→msg)
 - `statisticsItems` / `attachItems` 同理
-- 缺失模板的 ReportConfig → 三类全空 `[]`,**不 fallback 到 DEFAULT_MOCK_CONFIG**(诚实空着,不造假)
+- **取值兜底**:`displaySnapshot.get(`${frameId}:${fieldId}`)` 取不到时,`testValue` 填空串 `''`(诚实标记"没采到",不编造);`msg` 为 undefined 时填 `''`(甲方 TestReportCheckPoint.msg 是必填 string)
+- **优先级**:`reportConfig` 提供时 → 用它驱动三类;`reportConfig` undefined(空壳 holder 阶段或模板没配) → 三类全空 `[]`,**不 fallback 到 DEFAULT_MOCK_CONFIG**(诚实空着,不造假)。mockConfig/collected* 分支保留但实际不触发(collector 不接线)
 
 ## UI 形态
 
@@ -201,7 +227,7 @@ generator 内,当 `reportConfig` 提供时:
 
 ### 字段选择来源
 
-复用 `FrameSelector` + `frameService.listFieldReferences({ frameId })` 枚举字段(同 task 模板编辑器的 wait-condition step)。可选字段 = 接收帧定义里的字段。
+复用 `FrameSelector` + `frameService.listFieldReferences({ frameId, direction: 'receive' })` 枚举字段(同 task 模板编辑器的 wait-condition step;对照 SendStepEditor.vue:40 用 `direction:'send'` 枚举发帧字段)。可选字段 = 接收帧定义里的字段。**必须带 `direction:'receive'`**,否则会把 send 帧字段也列进候选,用户选了取不到值。
 
 ### 导入导出按钮
 
@@ -215,6 +241,7 @@ generator 内,当 `reportConfig` 提供时:
 - **generateTestReport**:新增 reportConfig 驱动分支测试(有配置→填真实值;无配置→三类空;取不到字段→空 testValue)
 - **uploadTestReportAndNotify 集成测试**:mock displaySnapshot + reportConfigProvider,验证三类被正确填充 + FTP 上传 + 通知(堵 S014/S017 静默失败温床)
 - **feature-wiring 接线测试**:验证 reportConfigProvider 和 displayService 都被注入(防 S014/S017 同病:可选字段 + 单测手动传值掩盖 runtime 漏接)
+- **LazyReportConfigStorage holder 测试**:`setDelegate` 前 provider 返回 undefined(空壳阶段,防 S014/S017 静默失败温床);`setDelegate` 后返回真实配置;hydrate 后读到文件内容
 
 ## 验收标准
 
@@ -225,6 +252,7 @@ generator 内,当 `reportConfig` 提供时:
 - ✅ 没配 ReportConfig 的用例,报告三类为空(不 fallback 假数据)
 - ✅ reportDataCollector 不接线(不接 H012 的水龙头),processAndDatas 留空
 - ✅ displayService 注入 northbound,取值链路通
+- ✅ reportConfigProvider 走 LazyHolder 模式,**显式测 hydrate 前返回 undefined 的分支**(正是 S014/S017 漏掉的那条)
 - ✅ 全量测试过 + stash baseline 0 新增失败;tsc / lint 0 新增错误
 - ⏳ **联调**:我方上传成功 + 甲方收到并正确解析 —— 留给用户跑(代码过单测后标"待联调",不宣称完成)
 - ✅ 改治理文档按 session-governance 规范落档
