@@ -19,6 +19,8 @@ import {
   type TableRowProjection,
   type ScatterProjection,
 } from '../core';
+import { cloneRecordingConfig } from '../core/clone';
+import type { RecordingConfig } from '@/features/recording/core/types';
 import { DEFAULT_CHART_INSTANCE } from '../core/defaults';
 import {
   selectAvailability,
@@ -53,6 +55,9 @@ export interface DisplayService extends DisplayReader {
   clearProjection(): DisplayOperationResult;
   reset(): DisplayOperationResult;
   getSourceFields(): readonly DisplayFieldMaterial[];
+  /** H014/S012:录制配置读写(存于 DisplayPreferences.recording,跨会话持久化)。 */
+  getRecordingConfig(): RecordingConfig;
+  setRecordingConfig(config: RecordingConfig): DisplayOperationResult;
 }
 
 interface DisplayBuffer {
@@ -248,6 +253,14 @@ export function createDisplayService(
       // runtime-redundant. UI layers needing static fieldName/frameName must use frameReader (R19).
       // Returns a fresh deep-copy to enforce Selector immutability (CLAUDE.md Selector rules).
       return buffer.sourceFields.map((f) => ({ ...f }));
+    },
+
+    getRecordingConfig() {
+      return cloneRecordingConfig(state.getSnapshot().preferences.recording);
+    },
+
+    setRecordingConfig(config) {
+      return this.updatePreferences({ recording: config });
     },
   };
 }

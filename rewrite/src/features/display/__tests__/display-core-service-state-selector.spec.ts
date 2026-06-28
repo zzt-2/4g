@@ -183,6 +183,41 @@ describe('display core normalize', () => {
     expect(result.snapshot).not.toHaveProperty('historyAnalysis_chartSettings');
   });
 
+  // H014/S012:旧持久化(无 recording 字段)必须被 normalize 补默认,不能崩。
+  // S010 教训:加字段必须让旧数据平滑迁移。
+  it('normalizes legacy snapshot without recording field (backfills default)', () => {
+    // 模拟旧持久化:preferences 无 recording 字段(其余字段正常)
+    const legacy: typeof defaultDisplayFixture = {
+      ...defaultDisplayFixture,
+      preferences: {
+        table1: defaultDisplayFixture.preferences.table1,
+        table2: defaultDisplayFixture.preferences.table2,
+        charts: defaultDisplayFixture.preferences.charts,
+        scatter: defaultDisplayFixture.preferences.scatter,
+        refreshCadenceMs: defaultDisplayFixture.preferences.refreshCadenceMs,
+        groups: defaultDisplayFixture.preferences.groups,
+        // 注意:无 recording 字段(模拟旧数据)
+      } as typeof defaultDisplayFixture['preferences'],
+    };
+    const result = normalizeDisplayPreferencesInput(legacy);
+    expect(result.snapshot.preferences.recording).toBeDefined();
+    expect(result.snapshot.preferences.recording.selectedFrameIds).toEqual([]);
+    expect(result.snapshot.preferences.recording.maxFileSizeMb).toBe(100);
+    expect(result.snapshot.preferences.recording.rotationCount).toBe(5);
+  });
+
+  it('preserves recording config through patch merge', () => {
+    // 改 recording 后,其余 preferences 字段(recording 在内)应保留
+    const result = applyDisplayPreferencesPatch(defaultDisplayFixture, {
+      recording: { selectedFrameIds: ['frame-a', 'frame-b'], maxFileSizeMb: 50, enableRotation: false, rotationCount: 3 },
+    });
+    expect(result.snapshot.preferences.recording.selectedFrameIds).toEqual(['frame-a', 'frame-b']);
+    expect(result.snapshot.preferences.recording.maxFileSizeMb).toBe(50);
+    expect(result.snapshot.preferences.recording.enableRotation).toBe(false);
+    // 其余字段不受影响
+    expect(result.snapshot.preferences.refreshCadenceMs).toBe(defaultDisplayFixture.preferences.refreshCadenceMs);
+  });
+
   it('applies preference patches through normalize', () => {
     const result = applyDisplayPreferencesPatch(defaultDisplayFixture, updateTable1Patch);
     expect(result.snapshot.preferences.table1.displayMode).toBe('chart');
@@ -349,6 +384,35 @@ describe('display service', () => {
     const result = service.ingestSourceMaterial({ availability: { available: true } });
     expect(result.ok).toBe(true);
     expect(service.getAvailability().available).toBe(true);
+  });
+
+  // H014/S012/T11:录制配置往返 + 持久化等价路径(hydrate 走 updatePreferences)。
+  it('recording config round-trips through setRecordingConfig/getRecordingConfig and survives updatePreferences (hydrate path)', () => {
+    const service = createDisplayService();
+    // 默认 recording 存在(非 undefined)
+    const initial = service.getRecordingConfig();
+    expect(initial.selectedFrameIds).toEqual([]);
+    expect(initial.maxFileSizeMb).toBe(100);
+
+    // 设置选帧 + 改滚动参数
+    service.setRecordingConfig({
+      selectedFrameIds: ['frame-a', 'frame-b'],
+      maxFileSizeMb: 50,
+      enableRotation: false,
+      rotationCount: 3,
+    });
+    const after = service.getRecordingConfig();
+    expect(after.selectedFrameIds).toEqual(['frame-a', 'frame-b']);
+    expect(after.maxFileSizeMb).toBe(50);
+    expect(after.enableRotation).toBe(false);
+
+    // 模拟 hydrate:updatePreferences(hydrate 等价路径)后 recording 保留
+    const prefs = service.getPreferences();
+    service.updatePreferences({ refreshCadenceMs: 999 });
+    // recording 不应被这次无关 update 冲掉
+    expect(service.getRecordingConfig().selectedFrameIds).toEqual(['frame-a', 'frame-b']);
+    expect(service.getRecordingConfig().maxFileSizeMb).toBe(50);
+    void prefs;
   });
 });
 

@@ -1,15 +1,17 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { app } from 'electron'
-import type { WriteStream } from 'node:fs'
+// storage-highspeed 的原始字节落盘过滤器。重构为 compose DiskRotationWriter(T2
+// 共享工具),保留 storage-highspeed 专有的 shouldStore(pattern 匹配)和 toHexString
+// (serializer 注入)。对外 Stats 形状不变(契约保持,映射 RotationWriterStats)。
+//
+// 历史写盘逻辑(initializeWriteStream/checkRotation/cleanupOldFiles)已上移到
+// disk-rotation-writer.ts,与 recording-writer 复用(spec §五.3 去重)。
+import {
+  DiskRotationWriter,
+  type RotationFileConfig,
+  type RotationWriterStats,
+} from './shared/disk-rotation-writer'
 
-interface FileConfig {
-  maxFileSize: number
-  enableRotation: boolean
-  rotationCount: number
-}
-
-interface Stats {
+// storage-highspeed 沿用旧 Stats 形状(对外契约不变),内部映射到 RotationWriterStats。
+export interface Stats {
   totalFramesStored: number
   totalBytesStored: number
   currentFileSize: number
@@ -18,29 +20,24 @@ interface Stats {
   isStorageActive: boolean
 }
 
+const toStats = (s: RotationWriterStats): Stats => ({
+  totalFramesStored: s.totalItemsStored,
+  totalBytesStored: s.totalBytesStored,
+  currentFileSize: s.currentFileSize,
+  storageStartTime: s.startTime,
+  lastStorageTime: s.lastTime,
+  isStorageActive: s.isActive,
+})
+
 export class StorageFilter {
   private connectionId: string | null = null
   private patterns: (readonly number[])[] = []
-  private writeStream: WriteStream | null = null
-  private currentFilePath = ''
-  private fileConfig: FileConfig = {
-    maxFileSize: 100 * 1024 * 1024,
-    enableRotation: true,
-    rotationCount: 5,
-  }
-  private stats: Stats = {
-    totalFramesStored: 0,
-    totalBytesStored: 0,
-    currentFileSize: 0,
-    storageStartTime: null,
-    lastStorageTime: null,
-    isStorageActive: false,
-  }
-  private storageDir: string
-
-  constructor() {
-    this.storageDir = path.join(app.getPath('userData'), 'dongfanghong', 'business-data')
-  }
+  // 复用共享写盘工具;hex 文本行 = storage-highspeed 专有格式(serializer 注入)。
+  private writer = new DiskRotationWriter({
+    subDir: 'dongfanghong/business-data',
+    filenamePrefix: 'business_data_',
+    extension: '.txt',
+  })
 
   activate(request: {
     readonly connectionId: string
@@ -48,32 +45,15 @@ export class StorageFilter {
     readonly fileConfig: { readonly maxFileSize: number; readonly enableRotation: boolean; readonly rotationCount: number }
   }): void {
     this.deactivate()
-
     this.connectionId = request.connectionId
     this.patterns = [...request.compiledPatterns.map(p => [...p])]
-    this.fileConfig = { ...request.fileConfig }
-
-    this.stats = {
-      totalFramesStored: 0,
-      totalBytesStored: 0,
-      currentFileSize: 0,
-      storageStartTime: new Date().toISOString(),
-      lastStorageTime: null,
-      isStorageActive: true,
-    }
-
-    fs.mkdirSync(this.storageDir, { recursive: true })
-    this.initializeWriteStream()
+    this.writer.activate(request.fileConfig as RotationFileConfig)
   }
 
   deactivate(): void {
-    if (this.writeStream) {
-      this.writeStream.end()
-      this.writeStream = null
-    }
+    this.writer.deactivate()
     this.connectionId = null
     this.patterns = []
-    this.stats.isStorageActive = false
   }
 
   shouldStore(connectionId: string, data: Buffer | readonly number[]): boolean {
@@ -96,111 +76,28 @@ export class StorageFilter {
   }
 
   storeData(data: Buffer | readonly number[]): void {
-    if (!this.writeStream) return
-
+    if (!this.connectionId) return
     const hex = this.toHexString(data)
-    this.writeStream.write(hex + '\n')
-
-    this.stats.totalFramesStored++
-    this.stats.totalBytesStored += data.length
-    this.stats.currentFileSize += hex.length + 1
-    this.stats.lastStorageTime = new Date().toISOString()
-
-    this.checkRotation()
+    // hex + '\n' 一行,与原格式完全一致(hex 翻倍 + 换行符计入 currentFileSize)
+    this.writer.writeItem(hex + '\n', data.length)
   }
 
   getStats(): Stats {
-    return { ...this.stats }
+    return toStats(this.writer.getStats())
   }
 
   resetStats(): void {
-    if (this.writeStream) {
-      this.writeStream.end()
-      this.writeStream = null
-    }
-
-    if (this.currentFilePath) {
-      try {
-        fs.unlinkSync(this.currentFilePath)
-      } catch {
-        // ignore if file doesn't exist
-      }
-      this.currentFilePath = ''
-    }
-
-    this.stats = {
-      totalFramesStored: 0,
-      totalBytesStored: 0,
-      currentFileSize: 0,
-      storageStartTime: null,
-      lastStorageTime: null,
-      isStorageActive: this.connectionId !== null,
-    }
-
-    if (this.connectionId) {
-      this.stats.storageStartTime = new Date().toISOString()
-      this.initializeWriteStream()
-    }
+    this.writer.resetStats()
   }
 
   updateConfig(config: { readonly maxFileSize?: number; readonly enableRotation?: boolean; readonly rotationCount?: number }): void {
-    if (config.maxFileSize !== undefined) this.fileConfig.maxFileSize = config.maxFileSize
-    if (config.enableRotation !== undefined) this.fileConfig.enableRotation = config.enableRotation
-    if (config.rotationCount !== undefined) this.fileConfig.rotationCount = config.rotationCount
+    this.writer.updateConfig(config)
   }
 
   cleanup(): void {
-    if (this.writeStream) {
-      this.writeStream.end()
-      this.writeStream = null
-    }
+    this.writer.cleanup()
     this.connectionId = null
     this.patterns = []
-    this.stats.isStorageActive = false
-  }
-
-  private initializeWriteStream(): void {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `business_data_${timestamp}.txt`
-    this.currentFilePath = path.join(this.storageDir, filename)
-    this.writeStream = fs.createWriteStream(this.currentFilePath, { flags: 'a' })
-  }
-
-  private checkRotation(): void {
-    if (!this.fileConfig.enableRotation) return
-    if (this.stats.currentFileSize < this.fileConfig.maxFileSize) return
-
-    if (this.writeStream) {
-      this.writeStream.end()
-      this.writeStream = null
-    }
-
-    this.cleanupOldFiles()
-    this.stats.currentFileSize = 0
-    this.initializeWriteStream()
-  }
-
-  private cleanupOldFiles(): void {
-    try {
-      const files = fs.readdirSync(this.storageDir)
-        .filter(f => f.startsWith('business_data_') && f.endsWith('.txt'))
-        .map(f => ({
-          name: f,
-          time: fs.statSync(path.join(this.storageDir, f)).mtimeMs,
-        }))
-        .sort((a, b) => b.time - a.time)
-
-      const toDelete = files.slice(this.fileConfig.rotationCount)
-      for (const f of toDelete) {
-        try {
-          fs.unlinkSync(path.join(this.storageDir, f.name))
-        } catch {
-          // ignore individual delete errors
-        }
-      }
-    } catch {
-      // ignore directory read errors
-    }
   }
 
   private toHexString(data: Buffer | readonly number[]): string {

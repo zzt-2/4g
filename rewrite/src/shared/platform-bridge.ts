@@ -222,6 +222,54 @@ export interface StorageBridge {
   updateConfig(config: StorageConfigUpdate): Promise<{ readonly ok: boolean; readonly error?: string }>;
 }
 
+// --- Recording bridge types ---
+// 实时录制:接收帧原始字节落盘(独立路径,不走 storage-local records,见 D013)。
+// activate 开始一个录制 session(开新 .bin 文件 + 写 magic 头),appendFrames
+// 追加帧,达到 maxFileSize 滚动。renderer 侧 fire-and-forget,写盘在主进程。
+//
+// 注意:RecordingFrameInput 的领域定义在 features/recording/core/types.ts(T6),
+// 这里是结构等价副本(shared 层不能 import feature)。T6 的 feature core/types.ts
+// 是单一类型源,此处保持字段一致即可。
+
+export interface RecordingFrameInput {
+  /** 帧捕获时间(epoch 秒)。 */
+  readonly capturedAt: number;
+  readonly frameId: string;
+  readonly bytes: readonly number[];
+}
+
+export interface RecordingActivateRequest {
+  readonly fileConfig: {
+    readonly maxFileSize: number;
+    readonly enableRotation: boolean;
+    readonly rotationCount: number;
+  };
+}
+
+export interface RecordingStats {
+  readonly totalFramesStored: number;
+  readonly totalBytesStored: number;
+  readonly currentFileSize: number;
+  readonly storageStartTime: string | null;
+  readonly lastStorageTime: string | null;
+  readonly isStorageActive: boolean;
+}
+
+export interface RecordingConfigUpdate {
+  readonly maxFileSize?: number;
+  readonly enableRotation?: boolean;
+  readonly rotationCount?: number;
+}
+
+export interface RecordingBridge {
+  activate(request: RecordingActivateRequest): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  deactivate(): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  appendFrames(frames: readonly RecordingFrameInput[]): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  getStats(): Promise<RecordingStats>;
+  reset(): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  updateConfig(config: RecordingConfigUpdate): Promise<{ readonly ok: boolean; readonly error?: string }>;
+}
+
 // --- Window control bridge types ---
 // 无边框窗口(frame:false)的最小化/最大化/关闭控制 + 最大化状态同步。
 // renderer 侧自画三按钮,点击调本接口;最大化图标随 onMaximizeChange 事件切换。
@@ -246,6 +294,7 @@ export interface RewritePlatformBridge {
   readonly http?: HttpBridge;
   readonly ftp?: FtpBridge;
   readonly storage?: StorageBridge;
+  readonly recording?: RecordingBridge;
   readonly windowControl?: WindowControlBridge;
 }
 

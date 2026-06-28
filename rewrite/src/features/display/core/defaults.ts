@@ -1,5 +1,6 @@
 import { DISPLAY_SCHEMA_VERSION, type ChartInstancePreference, type DisplaySnapshot } from './types';
 import { cloneDisplaySnapshot } from './clone';
+import { DEFAULT_RECORDING_CONFIG } from '@/features/recording/core/defaults';
 
 const EMPTY_SCATTER_PROJECTION = { points: [], sampleCount: 0 } as const;
 
@@ -31,6 +32,8 @@ const DEFAULT_DISPLAY: DisplaySnapshot = {
     },
     refreshCadenceMs: 500,
     groups: [],
+    // H014/S012:录制配置扩展进 DisplayPreferences,默认不选帧(用户必须选才录)。
+    recording: { ...DEFAULT_RECORDING_CONFIG, selectedFrameIds: [] },
   },
   projection: {
     table1Rows: [],

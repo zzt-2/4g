@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, onUnmounted } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { usePolling } from '@/shared/composables';
 import StatusBadge from '@/widgets/StatusBadge.vue';
@@ -9,6 +9,9 @@ import DisplayPanel from '@/features/display/components/DisplayPanel.vue';
 import ChartConfigDialog from '@/features/display/components/ChartConfigDialog.vue';
 import ScatterConfigDialog from '@/features/display/components/ScatterConfigDialog.vue';
 import GroupConfigDialog from '@/features/display/components/GroupConfigDialog.vue';
+import RecordingConfigDialog from '@/features/recording/components/RecordingConfigDialog.vue';
+import { useRecording } from '@/features/recording';
+import type { RecordingConfig } from '@/features/recording';
 import type { ReceiveCounterSnapshot, ReceiveLifecycleStatus } from '@/features/receive';
 import type {
   ChartInstancePatch,
@@ -21,15 +24,32 @@ import type {
   TableDisplayPreference,
   TableRowProjection,
 } from '@/features/display';
-import type { StorageLocalRecord } from '@/features/storage-local-baseline';
 
 // ===== Service references =====
 const runtime = useRewriteRuntime();
 const receiveService = runtime.features.receiveService;
 const displayService = runtime.features.displayService;
-const storageService = runtime.features.storageService;
 const frameService = runtime.features.frameService;
 const frameReader = runtime.features.frameReader;
+
+// H014/S012:录制改用全局 recordingService(状态在 runtime 层,切路由不中断,治诉求①)。
+// 不再用组件级定时整表快照(旧 startRecording/setInterval/appendLocalRecords 已删)。
+const recordingService = runtime.features.recordingService;
+const { isRecording, recordCount, recordElapsed, start, stop } = useRecording(recordingService);
+const recordingConfigOpen = ref(false);
+const recordingConfig = ref<RecordingConfig>(recordingService.getConfig());
+
+function openRecordingConfig() {
+  // 打开弹窗前从 service 拿最新 config(可能被别处改过)
+  recordingConfig.value = recordingService.getConfig();
+  recordingConfigOpen.value = true;
+}
+function applyRecordingConfig(config: RecordingConfig) {
+  recordingConfig.value = config;
+  recordingService.setConfig(config);
+  // 同时落盘到 DisplayPreferences(跨会话持久化,T11 完成完整路径,此处先接 displayService)
+  displayService.setRecordingConfig(config);
+}
 
 const displayRefresh = useDisplayRefresh(displayService, frameReader);
 
@@ -423,52 +443,6 @@ function saveGroupConfig(groups: readonly DisplayGroupConfig[]): void {
   groupConfigOpen.value = false;
 }
 
-// ===== Recording (inline composable, D2) =====
-const isRecording = ref(false);
-const recordCount = ref(0);
-const recordStartTime = ref(0);
-let recordInterval: ReturnType<typeof setInterval> | null = null;
-
-const recordElapsed = computed(() => {
-  if (!isRecording.value || !recordStartTime.value) return '--';
-  const ms = Date.now() - recordStartTime.value;
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(0)}s`;
-  const m = Math.floor(ms / 60_000);
-  const s = Math.floor((ms % 60_000) / 1000);
-  return `${m}m ${s}s`;
-});
-
-function startRecording(): void {
-  isRecording.value = true;
-  recordCount.value = 0;
-  recordStartTime.value = Date.now();
-  recordInterval = setInterval(() => {
-    const rows = displayRefresh.getTable1Rows();
-    if (rows.length === 0) return;
-    const record: StorageLocalRecord = {
-      id: crypto.randomUUID(),
-      capturedAt: new Date().toISOString(),
-      source: 'local',
-      channel: 'display',
-      fields: rows.map((r) => ({
-        key: `${r.groupId}:${r.dataItemId}:${r.fieldName}`,
-        value: r.displayValue as string,
-      })),
-    };
-    storageService.appendLocalRecords([record]);
-    recordCount.value++;
-  }, 1000);
-}
-
-function stopRecording(): void {
-  isRecording.value = false;
-  if (recordInterval !== null) {
-    clearInterval(recordInterval);
-    recordInterval = null;
-  }
-}
-
 // ===== Lifecycle =====
 onMounted(() => {
   // DisplayPage 是双面板 UI（panel1 对应 chart-1，panel2 对应 chart-2），但 display preferences
@@ -477,13 +451,13 @@ onMounted(() => {
   if (prefs.value.charts.length < 2) {
     displayService.updateChartCount(2);
   }
+  // 挂载时把持久化的 recording 配置灌进 service，否则重启后 getSelectedFrameIds() 是空 Set，
+  // 用户不先打开设置弹窗直接点录制 → 什么都不录（持久化选帧形同虚设）。
+  recordingService.setConfig(displayService.getRecordingConfig());
+  recordingConfig.value = recordingService.getConfig();
   refreshStats();
   polling.start();
   displayRefresh.start();
-});
-
-onUnmounted(() => {
-  stopRecording();
 });
 </script>
 
@@ -551,7 +525,7 @@ onUnmounted(() => {
           dense
           icon="fiber_manual_record"
           size="sm"
-          @click="startRecording"
+          @click="start"
         >
           <q-tooltip>开始录制</q-tooltip>
         </q-btn>
@@ -562,15 +536,18 @@ onUnmounted(() => {
           dense
           icon="stop"
           size="sm"
-          @click="stopRecording"
+          @click="stop"
         >
           <q-tooltip>停止录制</q-tooltip>
+        </q-btn>
+        <q-btn round dense flat icon="tune" size="sm" @click="openRecordingConfig">
+          <q-tooltip>录制设置</q-tooltip>
         </q-btn>
         <template v-if="isRecording">
           <q-badge color="negative" outline class="recording-indicator">
             REC {{ recordElapsed }}
           </q-badge>
-          <span class="rw-text-desc">{{ recordCount }} 条记录</span>
+          <span class="rw-text-desc">{{ recordCount }} 帧</span>
         </template>
       </div>
 
@@ -625,6 +602,12 @@ onUnmounted(() => {
       :receive-frames="receiveFrames"
       :frame-reader="frameReader"
       @save="saveGroupConfig"
+    />
+    <RecordingConfigDialog
+      v-model="recordingConfigOpen"
+      :config="recordingConfig"
+      :frame-service="frameService"
+      @apply="applyRecordingConfig"
     />
   </q-page>
 </template>

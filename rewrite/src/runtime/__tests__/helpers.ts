@@ -270,5 +270,18 @@ export function createMockWiredFeatures(
       dispose: () => {},
     },
     receiveEventSourceBridge: bridge,
+    // H014/S012:录制桥/服务 mock(collect 是 no-op,测试不关心录制采集)。
+    recordingBridge: { collect: () => {} },
+    recordingService: {
+      isRecording: () => false,
+      getSelectedFrameIds: () => new Set<string>(),
+      appendFrames: async () => {},
+      start: async () => {},
+      stop: async () => {},
+      getSnapshot: () => ({ isRecording: false, recordCount: 0, sessionStartTime: null, stats: null }),
+      setConfig: () => {},
+      getConfig: () => ({ selectedFrameIds: [], maxFileSizeMb: 100, enableRotation: true, rotationCount: 5 }),
+      refreshStats: async () => {},
+    },
   } as RewriteWiredFeatures;
 }

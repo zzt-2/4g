@@ -60,10 +60,15 @@ import {
   createStorageHighspeedService,
   type StorageHighspeedService,
 } from '@/features/storage-highspeed';
-import { getHttpFacade, getStorageFacade, getFtpFacade } from '@/platform';
+import { getHttpFacade, getStorageFacade, getFtpFacade, getRecordingFacade } from '@/platform';
 import { ConnectionBackedSendWriter } from './bridges/connection-backed-writer';
 import { ConnectionBackedTargetResolver } from './bridges/connection-backed-target-resolver';
 import { ReceiveEventSourceBridge } from './bridges/receive-event-source-bridge';
+import { RecordingBridge } from './bridges/recording-bridge';
+import {
+  createRecordingService,
+  type RecordingService,
+} from '@/features/recording';
 
 export interface RewriteWiredFeatures {
   readonly frameReader: FrameAssetReader;
@@ -87,6 +92,10 @@ export interface RewriteWiredFeatures {
   /** 中心下发批次元信息内存映射表(不持久化,setTestTask 时建,重启清空)。
    *  批次面板从 taskService 实例 + 此映射表派生(spec: 批次历史改内存派生)。 */
   readonly batchRegistry: DockingBatchRegistry;
+  /** H014/S012:实时录制服务(状态全局,切路由不中断)。 */
+  readonly recordingService: RecordingService;
+  /** H014/S012:从 routingTick outcomes 采集选中帧(O(1) 早退守 S015)。 */
+  readonly recordingBridge: RecordingBridge;
 }
 
 export interface WireFeaturesOptions {
@@ -127,6 +136,24 @@ export function wireFeatures(
       updateConfig: async () => ({ ok: false, error: 'Storage facade not available' }),
     },
   });
+
+  // H014/S012:录制服务(独立路径,不碰 storage-local records,见 D013)。
+  // L0 层,无依赖。facade 缺失(测试/非 Electron)时用 stub,appendFrames 静默丢弃。
+  const recordingFacade = getRecordingFacade();
+  const recordingService = createRecordingService({
+    platformFacade: recordingFacade ?? {
+      activate: async () => ({ ok: false, error: 'Recording facade not available' }),
+      deactivate: async () => ({ ok: false, error: 'Recording facade not available' }),
+      appendFrames: async () => ({ ok: false, error: 'Recording facade not available' }),
+      getStats: async () => ({
+        totalFramesStored: 0, totalBytesStored: 0, currentFileSize: 0,
+        storageStartTime: null, lastStorageTime: null, isStorageActive: false,
+      }),
+      reset: async () => ({ ok: false, error: 'Recording facade not available' }),
+      updateConfig: async () => ({ ok: false, error: 'Recording facade not available' }),
+    },
+  });
+  const recordingBridge = new RecordingBridge(recordingService);
 
   // L1: needs adapter
   const connectionService = createConnectionService({
@@ -234,5 +261,7 @@ export function wireFeatures(
     receiveEventSourceBridge,
     dockingStorage,
     batchRegistry,
+    recordingService,
+    recordingBridge,
   };
 }

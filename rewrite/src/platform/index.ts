@@ -7,18 +7,21 @@ import {
   type HttpBridge,
   type FtpBridge,
   type StorageBridge,
+  type RecordingBridge,
 } from '@/shared/platform-bridge';
 import { createTransportFacade, type TransportFacade } from './transport';
 import { createFileFacade, type FileFacade } from './files';
 import { createHttpFacade, type HttpFacade } from './http';
 import { createFtpFacade, type FtpPlatformFacade } from './ftp';
 import { createStorageFacade, type StoragePlatformFacade } from './storage';
+import { createRecordingFacade, type RecordingPlatformFacade } from './recording';
 
 export type { TransportFacade } from './transport';
 export type { FileFacade, FileBridge } from './files';
 export type { HttpFacade, HttpBridge } from './http';
 export type { FtpPlatformFacade } from './ftp';
 export type { StoragePlatformFacade } from './storage';
+export type { RecordingPlatformFacade } from './recording';
 export type {
   SerialPortCandidate,
   TransportBridgeEvent,
@@ -120,4 +123,18 @@ export function getStorageFacade(): StoragePlatformFacade | null {
 
 export function resetStorageFacade(): void {
   cachedStorageFacade = null;
+}
+
+let cachedRecordingFacade: RecordingPlatformFacade | null = null;
+
+export function getRecordingFacade(): RecordingPlatformFacade | null {
+  if (cachedRecordingFacade) return cachedRecordingFacade;
+  const bridge = getBridge();
+  if (!bridge?.recording) return null;
+  cachedRecordingFacade = createRecordingFacade(bridge.recording as RecordingBridge);
+  return cachedRecordingFacade;
+}
+
+export function resetRecordingFacade(): void {
+  cachedRecordingFacade = null;
 }

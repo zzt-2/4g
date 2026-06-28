@@ -135,6 +135,10 @@ export async function routingTick(
   fanOutToDisplay(features.displayService, receiveOutcome.outcomes);
   const displayMs = performance.now() - t2;
 
+  // H014/S012:录制采集——独立路径,不碰 storage-local records(D013)。
+  // 录制关时 O(1) 早退(collect 第一行 return),写盘在主进程(fire-and-forget IPC)。
+  features.recordingBridge.collect(receiveOutcome.outcomes);
+
   // routingTick 不再把接收帧写进 storage-local records（D013）。
   // 历史上这里调 fanOutToStorage → appendRoutedRecords 每帧无条件落盘，是"开久了卡"的元凶：
   // ① records 数组无上限，N 只增不减；② 攒批到 50 触发 writeMaterial 全量深拷贝 = O(N)；
