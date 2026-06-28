@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-24 S011 分组配置导入导出
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-28 S012 实时录制重设计实施（待目标机实测）
 
 ## 进展线索
 
@@ -12,6 +12,7 @@
 - **S009** 实时测试页布局调整 (06-22)：三处纯 UI 调整（3 轮迭代）——标题"实时展示"→"实时测试"（含 AppShell 菜单同步）、stat 并入底栏录制行不再单独成块、表格行高压缩（DataTable compact prop 双保险：dense + scoped CSS，行高 36→20px）。行高前 2 次 scoped :deep 因选择器落在子组件根元素上失效，根因已记。无 D###。test 61/61、lint 净
 - **S010** 星座图刷新间隔接通+点大小配置 (06-24)：刷新间隔"半成品"接通——4 个互相打架的刷新概念（scatter/chart/顶层/写死）收敛为三视图各自独立节奏（D001）。两层存储 bug 修复（normalize scatter 合并漏字段 + clone 白名单漏 pointSize）；消费层重写（删写死 cadenceMs=200，改三组独立 cadence + watch 重启）；点大小加 pref+滑块（默认4，原写死6）。默认间隔 100/200→2000ms。推翻主对话"统一到 C"预判，改用用户拍板的"各自独立"。test display 69/69 + 集成 38/38、lint 0 新增、tsc src 0 错。待运行时实测
 - **S011** 分组配置导入导出 (06-24)：GroupConfigDialog 补导入导出——只导分组配置（DisplayGroupConfig[]）、导入完全替换、入口在弹窗标题栏。序列化/校验抽独立纯函数 core/group-io.ts（11 单测覆盖往返+边界），文件 IO 复用 getFileFacade 双路径（Electron/浏览器降级），导入校验后替换 editingGroups 不立即落盘（可取消）。无 D###。test group-io 11/11、lint 0、tsc 0
+- **S012** 实时测试页录制功能重设计 (06-28)：H014 实施型 handoff 执行，按 plan 12 任务 TDD 落地。开工前先落地 S015/D013 基线（工作区脏：routing-tick 删 fanOutToStorage 等治本未提交，本录制 plan 红线前提依赖它），拆 6 commit 提交后开 feat 分支。T1-T11：二进制序列化(magic RCD1+帧记录)→disk-rotation-writer 共享写盘工具(从 storage-filter 提取)→recording-writer(主进程)→storage-filter 重构复用(-141行去重,91/91无回归)→IPC 通道→recording feature 主体→DisplayPreferences 扩展 recording→routing-tick 采集(O(1)早退守S015)→RecordingConfigDialog+FrameSelector多选→DisplayPage 删内联改全局(治诉求①)→持久化。**关键发现:DisplayPreferences 加字段白名单是 5 处不是 4 处**(applyDisplayPreferencesPatch patch 合并 + clone 防御 undefined 是隐含第 5 处,plan 漏,落 D002)。recording 18/display 82/storage-highspeed 91/全量 1889 passed(11失败全pre-existing,0新增)/tsc src 0错/lint本轮0 error。**⚠️ 目标 Linux 机实测未做**(S015红线:连真实数据源看routingTick不卡+切路由录制继续+.bin落盘),feature 分支待实测后合并。D002 新建(录制架构8项决定+5处白名单教训)。下一轮:History 页改造消费 .bin
 
 ## 已确认结论
 
@@ -33,5 +34,7 @@
 - **运行时手工验证**:图表冷启动占位、migration 加载旧 persistence、字段名显示、图表不出数据上游根因(receive 是否有 matched 数据)
 
 ## 当前位置
+
+S012 完成（代码层）：实时测试页录制功能重设计 T1-T11 全部落地，feature 分支 `feat/recording-redesign`。recording 18/display 82/storage-highspeed 91/全量 1889 passed（11 失败全 pre-existing）/tsc src 0 错/lint 本轮 0 error。**待用户目标 Linux 机实测**（S015 红线：连真实数据源看 routingTick 不卡 + 切路由录制继续 + .bin 落盘 + 重启还在），实测后决定分支合并。S008-S011 仍待运行时回测。下一轮：History 页改造消费录制 .bin。
 
 S011 完成：分组配置导入导出已交付。GroupConfigDialog 标题栏加导入/导出，序列化校验抽 group-io.ts 纯函数（11 单测）。test display 80/80、lint 0、tsc 0。等用户运行时实测（导出 json→改分组→导入替换→保存→重开验证）。S008-S010 仍待运行时回测。

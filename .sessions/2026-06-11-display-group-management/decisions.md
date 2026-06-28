@@ -49,3 +49,64 @@ display 的刷新节奏按**视图类型各自独立**，不再有单一全局 c
 ### 来源
 
 S010 / 用户纠正（"它们应该是单独的才对？两个独立" + "弃用 C，底栏不再显示单一值" + "表格 500ms" + "点大小加配置"）
+
+---
+
+## D002: 实时录制重设计——独立路径 + 记原始字节 + 主进程写盘 + 采集点在 routingTick matched 帧
+
+> status: active
+> date: 2026-06-28
+> 取代：无
+> 被取代：无
+
+### 决策
+
+把 DisplayPage 的录制从"组件级定时整表快照（setInterval + appendLocalRecords）"重构为"**runtime 全局 + 事件驱动 + 原始字节落盘**"模型，8 项拍板决定（承 H013/H014 brainstorming）：
+
+1. **持久化**：落盘到磁盘文件（`{userData}/dongfanghong/recordings/*.bin`），跨会话保留。
+2. **架构**：新建 receive 层录制（独立路径），**不直接用 storage-highspeed，复用其磁盘写盘/滚动模式**（提取 disk-rotation-writer 共享工具消除 70-80% 重复）。
+3. **录制模型**：记**整帧原始字节（bytes）**，查看时用 `parseReceiveFrameFields` 解析（不是整表快照，不是已解析字段）。
+4. **选帧粒度**：帧级（frameId），选中即录整帧所有字段；只录接收类型帧（`direction="receive"`）。
+5. **切路由**：后台继续录制（状态在全局 recordingService，不在组件）——治诉求①根因。
+6. **文件格式**：二进制紧凑格式（magic "RCD1" + uint32 秒 + uint16 len + frameId + uint16 len + bytes）+ 大小滚动。
+7. **配置存放**：扩展进现有 DisplayPreferences（跨会话记住选帧）。
+8. **采集点**：routingTick 的 matched outcomes 处（选项A），renderer O(1) 条件 + fire-and-forget IPC，写盘在主进程。
+
+### S015/D013 红线守约（本决策最高优先级约束）
+
+录制采集接入 routingTick 热路径，但严格守 D013（唯一 records 写入口是 appendLocalRecords，禁止 routingTick 写盘）+ S015（renderer 无数组累积/深拷贝）：
+- RecordingBridge.collect **第一行 `if (!isRecording) return`**（O(1) 早退，录制关时几乎零开销）。
+- 录制是**独立路径**，不碰 storage-local 的 records 数组。
+- 写盘在主进程（WriteStream 顺序 append），renderer 只 fire-and-forget（`void appendFrames`，不等 IPC 返回）。
+- 初版设计曾把写盘放进 routingTick → 违反 D013（与已删的 fanOutToStorage 同构），自检推翻，写盘移到主进程。
+
+### 教训：DisplayPreferences 加字段白名单是 5 处不是 4 处
+
+plan T7 说加字段改 4 处（types/defaults/normalize/clone）。实测是 **5 处**：
+1. types.ts（字段 + Patch）
+2. defaults.ts
+3. normalize.ts（逐字段校验 + fallback 兜底）
+4. clone.ts（**必须防御 undefined**，旧 snapshot 的 preferences.recording 可能缺失）
+5. **applyDisplayPreferencesPatch（patch 合并）**——漏这处会导致 patch 合并丢字段；hydrate 走的就是这条路径
+
+症状：加字段后 7 个 display 测试崩（TypeError: Cannot read 'selectedFrameIds'）。修 5 处 + fixture 加字段后全绿。**后续给 DisplayPreferences 加任何字段，必须检查这 5 处 + 相关 fixture**。
+
+### 排除的替代方案
+
+- **照搬 storage-highspeed 全套**：否决。70-80% 结构性重复，提取 disk-rotation-writer 共享工具消除。
+- **记已解析字段而非原始字节**：否决。原始字节更紧凑（源头最简）+ 查看时一次性解析成本可接受（用户拍板）。
+- **采集点放传输层 tap（选项B）**：否决。用户选选项A（routingTick matched 帧），只录干净选中帧、兼容性更好。
+- **写盘放 routingTick（初版设计）**：否决。违反 D013，与 fanOutToStorage 同构，自检推翻。
+- **History 页本轮一起改**：否决（范围拆分）。录制出 .bin 暂无人消费是故意留的债务，下一轮 spec 做 History 查看。
+
+### 影响范围
+
+新增 feature `recording/`（core/types+defaults+serialization、state、services、composables、components/RecordingConfigDialog、index）+ 主进程（shared/disk-rotation-writer、recording-writer、recording-handlers）+ platform（recording facade + index）+ preload + main/index 接线 + runtime/bridges/recording-bridge + routing-tick 采集一行 + DisplayPage 删内联改用 useRecording。重构 storage-filter 复用共享工具（-141 行）。详见 S012 任务表。
+
+### 验证
+
+代码层全绿（recording 18 + display 82 + storage-highspeed 91 + 全量 1889 passed，11 失败全 pre-existing；tsc src 0 错；lint 本轮文件 0 error）。**⚠️ S015 目标 Linux 机实测未做**——需用户连真实数据源坐实"录制不引入卡顿 + 切路由不中断 + .bin 落盘"。不宣称"完成"直到实测过。
+
+### 来源
+
+S012（H014 实施型 handoff 执行）/ H013 brainstorming 8 项拍板决定 / 用户原话（"可不可以只记录设置需要记录的接收帧，然后看的时候直接解析"→ 记原始字节；"配置按钮放到录制按钮右边"→ UI 位置；"A：收 matched 帧"→ 采集点）。触发原话：见 voice.md 2026-06-28 段。
