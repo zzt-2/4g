@@ -139,8 +139,10 @@ export function wireFeatures(
 
   // H014/S012:录制服务(独立路径,不碰 storage-local records,见 D013)。
   // L0 层,无依赖。facade 缺失(测试/非 Electron)时用 stub,appendFrames 静默丢弃。
+  // frameReader 用于 start() 时取选中帧定义快照写进 .bin 头部(防漂移,H015)。
   const recordingFacade = getRecordingFacade();
   const recordingService = createRecordingService({
+    frameReader,
     platformFacade: recordingFacade ?? {
       activate: async () => ({ ok: false, error: 'Recording facade not available' }),
       deactivate: async () => ({ ok: false, error: 'Recording facade not available' }),
@@ -151,6 +153,8 @@ export function wireFeatures(
       }),
       reset: async () => ({ ok: false, error: 'Recording facade not available' }),
       updateConfig: async () => ({ ok: false, error: 'Recording facade not available' }),
+      listRecordingFiles: async () => [],
+      readRecordingFile: async () => ({ bytes: [], ok: false, error: 'Recording facade not available' }),
     },
   });
   const recordingBridge = new RecordingBridge(recordingService);

@@ -244,6 +244,12 @@ export interface RecordingActivateRequest {
     readonly enableRotation: boolean;
     readonly rotationCount: number;
   };
+  /** session 开始时的帧定义快照(防漂移)。每条 = { frameId, frameAssetJson }。
+   *  主进程写进 .bin 头部帧定义块,History 读时用内嵌定义解析,不依赖当前 frameReader。 */
+  readonly frameDefinitions: readonly {
+    readonly frameId: string;
+    readonly frameAssetJson: string;
+  }[];
 }
 
 export interface RecordingStats {
@@ -261,6 +267,25 @@ export interface RecordingConfigUpdate {
   readonly rotationCount?: number;
 }
 
+/** recordings/ 目录下单个 .bin 文件的元信息(供 History 时间筛选/列出)。 */
+export interface RecordingFileMeta {
+  /** 文件名,如 "rec_2026-06-28T13-54-34-956Z.bin"。 */
+  readonly fileName: string;
+  /** 完整路径。 */
+  readonly filePath: string;
+  /** 文件字节大小。 */
+  readonly byteLength: number;
+  /** 最后修改时间(ms,用于时间范围筛选/排序)。 */
+  readonly mtimeMs: number;
+}
+
+/** 读单个 .bin 文件的结果。ok=false 时(路径越界/读失败/空文件)bytes 为空。 */
+export interface RecordingReadResult {
+  readonly bytes: readonly number[];
+  readonly ok: boolean;
+  readonly error?: string;
+}
+
 export interface RecordingBridge {
   activate(request: RecordingActivateRequest): Promise<{ readonly ok: boolean; readonly error?: string }>;
   deactivate(): Promise<{ readonly ok: boolean; readonly error?: string }>;
@@ -268,6 +293,10 @@ export interface RecordingBridge {
   getStats(): Promise<RecordingStats>;
   reset(): Promise<{ readonly ok: boolean; readonly error?: string }>;
   updateConfig(config: RecordingConfigUpdate): Promise<{ readonly ok: boolean; readonly error?: string }>;
+  /** 列 recordings/ 目录下所有 .bin 文件元信息(按 mtime 降序)。History 页用。 */
+  listRecordingFiles(): Promise<readonly RecordingFileMeta[]>;
+  /** 读单个 .bin 整文件字节(主进程读,防路径穿越)。renderer 端再解析帧定义块+帧记录。 */
+  readRecordingFile(filePath: string): Promise<RecordingReadResult>;
 }
 
 // --- Window control bridge types ---

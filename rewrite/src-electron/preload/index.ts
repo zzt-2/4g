@@ -66,6 +66,8 @@ const IPC_RECORDING_APPEND = 'recording:append';
 const IPC_RECORDING_GET_STATS = 'recording:get-stats';
 const IPC_RECORDING_RESET = 'recording:reset';
 const IPC_RECORDING_UPDATE_CONFIG = 'recording:update-config';
+const IPC_RECORDING_LIST_FILES = 'recording:list-files';
+const IPC_RECORDING_READ_FILE = 'recording:read-file';
 
 const IPC_WINDOW_MINIMIZE = 'window:minimize';
 const IPC_WINDOW_MAXIMIZE_TOGGLE = 'window:maximize-toggle';
@@ -270,6 +272,12 @@ const recordingBridge: RecordingBridge = {
   },
   async updateConfig(config: RecordingConfigUpdate) {
     return ipcRenderer.invoke(IPC_RECORDING_UPDATE_CONFIG, config);
+  },
+  async listRecordingFiles() {
+    return ipcRenderer.invoke(IPC_RECORDING_LIST_FILES);
+  },
+  async readRecordingFile(filePath: string) {
+    return ipcRenderer.invoke(IPC_RECORDING_READ_FILE, filePath);
   },
 };
 
