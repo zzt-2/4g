@@ -59,11 +59,16 @@ worktree `.worktrees/history-view-recording`（branch `feat/history-view-recordi
 
 ## 后续
 
+- **用户实测发现 2 个 bug,已修（commit 0e1ea72,直接合 main）**：
+  1. **HistoryPage loadData.value() 崩溃**：useHistoryData 返回的 loadData 是裸函数(非 ref),旧代码 `.value()` 解包是隐藏 bug——此前被 HistoryPage:15 拼写 bug(进页即崩)掩盖,H015 修了拼写 bug 后暴露。改 `history.loadData()`。**教训:修一个进页崩溃 bug 时,要检查被它掩盖的下游崩溃。**
+  2. **录制配置改后没持久化(重启丢选帧)**：applyRecordingConfig 调了 setRecordingConfig(写内存)但漏调 persistDisplay()(写盘)。H014/S012 遗留 bug(注释写"落盘"但代码没落),此前录制未端到端用过未暴露。补 persistDisplay()。**教训:注释声称的行为要和代码核对。**
+  两个 bug 都是代码层测试(Vitest)覆盖不到的——一个是 Vue 组件调用方式,一个是落盘时机接线。端到端手测才暴露。
+
 - **待用户目标 Linux 机端到端手测**（必做,本轮最终判据）：
   1. 录几帧 → 确认 .bin 含帧定义块
-  2. 进 History 页（确认不崩——拼写 bug 修复）
+  2. 进 History 页（确认不崩——拼写 bug + loadData.value 已修）
   3. 选时间范围 → 加载 → 选帧/字段 → 看曲线 → 确认数据正确
   4. 漂移测试：改帧定义后旧 .bin 仍正确解析
   5. 老 .bin（无帧定义块）被跳过不崩
-  实测后决定分支合并（与 H014/S012 处理一致）。
+  6. 录制配置改后重启仍记住选帧（持久化修复验证）
 - **已知债务**：CSV 导出不支持新格式（本轮置灰,触发条件：用户明确需要导出时单独做一轮）；录制 S015 目标机实测（H014 遗留,本轮 T2 改了 activate 理论上不影响,仍待实测）。
