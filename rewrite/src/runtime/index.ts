@@ -202,6 +202,8 @@ export function createRewriteRuntime(
       // routingTick 不再写 storage records（D013），destroy 无需 flush。
       void wiredFeatures.northboundService.stop();
       void wiredFeatures.highSpeedStorageService.deactivate();
+      // H014/S012:销毁时停止录制(flush 写盘流 + 关文件)。best-effort,失败不阻塞 teardown。
+      void wiredFeatures.recordingService.stop().catch(() => { /* teardown best-effort */ });
       wiredFeatures.commandIngressService.dispose();
       wiredFeatures.connectionService.cleanup();
       wiredFeatures.receiveEventSourceBridge.clear();
