@@ -53,9 +53,10 @@ yarn-error.log*
 /public.zip
 /public/test-data/
 
-# Windows 保留名误建
+# Windows 保留名误建（nul 是 Windows 保留设备名，shell 重定向误生成 0 字节文件）
 /nul
 /codestable/features/nul
+/.sessions/*/nul
 
 # rewrite/ 下的临时调试产物（build 日志、tsc 输出、探测脚本、备份）
 /rewrite/build-output*.log
@@ -68,6 +69,9 @@ yarn-error.log*
 
 # 浏览器另存的下载副本（带 (N) 后缀），非版本库数据源
 /rewrite/public/frames/*(*).json
+
+# S011 分组配置导出的运行时产物（带时间戳，用户实测导出，非版本库数据源）
+/rewrite/public/display-groups-*-*.json
 
 # 本地临时产物：perf 调试探针 + DevTools trace（38MB）+ 摘要
 /analyze-perf.py
