@@ -13,6 +13,7 @@ import {
   type DisplayValidationIssue,
   type YAxisPreference,
 } from './types';
+import type { RecordingConfig } from '@/features/recording/core/types';
 import { createDisplayIssue, toDisplayValidationResult } from './validation';
 
 const DISPLAY_MODES = new Set(['table', 'chart', 'special']);
@@ -265,6 +266,33 @@ function normalizeScatterPreference(
   };
 }
 
+// H014/S012:录制配置归一化。逐字段校验 + 补默认,旧 snapshot(无 recording 字段)
+// 走 fallback 补默认(S010 教训:加字段必须过 normalize,否则旧数据迁移丢字段)。
+// fallback 本身可能缺 recording(旧 snapshot 作 fallback),用 DEFAULT_RECORDING_CONFIG 兜底。
+import { DEFAULT_RECORDING_CONFIG } from '@/features/recording/core/defaults';
+function normalizeRecordingConfig(
+  raw: unknown,
+  fallback: RecordingConfig | undefined,
+  issues: DisplayValidationIssue[],
+): RecordingConfig {
+  const base: RecordingConfig = fallback ?? { ...DEFAULT_RECORDING_CONFIG, selectedFrameIds: [] };
+  if (!isRecord(raw)) {
+    return { ...base, selectedFrameIds: [] };
+  }
+  const selectedFrameIds = Array.isArray(raw.selectedFrameIds)
+    ? raw.selectedFrameIds.filter((x): x is string => typeof x === 'string')
+    : [];
+  if (Array.isArray(raw.selectedFrameIds) && raw.selectedFrameIds.length !== selectedFrameIds.length) {
+    issues.push(createDisplayIssue('display.recording.selectedFrameIdsInvalid', 'recording.selectedFrameIds', 'Non-string frameIds filtered out.', 'warning'));
+  }
+  return {
+    selectedFrameIds,
+    maxFileSizeMb: positiveNumberValue(raw.maxFileSizeMb, base.maxFileSizeMb, 'recording.maxFileSizeMb', 'display.recording.maxFileSizeMbInvalid', issues),
+    enableRotation: typeof raw.enableRotation === 'boolean' ? raw.enableRotation : base.enableRotation,
+    rotationCount: positiveNumberValue(raw.rotationCount, base.rotationCount, 'recording.rotationCount', 'display.recording.rotationCountInvalid', issues),
+  };
+}
+
 function normalizeGroupConfigs(
   raw: unknown,
   issues: DisplayValidationIssue[],
@@ -350,6 +378,7 @@ export function normalizeDisplayPreferencesInput(
     scatter: normalizeScatterPreference(value.scatter, defaults.scatter, issues),
     refreshCadenceMs: positiveNumberValue(value.refreshCadenceMs, defaults.refreshCadenceMs, 'refreshCadenceMs', 'display.refreshCadenceInvalid', issues),
     groups: normalizeGroupConfigs(value.groups, issues),
+    recording: normalizeRecordingConfig(value.recording, defaults.recording, issues),
   };
 
   const snapshot: DisplaySnapshot = {
@@ -423,6 +452,11 @@ export function applyDisplayPreferencesPatch(
           })),
         }))
       : currentPrefs.groups,
+    // H014/S012:recording 走 patch 合并(显式 patch 用 patch 值,否则保留 currentPrefs)。
+    // 注意 currentPrefs 来自 cloneDisplayPreferences,已含 recording(T7 clone 同步)。
+    recording: patch.recording !== undefined
+      ? { ...patch.recording, selectedFrameIds: [...patch.recording.selectedFrameIds] }
+      : currentPrefs.recording,
   };
 
   return normalizeDisplayPreferencesInput(merged, current);

@@ -26,6 +26,8 @@ export const defaultDisplayFixture: DisplaySnapshot = {
     },
     refreshCadenceMs: 500,
     groups: [],
+    // H014/S012:录制配置(默认不选帧,100MB 滚动留 5 个,与 DEFAULT_RECORDING_CONFIG 一致)。
+    recording: { selectedFrameIds: [], maxFileSizeMb: 100, enableRotation: true, rotationCount: 5 },
   },
   projection: {
     table1Rows: [],

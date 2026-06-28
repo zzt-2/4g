@@ -1,3 +1,5 @@
+import type { RecordingConfig } from '@/features/recording/core/types';
+
 export const DISPLAY_SCHEMA_VERSION = 2 as const;
 
 // --- Display modes ---
@@ -77,6 +79,8 @@ export interface DisplayPreferences {
   readonly scatter: ScatterDisplayPreference;
   readonly refreshCadenceMs: number;
   readonly groups: readonly DisplayGroupConfig[];
+  /** 录制配置(选帧 + 滚动)。H014/S012 新增,扩展进 DisplayPreferences 持久化。 */
+  readonly recording: RecordingConfig;
 }
 
 // --- Source material (display defines what it consumes) ---
@@ -171,6 +175,7 @@ export interface DisplayPreferencesPatch {
   readonly scatter?: Partial<ScatterDisplayPreference>;
   readonly refreshCadenceMs?: unknown;
   readonly groups?: readonly DisplayGroupConfig[];
+  readonly recording?: RecordingConfig;
 }
 
 // --- Validation ---

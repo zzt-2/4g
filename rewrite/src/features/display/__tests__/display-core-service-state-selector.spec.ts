@@ -183,6 +183,41 @@ describe('display core normalize', () => {
     expect(result.snapshot).not.toHaveProperty('historyAnalysis_chartSettings');
   });
 
+  // H014/S012:旧持久化(无 recording 字段)必须被 normalize 补默认,不能崩。
+  // S010 教训:加字段必须让旧数据平滑迁移。
+  it('normalizes legacy snapshot without recording field (backfills default)', () => {
+    // 模拟旧持久化:preferences 无 recording 字段(其余字段正常)
+    const legacy: typeof defaultDisplayFixture = {
+      ...defaultDisplayFixture,
+      preferences: {
+        table1: defaultDisplayFixture.preferences.table1,
+        table2: defaultDisplayFixture.preferences.table2,
+        charts: defaultDisplayFixture.preferences.charts,
+        scatter: defaultDisplayFixture.preferences.scatter,
+        refreshCadenceMs: defaultDisplayFixture.preferences.refreshCadenceMs,
+        groups: defaultDisplayFixture.preferences.groups,
+        // 注意:无 recording 字段(模拟旧数据)
+      } as typeof defaultDisplayFixture['preferences'],
+    };
+    const result = normalizeDisplayPreferencesInput(legacy);
+    expect(result.snapshot.preferences.recording).toBeDefined();
+    expect(result.snapshot.preferences.recording.selectedFrameIds).toEqual([]);
+    expect(result.snapshot.preferences.recording.maxFileSizeMb).toBe(100);
+    expect(result.snapshot.preferences.recording.rotationCount).toBe(5);
+  });
+
+  it('preserves recording config through patch merge', () => {
+    // 改 recording 后,其余 preferences 字段(recording 在内)应保留
+    const result = applyDisplayPreferencesPatch(defaultDisplayFixture, {
+      recording: { selectedFrameIds: ['frame-a', 'frame-b'], maxFileSizeMb: 50, enableRotation: false, rotationCount: 3 },
+    });
+    expect(result.snapshot.preferences.recording.selectedFrameIds).toEqual(['frame-a', 'frame-b']);
+    expect(result.snapshot.preferences.recording.maxFileSizeMb).toBe(50);
+    expect(result.snapshot.preferences.recording.enableRotation).toBe(false);
+    // 其余字段不受影响
+    expect(result.snapshot.preferences.refreshCadenceMs).toBe(defaultDisplayFixture.preferences.refreshCadenceMs);
+  });
+
   it('applies preference patches through normalize', () => {
     const result = applyDisplayPreferencesPatch(defaultDisplayFixture, updateTable1Patch);
     expect(result.snapshot.preferences.table1.displayMode).toBe('chart');

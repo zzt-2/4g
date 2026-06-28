@@ -12,6 +12,7 @@ import type {
   TableDisplayPreference,
   TableRowProjection,
 } from './types';
+import type { RecordingConfig } from '@/features/recording/core/types';
 
 export function cloneTableDisplayPreference(pref: TableDisplayPreference): TableDisplayPreference {
   return {
@@ -65,6 +66,21 @@ export function cloneScatterDisplayPreference(
   };
 }
 
+// H014/S012:录制配置深拷贝。selectedFrameIds 是数组,必须显式拷贝(白名单同步,
+// S010 教训:clone 漏字段 → 引用共享 → 误改)。其余原始类型字段直传。
+// 入参可能为 undefined(旧 snapshot fixture 无 recording 字段),兜底返回默认。
+export function cloneRecordingConfig(config: RecordingConfig | undefined): RecordingConfig {
+  if (!config) {
+    return { selectedFrameIds: [], maxFileSizeMb: 100, enableRotation: true, rotationCount: 5 };
+  }
+  return {
+    selectedFrameIds: [...config.selectedFrameIds],
+    maxFileSizeMb: config.maxFileSizeMb,
+    enableRotation: config.enableRotation,
+    rotationCount: config.rotationCount,
+  };
+}
+
 export function cloneDisplayPreferences(pref: DisplayPreferences): DisplayPreferences {
   return {
     table1: cloneTableDisplayPreference(pref.table1),
@@ -73,6 +89,7 @@ export function cloneDisplayPreferences(pref: DisplayPreferences): DisplayPrefer
     scatter: cloneScatterDisplayPreference(pref.scatter),
     refreshCadenceMs: pref.refreshCadenceMs,
     groups: pref.groups.map(cloneDisplayGroupConfig),
+    recording: cloneRecordingConfig(pref.recording),
   };
 }
 
