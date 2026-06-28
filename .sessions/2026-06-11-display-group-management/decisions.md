@@ -58,6 +58,7 @@ S010 / 用户纠正（"它们应该是单独的才对？两个独立" + "弃用 
 > date: 2026-06-28
 > 取代：无
 > 被取代：无
+> 注：第 6 项"文件格式"由 D003 细化(RCD1 升级为 RCD1+帧定义块防漂移)。核心 8 项决定仍 active。
 
 ### 决策
 
@@ -110,3 +111,80 @@ plan T7 说加字段改 4 处（types/defaults/normalize/clone）。实测是 **
 ### 来源
 
 S012（H014 实施型 handoff 执行）/ H013 brainstorming 8 项拍板决定 / 用户原话（"可不可以只记录设置需要记录的接收帧，然后看的时候直接解析"→ 记原始字节；"配置按钮放到录制按钮右边"→ UI 位置；"A：收 matched 帧"→ 采集点）。触发原话：见 voice.md 2026-06-28 段。
+
+---
+
+## D003: 录制格式演进 RCD1+帧定义块（防漂移）+ History 读取层重写 + RCD2 路线失败记录
+
+> status: active
+> date: 2026-06-28
+> 取代：无（细化 D002 第 6 项"文件格式"，D002 核心 8 项仍 active）
+> 被取代：无
+
+### 决策
+
+H015：让 History 页能查看录制的 `.bin`。三件事：
+1. **格式演进**：录制格式从纯 RCD1 升级为 **RCD1 + session 头部帧定义块**（activate 时一次性写所有选中帧的 FrameAsset JSON）。防帧定义漂移——读时用内嵌定义解析，不依赖当前 frameReader。**不向后兼容老 .bin（无帧定义块的文件报错跳过，用户确认测试数据作废）。**
+2. **History 读取层重写**：useHistoryData 数据源从 StorageLocalRecord 切到录制 .bin，内部模型直接换新（帧×字段×时间点），不维持旧 StorageLocalRecord 兼容形状。
+3. **附带修 bug**：HistoryPage.vue:15 拼写 bug（`storageLocalService`，接口是 `storageService`）——进页必崩，前置修复。
+
+格式布局（spec §三.1）：
+```
+[4B magic "RCD1"][4B frameDefBlockLen uint32][帧定义块内容][帧记录流(不变)]
+帧定义块 = [uint16 count][count × (uint16 frameIdLen + frameId + uint32 jsonLen + json)]
+```
+frameDefBlockLen 自描述定位：解析时 magic → 读 blockLen → 跳过 → 剩余是帧记录流。
+
+### 理由
+
+- **帧定义漂移根治**：录制开始时把当时帧定义快照写进文件头，读时用它解析。即使以后改了帧定义，旧 .bin 仍正确解析（用内嵌定义）。
+- **写入路径零改动**（S015/D013 守约）：帧定义块是 activate 时一次性写（所有选中帧一起），不是每帧写；帧记录流格式完全不变，写入路径 O(1) 追加。
+- **读取粒度整文件读**：自检验证单文件最坏 ~2MB（12 帧/秒 × 1 小时），解码个位数毫秒（decodeFrameRecords 紧凑线性扫描）。不引入 mmap/流式——数据规模不值得。
+- **内部模型换新**：旧 StorageLocalRecord 已废弃，没必要为它留适配层。改比"适配旧形状"大但干净。
+
+### 核心失败机制：RCD2 路线（索引块 + 分层目录 + 多文件分流）被自检否决
+
+用户最初提"内嵌帧定义 + 分层目录 + 一帧一文件"，据此设计的 RCD2 被自检子代理读真实代码后否决，三个致命问题：
+1. **索引块布局物理写不出来**：追加式 WriteStream（`disk-rotation-writer.ts:143` `flags:'a'`）只能往尾追加，没法回头改前面的索引。要写索引只能 O(N) 每帧重写 = **正是 S015/D013 卡顿的罪魁**（与已删的 fanOutToStorage 同构）。
+2. **多文件分流破坏单流模型**：N 种帧 = N 个并发流，DiskRotationWriter 只支持单流（`:56` 单 writeStream 字段）。
+3. **分层目录搞坏滚动清理**：`cleanupOldFiles`（`:156-169`）平铺单目录不递归，日期目录下永不删文件 → 磁盘无限增长。
+
+### 否决了什么
+
+- **任何"索引块 + 分层目录 + 多文件分流"的组合**。
+- SQLite（D006 原生模块 ABI 风险，单用户浏览场景不值得）。
+- 为旧 StorageLocalRecord 留兼容适配层（旧格式废弃，直接换新内部模型）。
+- 向后兼容老 .bin（用户确认测试数据作废，无帧定义块的文件报错跳过）。
+
+### 可复用部分（RCD2 路线中的对的洞察）
+
+- 用户的核心洞察①**内嵌帧定义防漂移** → Option A 采纳（RCD1 + 帧定义块）。
+- 核心洞察②**时间索引加速查询** → 用文件名 ISO 时间戳 + mtimeMs 扫描实现，不靠分层目录。
+
+### 教训
+
+**设计存储格式前必须先确认写入原语的物理约束（追加 vs 随机访问）。** RCD2 假设了随机访问（索引块回头改），但实际是追加流。Option A 规避了全部三个问题。
+
+### 影响范围
+
+- 录制侧（小改）：`serialization.ts`（+帧定义块编解码纯函数）、`recording-writer.ts`（activate 写帧定义块）、`recording-handlers.ts`（handleActivate 接 frameDefinitions + 新增 list/read handlers）、`preload`（+list/read channel）、`recording-service.ts`（持 frameReader，start 取帧定义 + list/read 代理）、`platform-bridge.ts`/`platform/recording.ts`（+frameDefinitions/RecordingFileMeta/RecordingReadResult/list/read）、`feature-wiring.ts`（传 frameReader + stub 补 read）。
+- History 侧（重写读取层）：新建 `recording-reader.ts`（parseRecordingFileBytes + parseRecordingToFieldSeries 纯函数）、`useHistoryData.ts`（数据源切 recording-reader + 内部模型换新）、`HistoryPage.vue`（修拼写 bug + 适配新签名 + CSV 置灰）。
+- 治理：新建 S013；D002 加注（格式部分被 D003 细化）。
+
+### 验证（诚实标注）
+
+代码层全绿：recording 38（18 原有 + 10 reader + 10 service 新）/ display 82 / storage 91 / 全量 **1901 passed / 11 failed（全 S015 pre-existing baseline，0 新增）**；tsc src 0 新错（3 个 plugin-vue baseline）；lint 0 新增 error（7 个 pre-existing baseline）。
+
+scenario 10 fieldName resolution 集成测试重写适配新数据源（旧测 StorageLocalRecord + frameReader 机制过时），3/3 passed，R19 测试意图在新模型下仍成立。
+
+**⚠️ 端到端手测未做**（需真实 Electron App + 真实录数据 + Linux 目标机）：
+- 录几帧 → 确认 .bin 含帧定义块
+- 进 History 页（确认不崩——拼写 bug 修复）
+- 选时间范围 → 加载 → 选帧/字段 → 看曲线 → 确认数据正确
+- 漂移测试：改帧定义后旧 .bin 仍正确解析
+- 老 .bin（无帧定义块）被跳过不崩
+不宣称"完成"直到目标机实测过（与 H014/S012 一致）。
+
+### 来源
+
+S013（H015 实施型 handoff 执行）/ H015 brainstorming 拍板（"A：接进现有 History 页"；"完整嵌"帧定义；"可不可以只记录...看的时候直接解析"防漂移；"subagent自检一下"触发 RCD2 否决 → Option A；"不用兼容，反正现在都是测试"老 .bin 作废）。触发原话：见 voice.md 2026-06-28 段（H015）。

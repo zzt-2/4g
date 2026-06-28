@@ -1,6 +1,6 @@
 # 接收帧分组管理 Feature
 
-> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-28 S012 实时录制重设计实施（待目标机实测）
+> 状态: active | 创建: 2026-06-11 | 最后更新: 2026-06-28 S013 History 查看录制（格式演进+读取层重写,待目标机实测）
 
 ## 进展线索
 
@@ -13,6 +13,7 @@
 - **S010** 星座图刷新间隔接通+点大小配置 (06-24)：刷新间隔"半成品"接通——4 个互相打架的刷新概念（scatter/chart/顶层/写死）收敛为三视图各自独立节奏（D001）。两层存储 bug 修复（normalize scatter 合并漏字段 + clone 白名单漏 pointSize）；消费层重写（删写死 cadenceMs=200，改三组独立 cadence + watch 重启）；点大小加 pref+滑块（默认4，原写死6）。默认间隔 100/200→2000ms。推翻主对话"统一到 C"预判，改用用户拍板的"各自独立"。test display 69/69 + 集成 38/38、lint 0 新增、tsc src 0 错。待运行时实测
 - **S011** 分组配置导入导出 (06-24)：GroupConfigDialog 补导入导出——只导分组配置（DisplayGroupConfig[]）、导入完全替换、入口在弹窗标题栏。序列化/校验抽独立纯函数 core/group-io.ts（11 单测覆盖往返+边界），文件 IO 复用 getFileFacade 双路径（Electron/浏览器降级），导入校验后替换 editingGroups 不立即落盘（可取消）。无 D###。test group-io 11/11、lint 0、tsc 0
 - **S012** 实时测试页录制功能重设计 (06-28)：H014 实施型 handoff 执行，按 plan 12 任务 TDD 落地。开工前先落地 S015/D013 基线（工作区脏：routing-tick 删 fanOutToStorage 等治本未提交，本录制 plan 红线前提依赖它），拆 6 commit 提交后开 feat 分支。T1-T11：二进制序列化(magic RCD1+帧记录)→disk-rotation-writer 共享写盘工具(从 storage-filter 提取)→recording-writer(主进程)→storage-filter 重构复用(-141行去重,91/91无回归)→IPC 通道→recording feature 主体→DisplayPreferences 扩展 recording→routing-tick 采集(O(1)早退守S015)→RecordingConfigDialog+FrameSelector多选→DisplayPage 删内联改全局(治诉求①)→持久化。**关键发现:DisplayPreferences 加字段白名单是 5 处不是 4 处**(applyDisplayPreferencesPatch patch 合并 + clone 防御 undefined 是隐含第 5 处,plan 漏,落 D002)。recording 18/display 82/storage-highspeed 91/全量 1889 passed(11失败全pre-existing,0新增)/tsc src 0错/lint本轮0 error。**⚠️ 目标 Linux 机实测未做**(S015红线:连真实数据源看routingTick不卡+切路由录制继续+.bin落盘),feature 分支待实测后合并。D002 新建(录制架构8项决定+5处白名单教训)。下一轮:History 页改造消费 .bin
+- **S013** History 页查看录制数据 (06-28)：H015 实施型 handoff 执行，按 plan 7 任务 TDD 落地（worktree feat/history-view-recording）。T1 帧定义块编解码纯函数（serialization.ts，**修 plan 代码 bug：encode 偏移顺序,systematic-debugging 定位**）→T2+T3 合并（activate 写帧定义块 + read IPC，**修 plan 路径穿越防护 bug：startsWith(dir) → dir+path.sep**）→T4 recording-reader（parseRecordingFileBytes + parseRecordingToFieldSeries，**修正 plan 易错点#1：ReceiveParsedFieldValue 属性名 fieldId/fieldName/value**）→T5 useHistoryData 重写（数据源切 recording-reader + 内部模型换新帧×字段×时间点）→T6 HistoryPage 适配（修:15 拼写 bug + CSV 置灰）→T7 回归。scenario 10 fieldName resolution 集成测试重写适配新数据源（旧 StorageLocalRecord+frameReader 机制过时，R19 测试意图仍成立）。全量 1901 passed/11 failed（全 S015 pre-existing baseline，0 新增）/tsc src 0 新错/lint 0 新增 error。**⚠️ 端到端手测未做**（需真实 App+录数据+Linux 机：录帧→进History→加载→曲线→漂移测试→老.bin跳过）。D003 新建（格式演进 RCD1+帧定义块防漂移 + RCD2 失败记录 + History 读取层重写），细化 D002 格式部分。CSV 导出本轮置灰（spec§5.4 不做）。feature 分支待实测后合并。
 
 ## 已确认结论
 
@@ -35,6 +36,8 @@
 
 ## 当前位置
 
-S012 完成（代码层）：实时测试页录制功能重设计 T1-T11 全部落地，feature 分支 `feat/recording-redesign`。recording 18/display 82/storage-highspeed 91/全量 1889 passed（11 失败全 pre-existing）/tsc src 0 错/lint 本轮 0 error。**待用户目标 Linux 机实测**（S015 红线：连真实数据源看 routingTick 不卡 + 切路由录制继续 + .bin 落盘 + 重启还在），实测后决定分支合并。S008-S011 仍待运行时回测。下一轮：History 页改造消费录制 .bin。
+S013 完成（代码层）：History 页查看录制数据 T1-T7 全部落地，feature 分支 `feat/history-view-recording`（worktree）。录制格式升级 RCD1+帧定义块（防漂移），History 读取层重写（内部模型换新帧×字段×时间点）。recording 38/display 82/storage 91/全量 1901 passed（11 失败全 S015 pre-existing baseline，0 新增）/tsc src 0 新错/lint 0 新增 error。**待用户目标 Linux 机端到端手测**（录帧→进 History→加载→曲线→漂移测试→老 .bin 跳过），实测后决定分支合并。S008-S012 仍待运行时回测。下一轮：目标机实测后合并 + CSV 导出（用户需要时单独做）。
+
+S012 完成（代码层）：实时测试页录制功能重设计 T1-T11 全部落地，feature 分支 `feat/recording-redesign`（已合并 a3c9df1）。recording 18/display 82/storage-highspeed 91/全量 1889 passed（11 失败全 pre-existing）/tsc src 0 错/lint 本轮 0 error。**待用户目标 Linux 机实测**（S015 红线：连真实数据源看 routingTick 不卡 + 切路由录制继续 + .bin 落盘 + 重启还在）。S008-S011 仍待运行时回测。
 
 S011 完成：分组配置导入导出已交付。GroupConfigDialog 标题栏加导入/导出，序列化校验抽 group-io.ts 纯函数（11 单测）。test display 80/80、lint 0、tsc 0。等用户运行时实测（导出 json→改分组→导入替换→保存→重开验证）。S008-S010 仍待运行时回测。
