@@ -1,6 +1,6 @@
 # 甲方对接闭环分析
 
-> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-23
+> 状态: active | 创建: 2026-05-18 | 更新: 2026-06-29
 
 ## 子系统架构认知(D003,2026-06-18 确立)
 
@@ -207,6 +207,7 @@
 **S016 完成(2026-06-23):中心对接数据文件持久化。用户报"用例目录/对接配置重装就丢"——根因是 S012 治本时只迁了 task 模板,这 4 份(northbound-docking-config/devices/catalog-mappings/test-catalog)漏迁还留 localStorage。新建 command-ingress/services/docking-file-storage.ts(照 task-template 范式,3 份合写 state/docking.json + .bak + 原子写);LazyDockingStorage holder 照 LazyPersistence 延迟注入;bootstrap 加 hydrateDockingData;use-central-docking 加 storage 参数改调;顺带删死代码(DEFAULT_TEST_CASES/DEFAULT_TEST_CATALOG/setTestCatalogData/configuredTestCases 整条链)。docking-file-storage.spec 12/12 过,全量 1754/11(全 baseline,stash 0 新增),lint 0。延续 S012 文件持久化范式,不新建 D###。**
 **D007 落档(2026-06-24):FTP 主动/被动模式联调踩坑。甲方 readRemoteFile 报 ConnectException 拒绝连接,经 telnet + 我方 curl + 甲方 worker curl + tcpdump 联调实测,定论病根在甲方 Java 代码走主动模式(数据通道服务端反向连客户端,穿不过"只放行 21"的隔离网络),正解是甲方加 `ftpClient.enterLocalPassiveMode();`,我方零改动。否决"关服务端被动模式"等 5 条错误排查路径,沉淀 curl 双端对比 + tcpdump 抓控制通道命令的定位 SOP。待办:抓甲方 Java 包坐实 + 甲方改代码后回归。**
 **S017 完成(2026-06-24):getTestCaseAll↔setTestTask 完整闭环首通,修三段连环 bug。①(1a1b2e1)encode 文件字段名不符甲方 CaseInfoNode 契约——反编译 syncNode 字节码铁证:第一关 node.id 空+无 children→return,我方 outCaseId/caseName/caseType 全被 fastjson2 静默丢弃→insertCases=0。重命名 id/name/type、树形结构(菜单套用例)、inputPars 改 CaseInfoInputPar 兜底填(runSubSys 复用 subSysId)。id 放 outCaseId 保 decode 闭环,snapshot/decode 一字不动。②(c97a714)setTestTask executionPlan.nodes 对象格式未解析——文档 L353 写字符串,甲方实际发 {id,name,type} 对象,resolveNode 把对象当字符串查 Map→任务零创建。工程兜底兼容两种格式(责任在甲方契约漂移)。③(1655f88)reportedSnapshotStorage 未接线——feature-wiring 漏传可选字段,getTestCaseAll save / setTestTask load 双双可选链短路→snapshot missing→占位 fail 任务。同 S014 病:可选字段+单测手动传值+runtime 漏接=静默失败。实测闭环通:6 用例下发,decode 出 27 步真实 definition,lifecycle:running,串行编排(6 层逐层)符合设计。translator 12/12 + northbound-service 43/43。顺带:DEFAULT_DOCKING_CONFIG 填真实对接值(凭据⚠️已进 git 历史)、nanoid 漏声明 pre-existing(用户自修未提交)、electron 二进制被墙手动解压+path.txt。详见 S017-...md。**
+**S018 完成(2026-06-29,代码待联调):用例报告配置(TestReport 内容驱动)实施,D008 落地。执行 H013 handoff,9 task TDD。报告内容由"每用例一份配置清单(checkPoints/statisticsItems/attachItems 三类)"驱动,task 跑完按清单从 DisplayService 取 displayValue 填甲方 TestReport。command-ingress 新建 report-config(CRUD+IO+文件存储+LazyReportConfigStorage holder)+ 3 UI 组件(direction:'receive' 字段选择);CatalogMappingPanel 嵌入报告配置编辑区 + 导入导出。northbound 加 reportConfigProvider + displayFieldReader 注入口;generateTestReport 清死代码,三类改配置驱动,无配置诚实空着(删 DEFAULT_MOCK_CONFIG 假数据常量)。feature-wiring 注入两 port(防 S014/S017 漏接)。防 S014/S017 同病:LazyReportConfigStorage 显式测 setDelegate 前返空分支。全量 1967 passed / 11 failed 全 pre-existing baseline(checkout a3d7cd3 对照 0 新增);tsc 0 / lint 0。守 D004(task/display 零改动)。状态:**待联调**——留给用户验三类 displayValue(锁定/0.2% 非 0x01)+ FTP 上传 + 甲方收到正确解析。无新建 D###。详见 S018-report-config-impl.md。**
 
 ### S017 — getTestCaseAll 契约对齐 + setTestTask 三段 bug 闭环修复
 - 起因:联调机跑 getTestCaseAll + setTestTask,甲方日志 insertCases=0(用例没落库)+ 我方任务不执行。逐层排查发现**三个独立 bug 串联**,此前 setTestTask 从未真正执行过真实用例(前几轮 login/heartbeat/FTP/持久化都通了,但下发执行这一步是首次跑通)
@@ -217,6 +218,18 @@
 - 验证:translator 12/12 + northbound-service 43/43;诊断日志(decode dump/loadAll dump/lifecycle dump)用完即撤(git checkout 回 HEAD)
 - **教训**:① 可选字段+单测手动传值=静默失败温床(S014+本轮 bug③ 同病)② 甲方文档≠甲方实现(bug② 铁证),工程兜底+攒证据对齐两条腿 ③ 联调是唯一真相,前几轮单测全过但 setTestTask 从没真跑过 ④ 反编译是契约争议终审(bug①)
 - 详见 S017-testcase-all-contract-and-settesttask-closed-loop.md
+
+### S018 — 用例报告配置(TestReport 内容驱动)实施(D008 落地)
+- 执行 H013 handoff,按 D008 方向(配置驱动,推翻 H012 执行链路采集)TDD 实施 9 个 task
+- 收 handoff 验证 10 条事实声称全 PASS;发现 3 个不阻塞偏差(工作树实际 clean / field-parser 在 receive/core 非 display/core / S 文件 13 个触发 warn)
+- 产出:command-ingress 新建 report-config.ts(CRUD+守卫)+ report-config-io.ts(导入导出)+ report-config-file-storage.ts(文件存储 + LazyReportConfigStorage holder);3 个 UI 组件(ReportConfigEditor/ReportCategoryEditor/FrameFieldPicker,direction:'receive');CatalogMappingPanel 嵌入报告配置编辑区 + 导入导出按钮
+- northbound:NorthboundServiceOptions 加 reportConfigProvider + displayFieldReader;uploadTestReportAndNotify 按 reportConfig + displaySnapshot(从 displayService.getSourceFields 构 Map<dataItemId,displayValue>)取值填三类;generateTestReport 清死代码(usingCollected + 三元同体),三类改配置驱动,无配置诚实空着(不 fallback DEFAULT_MOCK_CONFIG,常量已删)
+- runtime:feature-wiring 注入 reportConfigStorage holder + 两 port(:255-256,grep 确认防 S014/S017 漏接);rewriteRuntime 加 hydrateReportConfigData(照 hydrateDockingData 同款)
+- **防 S014/S017 同病**:Task 3 LazyReportConfigStorage 显式测 setDelegate 前返空分支(正是 S014/S017 漏掉那条);Task 5 集成测试显式测空壳阶段三类空
+- 验证:report-config 22/22 + io 14/14 + file-storage 14/14(含时序) + generateTestReport 12/12 + northbound-service 47/47(含 2 条 reportConfig 驱动)+ runtime 47/47;全量 1967 passed / **11 failed 全 pre-existing baseline**(checkout a3d7cd3 对照证实 0 新增失败);tsc 0 / lint 0
+- **状态:待联调**(诚实红线:代码过单测不等于通,联调是最终判据)。留给用户:真实跑 task 验三类 displayValue(锁定/0.2% 非 0x01)+ FTP 上传 + 甲方收到正确解析三类
+- 无新建 D###(D008 既定实施);守 D004(task/display 零改动)
+- 详见 S018-report-config-impl.md
 
 ### S016 — 中心对接数据文件持久化(localStorage → 文件)
 - 起因:用户报"用例目录没有持久化,对接配置也是,重新安装后就变回去了。这对吗?"
