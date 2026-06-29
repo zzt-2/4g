@@ -7,7 +7,6 @@
 // - 老格式(无帧定义块)抛错,调用方 catch 跳过(spec §3.4,不向后兼容)。
 // - 整文件读:最坏 ~2MB,解码个位数毫秒(不引入 mmap/流式)。
 import {
-  RECORDING_FILE_MAGIC,
   decodeFrameRecords,
   decodeFrameDefinitions,
   type RecordingFrameRecord,
@@ -46,23 +45,30 @@ export interface FrameFieldSeries {
 
 // 解析整文件字节(magic + 帧定义块 + 帧记录)。
 // 老格式(无帧定义块)抛错——调用方应 catch 跳过该文件(spec §3.4)。
+//
+// 注意:用 DataView/Uint8Array 原生 API,不用 Node Buffer——本函数在渲染进程跑
+// (useHistoryData→这里),浏览器无 Buffer。
 export function parseRecordingFileBytes(data: Uint8Array): RecordingFileContent {
-  const buf = Buffer.from(data);
-  if (buf.length < 4 || buf.subarray(0, 4).toString('ascii') !== RECORDING_FILE_MAGIC) {
+  // magic "RCD1" 逐字节比对(避免用 Buffer.toString('ascii'))
+  if (
+    data.length < 4 ||
+    data[0] !== 0x52 || data[1] !== 0x43 || data[2] !== 0x44 || data[3] !== 0x31
+  ) {
     throw new Error('not a recording file (bad magic)');
   }
   // 帧定义块:uint32 frameDefBlockLen(在 magic 之后)+ 内容
-  if (buf.length < 8) {
+  if (data.length < 8) {
     throw new Error('old-format file (no frame-def block)');
   }
-  const blockLen = buf.readUInt32LE(4);
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const blockLen = view.getUint32(4, true);
   const blockStart = 8;
   // blockLen 异常(超过文件剩余)→ 判定为老格式(magic 后直接是帧记录流,读出来的
   // frameDefBlockLen 其实是帧记录的前 4 字节,通常是个小数但偶发越界)。
-  if (blockStart + blockLen > buf.length) {
+  if (blockStart + blockLen > data.length) {
     throw new Error('old-format file (no frame-def block)');
   }
-  const defEntries: FrameDefinitionEntry[] = decodeFrameDefinitions(buf.subarray(blockStart, blockStart + blockLen));
+  const defEntries: FrameDefinitionEntry[] = decodeFrameDefinitions(data.subarray(blockStart, blockStart + blockLen));
   const frameDefs = new Map<string, FrameAsset>();
   for (const e of defEntries) {
     try {
@@ -71,7 +77,7 @@ export function parseRecordingFileBytes(data: Uint8Array): RecordingFileContent 
       // 单个帧定义 JSON 坏了跳过,不整文件失败(其余帧仍可解析)。
     }
   }
-  const recordBytes = buf.subarray(blockStart + blockLen);
+  const recordBytes = data.subarray(blockStart + blockLen);
   const records = decodeFrameRecords(recordBytes);
   return { frameDefs, records };
 }

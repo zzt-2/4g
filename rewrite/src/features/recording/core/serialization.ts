@@ -55,21 +55,26 @@ export function encodeFileHeader(): Buffer {
 
 // 从 magic 头之后的字节流解码所有完整帧记录。
 // 尾部不完整的帧(如写盘中途)被丢弃,不抛错——流式 append 天然容忍。
+//
+// 注意:decode 函数用 DataView + TextDecoder(跨环境 Web 标准),不用 Node Buffer——
+// 因为 decode 在渲染进程(浏览器,无 Buffer)跑(useHistoryData→recording-reader→这里)。
+// encode 留在主进程用 Buffer(主进程有 Buffer)。
 export function decodeFrameRecords(data: Uint8Array): RecordingFrameRecord[] {
-  const buf = Buffer.from(data);
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const decoder = new TextDecoder('utf8');
   const records: RecordingFrameRecord[] = [];
   let offset = 0;
-  while (offset < buf.length) {
-    if (offset + 4 > buf.length) break; // 不完整时间戳,丢弃尾部
-    const capturedAt = buf.readUInt32LE(offset); offset += 4;
-    if (offset + 2 > buf.length) break;
-    const frameIdLen = buf.readUInt16LE(offset); offset += 2;
-    if (offset + frameIdLen > buf.length) break;
-    const frameId = buf.subarray(offset, offset + frameIdLen).toString('utf8'); offset += frameIdLen;
-    if (offset + 2 > buf.length) break;
-    const byteLen = buf.readUInt16LE(offset); offset += 2;
-    if (offset + byteLen > buf.length) break;
-    const bytes = Array.from(buf.subarray(offset, offset + byteLen)); offset += byteLen;
+  while (offset < view.byteLength) {
+    if (offset + 4 > view.byteLength) break; // 不完整时间戳,丢弃尾部
+    const capturedAt = view.getUint32(offset, true); offset += 4;
+    if (offset + 2 > view.byteLength) break;
+    const frameIdLen = view.getUint16(offset, true); offset += 2;
+    if (offset + frameIdLen > view.byteLength) break;
+    const frameId = decoder.decode(data.subarray(offset, offset + frameIdLen)); offset += frameIdLen;
+    if (offset + 2 > view.byteLength) break;
+    const byteLen = view.getUint16(offset, true); offset += 2;
+    if (offset + byteLen > view.byteLength) break;
+    const bytes = Array.from(data.subarray(offset, offset + byteLen)); offset += byteLen;
     records.push({ capturedAt, frameId, bytes });
   }
   return records;
@@ -118,30 +123,31 @@ export function encodeFrameDefinitions(defs: readonly FrameDefinitionEntry[]): B
 // 解码帧定义块内容。数据不完整(截断)抛错——帧定义块是 session 头部一次性写的,
 // 正常文件不会截断;老格式(无帧定义块)在 reader 层读 frameDefBlockLen 时已判别。
 export function decodeFrameDefinitions(data: Uint8Array): FrameDefinitionEntry[] {
-  const buf = Buffer.from(data);
-  if (buf.length < 2) {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const decoder = new TextDecoder('utf8');
+  if (view.byteLength < 2) {
     throw new Error('frame-definition block truncated: missing count');
   }
-  const count = buf.readUInt16LE(0);
+  const count = view.getUint16(0, true);
   let offset = 2;
   const defs: FrameDefinitionEntry[] = [];
   for (let i = 0; i < count; i++) {
-    if (offset + 2 > buf.length) {
+    if (offset + 2 > view.byteLength) {
       throw new Error(`frame-definition block truncated: entry ${i} frameIdLen`);
     }
-    const frameIdLen = buf.readUInt16LE(offset); offset += 2;
-    if (offset + frameIdLen > buf.length) {
+    const frameIdLen = view.getUint16(offset, true); offset += 2;
+    if (offset + frameIdLen > view.byteLength) {
       throw new Error(`frame-definition block truncated: entry ${i} frameId`);
     }
-    const frameId = buf.subarray(offset, offset + frameIdLen).toString('utf8'); offset += frameIdLen;
-    if (offset + 4 > buf.length) {
+    const frameId = decoder.decode(data.subarray(offset, offset + frameIdLen)); offset += frameIdLen;
+    if (offset + 4 > view.byteLength) {
       throw new Error(`frame-definition block truncated: entry ${i} jsonLen`);
     }
-    const jsonLen = buf.readUInt32LE(offset); offset += 4;
-    if (offset + jsonLen > buf.length) {
+    const jsonLen = view.getUint32(offset, true); offset += 4;
+    if (offset + jsonLen > view.byteLength) {
       throw new Error(`frame-definition block truncated: entry ${i} json`);
     }
-    const frameAssetJson = buf.subarray(offset, offset + jsonLen).toString('utf8'); offset += jsonLen;
+    const frameAssetJson = decoder.decode(data.subarray(offset, offset + jsonLen)); offset += jsonLen;
     defs.push({ frameId, frameAssetJson });
   }
   return defs;
