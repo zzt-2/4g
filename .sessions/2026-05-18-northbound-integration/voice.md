@@ -111,3 +111,12 @@
 - "不用新开"(topic 归属) → 归 northbound 专题(S018),不新建 topic
 - [教训] H012 handoff "接 reportDataCollector 从执行链路采集"方向错误——报告内容是用户配置驱动的(displayValue 取值),不是执行链路自动推断的。brainstorm 一上来就被用户"你知道他们回报是啥格式吗"拦住,说明方案没先对齐甲方格式就动手设计
 - [教训] 我盯着 test-report-generator.ts 的代码结构(DEFAULT_MOCK_CONFIG)被带节奏,没回甲方文档 L187-452 看三类字段的必选/可选语义。理解报告格式先读文档不要先读代码(同 D006/S014 教训)
+
+## 2026-06-29(S018 联调修复 + 字段名当 name/期望结果,实测三轮)
+- "试了试好了"(修复 createTask 透传 templateId 后,报告三类有值) → 验证 templateId 透传修复生效
+- "还是别自己写名字了,用字段名当名字吧?然后加个期望结果(和说明一个样就行)" → name 默认取所选字段名(解法Y:fieldName 快照进 name,不实时查帧服务);三类都加 expectValue 可选(和 msg 一样)
+- "对 都加"(解法 Y + expectValue 三类都加) → name 默认 fieldName 可覆盖;expectValue 三类都加(checkPoint 必填位置兜底空串,statistics/attach 可选位置透传)
+- "a B"(a=fieldName 显示名非 fieldId;B=name 默认 fieldName 但可覆盖) → 定解法 Y:fieldName 作默认值,用户编辑不覆盖
+- [教训] 联调前先看实际报文(TestReport_395.json 三类全 []),别凭诊断就改。"另一边"说"instance.templateId 带 outCaseId 的@后缀"是错的——testCaseId 才带@(D003 既定),instance.templateId 是 undefined。split('@') 修复既没用(对 undefined 无效)又破坏持久化,已回滚
+- [教训] createTask(def) 没 templateId 参数 → instance.templateId 永远 undefined → 报告三类恒空。这个 bug 被 mock 硬编码 instance.templateId(makeMockTaskServiceAutoSettle) + DEFAULT_MOCK_CONFIG 假数据双重掩盖。真根因:createAndStartTask 建实例时没把 snapshot.templateId 透传过去
+- [教训] northbound 不该依赖 frame feature 取 fieldName——解法 Y(选字段时 fieldName 快照进 name)守 D004 边界,代价是帧改名后老配置不自动跟(可接受,本就是配那一刻的快照)
