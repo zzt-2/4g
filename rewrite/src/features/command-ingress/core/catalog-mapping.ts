@@ -103,7 +103,7 @@ export function markReported(
 
 // --- guards ---
 
-function isCatalogMapping(v: unknown): v is CatalogMapping {
+export function isCatalogMapping(v: unknown): v is CatalogMapping {
   if (v == null || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return (

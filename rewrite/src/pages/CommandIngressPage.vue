@@ -14,14 +14,15 @@ import type { SatelliteConfig, ScoeCommandConfig, HighlightRuleConfig } from '@/
 import type { DeviceInfoItem } from '@/features/northbound/core/types';
 import type { TaskTemplate } from '@/features/task/core';
 import type { ReportConfig } from '@/features/command-ingress/core/report-config';
+import type { CatalogMapping } from '@/features/command-ingress/core/catalog-mapping';
 import {
   upsertReportConfig,
   findReportConfig,
 } from '@/features/command-ingress/core/report-config';
 import {
-  serializeReportConfigs,
-  parseReportConfigsFromJson,
-} from '@/features/command-ingress/services/report-config-io';
+  serializeCatalogDirectory,
+  parseCatalogDirectoryFromJson,
+} from '@/features/command-ingress/services/catalog-directory-io';
 import { useScoeConfig } from '@/features/command-ingress/composables/use-scoe-config';
 import { useScoeMonitor } from '@/features/command-ingress/composables/use-scoe-monitor';
 import { useTestTool } from '@/features/command-ingress/composables/use-test-tool';
@@ -448,23 +449,26 @@ function timestampForFile(): string {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
-async function exportReportConfigs(): Promise<void> {
-  if (reportConfigs.value.length === 0) {
-    notify.warning('当前没有报告配置可导出');
+async function exportCatalogDirectory(): Promise<void> {
+  if (docking.catalogMappings.value.length === 0 && reportConfigs.value.length === 0) {
+    notify.warning('当前用例目录为空,没有可导出内容');
     return;
   }
-  const json = serializeReportConfigs(reportConfigs.value);
-  const defaultName = `report-configs-${timestampForFile()}.json`;
+  const json = serializeCatalogDirectory({
+    mappings: docking.catalogMappings.value,
+    reportConfigs: reportConfigs.value,
+  });
+  const defaultName = `catalog-directory-${timestampForFile()}.json`;
   const fileFacade = getFileFacade();
   if (fileFacade) {
     const path = await fileFacade.showSaveDialog({
-      title: '导出报告配置',
+      title: '导出用例目录',
       defaultPath: defaultName,
       filters: [{ name: 'JSON', extensions: ['json'] }],
     });
     if (path) {
       await fileFacade.writeTextFile(path, json);
-      notify.success(`已导出 ${reportConfigs.value.length} 份报告配置`);
+      notify.success(`已导出 ${docking.catalogMappings.value.length} 个映射 + ${reportConfigs.value.length} 份报告配置`);
     }
   } else {
     const blob = new Blob([json], { type: 'application/json' });
@@ -474,16 +478,16 @@ async function exportReportConfigs(): Promise<void> {
     a.download = defaultName;
     a.click();
     URL.revokeObjectURL(url);
-    notify.success(`已下载 ${reportConfigs.value.length} 份报告配置`);
+    notify.success(`已下载 ${docking.catalogMappings.value.length} 个映射 + ${reportConfigs.value.length} 份报告配置`);
   }
 }
 
-async function importReportConfigs(): Promise<void> {
+async function importCatalogDirectory(): Promise<void> {
   const fileFacade = getFileFacade();
   let text: string | null = null;
   if (fileFacade) {
     const path = await fileFacade.showOpenDialog({
-      title: '导入报告配置',
+      title: '导入用例目录',
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile'],
     });
@@ -507,30 +511,36 @@ async function importReportConfigs(): Promise<void> {
   }
   if (text === null) return;
 
-  let parsed: ReportConfig[];
+  let parsed: { mappings: readonly CatalogMapping[]; reportConfigs: readonly ReportConfig[] };
   try {
-    parsed = parseReportConfigsFromJson(text);
+    parsed = parseCatalogDirectoryFromJson(text);
   } catch (e) {
     notify.error(`导入失败：${(e as Error).message}`);
     return;
   }
 
-  // 冲突策略:按 templateId 替换(导入的覆盖同名,没冲突的追加)。
-  const importedCount = parsed.length;
+  // 冲突策略:按 templateId 替换(导入的覆盖同名,没冲突的追加)。mappings + reportConfigs 各自合并。
+  const importedMappings = parsed.mappings.length;
+  const importedReportConfigs = parsed.reportConfigs.length;
   $q.dialog({
-    title: '导入报告配置',
-    message: `将导入 ${importedCount} 份报告配置,与现有同名 templateId 替换,其余追加。\n(当前已有 ${reportConfigs.value.length} 份)`,
+    title: '导入用例目录',
+    message: `将导入 ${importedMappings} 个映射 + ${importedReportConfigs} 份报告配置,与现有同名 templateId 替换,其余追加。`,
     cancel: true,
     persistent: true,
     ok: { label: '合并', color: 'primary' },
   }).onOk(() => {
-    let next = reportConfigs.value;
-    for (const cfg of parsed) {
-      next = upsertReportConfig(next, cfg);
+    // mappings:走 docking.saveMapping(upsertMapping 原地替换 + syncMappings 持久化)
+    for (const m of parsed.mappings) {
+      docking.saveMapping(m);
     }
-    reportConfigs.value = next;
-    reportConfigStorage.saveAll(next);
-    notify.success(`已导入 ${importedCount} 份报告配置`);
+    // reportConfigs:本地 upsert + saveAll 持久化
+    let nextConfigs = reportConfigs.value;
+    for (const cfg of parsed.reportConfigs) {
+      nextConfigs = upsertReportConfig(nextConfigs, cfg);
+    }
+    reportConfigs.value = nextConfigs;
+    reportConfigStorage.saveAll(nextConfigs);
+    notify.success(`已导入 ${importedMappings} 个映射 + ${importedReportConfigs} 份报告配置`);
   });
 }
 
@@ -663,12 +673,12 @@ onBeforeUnmount(() => {
             @add="handleAddDevice" @edit="handleEditDevice" @delete="handleDeleteDevice" />
           <CatalogMappingPanel v-else :mappings="docking.catalogMappings.value" :all-templates="allTemplates"
             :field-groups-of="fieldGroupsOf" :template-name-of="mappingTemplateName" :is-field-checked="isFieldChecked"
-            :is-mapped="isMapped" :frame-service="frameService" :report-configs="reportConfigs.value"
+            :is-mapped="isMapped" :frame-service="frameService" :report-configs="reportConfigs"
             :report-config-of="getReportConfig"
             @toggle-enabled="toggleMappingEnabled" @toggle-field="toggleField"
             @add-mapping="refreshTemplates" @toggle-mapping="toggleMapping" @delete-mapping="handleDeleteMapping"
-            @update-report-config="updateReportConfig" @import-report-configs="importReportConfigs"
-            @export-report-configs="exportReportConfigs" />
+            @update-report-config="updateReportConfig" @import-catalog-directory="importCatalogDirectory"
+            @export-catalog-directory="exportCatalogDirectory" />
         </div>
       </div>
     </div>

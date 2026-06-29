@@ -58,6 +58,7 @@ function emitMsg(id: string): void {
   emit('update-item', { ...item, msg });
 }
 
+// FrameFieldPicker 单次 emit (frameId, fieldId) 元组,一次性更新避免双 emit 闭包覆盖。
 function emitFrameField(item: ReportItem, frameId: string, fieldId: string): void {
   emit('update-item', { ...item, frameId, fieldId });
 }
@@ -84,8 +85,7 @@ function emitFrameField(item: ReportItem, frameId: string, fieldId: string): voi
           :frame-service="frameService"
           :frame-id="item.frameId"
           :field-id="item.fieldId"
-          @update:frame-id="(f: string) => emitFrameField(item, f, item.fieldId)"
-          @update:field-id="(fid: string) => emitFrameField(item, item.frameId, fid)"
+          @update="(f: string, fid: string) => emitFrameField(item, f, fid)"
         />
         <q-input
           v-model="localMsg[item.id]"

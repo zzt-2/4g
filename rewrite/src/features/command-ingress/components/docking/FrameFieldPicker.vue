@@ -3,6 +3,9 @@
 // 复用 frameService.listFieldReferences({ frameId, direction: 'receive' }) 枚举接收帧字段。
 // 关键:必须带 direction:'receive',否则会混入 send 帧字段——用户选了取不到 displayValue
 // (displayValue 只在 receive 阶段算好,见 field-parser.ts)。对照 SendStepEditor.vue:40 用 'send'。
+//
+// 单一 update 事件传 (frameId, fieldId) 元组:切帧时一次性 emit (新帧, ''),
+// 避免双 emit(分别 update:frameId + update:fieldId)在父侧用旧 item 闭包互相覆盖的 bug。
 
 import { computed } from 'vue';
 import type { FrameAssetService } from '@/features/frame';
@@ -14,8 +17,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'update:frameId': [frameId: string];
-  'update:fieldId': [fieldId: string];
+  update: [frameId: string, fieldId: string];
 }>();
 
 // 接收方向帧列表(只列 receive,排除 send 帧——报告取的是接收帧字段的 displayValue)。
@@ -35,13 +37,12 @@ const fieldOptions = computed(() => {
 });
 
 function onFrameChange(id: string | null): void {
-  // 切帧时清空字段(旧字段不属于新帧)。
-  emit('update:frameId', id ?? '');
-  emit('update:fieldId', '');
+  // 切帧时清空字段(旧字段不属于新帧)。单次 emit,父一次性更新。
+  emit('update', id ?? '', '');
 }
 
 function onFieldChange(id: string | null): void {
-  emit('update:fieldId', id ?? '');
+  emit('update', props.frameId, id ?? '');
 }
 </script>
 

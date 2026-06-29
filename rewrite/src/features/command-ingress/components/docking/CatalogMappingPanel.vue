@@ -46,8 +46,8 @@ const emit = defineEmits<{
   'toggle-mapping': [templateId: string, checked: boolean];
   'delete-mapping': [templateId: string];
   'update-report-config': [config: ReportConfig];
-  'import-report-configs': [];
-  'export-report-configs': [];
+  'import-catalog-directory': [];
+  'export-catalog-directory': [];
 }>();
 
 // 添加映射弹窗开关（组件内自管，纯 UI 状态）
@@ -69,11 +69,11 @@ function getTemplateById(id: string): TaskTemplate | undefined {
     <div class="flex items-center justify-between mb-3 flex-shrink-0">
       <span class="rw-text-label text-sm">用例映射（甲方调 getTestCaseAll 时，从这些映射派生用例数据）</span>
       <div class="flex items-center gap-1">
-        <q-btn flat dense no-caps icon="o_upload" size="sm" label="导入报告配置" @click="emit('import-report-configs')">
-          <q-tooltip>从 JSON 文件导入报告配置</q-tooltip>
+        <q-btn flat dense no-caps icon="o_upload" size="sm" label="导入用例目录" @click="emit('import-catalog-directory')">
+          <q-tooltip>从 JSON 文件导入用例映射 + 报告配置</q-tooltip>
         </q-btn>
-        <q-btn flat dense no-caps icon="o_download" size="sm" label="导出报告配置" @click="emit('export-report-configs')">
-          <q-tooltip>导出全部报告配置为 JSON</q-tooltip>
+        <q-btn flat dense no-caps icon="o_download" size="sm" label="导出用例目录" @click="emit('export-catalog-directory')">
+          <q-tooltip>导出全部用例映射 + 报告配置为 JSON</q-tooltip>
         </q-btn>
         <q-btn flat dense icon="o_add" color="primary" size="sm" @click="openAddDialog">
           <q-tooltip>添加映射</q-tooltip>
