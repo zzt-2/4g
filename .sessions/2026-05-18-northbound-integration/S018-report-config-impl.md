@@ -94,3 +94,15 @@
 
 ### 治理提醒
 - 本专题 S### 文件已达 14 个(本 session 后),逼近 15 BLOCK 阈值。后续如再开新 session 需注意范围收敛或考虑专题收尾。
+
+---
+
+## 续接:用户 dev 实测反馈三处修复(ec59ed3,2026-06-29)
+
+用户跑 dev server 实测后报三个问题,systematic-debugging 定位根因后修复:
+
+1. **reportConfigs prop 收到 undefined(Vue warn)**:根因——模板里写 `reportConfigs.value`,但 `reportConfigs` 是 setup 顶层 ref,Vue 模板自动解包,`.value` 变成访问数组的 `.value` 属性 = undefined。对照同文件 `allTemplates`(顶层 shallowRef,模板不带 .value)印证。改为 `reportConfigs`(不带 .value)。教训:顶层 ref 在模板里别加 .value(嵌套 ref 如 `docking.xxx.value` 才需要,因为对象属性不自动解包)。
+2. **选帧后没变化(已选中仍空)**:根因——FrameFieldPicker 切帧时双 emit(`update:frameId` + `update:fieldId` 清空),ReportCategoryEditor 有两个独立 handler 各用**旧 item 闭包**派生新 item,第二次(fieldId 清空)用旧 frameId 覆盖了第一次设的新 frameId。改为单一 `update` 事件传 `(frameId, fieldId)` 元组,一次性更新。同 SendStepEditor 的"链式 emit stale 覆盖"病灶(ui-feature-bugs D003 记过类似)。
+3. **导入导出范围变更(用户需求)**:用户要整个用例目录(映射+报告配置),不只报告配置。新建 `catalog-directory-io.ts`(组合 isCatalogMapping + isReportConfig 校验);删 `report-config-io.ts`(被取代);按钮改"导入/导出用例目录"。顺带 export catalog-mapping 的 isCatalogMapping(原内部函数)。
+
+验证:tsc 0 + lint 0 + catalog-directory-io 8/8 + 受影响单测 57/57 全过。状态仍:**待联调**(UI 渲染/选帧/导入导出待用户 dev 再验)。
