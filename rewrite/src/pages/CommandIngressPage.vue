@@ -357,6 +357,26 @@ const reportConfigs = ref<ReportConfig[]>(reportConfigStorage.loadAll());
 
 function refreshTemplates(): void {
   allTemplates.value = taskService.listTemplates();
+  pruneOrphans();
+}
+
+// 清孤儿:模板已删但映射/报告配置还留着 → 一并去掉(死数据)。
+// 进用例目录 tab 时(refreshTemplates)清理,用户看到的总是与现有模板对齐的列表。
+function pruneOrphans(): void {
+  const validIds = new Set(allTemplates.value.map(t => t.templateId));
+
+  // 映射:孤儿走 docking.deleteMapping(同步删 + 持久化 + setCatalogMappings 刷新 northbound)
+  const orphanMappings = docking.catalogMappings.value.filter(m => !validIds.has(m.templateId));
+  for (const m of orphanMappings) {
+    docking.deleteMapping(m.templateId);
+  }
+
+  // 报告配置:孤儿本地过滤 + saveAll 持久化
+  const nextConfigs = reportConfigs.value.filter(c => validIds.has(c.templateId));
+  if (nextConfigs.length !== reportConfigs.value.length) {
+    reportConfigs.value = nextConfigs;
+    reportConfigStorage.saveAll(nextConfigs);
+  }
 }
 
 function getTemplateById(id: string): TaskTemplate | undefined {
