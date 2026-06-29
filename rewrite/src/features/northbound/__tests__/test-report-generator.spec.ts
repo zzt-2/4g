@@ -3,6 +3,7 @@ import { generateTestReport } from '../core/test-report-generator';
 import type { TestReportJson, TestReportCheckPoint } from '../core/test-report-generator';
 import type { TaskInstanceState } from '@/features/task';
 import type { CaseVerdict } from '@/features/result';
+import type { ReportConfig } from '@/features/command-ingress/core/report-config';
 
 function makeInstance(overrides: Partial<TaskInstanceState> = {}): TaskInstanceState {
   return {
@@ -61,7 +62,7 @@ describe('generateTestReport', () => {
     expect(report.taskDatas).toEqual([]);
   });
 
-  it('includes one testCase with correct id and deviceIds', () => {
+  it('includes one testCase with correct id (deviceIds empty unless collected)', () => {
     const json = generateTestReport({
       instance: makeInstance(),
       verdict: makeVerdict(),
@@ -74,10 +75,13 @@ describe('generateTestReport', () => {
 
     expect(report.testCaseList).toHaveLength(1);
     expect(report.testCaseList[0]!.testCaseId).toBe('ADS_TC_001');
-    expect(report.testCaseList[0]!.deviceIds).toContain('ADS_LCT_01');
+    // D008: deviceIds 走 collectedDeviceIds(执行链路采集);无采集则空,不 fallback mock。
+    expect(report.testCaseList[0]!.deviceIds).toEqual([]);
   });
 
-  it('uses default mock checkPoints when no mockConfig provided', () => {
+  // D008: 没配 ReportConfig 的用例,报告三类为空(不 fallback DEFAULT_MOCK_CONFIG 假数据)。
+  // 旧版"uses default mock checkPoints"测的是已废弃的 fallback 行为,改成诚实空着。
+  it('produces empty three categories when no reportConfig provided (no mock fallback)', () => {
     const json = generateTestReport({
       instance: makeInstance(),
       verdict: makeVerdict(),
@@ -87,16 +91,15 @@ describe('generateTestReport', () => {
     });
 
     const report: TestReportJson = JSON.parse(json);
-    const cps = report.testCaseList[0]!.checkPoints;
+    const tc = report.testCaseList[0]!;
 
-    expect(cps).toHaveLength(4);
-    expect(cps.map((c: TestReportCheckPoint) => c.checkPoint)).toEqual([
-      '上电状态', '载波同步锁定', '帧同步锁定', '误码率',
-    ]);
-    expect(cps.every((c: TestReportCheckPoint) => c.result === '通过')).toBe(true);
+    expect(tc.checkPoints).toEqual([]);
+    expect(tc.statisticsItems).toEqual([]);
+    expect(tc.attachItems).toEqual([]);
   });
 
-  it('uses default mock processAndDatas with 3 steps', () => {
+  // D008: processAndDatas(每步执行轨迹)本特性先留空(配置驱动是另一特性)。
+  it('produces empty processAndDatas when no collected steps', () => {
     const json = generateTestReport({
       instance: makeInstance(),
       verdict: makeVerdict(),
@@ -108,19 +111,25 @@ describe('generateTestReport', () => {
     const report: TestReportJson = JSON.parse(json);
     const steps = report.testCaseList[0]!.processAndDatas;
 
-    expect(steps).toHaveLength(3);
-    expect(steps[0]!.stepName).toBe('发送帧');
-    expect(steps[1]!.stepName).toBe('接收帧');
-    expect(steps[2]!.stepName).toBe('校验结果');
+    expect(steps).toHaveLength(0);
   });
 
-  it('marks all checkPoints as failed when verdict is failed', () => {
+  // verdict failed 时,reportConfig 驱动的 checkPoint result 标"未通过"(纯取值但仍带判定结果字段)。
+  it('marks reportConfig checkPoints as 未通过 when verdict is failed', () => {
+    const reportConfig: ReportConfig = {
+      templateId: 'tpl',
+      checkPoints: [{ id: 'i1', name: '载波同步', frameId: 'fA', fieldId: 'lock' }],
+      statisticsItems: [],
+      attachItems: [],
+    };
     const json = generateTestReport({
       instance: makeInstance({ lifecycle: 'failed', failedAt: '2026-06-10 10:00:03' }),
       verdict: makeVerdict({ verdict: 'failed', finishedAt: '2026-06-10 10:00:03' }),
       testCaseId: 'ADS_TC_002',
       taskId: 'T_002',
       config: envelopeConfig,
+      reportConfig,
+      displaySnapshot: new Map([['fA:lock', '锁定']]),
     });
 
     const report: TestReportJson = JSON.parse(json);
@@ -131,11 +140,9 @@ describe('generateTestReport', () => {
     expect(cps.every((c: TestReportCheckPoint) => c.result === '未通过')).toBe(true);
   });
 
-  it('uses custom mockConfig when provided', () => {
-    const customCheckPoints: TestReportCheckPoint[] = [
-      { checkPoint: '自定义检查', expectValue: 'OK', testValue: 'OK', result: '通过', msg: '' },
-    ];
-
+  // D008: mockConfig 字段保留(接口兼容,collector 不接线)但不再驱动 checkPoints——
+  // 即使提供 mockConfig,无 reportConfig 时三类仍空(诚实非造假)。
+  it('ignores mockConfig for checkPoints when no reportConfig (D008: no fake fallback)', () => {
     const json = generateTestReport({
       instance: makeInstance(),
       verdict: makeVerdict(),
@@ -143,7 +150,9 @@ describe('generateTestReport', () => {
       taskId: 'T_CUSTOM',
       config: envelopeConfig,
       mockConfig: {
-        checkPointDefs: customCheckPoints,
+        checkPointDefs: [
+          { checkPoint: '自定义检查', expectValue: 'OK', testValue: 'OK', result: '通过', msg: '' },
+        ],
         processSteps: [],
         deviceIds: ['CUSTOM_01'],
       },
@@ -151,10 +160,7 @@ describe('generateTestReport', () => {
 
     const report: TestReportJson = JSON.parse(json);
 
-    expect(report.testCaseList[0]!.checkPoints).toHaveLength(1);
-    expect(report.testCaseList[0]!.checkPoints[0]!.checkPoint).toBe('自定义检查');
-    expect(report.testCaseList[0]!.deviceIds).toEqual(['CUSTOM_01']);
-    expect(report.testCaseList[0]!.processAndDatas).toHaveLength(0);
+    expect(report.testCaseList[0]!.checkPoints).toEqual([]); // 不 fallback mockConfig
   });
 
   it('falls back to verdict timestamps when instance has no startedAt', () => {
@@ -171,3 +177,102 @@ describe('generateTestReport', () => {
     expect(report.startTime).toBe('2026-06-10 12:00:00');
   });
 });
+
+describe('generateTestReport — reportConfig driven (D008)', () => {
+  const reportConfig: ReportConfig = {
+    templateId: 'tpl',
+    checkPoints: [
+      { id: 'i1', name: '载波同步锁定', frameId: 'fA', fieldId: 'lock', msg: '说明1' },
+    ],
+    statisticsItems: [
+      { id: 'i2', name: '误码率', frameId: 'fA', fieldId: 'ber' },
+    ],
+    attachItems: [
+      { id: 'i3', name: '备注', frameId: 'fB', fieldId: 'note' },
+    ],
+  };
+
+  function gen(overrides: { reportConfig?: ReportConfig; displaySnapshot?: Map<string, string>; verdict?: Partial<CaseVerdict> } = {}) {
+    return generateTestReport({
+      instance: makeInstance(),
+      verdict: makeVerdict(overrides.verdict),
+      testCaseId: 'ADS_TC_001',
+      taskId: 'T_001',
+      config: envelopeConfig,
+      reportConfig: overrides.reportConfig,
+      displaySnapshot: overrides.displaySnapshot,
+    });
+  }
+
+  it('fills three categories from reportConfig + displaySnapshot', () => {
+    const snapshot = new Map([
+      ['fA:lock', '锁定'],
+      ['fA:ber', '0.2%'],
+      ['fB:note', '正常'],
+    ]);
+    const json = gen({ reportConfig, displaySnapshot: snapshot });
+    const tc = JSON.parse(json).testCaseList[0];
+
+    // checkPoint: name → checkPoint, 取值 → testValue, expectValue 空(纯取值), msg → msg
+    expect(tc.checkPoints[0].checkPoint).toBe('载波同步锁定');
+    expect(tc.checkPoints[0].testValue).toBe('锁定');
+    expect(tc.checkPoints[0].expectValue).toBe('');
+    expect(tc.checkPoints[0].result).toBe('通过'); // verdict passed
+    expect(tc.checkPoints[0].msg).toBe('说明1');
+    // statisticsItem: name → itemName, 取值 → testValue, 无判定 result
+    expect(tc.statisticsItems[0].itemName).toBe('误码率');
+    expect(tc.statisticsItems[0].testValue).toBe('0.2%');
+    // attachItem
+    expect(tc.attachItems[0].itemName).toBe('备注');
+    expect(tc.attachItems[0].testValue).toBe('正常');
+  });
+
+  it('fills empty testValue when field not in snapshot (诚实标记没采到)', () => {
+    const snapshot = new Map<string, string>(); // 空 snapshot
+    const json = gen({ reportConfig, displaySnapshot: snapshot });
+    const tc = JSON.parse(json).testCaseList[0];
+    expect(tc.checkPoints[0].testValue).toBe('');
+    expect(tc.statisticsItems[0].testValue).toBe('');
+    expect(tc.attachItems[0].testValue).toBe('');
+  });
+
+  it('falls back to empty msg when ReportItem.msg undefined (甲方 msg 是必填 string)', () => {
+    const cfg: ReportConfig = {
+      templateId: 'tpl',
+      checkPoints: [{ id: 'i1', name: '载波同步', frameId: 'fA', fieldId: 'lock' }], // 无 msg
+      statisticsItems: [{ id: 'i2', name: '误码率', frameId: 'fA', fieldId: 'ber' }],
+      attachItems: [],
+    };
+    const json = gen({ reportConfig: cfg, displaySnapshot: new Map([['fA:lock', '锁定'], ['fA:ber', '0.2%']]) });
+    const tc = JSON.parse(json).testCaseList[0];
+    expect(tc.checkPoints[0].msg).toBe('');
+    expect(tc.statisticsItems[0].msg).toBe('');
+  });
+
+  it('marks checkPoint result 未通过 when verdict failed', () => {
+    const json = gen({
+      reportConfig,
+      displaySnapshot: new Map([['fA:lock', '锁定']]),
+      verdict: { verdict: 'failed', finishedAt: '2026-06-10 10:00:03' },
+    });
+    const tc = JSON.parse(json).testCaseList[0];
+    expect(tc.checkPoints[0].result).toBe('未通过');
+  });
+
+  it('keeps item order within each category', () => {
+    const cfg: ReportConfig = {
+      templateId: 'tpl',
+      checkPoints: [
+        { id: 'a', name: '第一', frameId: 'fA', fieldId: 'lock' },
+        { id: 'b', name: '第二', frameId: 'fA', fieldId: 'lock' },
+        { id: 'c', name: '第三', frameId: 'fA', fieldId: 'lock' },
+      ],
+      statisticsItems: [],
+      attachItems: [],
+    };
+    const json = gen({ reportConfig: cfg, displaySnapshot: new Map([['fA:lock', '锁定']]) });
+    const tc = JSON.parse(json).testCaseList[0];
+    expect(tc.checkPoints.map((c: { checkPoint: string }) => c.checkPoint)).toEqual(['第一', '第二', '第三']);
+  });
+});
+
