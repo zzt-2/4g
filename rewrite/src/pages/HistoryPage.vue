@@ -34,6 +34,10 @@ const showExportDialog = ref(false);
 // editingChartId 记正在编辑哪个 chart,editingChartPreference 是该 chart 当前 preference。
 const chartConfigOpen = ref(false);
 const editingChartId = ref<string>('');
+// preferences 响应式快照:displayService 是普通对象(非响应式),editingChartPreference
+// 不能直接依赖 getPreferences()(service 内部变不会触发重算 → 弹窗显示滞后的旧配置)。
+// 用本地 shallowRef 持有快照,在 open/save 时手动刷新,让 computed 正确重算。
+const preferencesSnapshot = ref(displayService.getPreferences());
 
 // ===== Operations =====
 async function handleLoad(): Promise<void> {
@@ -57,22 +61,25 @@ function handleGlobalSelectChange(items: Set<string>): void {
 }
 
 // 正在编辑的 chart 当前 preference(传给标准 ChartConfigDialog 作 chartPreference prop)。
+// 依赖 preferencesSnapshot(响应式)而非直接调 getPreferences()(非响应式,会滞後)。
 const editingChartPreference = computed<ChartInstancePreference | null>(() => {
   if (!editingChartId.value) return null;
-  const prefs = displayService.getPreferences();
-  return prefs.charts.find((c) => c.id === editingChartId.value) ?? null;
+  return preferencesSnapshot.value.charts.find((c) => c.id === editingChartId.value) ?? null;
 });
 
 function openChartConfig(chartId: string): void {
+  // 打开前刷新快照(拿到 service 最新 preferences,如别处改过),避免显示旧配置。
+  preferencesSnapshot.value = displayService.getPreferences();
   editingChartId.value = chartId;
   chartConfigOpen.value = true;
 }
 
 // 标准 ChartConfigDialog save 事件:patch 含 selectedItems(ChartSelectedItem[])+yAxis。
-// updateChartConfig 落 service 内存 + persistDisplay 落盘 + refreshCharts 重算曲线。
+// updateChartConfig 落 service 内存 + persistDisplay 落盘 + 刷新快照 + refreshCharts 重算曲线。
 function saveChartConfig(patch: ChartInstancePatch): void {
   displayService.updateChartConfig(editingChartId.value, patch);
   persistDisplay();
+  preferencesSnapshot.value = displayService.getPreferences();
   history.refreshCharts();
   chartConfigOpen.value = false;
 }

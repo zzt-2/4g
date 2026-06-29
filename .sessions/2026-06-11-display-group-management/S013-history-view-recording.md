@@ -78,6 +78,12 @@ worktree `.worktrees/history-view-recording`（branch `feat/history-view-recordi
      **教训:复制组件副本而不复用,副本会脱离标准演进,最终类型契约打架。H015 重写 useHistoryData 时没发现 History 有个本地 ChartConfigDialog 旧副本,没一并处理。** 范围不大(复用+接线),按用户意见走日志不走 spec/plan 流程。
      **验证**:tsc 干净 + lint 0 error + recording/history 41 passed。但 ChartConfigDialog chip toggle 等运行时交互测试覆盖不到,待用户 App 实测点选确认。
 
+- **用户实测发现第 6 个 bug(图表配置显示滞後一轮),已修（commit 待提交）**：
+  6. **图表配置显示滞後一轮**：改 1 后看 1 还是旧的,改 2 后 1 才更新成新值(用户精确描述:改1→1a/2a,改2→1b/2a,改3→1c/2b…)。即每次 save 后被改图表的显示比配置滞后一轮。
+     **根因(响应式断链)**：editingChartPreference computed 依赖 `displayService.getPreferences()`——但 displayService 是普通对象(非响应式),service 内部 preferences 变了 Vue 不知道,computed 不重算。所以弹窗打开时拿到的是滞后的旧值。DisplayPage 没这 bug 是因为它的 chartConfigPreference 依赖 `prefs.value`(displayRefresh 的响应式 shallowRef),而 HistoryPage 没用 displayRefresh。
+     **修复**：HistoryPage 用本地 `preferencesSnapshot` shallowRef 持有 preferences 快照(响应式),editingChartPreference 改依赖它;openChartConfig(打开前刷新)+saveChartConfig(save 后刷新)时手动 `preferencesSnapshot.value = displayService.getPreferences()`,让 computed 正确重算。对齐 DisplayPage 用响应式源的模式。
+     **教训:computed 不能依赖非响应式数据源(普通 service 对象的方法返回值)——Vue 只跟踪响应式依赖。DisplayPage 用 displayRefresh 的响应式 preferences 避开了这个坑,HistoryPage 没用 displayRefresh 复制了 DisplayPage 的 chartConfigPreference 却用错数据源。** 又是测试覆盖不到的 Vue 响应式时机问题。
+
 - **待用户目标 Linux 机端到端手测**（必做,本轮最终判据）：
   1. 录几帧 → 确认 .bin 含帧定义块
   2. 进 History 页（确认不崩——拼写 bug + loadData.value 已修）
