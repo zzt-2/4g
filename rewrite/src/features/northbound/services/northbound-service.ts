@@ -228,6 +228,8 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     // 从 displayFieldReader 构造字段值快照 Map<dataItemId, displayValue>(解析值如"锁定")。
     // reportDataCollector 不再接线(?.collect 可选链自然短路);collected* 永远 undefined,
     // generateTestReport 内部已处理 undefined → 空数组,三类改由 reportConfig 驱动填。
+    // instance.templateId 是纯 id(不带 outCaseId 的 @时间戳),由 createAndStartTask 从
+    // snapshot.templateId 透传而来(见 createTask 调用)。按它查报告配置。
     const reportConfig = options.reportConfigProvider?.(instance.templateId ?? '');
     const displaySnapshot = new Map<string, string>();
     if (reportConfig && options.displayFieldReader) {
@@ -456,7 +458,13 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       def = createPlaceholderFailDefinition(tc.testCaseId);
       console.error('[northbound] snapshot missing for', tc.testCaseId, '- using placeholder (will not execute real task)');
     }
-    const instance = options.taskService.createTask(def);
+    const instance = options.taskService.createTask(
+      def,
+      // 透传 snapshot.templateId(纯 id,不带 outCaseId 的 @时间戳)到实例,供下游按模板查配置
+      // (如 D008 报告配置 reportConfigProvider 按 templateId 命中)。snapshot 缺失时不传
+      // → instance.templateId 为 undefined → 报告三类空(占位用例本就无真实模板,诚实空)。
+      snapshot ? { templateId: snapshot.templateId } : undefined,
+    );
     state.mapTestCase(tc.testCaseId, instance.instanceId);
     if (customerTaskId) {
       // P2.1: remember the customer-issued taskId so testCaseResultReport can echo it.

@@ -1483,4 +1483,106 @@ describe('createNorthboundService — uploadTestReportAndNotify reportConfig dri
     expect(tc.statisticsItems).toEqual([]);
     expect(tc.attachItems).toEqual([]);
   });
+
+  // 回归门:真实链路 createTask(def, opts) 把 snapshot.templateId 透传到 instance,
+  // 报告生成时 reportConfigProvider 按纯 templateId 命中配置。
+  // 此 bug 曾被 mock 硬编码 instance.templateId 掩盖(见 makeMockTaskServiceAutoSettle),
+  // 又被 DEFAULT_MOCK_CONFIG 假数据兜底掩盖 5 天。testCaseId 是 outCaseId(带 @时间戳),
+  // 但 reportConfigProvider 必须按 snapshot 里的纯 templateId 命中——不能靠 split('@')。
+  it('createTask threads snapshot.templateId into instance so reportConfig is matched by pure templateId', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockResolvedValue(undefined) };
+    const handlersList: TaskEventHandlers[] = [];
+    // 真 createTask:接收 (def, opts),把 opts?.templateId 透传到返回的 instance。
+    // 这正是真实 task-service 应有的行为(createTaskInternal 早就支持 opts,只是 public createTask 没透)。
+    let capturedTemplateId: string | undefined;
+    let lastInstance: TaskInstanceState = makeMockInstance({
+      instanceId: 'inst-tpl-thread',
+      lifecycle: 'completed',
+      completedAt: '2026-06-29 13:12:03',
+      templateId: undefined, // 初始 undefined,由 createTask 透传填入(见下 mock 实现)
+    });
+    const taskService = {
+      createTask: vi.fn((def: TaskDefinition, opts?: { readonly templateId?: string }) => {
+        capturedTemplateId = opts?.templateId;
+        lastInstance = { ...lastInstance, templateId: opts?.templateId };
+        return lastInstance;
+      }),
+      startTask: vi.fn((instanceId: string) => {
+        for (const handlers of handlersList) handlers.onTaskSettled?.(instanceId, 'completed');
+      }),
+      stopTask: vi.fn(), pauseTask: vi.fn(), resumeTask: vi.fn(),
+      getInstance: vi.fn(() => lastInstance),
+      onSettled: vi.fn().mockResolvedValue(undefined),
+      removeTask: vi.fn(), retryTask: vi.fn().mockReturnValue(undefined),
+      updateTask: vi.fn().mockReturnValue(undefined), stopAll: vi.fn().mockReturnValue(0),
+      getSnapshot: vi.fn().mockReturnValue({ instances: [] }),
+      getProgress: vi.fn().mockReturnValue(undefined),
+      getStatistics: vi.fn().mockReturnValue({ total: 0, active: 0, completed: 0, failed: 0 }),
+      subscribe: vi.fn((handlers: TaskEventHandlers) => {
+        handlersList.push(handlers);
+        return () => { const i = handlersList.indexOf(handlers); if (i >= 0) handlersList.splice(i, 1); };
+      }),
+      createTemplate: vi.fn(), listTemplates: vi.fn().mockReturnValue([]),
+      getTemplate: vi.fn((id: string) => {
+        if (id === 'tpl-pure') return { templateId: 'tpl-pure', name: 'Pure', tags: [],
+          definition: { id:'d', name:'n', steps:[{ kind:'delay', id:'s', config:{ durationMs:1 } }], schedule:{kind:'immediate'}, errorPolicy:{onFailure:'stop'} }, createdAt:'', updatedAt:'' };
+        return undefined;
+      }),
+      updateTemplate: vi.fn().mockReturnValue(undefined), deleteTemplate: vi.fn().mockReturnValue(false),
+      instanciateTemplate: vi.fn().mockReturnValue(lastInstance),
+    } as unknown as TaskService;
+
+    // reportedSnapshotStorage:createAndStartTask 用 tc.testCaseId(=outCaseId)load 快照,
+    // 拿到 snapshot.templateId(纯 id)传给 createTask。预存一条已知 outCaseId 的快照。
+    const { createReportedSnapshotStorage } = await import('../services/reported-snapshot-storage');
+    const reportedSnapshotStorage = createReportedSnapshotStorage(makeMemStorage());
+    const defForSnapshot: TaskDefinition = {
+      id: 'd', name: 'n',
+      steps: [{ kind: 'delay', id: 's', config: { durationMs: 1 } }],
+      schedule: { kind: 'immediate' }, errorPolicy: { onFailure: 'stop' },
+    };
+    // outCaseId 带 @时间戳(模拟真实上报链路产生的 id);snapshot.templateId 是纯 id。
+    reportedSnapshotStorage.save({
+      outCaseId: 'tpl-pure@1700000000', templateId: 'tpl-pure',
+      definition: defForSnapshot, overridablePaths: [], reportedAt: 1700000000,
+    });
+
+    // reportConfigProvider 按纯 templateId 查(不带 @)。snapshot.decode 出来的 templateId 是纯 id。
+    const reportConfig: ReportConfig = {
+      templateId: 'tpl-pure',
+      checkPoints: [{ id: 'i1', name: '载波同步锁定', frameId: 'fA', fieldId: 'lock' }],
+      statisticsItems: [], attachItems: [],
+    };
+    const service = createNorthboundService(makeOptions({
+      httpFacade, ftpFacade, taskService, reportedSnapshotStorage,
+      reportConfigProvider: (tid) => (tid === 'tpl-pure' ? reportConfig : undefined),
+      displayFieldReader: { getSourceFields: () => [{ dataItemId: 'fA:lock', displayValue: '锁定' }] },
+    }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // setTestTask:testCaseId 是预存的 outCaseId(带 @)。createAndStartTask load 到快照 →
+    // decode → createTask(def, { templateId: snapshot.templateId = 'tpl-pure' })
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 7002, subSysType: 'LAS', subSysId: 'LAS_001',
+      taskId: 'T_thread_1', taskName: 'Thread', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'tpl-pure@1700000000', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      executionPlan: { layers: [{ layer: 1, parallel: false, nodes: ['tpl-pure@1700000000'] }] },
+    }) });
+    await vi.waitFor(() => expect(ftpFacade.uploadFile).toHaveBeenCalled());
+
+    // createTask 必须收到纯 templateId(snapshot.templateId,不是 outCaseId 带 @)
+    expect(capturedTemplateId).toBe('tpl-pure');
+
+    const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const report = JSON.parse(ftpCall.content);
+    const tc = report.testCaseList[0];
+    // 配置命中 → 三类有值;testValue 是 displayValue(锁定)
+    expect(tc.checkPoints[0].checkPoint).toBe('载波同步锁定');
+    expect(tc.checkPoints[0].testValue).toBe('锁定');
+  });
 });

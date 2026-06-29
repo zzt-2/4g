@@ -41,7 +41,9 @@ export interface TaskReader {
 }
 
 export interface TaskService extends TaskReader {
-  createTask(definition: TaskDefinition): TaskInstanceState;
+  /** 从 definition 创建实例。opts.templateId 用于实例追溯(不影响运行),
+   *  调用方(如 northbound)可传入以供下游按模板查配置(如报告配置 D008)。 */
+  createTask(definition: TaskDefinition, opts?: { readonly templateId?: string }): TaskInstanceState;
   startTask(instanceId: string): void;
   pauseTask(instanceId: string): void;
   resumeTask(instanceId: string): void;
@@ -284,8 +286,8 @@ export function createTaskService(options: CreateTaskServiceOptions): TaskServic
       return selectTaskStatistics(state.getSnapshot());
     },
 
-    createTask(definition) {
-      return createTaskInternal(definition);
+    createTask(definition, opts) {
+      return createTaskInternal(definition, opts);
     },
 
     startTask(instanceId) {
