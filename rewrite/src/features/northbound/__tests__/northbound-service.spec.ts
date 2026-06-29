@@ -6,6 +6,7 @@ import type { HttpFacade, HttpResponse } from '@/platform';
 import type { TaskInstanceState, TaskDefinition, TaskStepResult, TaskEventHandlers } from '@/features/task/core';
 import type { CaseVerdict } from '@/features/result';
 import type { EncodeSource } from '../core/testcase-sync-translator';
+import type { ReportConfig } from '@/features/command-ingress/core/report-config';
 
 // ---------------------------------------------------------------------------
 // Mock factories
@@ -1339,5 +1340,147 @@ describe('createNorthboundService — 跨层 barrier (D018)', () => {
     // 层内并发:两个都创建了,且都没 settle(并发启动不等彼此)
     await vi.waitFor(() => expect(taskService.createdIds()).toEqual(['inst-001', 'inst-002']));
     expect(taskService.startTask).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reportConfig driven TestReport (D008): uploadTestReportAndNotify 按
+// reportConfigProvider + displayFieldReader 取 displayValue 填三类。
+// 防止 S014/S017 同病(可选字段 + 单测手动传值 + runtime wiring 漏接 = 静默失败)。
+// ---------------------------------------------------------------------------
+
+/** setTestTask 触发完整 settled 链:createTask → startTask → onTaskSettled → handleTaskSettled
+ *  → reportTaskResult → uploadTestReportAndNotify。本 mock 让 startTask 立即触发 settled。 */
+function makeMockTaskServiceAutoSettle(templateId: string): TaskService {
+  const handlersList: TaskEventHandlers[] = [];
+  const instance: TaskInstanceState = makeMockInstance({
+    instanceId: 'inst-001',
+    templateId,
+    lifecycle: 'completed',
+    completedAt: '2026-06-10 10:00:05',
+  });
+  const mock = {
+    createTask: vi.fn().mockReturnValue(instance),
+    startTask: vi.fn((instanceId: string) => {
+      for (const handlers of handlersList) {
+        handlers.onTaskSettled?.(instanceId, 'completed');
+      }
+    }),
+    stopTask: vi.fn(),
+    pauseTask: vi.fn(),
+    resumeTask: vi.fn(),
+    getInstance: vi.fn().mockReturnValue(instance),
+    onSettled: vi.fn().mockResolvedValue(undefined),
+    removeTask: vi.fn(),
+    retryTask: vi.fn().mockReturnValue(undefined),
+    updateTask: vi.fn().mockReturnValue(undefined),
+    stopAll: vi.fn().mockReturnValue(0),
+    getSnapshot: vi.fn().mockReturnValue({ instances: [] }),
+    getProgress: vi.fn().mockReturnValue(undefined),
+    getStatistics: vi.fn().mockReturnValue({ total: 0, active: 0, completed: 0, failed: 0 }),
+    subscribe: vi.fn((handlers: TaskEventHandlers) => {
+      handlersList.push(handlers);
+      return () => {
+        const idx = handlersList.indexOf(handlers);
+        if (idx >= 0) handlersList.splice(idx, 1);
+      };
+    }),
+    createTemplate: vi.fn(),
+    listTemplates: vi.fn().mockReturnValue([]),
+    getTemplate: vi.fn().mockReturnValue(undefined),
+    updateTemplate: vi.fn().mockReturnValue(undefined),
+    deleteTemplate: vi.fn().mockReturnValue(false),
+    instanciateTemplate: vi.fn().mockReturnValue(instance),
+  };
+  return mock as unknown as TaskService;
+}
+
+describe('createNorthboundService — uploadTestReportAndNotify reportConfig driven (D008)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fills TestReport three categories from reportConfigProvider + displayFieldReader', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockResolvedValue(undefined) };
+    const taskService = makeMockTaskServiceAutoSettle('tpl-report');
+    const reportConfig: ReportConfig = {
+      templateId: 'tpl-report',
+      checkPoints: [{ id: 'i1', name: '载波同步锁定', frameId: 'fA', fieldId: 'lock' }],
+      statisticsItems: [{ id: 'i2', name: '误码率', frameId: 'fA', fieldId: 'ber' }],
+      attachItems: [],
+    };
+    const fakeDisplayFields = [
+      { dataItemId: 'fA:lock', displayValue: '锁定' },
+      { dataItemId: 'fA:ber', displayValue: '0.2%' },
+    ];
+    const service = createNorthboundService(makeOptions({
+      httpFacade,
+      ftpFacade,
+      taskService,
+      reportConfigProvider: (tid) => (tid === 'tpl-report' ? reportConfig : undefined),
+      displayFieldReader: { getSourceFields: () => fakeDisplayFields },
+    }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    // 走 setTestTask 触发完整 settled 链 → uploadTestReportAndNotify
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 6001, subSysType: 'LAS', subSysId: 'LAS_001',
+      taskId: 'T_report_1', taskName: 'Report', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'tc-report', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      executionPlan: { layers: [{ layer: 1, parallel: false, nodes: ['tc-report'] }] },
+    }) });
+    // 推进 microtask(fire-and-forget reportTaskResult)
+    await vi.waitFor(() => expect(ftpFacade.uploadFile).toHaveBeenCalled());
+
+    const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const report = JSON.parse(ftpCall.content);
+    const tc = report.testCaseList[0];
+    // checkPoint: name → checkPoint, displayValue(锁定) → testValue(非原始 0x01)
+    expect(tc.checkPoints[0].checkPoint).toBe('载波同步锁定');
+    expect(tc.checkPoints[0].testValue).toBe('锁定');
+    expect(tc.checkPoints[0].result).toBe('通过'); // verdict passed
+    // statisticsItem: displayValue(0.2%) → testValue
+    expect(tc.statisticsItems[0].itemName).toBe('误码率');
+    expect(tc.statisticsItems[0].testValue).toBe('0.2%');
+    expect(tc.attachItems).toEqual([]);
+  });
+
+  it('produces empty categories when reportConfigProvider returns undefined (hydrate 前空壳阶段)', async () => {
+    const httpFacade = makeMockHttpFacade();
+    const ftpFacade: FtpFacade = { uploadFile: vi.fn().mockResolvedValue(undefined) };
+    const taskService = makeMockTaskServiceAutoSettle('tpl-noreport');
+    const service = createNorthboundService(makeOptions({
+      httpFacade,
+      ftpFacade,
+      taskService,
+      reportConfigProvider: () => undefined, // 空壳阶段 / 模板没配
+      displayFieldReader: { getSourceFields: () => [] },
+    }));
+    const handler = await startAndGetHandler(service, httpFacade);
+
+    await handler({ method: 'POST', url: '/setTestTask', body: JSON.stringify({
+      method: 'setTestTask', requestId: 6002, subSysType: 'LAS', subSysId: 'LAS_001',
+      taskId: 'T_report_2', taskName: 'Report', resources: [],
+      immediate: true, repeatCount: 1, isEnd: true, orbitProtectTime: 0,
+      testCaseInfo: [
+        { testCaseId: 'tc-noreport', deviceIds: [], masterTest: true, testMode: 1, ephMode: 1, orbitInfo: null, inputPars: [] },
+      ],
+      ftpInfo: null,
+      executionPlan: { layers: [{ layer: 1, parallel: false, nodes: ['tc-noreport'] }] },
+    }) });
+    await vi.waitFor(() => expect(ftpFacade.uploadFile).toHaveBeenCalled());
+
+    const ftpCall = (ftpFacade.uploadFile as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const report = JSON.parse(ftpCall.content);
+    const tc = report.testCaseList[0];
+    // D008: 没配 ReportConfig → 三类空(不 fallback DEFAULT_MOCK_CONFIG 假数据)
+    expect(tc.checkPoints).toEqual([]);
+    expect(tc.statisticsItems).toEqual([]);
+    expect(tc.attachItems).toEqual([]);
   });
 });

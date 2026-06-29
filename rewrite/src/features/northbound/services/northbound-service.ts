@@ -38,6 +38,8 @@ import { encodeSourceToTestCase, decodeTestCaseToTaskDefinition, createPlacehold
 import type { EncodeSource } from '../core/testcase-sync-translator';
 import type { CatalogMapping } from '@/features/command-ingress/core';
 import { selectEnabledMappings } from '@/features/command-ingress/core';
+// D008: ReportConfig 跨读(command-ingress 持配置,northbound 只读消费)。type-only import。
+import type { ReportConfig } from '@/features/command-ingress/core/report-config';
 // 仅类型引用(command-ingress 批次元信息的形状),type-only import 编译期擦除,
 // northbound 运行时不耦合 command-ingress 的 registry 实现。
 import type { DockingBatchCaseMeta } from '@/features/command-ingress';
@@ -120,6 +122,12 @@ export interface NorthboundServiceOptions {
   readonly reportDataCollector?: ReportDataCollector;
   /** 中心下发批次元信息内存映射表(可选,注入后在 setTestTask 链路建 meta + 回填 instanceId)。 */
   readonly batchRegistry?: DockingBatchRegistryPort;
+  /** D008: 按 templateId 取报告配置(来自 command-ingress,LazyHolder 注入)。
+   *  空壳阶段(hydrate 前)返 undefined → 报告三类为空(诚实非造假)。 */
+  readonly reportConfigProvider?: (templateId: string) => ReportConfig | undefined;
+  /** D008: 字段值快照读取口(displayService.getSourceFields 的只读 port)。
+   *  返回的每项含 dataItemId(frameId:fieldId)+ displayValue(解析值,如"锁定")。 */
+  readonly displayFieldReader?: { getSourceFields(): readonly { readonly dataItemId: string; readonly displayValue: string }[] };
 }
 
 export interface NorthboundService {
@@ -216,8 +224,17 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
     const ftp = options.ftpFacade;
     if (!config?.ftp || !ftp) return;
 
-    // 取真实采集数据(若有 collector);无 collector 则 fallback mockConfig
-    const collected = options.reportDataCollector?.collect(instance.instanceId);
+    // D008: 报告内容由配置驱动。从 reportConfigProvider 取该用例的清单(空壳阶段返 undefined),
+    // 从 displayFieldReader 构造字段值快照 Map<dataItemId, displayValue>(解析值如"锁定")。
+    // reportDataCollector 不再接线(?.collect 可选链自然短路);collected* 永远 undefined,
+    // generateTestReport 内部已处理 undefined → 空数组,三类改由 reportConfig 驱动填。
+    const reportConfig = options.reportConfigProvider?.(instance.templateId ?? '');
+    const displaySnapshot = new Map<string, string>();
+    if (reportConfig && options.displayFieldReader) {
+      for (const f of options.displayFieldReader.getSourceFields()) {
+        displaySnapshot.set(f.dataItemId, f.displayValue);
+      }
+    }
 
     const reportJson = generateTestReport({
       instance,
@@ -225,8 +242,8 @@ export function createNorthboundService(options: NorthboundServiceOptions): Nort
       testCaseId,
       taskId,
       config: envelopeConfig(),
-      collectedCheckPoints: collected?.checkPoints,
-      collectedProcessSteps: collected?.processSteps,
+      reportConfig,
+      displaySnapshot,
     });
 
     const remotePath = `${config.ftp.basePath.replace(/\/$/, '')}/TestReport_${taskId}.json`;
