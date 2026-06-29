@@ -65,6 +65,18 @@ export {
 } from './catalog-mapping';
 export type { CatalogMapping } from './catalog-mapping';
 
+// Report config (D008: TestReport 内容配置驱动,三类 checkPoints/statisticsItems/attachItems)
+export {
+  moveReportItem,
+  upsertReportConfig,
+  removeReportConfig,
+  findReportConfig,
+  createEmptyReportConfig,
+  isReportItem,
+  isReportConfig,
+} from './report-config';
+export type { ReportItem, ReportConfig } from './report-config';
+
 // Docking batch registry(批次元信息内存映射表,不持久化)
 export { createDockingBatchRegistry } from './docking-batch-registry';
 export type { DockingBatchRegistry, DockingBatchMeta, DockingBatchCaseMeta } from './docking-batch-registry';
