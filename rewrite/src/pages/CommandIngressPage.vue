@@ -9,9 +9,19 @@ import { useQuasar } from 'quasar';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useAsyncAction, usePolling, useNotify, usePersistentTab } from '@/shared/composables';
 import { formatDateTime } from '@/shared/utils/format';
+import { getFileFacade } from '@/platform';
 import type { SatelliteConfig, ScoeCommandConfig, HighlightRuleConfig } from '@/features/command-ingress/core';
 import type { DeviceInfoItem } from '@/features/northbound/core/types';
 import type { TaskTemplate } from '@/features/task/core';
+import type { ReportConfig } from '@/features/command-ingress/core/report-config';
+import {
+  upsertReportConfig,
+  findReportConfig,
+} from '@/features/command-ingress/core/report-config';
+import {
+  serializeReportConfigs,
+  parseReportConfigsFromJson,
+} from '@/features/command-ingress/services/report-config-io';
 import { useScoeConfig } from '@/features/command-ingress/composables/use-scoe-config';
 import { useScoeMonitor } from '@/features/command-ingress/composables/use-scoe-monitor';
 import { useTestTool } from '@/features/command-ingress/composables/use-test-tool';
@@ -40,6 +50,7 @@ const northboundService = runtime.features.northboundService;
 const taskService = runtime.features.taskService;
 const resultService = runtime.features.resultService;
 const frameService = runtime.features.frameService;
+const reportConfigStorage = runtime.features.reportConfigStorage;
 
 // ===== 业务数据 / 状态 =====
 // 一级 tab 持久化：切走/刷新后回来保持，见 usePersistentTab
@@ -339,6 +350,10 @@ function handleDeleteDevice(deviceId: string): void {
 // ===== 用例目录映射（CatalogMappingPanel，D004/S012 原样迁移） =====
 const allTemplates = shallowRef<readonly TaskTemplate[]>([]);
 
+// S018: 报告配置(D008)。从 reportConfigStorage(LazyHolder)初始化,改动立即 saveAll 持久化。
+// reportConfigStorage 在 bootstrap 已 hydrate(AppShell 保证 ready 前不渲染),loadAll 同步可读。
+const reportConfigs = ref<ReportConfig[]>(reportConfigStorage.loadAll());
+
 function refreshTemplates(): void {
   allTemplates.value = taskService.listTemplates();
 }
@@ -414,6 +429,108 @@ function handleDeleteMapping(templateId: string): void {
     persistent: false,
   }).onOk(() => {
     docking.deleteMapping(templateId);
+  });
+}
+
+// ===== 报告配置回调（S018/D008） =====
+function getReportConfig(templateId: string): ReportConfig | undefined {
+  return findReportConfig(reportConfigs.value, templateId);
+}
+
+function updateReportConfig(cfg: ReportConfig): void {
+  reportConfigs.value = upsertReportConfig(reportConfigs.value, cfg);
+  reportConfigStorage.saveAll(reportConfigs.value);
+}
+
+function timestampForFile(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+async function exportReportConfigs(): Promise<void> {
+  if (reportConfigs.value.length === 0) {
+    notify.warning('当前没有报告配置可导出');
+    return;
+  }
+  const json = serializeReportConfigs(reportConfigs.value);
+  const defaultName = `report-configs-${timestampForFile()}.json`;
+  const fileFacade = getFileFacade();
+  if (fileFacade) {
+    const path = await fileFacade.showSaveDialog({
+      title: '导出报告配置',
+      defaultPath: defaultName,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (path) {
+      await fileFacade.writeTextFile(path, json);
+      notify.success(`已导出 ${reportConfigs.value.length} 份报告配置`);
+    }
+  } else {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultName;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify.success(`已下载 ${reportConfigs.value.length} 份报告配置`);
+  }
+}
+
+async function importReportConfigs(): Promise<void> {
+  const fileFacade = getFileFacade();
+  let text: string | null = null;
+  if (fileFacade) {
+    const path = await fileFacade.showOpenDialog({
+      title: '导入报告配置',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (!path) return;
+    text = await fileFacade.readTextFile(path);
+  } else {
+    text = await new Promise<string | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return resolve(null);
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+  }
+  if (text === null) return;
+
+  let parsed: ReportConfig[];
+  try {
+    parsed = parseReportConfigsFromJson(text);
+  } catch (e) {
+    notify.error(`导入失败：${(e as Error).message}`);
+    return;
+  }
+
+  // 冲突策略:按 templateId 替换(导入的覆盖同名,没冲突的追加)。
+  const importedCount = parsed.length;
+  $q.dialog({
+    title: '导入报告配置',
+    message: `将导入 ${importedCount} 份报告配置,与现有同名 templateId 替换,其余追加。\n(当前已有 ${reportConfigs.value.length} 份)`,
+    cancel: true,
+    persistent: true,
+    ok: { label: '合并', color: 'primary' },
+  }).onOk(() => {
+    let next = reportConfigs.value;
+    for (const cfg of parsed) {
+      next = upsertReportConfig(next, cfg);
+    }
+    reportConfigs.value = next;
+    reportConfigStorage.saveAll(next);
+    notify.success(`已导入 ${importedCount} 份报告配置`);
   });
 }
 
@@ -546,8 +663,12 @@ onBeforeUnmount(() => {
             @add="handleAddDevice" @edit="handleEditDevice" @delete="handleDeleteDevice" />
           <CatalogMappingPanel v-else :mappings="docking.catalogMappings.value" :all-templates="allTemplates"
             :field-groups-of="fieldGroupsOf" :template-name-of="mappingTemplateName" :is-field-checked="isFieldChecked"
-            :is-mapped="isMapped" @toggle-enabled="toggleMappingEnabled" @toggle-field="toggleField"
-            @add-mapping="refreshTemplates" @toggle-mapping="toggleMapping" @delete-mapping="handleDeleteMapping" />
+            :is-mapped="isMapped" :frame-service="frameService" :report-configs="reportConfigs.value"
+            :report-config-of="getReportConfig"
+            @toggle-enabled="toggleMappingEnabled" @toggle-field="toggleField"
+            @add-mapping="refreshTemplates" @toggle-mapping="toggleMapping" @delete-mapping="handleDeleteMapping"
+            @update-report-config="updateReportConfig" @import-report-configs="importReportConfigs"
+            @export-report-configs="exportReportConfigs" />
         </div>
       </div>
     </div>

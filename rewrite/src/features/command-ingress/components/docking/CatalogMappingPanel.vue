@@ -7,6 +7,9 @@
 import { ref } from 'vue';
 import type { TaskTemplate } from '@/features/task/core';
 import type { CatalogMapping } from '@/features/command-ingress/core/catalog-mapping';
+import type { ReportConfig } from '@/features/command-ingress/core/report-config';
+import type { FrameAssetService } from '@/features/frame';
+import ReportConfigEditor from './ReportConfigEditor.vue';
 
 /** 一个可覆盖字段的分组（按帧分组） */
 export interface FieldGroup {
@@ -26,6 +29,12 @@ interface Props {
   isFieldChecked: (templateId: string, path: string) => boolean;
   /** 模板是否已映射 */
   isMapped: (templateId: string) => boolean;
+  /** S018:帧服务（page 注入，供 ReportConfigEditor 选接收帧字段） */
+  frameService: FrameAssetService;
+  /** S018:全部报告配置（page 注入，按 templateId 取该用例的配置） */
+  reportConfigs: readonly ReportConfig[];
+  /** S018:按 templateId 取报告配置（page 注入） */
+  reportConfigOf: (templateId: string) => ReportConfig | undefined;
 }
 
 const props = defineProps<Props>();
@@ -36,6 +45,9 @@ const emit = defineEmits<{
   'add-mapping': [];
   'toggle-mapping': [templateId: string, checked: boolean];
   'delete-mapping': [templateId: string];
+  'update-report-config': [config: ReportConfig];
+  'import-report-configs': [];
+  'export-report-configs': [];
 }>();
 
 // 添加映射弹窗开关（组件内自管，纯 UI 状态）
@@ -56,9 +68,17 @@ function getTemplateById(id: string): TaskTemplate | undefined {
   <div class="catalog-mapping-panel h-full min-h-0 px-6 py-3 overflow-y-auto">
     <div class="flex items-center justify-between mb-3 flex-shrink-0">
       <span class="rw-text-label text-sm">用例映射（甲方调 getTestCaseAll 时，从这些映射派生用例数据）</span>
-      <q-btn flat dense icon="o_add" color="primary" size="sm" @click="openAddDialog">
-        <q-tooltip>添加映射</q-tooltip>
-      </q-btn>
+      <div class="flex items-center gap-1">
+        <q-btn flat dense no-caps icon="o_upload" size="sm" label="导入报告配置" @click="emit('import-report-configs')">
+          <q-tooltip>从 JSON 文件导入报告配置</q-tooltip>
+        </q-btn>
+        <q-btn flat dense no-caps icon="o_download" size="sm" label="导出报告配置" @click="emit('export-report-configs')">
+          <q-tooltip>导出全部报告配置为 JSON</q-tooltip>
+        </q-btn>
+        <q-btn flat dense icon="o_add" color="primary" size="sm" @click="openAddDialog">
+          <q-tooltip>添加映射</q-tooltip>
+        </q-btn>
+      </div>
     </div>
 
     <!-- 映射列表（可收缩，每个用例一条） -->
@@ -121,6 +141,14 @@ function getTemplateById(id: string): TaskTemplate | undefined {
             </template>
             <div v-else class="rw-text-label text-xs">该模板没有可覆盖字段（无 send step 带参数）</div>
           </div>
+
+          <!-- S018: 报告配置(D008)。在可覆盖字段下方内联,task 跑完按这里取接收帧字段值填甲方报告三类。 -->
+          <ReportConfigEditor
+            :template-id="m.templateId"
+            :config="reportConfigOf(m.templateId)"
+            :frame-service="frameService"
+            @update-config="(cfg: ReportConfig) => emit('update-report-config', cfg)"
+          />
 
           <div class="flex justify-end">
             <q-btn
