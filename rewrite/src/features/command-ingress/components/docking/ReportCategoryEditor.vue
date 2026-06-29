@@ -22,9 +22,10 @@ const emit = defineEmits<{
   move: [payload: { id: string; direction: 'up' | 'down' }];
 }>();
 
-// 名称/说明的本地输入缓存(按 item id)。显示读缓存(保留输入中间态),输入时既更新缓存
+// 名称/期望/说明的本地输入缓存(按 item id)。显示读缓存(保留输入中间态),输入时既更新缓存
 // 又立即把值写回 item——不依赖 @blur,点保存即持久化(同 SendStepEditor variationInputs 思路)。
 const localName = reactive<Record<string, string>>({});
+const localExpect = reactive<Record<string, string>>({});
 const localMsg = reactive<Record<string, string>>({});
 
 watch(
@@ -32,6 +33,7 @@ watch(
   (items) => {
     for (const i of items) {
       localName[i.id] = i.name;
+      localExpect[i.id] = i.expectValue ?? '';
       localMsg[i.id] = i.msg ?? '';
     }
   },
@@ -51,6 +53,13 @@ function emitName(id: string): void {
   if (item) emit('update-item', { ...item, name: localName[id] ?? '' });
 }
 
+function emitExpect(id: string): void {
+  const item = findItem(id);
+  if (!item) return;
+  const expectValue = localExpect[id] || undefined; // 空串存 undefined(省 JSON 体积,守卫可选)
+  emit('update-item', { ...item, expectValue });
+}
+
 function emitMsg(id: string): void {
   const item = findItem(id);
   if (!item) return;
@@ -58,10 +67,18 @@ function emitMsg(id: string): void {
   emit('update-item', { ...item, msg });
 }
 
-// FrameFieldPicker 单次 emit (frameId, fieldId) 元组,一次性更新避免双 emit 闭包覆盖。
-function emitFrameField(item: ReportItem, frameId: string, fieldId: string): void {
-  emit('update-item', { ...item, frameId, fieldId });
+// FrameFieldPicker 单次 emit (frameId, fieldId, fieldName)。
+// 选字段时:若用户没改过 name(name 仍为空或等于上一个字段的 fieldName),
+// 则把 fieldName 作为 name 默认值填入;用户已自定义 name 则保留不覆盖(解法 Y)。
+function emitFrameField(item: ReportItem, frameId: string, fieldId: string, fieldName: string): void {
+  const nameWasDefault = !item.name || item.name === prevFieldName[item.id];
+  const name = nameWasDefault ? fieldName : item.name;
+  if (name !== item.name) localName[item.id] = name;
+  prevFieldName[item.id] = fieldName;
+  emit('update-item', { ...item, frameId, fieldId, name });
 }
+// 记录每个 item 上次选的字段名,用于判断 name 是否仍是默认值(用户有没有手动改过)。
+const prevFieldName: Record<string, string> = {};
 </script>
 
 <template>
@@ -85,7 +102,14 @@ function emitFrameField(item: ReportItem, frameId: string, fieldId: string): voi
           :frame-service="frameService"
           :frame-id="item.frameId"
           :field-id="item.fieldId"
-          @update="(f: string, fid: string) => emitFrameField(item, f, fid)"
+          @update="(f: string, fid: string, fn: string) => emitFrameField(item, f, fid, fn)"
+        />
+        <q-input
+          v-model="localExpect[item.id]"
+          dense outlined
+          placeholder="期望结果(可选)"
+          style="width: 100px"
+          @update:model-value="emitExpect(item.id)"
         />
         <q-input
           v-model="localMsg[item.id]"

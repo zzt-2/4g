@@ -97,6 +97,12 @@ describe('isReportItem', () => {
   it('rejects non-string msg', () => {
     expect(isReportItem({ ...item, msg: 42 })).toBe(false);
   });
+  it('accepts optional expectValue', () => {
+    expect(isReportItem({ ...item, expectValue: '锁定' })).toBe(true);
+  });
+  it('rejects non-string expectValue', () => {
+    expect(isReportItem({ ...item, expectValue: 42 })).toBe(false);
+  });
 });
 
 describe('moveReportItem', () => {

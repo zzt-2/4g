@@ -17,7 +17,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  update: [frameId: string, fieldId: string];
+  // 单次 emit (frameId, fieldId, fieldName)。切帧时 (新帧, '', '')。
+  // fieldName 是所选字段的显示名,父用它作为 ReportItem.name 的默认值(D008:解法 Y)。
+  update: [frameId: string, fieldId: string, fieldName: string];
 }>();
 
 // 接收方向帧列表(只列 receive,排除 send 帧——报告取的是接收帧字段的 displayValue)。
@@ -38,11 +40,13 @@ const fieldOptions = computed(() => {
 
 function onFrameChange(id: string | null): void {
   // 切帧时清空字段(旧字段不属于新帧)。单次 emit,父一次性更新。
-  emit('update', id ?? '', '');
+  emit('update', id ?? '', '', '');
 }
 
 function onFieldChange(id: string | null): void {
-  emit('update', props.frameId, id ?? '');
+  // 选字段:连 fieldName 一起 emit,父用它作 name 默认值。
+  const ref = id ? fieldOptions.value.find((o) => o.value === id) : undefined;
+  emit('update', props.frameId, id ?? '', ref?.label ?? '');
 }
 </script>
 

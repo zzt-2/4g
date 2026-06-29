@@ -19,17 +19,23 @@
  */
 
 /** 用例报告配置中的一项(检查点/统计项/附加项通用结构)。
- *  name → 甲方 checkPoint/itemName;frameId:fieldId 定位取值;msg 可选说明。
- *  三类(checkPoints/statisticsItems/attachItems)都用此结构,填报告时映射各自字段名。 */
+ *  name → 甲方 checkPoint/itemName;frameId:fieldId 定位取值;expectValue/msg 可选。
+ *  三类(checkPoints/statisticsItems/attachItems)都用此结构,填报告时映射各自字段名。
+ *
+ *  name 默认 = 所选字段的 fieldName(UI 选字段那一刻自动填入),用户可在 name 框覆盖。
+ *  解法 Y:fieldName 作为默认值快照进 name,不靠生成时实时查帧服务
+ *  (northbound 不依赖 frame feature,守 D004 边界)。代价是帧改名后老配置不自动跟。 */
 export interface ReportItem {
   /** 项唯一 id(nanoid),排序/编辑追踪用 */
   readonly id: string;
-  /** 报告里这一项叫啥("载波同步锁定") */
+  /** 报告里这一项叫啥("载波同步锁定")。默认 = 所选字段名,可在 name 框覆盖 */
   readonly name: string;
   /** 取值的帧 */
   readonly frameId: string;
   /** 取值的字段(取该字段的 displayValue) */
   readonly fieldId: string;
+  /** 期望结果,可选 → 甲方 expectValue。和 msg 一样的可选文本框 */
+  readonly expectValue?: string;
   /** 说明,可选 → 甲方 msg */
   readonly msg?: string;
 }
@@ -106,6 +112,7 @@ export function isReportItem(v: unknown): v is ReportItem {
     typeof o.name === 'string' &&
     typeof o.frameId === 'string' &&
     typeof o.fieldId === 'string' &&
+    (o.expectValue === undefined || typeof o.expectValue === 'string') &&
     (o.msg === undefined || typeof o.msg === 'string')
   );
 }

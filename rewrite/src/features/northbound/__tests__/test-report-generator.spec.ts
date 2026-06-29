@@ -274,5 +274,34 @@ describe('generateTestReport — reportConfig driven (D008)', () => {
     const tc = JSON.parse(json).testCaseList[0];
     expect(tc.checkPoints.map((c: { checkPoint: string }) => c.checkPoint)).toEqual(['第一', '第二', '第三']);
   });
+
+  // expectValue(期望结果)可选字段:三类都支持。checkPoint 必填位置兜底空串,
+  // statisticsItem/attachItem 可选位置原样透传 undefined。
+  it('fills expectValue in all three categories when provided', () => {
+    const cfg: ReportConfig = {
+      templateId: 'tpl',
+      checkPoints: [{ id: 'cp', name: '载波同步', frameId: 'fA', fieldId: 'lock', expectValue: '锁定' }],
+      statisticsItems: [{ id: 'st', name: '误码率', frameId: 'fA', fieldId: 'ber', expectValue: '<1%' }],
+      attachItems: [{ id: 'at', name: '附加', frameId: 'fA', fieldId: 'x', expectValue: '期望X' }],
+    };
+    const json = gen({ reportConfig: cfg, displaySnapshot: new Map([['fA:lock', '锁定'], ['fA:ber', '0.2%'], ['fA:x', '实测X']]) });
+    const tc = JSON.parse(json).testCaseList[0];
+    expect(tc.checkPoints[0].expectValue).toBe('锁定');     // 必填位置,有值
+    expect(tc.statisticsItems[0].expectValue).toBe('<1%');   // 可选位置,有值
+    expect(tc.attachItems[0].expectValue).toBe('期望X');     // 可选位置,有值
+  });
+
+  it('leaves expectValue empty string for checkPoint when not provided', () => {
+    const cfg: ReportConfig = {
+      templateId: 'tpl',
+      checkPoints: [{ id: 'cp', name: '载波同步', frameId: 'fA', fieldId: 'lock' }], // 无 expectValue
+      statisticsItems: [{ id: 'st', name: '误码率', frameId: 'fA', fieldId: 'ber' }],
+      attachItems: [],
+    };
+    const json = gen({ reportConfig: cfg, displaySnapshot: new Map([['fA:lock', '锁定'], ['fA:ber', '0.2%']]) });
+    const tc = JSON.parse(json).testCaseList[0];
+    expect(tc.checkPoints[0].expectValue).toBe('');          // checkPoint 兜底空串(必填)
+    expect(tc.statisticsItems[0].expectValue).toBeUndefined(); // 可选位置,未配即 undefined
+  });
 });
 

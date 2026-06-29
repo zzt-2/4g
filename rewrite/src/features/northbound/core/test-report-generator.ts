@@ -119,7 +119,7 @@ export function generateTestReport(input: GenerateTestReportInput): string {
     const value = snapshot.get(`${item.frameId}:${item.fieldId}`) ?? '';
     return {
       checkPoint: item.name,
-      expectValue: '', // D008:纯取值,不做期望/判定配置
+      expectValue: item.expectValue ?? '', // 可选;未配留空(checkPoint 期望值位置必填 string)
       testValue: value,
       result: isPassed ? '通过' : '未通过',
       msg: item.msg ?? '', // 甲方 TestReportCheckPoint.msg 必填 string,undefined 兜底空串
@@ -129,6 +129,7 @@ export function generateTestReport(input: GenerateTestReportInput): string {
     const value = snapshot.get(`${item.frameId}:${item.fieldId}`) ?? '';
     return {
       itemName: item.name,
+      expectValue: item.expectValue, // 可选,未配即 undefined(甲方 statisticsItem.expectValue 可选)
       testValue: value,
       msg: item.msg ?? '',
     };
