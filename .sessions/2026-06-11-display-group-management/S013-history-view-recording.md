@@ -64,6 +64,9 @@ worktree `.worktrees/history-view-recording`（branch `feat/history-view-recordi
   2. **录制配置改后没持久化(重启丢选帧)**：applyRecordingConfig 调了 setRecordingConfig(写内存)但漏调 persistDisplay()(写盘)。H014/S012 遗留 bug(注释写"落盘"但代码没落),此前录制未端到端用过未暴露。补 persistDisplay()。**教训:注释声称的行为要和代码核对。**
   两个 bug 都是代码层测试(Vitest)覆盖不到的——一个是 Vue 组件调用方式,一个是落盘时机接线。端到端手测才暴露。
 
+- **用户实测发现第 3 个 bug,已修（commit 待提交）**：
+  3. **loadData: fileList.filter is not a function**：handleListFiles 返回 `{ files: [...] }` 对象,但 RecordingBridge.listRecordingFiles 类型签名声明返回数组。TS 没报错——因为 IPC handler 是主进程代码,运行时实际返回对象,而测试只 mock 到 facade 层(返回数组),handler 层无测试覆盖,所以 T7 跑绿但运行时崩。改 handler 直接返回数组。**教训:IPC handler 层(主进程)是测试盲区,facade mock 和 handler 实现的返回形状必须人工核对一致,不能只信类型签名(类型签名在 IPC 透传时不强制)。**
+
 - **待用户目标 Linux 机端到端手测**（必做,本轮最终判据）：
   1. 录几帧 → 确认 .bin 含帧定义块
   2. 进 History 页（确认不崩——拼写 bug + loadData.value 已修）
