@@ -64,8 +64,11 @@ worktree `.worktrees/history-view-recording`（branch `feat/history-view-recordi
   2. **录制配置改后没持久化(重启丢选帧)**：applyRecordingConfig 调了 setRecordingConfig(写内存)但漏调 persistDisplay()(写盘)。H014/S012 遗留 bug(注释写"落盘"但代码没落),此前录制未端到端用过未暴露。补 persistDisplay()。**教训:注释声称的行为要和代码核对。**
   两个 bug 都是代码层测试(Vitest)覆盖不到的——一个是 Vue 组件调用方式,一个是落盘时机接线。端到端手测才暴露。
 
-- **用户实测发现第 3 个 bug,已修（commit 待提交）**：
+- **用户实测发现第 3 个 bug,已修（commit 79d228b）**：
   3. **loadData: fileList.filter is not a function**：handleListFiles 返回 `{ files: [...] }` 对象,但 RecordingBridge.listRecordingFiles 类型签名声明返回数组。TS 没报错——因为 IPC handler 是主进程代码,运行时实际返回对象,而测试只 mock 到 facade 层(返回数组),handler 层无测试覆盖,所以 T7 跑绿但运行时崩。改 handler 直接返回数组。**教训:IPC handler 层(主进程)是测试盲区,facade mock 和 handler 实现的返回形状必须人工核对一致,不能只信类型签名(类型签名在 IPC 透传时不强制)。**
+
+- **用户实测发现第 4 个 bug,已修（commit 待提交）**：
+  4. **Buffer is not defined（recording-reader 解析崩）**：parseRecordingFileBytes/decodeFrameRecords/decodeFrameDefinitions 用了 Node `Buffer`,但这些函数在**渲染进程**(useHistoryData→recording-reader→serialization.decode)跑,浏览器无 Buffer。刚录的新文件也崩(不是老格式)。改用 DataView(getUint16/getUint32,littleEndian)+ TextDecoder(utf8)+ Uint8Array.subarray(均为跨环境 Web 标准),渲染/主进程都能跑。encode 留主进程用 Buffer(主进程有)。**教训:跨进程(主↔渲染)共享的纯函数,不能依赖单一进程的全局(如 Node Buffer)——要用 Web 标准跨环境 API。T4 写 reader 时照搬主进程 serialization 的 Buffer 写法,没意识到消费端是渲染进程。代码层测试在 Node/vitest 跑(有 Buffer),抓不到这个环境边界 bug。**
 
 - **待用户目标 Linux 机端到端手测**（必做,本轮最终判据）：
   1. 录几帧 → 确认 .bin 含帧定义块
