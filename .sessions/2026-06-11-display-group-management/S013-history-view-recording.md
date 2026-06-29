@@ -67,8 +67,15 @@ worktree `.worktrees/history-view-recording`（branch `feat/history-view-recordi
 - **用户实测发现第 3 个 bug,已修（commit 79d228b）**：
   3. **loadData: fileList.filter is not a function**：handleListFiles 返回 `{ files: [...] }` 对象,但 RecordingBridge.listRecordingFiles 类型签名声明返回数组。TS 没报错——因为 IPC handler 是主进程代码,运行时实际返回对象,而测试只 mock 到 facade 层(返回数组),handler 层无测试覆盖,所以 T7 跑绿但运行时崩。改 handler 直接返回数组。**教训:IPC handler 层(主进程)是测试盲区,facade mock 和 handler 实现的返回形状必须人工核对一致,不能只信类型签名(类型签名在 IPC 透传时不强制)。**
 
-- **用户实测发现第 4 个 bug,已修（commit 待提交）**：
+- **用户实测发现第 4 个 bug,已修（commit deeadc3）**：
   4. **Buffer is not defined（recording-reader 解析崩）**：parseRecordingFileBytes/decodeFrameRecords/decodeFrameDefinitions 用了 Node `Buffer`,但这些函数在**渲染进程**(useHistoryData→recording-reader→serialization.decode)跑,浏览器无 Buffer。刚录的新文件也崩(不是老格式)。改用 DataView(getUint16/getUint32,littleEndian)+ TextDecoder(utf8)+ Uint8Array.subarray(均为跨环境 Web 标准),渲染/主进程都能跑。encode 留主进程用 Buffer(主进程有)。**教训:跨进程(主↔渲染)共享的纯函数,不能依赖单一进程的全局(如 Node Buffer)——要用 Web 标准跨环境 API。T4 写 reader 时照搬主进程 serialization 的 Buffer 写法,没意识到消费端是渲染进程。代码层测试在 Node/vitest 跑(有 Buffer),抓不到这个环境边界 bug。**
+
+- **用户实测发现第 5 个问题(图表配置完全坏),修中**：
+  5. **图表配置不可用**：读完历史图表自动出现(没选字段就有图)+ 配置里全 `[object Object]` + 自己选没反应。
+     **根因(设计层面,非一行 bug)**：History 页有个**过时的本地 ChartConfigDialog 副本**(`src/pages/history/ChartConfigDialog.vue`),停留在旧 StorageLocalRecord 时代,把 `ChartSelectedItem`(对象 `{groupId,frameId,fieldId}`)当**字符串**用(`ref<string[]>`+q-select emit-value)。而 display feature 已有**标准的、正确的** ChartConfigDialog(`@/features/display/components/ChartConfigDialog.vue`,DisplayPage 在用,对象语义 chip toggle)。三方契约打架:类型定义=对象 / History 本地副本=字符串 / refreshCharts=对象。
+     **附带**:useHistoryData hierarchy 的 fieldId 是复合 `frameId:fieldId`,但 ChartSelectedItem.fieldId 是裸 fieldId,第二层不一致——这导致"没选就有图"(反查逻辑 `item.frameId` 在字符串上是 undefined→误匹配)。
+     **决策(用户拍板)**：**复用 display 标准组件**,删 History 本地旧副本。History 页提供 availableFields(FieldOption[])用**左边选中的字段**(selectedGlobalItems 作可用字段池,保持"先选数据项再配图表"流程)+ 适配 save 事件。统一 ChartSelectedItem 契约:`{groupId: frameId, frameId, fieldId(裸)}`(新模型无 DisplayGroup 概念,groupId 用 frameId 占位)。refreshCharts 用 frameId+fieldId 反查(不经复合字符串)。
+     **教训:复制组件副本而不复用,副本会脱离标准演进,最终类型契约打架。H015 重写 useHistoryData 时没发现 History 有个本地 ChartConfigDialog 旧副本,没一并处理。**
 
 - **待用户目标 Linux 机端到端手测**（必做,本轮最终判据）：
   1. 录几帧 → 确认 .bin 含帧定义块
