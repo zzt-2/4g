@@ -69,49 +69,15 @@ export interface TestReportJson {
   readonly taskDatas: readonly unknown[];
 }
 
-// --- Config for mock data ---
+// --- Config for mock data (D008 后废弃:checkPoints 改由 reportConfig 驱动) ---
+// TestReportMockConfig 类型保留(GenerateTestReportInput.mockConfig 入参的类型,接口兼容);
+// 原 DEFAULT_MOCK_CONFIG 假数据常量已删(D008:不再 fallback 假 checkPoints,诚实空着)。
 
 export interface TestReportMockConfig {
   readonly checkPointDefs: readonly TestReportCheckPoint[];
   readonly processSteps: readonly TestReportProcessAndData[];
   readonly deviceIds: readonly string[];
 }
-
-const DEFAULT_MOCK_CONFIG: TestReportMockConfig = {
-  checkPointDefs: [
-    { checkPoint: '上电状态', expectValue: '已上电', testValue: '0x0001', result: '通过', msg: '' },
-    { checkPoint: '载波同步锁定', expectValue: '锁定', testValue: '0x0001', result: '通过', msg: '' },
-    { checkPoint: '帧同步锁定', expectValue: '锁定', testValue: '0x0001', result: '通过', msg: '' },
-    { checkPoint: '误码率', expectValue: '<1%', testValue: '0.2%', result: '通过', msg: '' },
-  ],
-  processSteps: [
-    {
-      stepName: '发送帧',
-      initPars: {},
-      setPars: {},
-      resultDatas: { '发送速率': '5Gbps(QPSK)', '发送帧计数': '100' },
-      startTime: '',
-      endTime: '',
-    },
-    {
-      stepName: '接收帧',
-      initPars: {},
-      setPars: {},
-      resultDatas: { '接收速率': '5Gbps(QPSK)', '载波同步': '锁定', '帧同步': '锁定' },
-      startTime: '',
-      endTime: '',
-    },
-    {
-      stepName: '校验结果',
-      initPars: {},
-      setPars: {},
-      resultDatas: { '误码率': '0.2%', '接收数据帧计数': '98', '接收误帧计数': '2' },
-      startTime: '',
-      endTime: '',
-    },
-  ],
-  deviceIds: ['ADS_LCT_01'],
-};
 
 // --- Generator ---
 
