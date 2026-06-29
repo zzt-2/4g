@@ -38,6 +38,7 @@ import {
   type ScoeGlobalConfig,
 } from '@/features/command-ingress';
 import { LazyDockingStorage } from '@/features/command-ingress/services/docking-file-storage';
+import { LazyReportConfigStorage } from '@/features/command-ingress/services/report-config-file-storage';
 import {
   createDockingBatchRegistry,
   type DockingBatchRegistry,
@@ -89,6 +90,10 @@ export interface RewriteWiredFeatures {
   /** S016: 中心对接数据文件持久化 holder(对接配置/设备/映射表)。wireFeatures 时建空壳,
    *  bootstrap 拿到 fileFacade 后建真 storage + hydrate + setDelegate 注入。 */
   readonly dockingStorage: LazyDockingStorage;
+  /** S018: 用例报告配置文件持久化 holder(state/report-configs.json)。wireFeatures 时建空壳,
+   *  bootstrap 拿到 fileFacade 后建真 storage + hydrate + setDelegate 注入。
+   *  northbound 的 reportConfigProvider 闭包调 getByTemplateId,空壳阶段返 undefined(诚实空)。 */
+  readonly reportConfigStorage: LazyReportConfigStorage;
   /** 中心下发批次元信息内存映射表(不持久化,setTestTask 时建,重启清空)。
    *  批次面板从 taskService 实例 + 此映射表派生(spec: 批次历史改内存派生)。 */
   readonly batchRegistry: DockingBatchRegistry;
@@ -116,6 +121,7 @@ export function wireFeatures(
 ): RewriteWiredFeatures {
   // L0: no cross-dependencies
   const dockingStorage = new LazyDockingStorage();
+  const reportConfigStorage = new LazyReportConfigStorage();
   const batchRegistry = createDockingBatchRegistry();
   const frameService = createDefaultFrameService();
   const frameReader = frameService;
@@ -243,6 +249,11 @@ export function wireFeatures(
     reportedSnapshotStorage,
     // 批次元信息内存映射表(spec: 批次历史改内存派生):不持久化,setTestTask 时建,面板从实例派生。
     batchRegistry,
+    // S018: 报告配置驱动(D008)。reportConfigProvider 闭包调 holder.getByTemplateId——
+    // holder 是 LazyReportConfigStorage,wireFeatures 同步建空壳,bootstrap 异步 hydrate 后 setDelegate。
+    // 漏传这两项 = 报告生成时取不到数据 = 静默失败(同 S014/S017 病),必须显式注入。
+    reportConfigProvider: (templateId) => reportConfigStorage.getByTemplateId(templateId),
+    displayFieldReader: displayService, // getSourceFields() 已存在(display-service.ts:251)
   });
 
   // 事件订阅（onStepResult / onTaskSettled）由 northbound 在 start() 内自管
@@ -264,6 +275,7 @@ export function wireFeatures(
     northboundService,
     receiveEventSourceBridge,
     dockingStorage,
+    reportConfigStorage,
     batchRegistry,
     recordingService,
     recordingBridge,

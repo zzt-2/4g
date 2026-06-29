@@ -14,6 +14,7 @@ import { decideFrameSeed } from '@/runtime/frame-seed';
 import { deserializeFrames } from '@/features/frame';
 import { createTaskTemplateFileStorage, createTaskTemplateStorage } from '@/features/task';
 import { createDockingFileStorage } from '@/features/command-ingress/services/docking-file-storage';
+import { createReportConfigFileStorage } from '@/features/command-ingress/services/report-config-file-storage';
 
 const rewriteRuntimeKey: InjectionKey<RewriteRuntime> = Symbol('rewrite-runtime');
 
@@ -178,6 +179,10 @@ async function initPersistenceAsync(
     // localStorage → state/docking.json,跟 task 模板同套路。3 份合写一个文件。
     await hydrateDockingData(runtime, fileFacade, dataDir);
 
+    // 用例报告配置文件持久化(S018):state/report-configs.json,跟 docking 同套路但独立文件。
+    // reportConfigProvider 走 LazyHolder,bootstrap hydrate 后 setDelegate 注入真 storage。
+    await hydrateReportConfigData(runtime, fileFacade, dataDir);
+
     // 中心下发批次元信息走内存映射表(spec: 批次历史改内存派生),不持久化,无需 hydrate。
   } catch (err: unknown) {
     console.error('[bootstrap] Persistence initialization failed:', err instanceof Error ? err.message : err);
@@ -341,5 +346,43 @@ async function hydrateDockingData(
   await storage.hydrate();
 
   runtime.features.dockingStorage.setDelegate(storage);
+}
+
+/**
+ * 用例报告配置 hydrate + 注入(S018,照 hydrateDockingData 同套路)。
+ *
+ * 报告配置(checkPoints/statisticsItems/attachItems 三类清单)走独立文件 state/report-configs.json,
+ * 跟 docking 同范式:创建文件后端 storage(原子写 + .bak 损坏恢复),hydrate 读文件,
+ * 再 setDelegate 注进 runtime 的 LazyReportConfigStorage holder。
+ *
+ * northbound 的 reportConfigProvider 闭包调 holder.getByTemplateId——AppShell 保证 ready
+ * resolve 前不渲染 router-view,所以 task settled 触发报告生成时 delegate 一定已是真 storage
+ * (hydrate 完)。极端情况(hydrate 前/没配)返 undefined → 报告三类空(诚实非造假,D008)。
+ */
+async function hydrateReportConfigData(
+  runtime: RewriteRuntime,
+  fileFacade: FileFacade,
+  dataDir: string,
+): Promise<void> {
+  const storage = createReportConfigFileStorage(fileFacade, dataDir, {
+    onDataLoss: (message) => {
+      console.error('[bootstrap]', message);
+      import('quasar')
+        .then(({ Notify }) => {
+          try {
+            Notify.create({ type: 'warning', message: '报告配置', caption: message, timeout: 10000 });
+          } catch {
+            // Notify.create 失败(app 上下文未就绪)→ 忽略,console.error 已记录
+          }
+        })
+        .catch(() => {
+          // quasar 模块加载失败 → 忽略
+        });
+    },
+  });
+
+  await storage.hydrate();
+
+  runtime.features.reportConfigStorage.setDelegate(storage);
 }
 
