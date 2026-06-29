@@ -77,10 +77,12 @@ function handleUpdateConfig(
 }
 
 // 列 recordings/ 目录下所有 .bin 文件元信息(按 mtime 降序)。History 页时间筛选用。
-function handleListFiles(): { readonly files: readonly RecordingFileMeta[] } {
+// 直接返回数组(与 RecordingBridge.listRecordingFiles 类型签名一致,
+// 不要包 { files } 对象——否则消费端 fileList.filter 崩)。
+function handleListFiles(): readonly RecordingFileMeta[] {
   const dir = recordingsDir()
   try {
-    const files = fs.readdirSync(dir)
+    return fs.readdirSync(dir)
       .filter((f) => f.startsWith('rec_') && f.endsWith('.bin'))
       .map((f) => {
         const fp = path.join(dir, f)
@@ -88,10 +90,9 @@ function handleListFiles(): { readonly files: readonly RecordingFileMeta[] } {
         return { fileName: f, filePath: fp, byteLength: stat.size, mtimeMs: stat.mtimeMs }
       })
       .sort((a, b) => b.mtimeMs - a.mtimeMs)
-    return { files }
   } catch {
     // 目录不存在或读失败 → 空列表(不崩,History 显示无数据)
-    return { files: [] }
+    return []
   }
 }
 
