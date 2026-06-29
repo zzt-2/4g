@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRewriteRuntime } from '@/app/rewriteRuntime';
 import { useNotify } from '@/shared/composables';
 import WaveformChart from '@/widgets/WaveformChart.vue';
 import HistoryTimeSelector from './history/HistoryTimeSelector.vue';
 import HistoryDataSelector from './history/HistoryDataSelector.vue';
 import CSVExportDialog from './history/CSVExportDialog.vue';
-import ChartConfigDialog from './history/ChartConfigDialog.vue';
+// 复用 display feature 的标准 ChartConfigDialog(对象语义,非本地旧字符串副本)。
+import ChartConfigDialog from '@/features/display/components/ChartConfigDialog.vue';
 import { useHistoryData } from './history/useHistoryData';
 import { getFileFacade } from '@/platform';
+import type { ChartInstancePatch, ChartInstancePreference } from '@/features/display';
 
 // ===== Service references =====
 const runtime = useRewriteRuntime();
@@ -28,7 +30,10 @@ const notify = useNotify();
 // ===== UI state =====
 const chartCount = ref(1);
 const showExportDialog = ref(false);
-const configChartId = ref<string | null>(null);
+// 图表配置弹窗(复用 display 标准 ChartConfigDialog):chartConfigOpen 控制显隐,
+// editingChartId 记正在编辑哪个 chart,editingChartPreference 是该 chart 当前 preference。
+const chartConfigOpen = ref(false);
+const editingChartId = ref<string>('');
 
 // ===== Operations =====
 async function handleLoad(): Promise<void> {
@@ -51,8 +56,29 @@ function handleGlobalSelectChange(items: Set<string>): void {
   history.selectedGlobalItems.value = items;
 }
 
-function handleChartConfigSaved(): void {
+// 正在编辑的 chart 当前 preference(传给标准 ChartConfigDialog 作 chartPreference prop)。
+const editingChartPreference = computed<ChartInstancePreference | null>(() => {
+  if (!editingChartId.value) return null;
+  const prefs = displayService.getPreferences();
+  return prefs.charts.find((c) => c.id === editingChartId.value) ?? null;
+});
+
+function openChartConfig(chartId: string): void {
+  editingChartId.value = chartId;
+  chartConfigOpen.value = true;
+}
+
+// 标准 ChartConfigDialog save 事件:patch 含 selectedItems(ChartSelectedItem[])+yAxis。
+// updateChartConfig 落 service 内存 + persistDisplay 落盘 + refreshCharts 重算曲线。
+function saveChartConfig(patch: ChartInstancePatch): void {
+  displayService.updateChartConfig(editingChartId.value, patch);
+  persistDisplay();
   history.refreshCharts();
+  chartConfigOpen.value = false;
+}
+
+function persistDisplay(): void {
+  runtime.persistence.saveDisplayPreferences();
 }
 
 const CHART_HEIGHTS: Record<number, string> = {
@@ -161,7 +187,7 @@ onMounted(() => {
             <div class="rw-panel-base rounded mb-4 overflow-hidden">
               <div class="flex items-center justify-between px-4 py-2 rw-divider-b">
                 <span class="rw-text-value text-sm">{{ getChartTitle(chart.id) }}</span>
-                <q-btn flat dense no-caps size="xs" label="配置" color="primary" @click="configChartId = chart.id" />
+                <q-btn flat dense no-caps size="xs" label="配置" color="primary" @click="openChartConfig(chart.id)" />
               </div>
               <div class="p-2">
                 <WaveformChart
@@ -199,11 +225,10 @@ onMounted(() => {
       :record-count="history.recordCount.value"
     />
     <ChartConfigDialog
-      v-model="configChartId"
-      :display-service="displayService"
-      :available-items="history.selectedGlobalItems.value"
-      :hierarchy="history.itemHierarchy.value"
-      @update:model-value="handleChartConfigSaved"
+      v-model="chartConfigOpen"
+      :chart-preference="editingChartPreference"
+      :available-fields="history.availableFields.value"
+      @save="saveChartConfig"
     />
   </q-page>
 </template>

@@ -30,6 +30,17 @@ export interface DataItemGroup {
   readonly items: readonly DataItemInfo[];
 }
 
+/** 可供图表配置选择的字段(对齐 display feature ChartConfigDialog 的 FieldOption)。
+ *  ChartSelectedItem 用 {groupId, frameId, fieldId} 三元组定位;
+ *  新模型无 DisplayGroup 概念,groupId 用 frameId 占位(满足类型,反查时不用 groupId)。 */
+export interface AvailableField {
+  readonly groupId: string;
+  readonly frameId: string;
+  readonly fieldId: string;
+  readonly fieldName: string;
+  readonly frameName: string;
+}
+
 // --- Statistics types ---
 
 export interface SeriesStatistics {
@@ -135,6 +146,9 @@ export function computeSeriesStats(points: readonly ChartPoint[]): { mean: numbe
 
 export interface HistoryDataState {
   readonly itemHierarchy: Readonly<Ref<readonly DataItemGroup[]>>;
+  /** 可供图表配置选择的字段(供 ChartConfigDialog 的 available-fields)。
+   *  由 loadedSeries 转出,可选按 selectedGlobalItems 过滤(只暴露选中的字段)。 */
+  readonly availableFields: Readonly<Ref<readonly AvailableField[]>>;
   readonly enrichedCharts: Readonly<Ref<readonly ChartInstanceProjection[]>>;
   readonly chartStats: Readonly<Ref<readonly ChartStatistics[]>>;
   readonly recordCount: Readonly<Ref<number>>;
@@ -170,6 +184,29 @@ export function useHistoryData(
       0,
     ),
   );
+
+  // 可供图表配置选择的字段:从 loadedSeries 转成 AvailableField[](对齐 display feature
+  // ChartConfigDialog 的 FieldOption)。只暴露"在左侧数据项里勾选过"的字段
+  // (selectedGlobalItems 是复合 `${frameId}:${fieldId}` 字符串集),保持"先选数据项再配图表"流程。
+  const availableFields = computed<AvailableField[]>(() => {
+    const selected = selectedGlobalItems.value;
+    const result: AvailableField[] = [];
+    for (const frame of loadedSeries.value) {
+      for (const [fieldId, f] of frame.fields) {
+        const composite = compositeFieldId(frame.frameId, fieldId);
+        if (selected.has(composite)) {
+          result.push({
+            groupId: frame.frameId, // 新模型无 DisplayGroup,groupId 用 frameId 占位
+            frameId: frame.frameId,
+            fieldId, // 裸 fieldId(配合 frameId 定位,非复合字符串)
+            fieldName: f.fieldName,
+            frameName: frame.frameName,
+          });
+        }
+      }
+    }
+    return result;
+  });
 
   function refreshCharts(): void {
     const prefs = displayService.getPreferences();
@@ -261,6 +298,7 @@ export function useHistoryData(
 
   return {
     itemHierarchy,
+    availableFields,
     enrichedCharts,
     chartStats,
     recordCount,
